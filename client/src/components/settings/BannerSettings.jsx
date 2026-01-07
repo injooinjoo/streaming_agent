@@ -99,9 +99,9 @@ const BannerSettings = () => {
             <div className="form-group">
               <label>이미지 채우기</label>
               <select value={settings.fit} onChange={(e) => setSettings({ ...settings, fit: e.target.value })}>
-                <option value="cover">Cover</option>
-                <option value="contain">Contain</option>
-                <option value="fill">Fill</option>
+                <option value="cover">가득 채우기 (Cover)</option>
+                <option value="contain">맞춤 (Contain)</option>
+                <option value="fill">비율에 맞춰 채우기 (Fill)</option>
               </select>
             </div>
           </div>

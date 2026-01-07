@@ -38,21 +38,21 @@ const themeOptions = [
 ];
 
 const animationOptions = [
-  { value: 'bounceIn', label: 'Bounce' },
-  { value: 'fadeIn', label: 'Fade' },
-  { value: 'fadeOut', label: 'Fade Out' },
-  { value: 'flipInX', label: 'Flip' },
-  { value: 'zoomIn', label: 'Zoom' },
-  { value: 'slideInRight', label: 'Slide' }
+  { value: 'bounceIn', label: '바운스' },
+  { value: 'fadeIn', label: '페이드 인' },
+  { value: 'fadeOut', label: '페이드 아웃' },
+  { value: 'flipInX', label: '플립' },
+  { value: 'zoomIn', label: '확대' },
+  { value: 'slideInRight', label: '슬라이드' }
 ];
 
 const textEffects = [
-  { value: 'tada', label: 'Tada' },
-  { value: 'flash', label: 'Flash' },
-  { value: 'wobble', label: 'Wobble' },
-  { value: 'bounce', label: 'Bounce' },
-  { value: 'rotate', label: 'Rotate' },
-  { value: 'rollIn', label: 'RollIn' }
+  { value: 'tada', label: '타다' },
+  { value: 'flash', label: '번쩍임' },
+  { value: 'wobble', label: '흔들림' },
+  { value: 'bounce', label: '통통' },
+  { value: 'rotate', label: '회전' },
+  { value: 'rollIn', label: '롤인' }
 ];
 
 const AlertSettings = () => {

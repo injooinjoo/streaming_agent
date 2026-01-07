@@ -127,9 +127,9 @@ const DesignSettings = () => {
             <div className="form-group">
               <label>채우기 옵션</label>
               <select value={settings.backgroundFit} onChange={(e) => setSettings({ ...settings, backgroundFit: e.target.value })}>
-                <option value="cover">Cover</option>
-                <option value="contain">Contain</option>
-                <option value="fill">Fill</option>
+                <option value="cover">가득 채우기 (Cover)</option>
+                <option value="contain">맞춤 (Contain)</option>
+                <option value="fill">비율에 맞춰 채우기 (Fill)</option>
               </select>
             </div>
             <div className="form-group">

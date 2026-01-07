@@ -3,7 +3,7 @@ import {
   Layout, MessageSquare, Bell, FileText, BarChart3,
   Type, Image as ImageIcon, HelpCircle,
   Send, Plus, ExternalLink, Settings, History,
-  User, RefreshCw, Megaphone, Palette
+  User, RefreshCw, Megaphone, Palette, Menu
 } from 'lucide-react';
 import ChatSettings from './settings/ChatSettings';
 import AlertSettings from './settings/AlertSettings';
@@ -13,10 +13,12 @@ import TickerSettings from './settings/TickerSettings';
 import TextSettings from './settings/TextSettings';
 import BannerSettings from './settings/BannerSettings';
 import DesignSettings from './settings/DesignSettings';
+import AccountSettings from './settings/AccountSettings';
 import './Dashboard.css';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const [isSimulating, setIsSimulating] = useState(false);
   const [events, setEvents] = useState([]);
   const [simulation, setSimulation] = useState({
@@ -29,22 +31,22 @@ const Dashboard = () => {
 
   const menuGroups = [
     {
-      label: 'Main Menu',
+      label: '메인 메뉴',
       items: [
-        { id: 'dashboard', label: 'Dashboard', icon: <Layout size={18} /> },
-        { id: 'chat', label: 'Chat Overlay', icon: <MessageSquare size={18} /> },
-        { id: 'alerts', label: 'Donation Alerts', icon: <Bell size={18} /> }
+        { id: 'dashboard', label: '대시보드', icon: <Layout size={18} /> },
+        { id: 'chat', label: '채팅 오버레이', icon: <MessageSquare size={18} /> },
+        { id: 'alerts', label: '후원 알림', icon: <Bell size={18} /> }
       ]
     },
     {
-      label: 'Custom Widgets',
+      label: '커스텀 위젯',
       items: [
-        { id: 'subtitles', label: 'Subtitles', icon: <FileText size={18} /> },
-        { id: 'goals', label: 'Goal Tracker', icon: <BarChart3 size={18} /> },
-        { id: 'ticker', label: 'News Ticker', icon: <Megaphone size={18} /> },
-        { id: 'text', label: 'Custom Text', icon: <Type size={18} /> },
-        { id: 'banners', label: 'Banners', icon: <ImageIcon size={18} /> },
-        { id: 'design', label: 'Design Customizer', icon: <Palette size={18} /> }
+        { id: 'subtitles', label: '자막 설정', icon: <FileText size={18} /> },
+        { id: 'goals', label: '목표치 위젯', icon: <BarChart3 size={18} /> },
+        { id: 'ticker', label: '뉴스 티커', icon: <Megaphone size={18} /> },
+        { id: 'text', label: '커스텀 텍스트', icon: <Type size={18} /> },
+        { id: 'banners', label: '배너 위젯', icon: <ImageIcon size={18} /> },
+        { id: 'design', label: '디자인 커스터마이저', icon: <Palette size={18} /> }
       ]
     }
   ];
@@ -77,7 +79,7 @@ const Dashboard = () => {
 
   const triggerSimulate = async () => {
     if (!simulation.sender) {
-      alert("Please enter a sender name.");
+      alert("송신자 이름을 입력해주세요.");
       return;
     }
     setIsSimulating(true);
@@ -101,15 +103,15 @@ const Dashboard = () => {
         <div className="animate-fade">
           <header className="page-header">
             <div className="page-title">
-              <h1>Welcome back, Streamer! 👋</h1>
-              <p>Here's what's happening with your stream today.</p>
+              <h1>환영합니다! 👋</h1>
+              <p>오늘의 스트림 현황을 확인해보세요.</p>
             </div>
             <div className="header-buttons">
               <button className="btn-outline">
-                <HelpCircle size={16} /> Feedback
+                <HelpCircle size={16} /> 피드백 보내기
               </button>
               <button className="btn-primary" onClick={() => window.open('/overlay/chat', '_blank')}>
-                <ExternalLink size={16} /> Open Overlay
+                <ExternalLink size={16} /> 오버레이 열기
               </button>
             </div>
           </header>
@@ -117,53 +119,53 @@ const Dashboard = () => {
           <div className="stats-grid">
             <div className="stat-card">
               <div className="stat-header">
-                <span>Total Donations</span>
+                <span>총 후원 금액</span>
                 <HelpCircle size={14} />
               </div>
               <div className="stat-content">
                 <span className="value">₩{stats.todayDonation.toLocaleString()}</span>
-                <span className="subtext">From today's streaming</span>
+                <span className="subtext">오늘 방송 누적</span>
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-header">
-                <span>Peak Viewers</span>
+                <span>최고 시청자 수</span>
                 <HelpCircle size={14} />
               </div>
               <div className="stat-content">
                 <span className="value">{stats.peakViewers.toLocaleString()}</span>
-                <span className="subtext">24% increase from yesterday</span>
+                <span className="subtext">어제 대비 24% 증가</span>
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-header">
-                <span>New Subscriptions</span>
+                <span>신규 구독</span>
                 <HelpCircle size={14} />
               </div>
               <div className="stat-content">
                 <span className="value">{stats.newSubs}</span>
-                <span className="subtext">Across all platforms</span>
+                <span className="subtext">모든 플랫폼 통합</span>
               </div>
             </div>
           </div>
 
           <div className="tabs-container">
-            <button className="tab-btn active">Activity Feed</button>
-            <button className="tab-btn">Pending Events</button>
-            <button className="tab-btn">Analytics</button>
+            <button className="tab-btn active">최근 활동 피드</button>
+            <button className="tab-btn">대기중인 이벤트</button>
+            <button className="tab-btn">방송 통계</button>
           </div>
 
           <div className="table-container">
             <div className="table-header">
-              <span>EVENT TYPE</span>
-              <span>STATUS</span>
-              <span>SENDER</span>
-              <span>AMOUNT / MESSAGE</span>
-              <span style={{ textAlign: 'right' }}>TIME</span>
+              <span>이벤트 타입</span>
+              <span>상태</span>
+              <span>송신자</span>
+              <span>금액 / 메시지</span>
+              <span style={{ textAlign: 'right' }}>시간</span>
             </div>
             <div className="table-list">
               {events.length === 0 ? (
-                <div className="empty-state">No recent activity found.</div>
+                <div className="empty-state">최근 활동 내역이 없습니다.</div>
               ) : (
                 events.map((ev) => (
                   <div key={ev.id} className="table-row">
@@ -175,7 +177,7 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <span className={`status-badge ${ev.type}`}>
-                        {ev.type === 'donation' ? 'Donation' : 'Chat'}
+                        {ev.type === 'donation' ? '후원' : '채팅'}
                       </span>
                     </div>
                     <div style={{ fontWeight: 500 }}>{ev.sender}</div>
@@ -192,37 +194,37 @@ const Dashboard = () => {
           </div>
 
           <div className="simulator-card">
-            <div className="card-title">Event Simulator</div>
-            <p className="card-subtitle">Test your overlays by simulating live events.</p>
+            <div className="card-title">이벤트 시뮬레이터</div>
+            <p className="card-subtitle">라이브 이벤트를 가상으로 발생시켜 오버레이를 테스트해보세요.</p>
             <div className="simulator-form">
               <div className="input-group">
-                <label>Event Type</label>
+                <label>이벤트 종류</label>
                 <select value={simulation.type} onChange={(e) => setSimulation({ ...simulation, type: e.target.value })}>
-                  <option value="chat">Chat Message</option>
-                  <option value="donation">Donation Event</option>
+                  <option value="chat">채팅 메시지</option>
+                  <option value="donation">후원 이벤트</option>
                 </select>
               </div>
               <div className="input-group">
-                <label>Platform</label>
+                <label>플랫폼</label>
                 <select value={simulation.platform} onChange={(e) => setSimulation({ ...simulation, platform: e.target.value })}>
-                  <option value="twitch">Twitch</option>
-                  <option value="youtube">YouTube</option>
-                  <option value="chzzk">CHZZK</option>
-                  <option value="soop">SOOP</option>
+                  <option value="twitch">트위치</option>
+                  <option value="youtube">유튜브</option>
+                  <option value="chzzk">치지직</option>
+                  <option value="soop">숲(SOOP)</option>
                 </select>
               </div>
               <div className="input-group">
-                <label>Username / ID</label>
+                <label>송신자 이름 / ID</label>
                 <input
                   type="text"
-                  placeholder="e.g. GuestUser"
+                  placeholder="예: 홍길동"
                   value={simulation.sender}
                   onChange={(e) => setSimulation({ ...simulation, sender: e.target.value })}
                 />
               </div>
               {simulation.type === 'donation' ? (
                 <div className="input-group">
-                  <label>Amount (KRW)</label>
+                  <label>금액 (KRW)</label>
                   <input
                     type="number"
                     value={simulation.amount}
@@ -231,10 +233,10 @@ const Dashboard = () => {
                 </div>
               ) : (
                 <div className="input-group">
-                  <label>Message Content</label>
+                  <label>메시지 내용</label>
                   <input
                     type="text"
-                    placeholder="Hello stream!"
+                    placeholder="채팅 내용을 입력하세요!"
                     value={simulation.message}
                     onChange={(e) => setSimulation({ ...simulation, message: e.target.value })}
                   />
@@ -248,7 +250,7 @@ const Dashboard = () => {
                   disabled={isSimulating}
                 >
                   {isSimulating ? <RefreshCw size={18} className="spin" /> : <Send size={18} />}
-                  {isSimulating ? 'Sending...' : 'Simulate Event'}
+                  {isSimulating ? '발생 중...' : '시뮬레이션 시작'}
                 </button>
               </div>
             </div>
@@ -266,6 +268,7 @@ const Dashboard = () => {
       text: TextSettings,
       banners: BannerSettings,
       design: DesignSettings,
+      account: AccountSettings,
     }[activeTab];
 
     if (ActiveComponent) return <ActiveComponent />;
@@ -274,16 +277,16 @@ const Dashboard = () => {
       <div className="animate-fade">
         <header className="page-header">
           <div className="page-title">
-            <h1>{menuItems.find(m => m.id === activeTab)?.label} Settings</h1>
-            <p>Customize this widget to match your stream's aesthetic.</p>
+            <h1>{menuItems.find(m => m.id === activeTab)?.label} 설정</h1>
+            <p>스트림 분위기에 맞춰 위젯을 커스터마이징 해보세요.</p>
           </div>
         </header>
         <div className="placeholder-view">
           <Settings size={64} style={{ color: 'var(--border-medium)' }} strokeWidth={1} />
-          <h3 style={{ color: 'var(--text-main)', marginTop: '20px' }}>Feature coming soon</h3>
-          <p>We are working hard to bring you more customization options.</p>
+          <h3 style={{ color: 'var(--text-main)', marginTop: '20px' }}>기능 준비 중</h3>
+          <p>더 많은 커스터마이징 옵션을 준비하고 있습니다. 조금만 기다려주세요!</p>
           <button className="btn-outline" style={{ marginTop: '24px' }} onClick={() => setActiveTab('dashboard')}>
-            Back to Dashboard
+            대시보드로 돌아가기
           </button>
         </div>
       </div>
@@ -291,12 +294,19 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="dashboard-layout">
+    <div className={`dashboard-layout ${isCollapsed ? 'collapsed' : ''}`}>
       <aside className="chatgpt-sidebar">
         <div className="sidebar-top">
           <div className="app-logo">
-            <div className="logo-icon">S</div>
-            <span>StreamAgent</span>
+            <button className="menu-toggle" onClick={() => setIsCollapsed(!isCollapsed)}>
+              <Menu size={20} />
+            </button>
+            {!isCollapsed && (
+              <>
+                <div className="logo-icon">S</div>
+                <span>StreamAgent</span>
+              </>
+            )}
           </div>
         </div>
 
@@ -309,9 +319,10 @@ const Dashboard = () => {
                   key={item.id}
                   className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
                   onClick={() => setActiveTab(item.id)}
+                  title={isCollapsed ? item.label : ''}
                 >
                   {item.icon}
-                  <span>{item.label}</span>
+                  {!isCollapsed && <span>{item.label}</span>}
                 </button>
               ))}
             </div>
@@ -319,12 +330,14 @@ const Dashboard = () => {
         </nav>
 
         <div className="sidebar-user">
-          <div className="user-profile">
+          <div className="user-profile" onClick={() => setActiveTab('account')} title="계정 설정">
             <div className="avatar">JD</div>
-            <div className="user-info">
-              <span className="username" style={{ color: 'var(--text-main)' }}>Jacob Mac</span>
-              <span className="user-plan">Pro Streamer</span>
-            </div>
+            {!isCollapsed && (
+              <div className="user-info">
+                <span className="username" style={{ color: 'var(--text-main)' }}>Jacob Mac</span>
+                <span className="user-plan">프로 스트리머</span>
+              </div>
+            )}
           </div>
         </div>
       </aside>
@@ -333,13 +346,13 @@ const Dashboard = () => {
         <header className="top-nav">
           <div className="search-container">
             <BarChart3 className="search-icon" size={16} />
-            <input type="text" placeholder="Search for anything..." />
+            <input type="text" placeholder="메뉴 검색..." />
           </div>
           <div className="top-actions">
             <button className="action-icon-btn"><Bell size={18} /></button>
             <button className="action-icon-btn"><Settings size={18} /></button>
             <button className="btn-primary" style={{ padding: '8px 16px', borderRadius: '50px' }}>
-              Go Live
+              방송 시작
             </button>
           </div>
         </header>
