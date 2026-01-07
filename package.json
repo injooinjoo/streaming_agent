@@ -1,0 +1,11 @@
+{
+  "name": "streaming-agent-root",
+  "version": "1.0.0",
+  "description": "Root for Streaming Agent",
+  "scripts": {
+    "dev": "npm run dev --prefix client & npm start --prefix server",
+    "client": "npm run dev --prefix client",
+    "server": "npm start --prefix server",
+    "install-all": "npm install --prefix client && npm install --prefix server"
+  }
+}

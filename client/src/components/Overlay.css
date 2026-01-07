@@ -1,0 +1,329 @@
+.chat-overlay {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  width: auto;
+  min-width: 350px;
+  max-width: 600px;
+  height: 90%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 12px;
+  background: transparent;
+  padding: 20px;
+}
+
+.chat-message {
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+  width: fit-content;
+}
+
+.platform-badge {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.platform-badge.twitch { background: #9146ff; color: white; }
+.platform-badge.youtube { background: #ff0000; color: white; }
+.platform-badge.chzzk { background: #00ffa3; color: black; }
+.platform-badge.soop { background: #007bff; color: white; }
+
+.sender {
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.message {
+  color: white;
+  word-break: break-all;
+}
+
+/* Alert Overlay */
+.alert-overlay {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.alert-card {
+  padding: 40px;
+  text-align: center;
+  min-width: 450px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px);
+  border-radius: 24px;
+}
+
+.alert-header {
+  font-size: 28px;
+  font-weight: 900;
+  margin-bottom: 15px;
+  letter-spacing: 2px;
+}
+
+.alert-sender {
+  font-size: 38px;
+  font-weight: 800;
+  color: white;
+}
+
+.alert-amount {
+  font-size: 34px;
+  color: #fbbf24;
+  margin: 15px 0;
+  font-weight: 700;
+}
+
+.alert-message {
+  font-size: 20px;
+  color: #e2e8f0;
+}
+
+/* Animation Definitions */
+
+/* Fade Up */
+.animate-fade-up {
+  animation: fadeUp 0.4s ease-out forwards;
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Slide Right */
+.animate-slide-right {
+  animation: slideRight 0.4s ease-out forwards;
+}
+@keyframes slideRight {
+  from { opacity: 0; transform: translateX(-50px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+/* Bounce In */
+.animate-bounceIn {
+  animation: bounceIn 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
+
+/* Zoom In */
+.animate-zoomIn {
+  animation: zoomIn 0.4s ease-out forwards;
+}
+@keyframes zoomIn {
+  from { opacity: 0; transform: scale(0.5); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Flip In X */
+.animate-flipInX {
+  animation: flipInX 0.6s ease-out forwards;
+}
+@keyframes flipInX {
+  from { transform: perspective(400px) rotateX(90deg); opacity: 0; }
+  to { transform: perspective(400px) rotateX(0deg); opacity: 1; }
+}
+
+/* Tada */
+.animate-tada {
+  animation: tada 1s infinite;
+}
+@keyframes tada {
+  0% { transform: scale(1); }
+  10%, 20% { transform: scale(0.9) rotate(-3deg); }
+  30%, 50%, 70%, 90% { transform: scale(1.1) rotate(3deg); }
+  40%, 60%, 80% { transform: scale(1.1) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+@keyframes bounceIn {
+  0% { transform: scale(0.3); opacity: 0; }
+  50% { transform: scale(1.05); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Subtitle Overlay */
+.subtitle-overlay {
+  position: absolute;
+  bottom: 80px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  justify-content: center;
+}
+
+.subtitle-container {
+  background: rgba(0,0,0,0.6);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 50px;
+  backdrop-filter: blur(4px);
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.ranking-list {
+  display: flex;
+  gap: 15px;
+}
+.ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.medal-1 { color: #ffd700; }
+.medal-2 { color: #c0c0c0; }
+.medal-3 { color: #cd7f32; }
+
+/* Goal Overlay */
+.goal-overlay {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
+
+.goal-card {
+  background: rgba(0,0,0,0.8);
+  padding: 15px;
+  border-radius: 12px;
+  min-width: 300px;
+  color: white;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.goal-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.goal-bar-bg {
+  width: 100%;
+  background: rgba(255,255,255,0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.goal-bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.5s ease-out;
+  position: relative;
+}
+
+.shine {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: shine 2s infinite;
+}
+
+@keyframes shine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.goal-circle, .goal-shape {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.progress-ring__circle {
+  transition: stroke-dashoffset 0.5s ease-in-out;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+
+.absolute-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: bold;
+  font-size: 24px;
+}
+
+.goal-shape-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+
+.goal-icon-bg {
+  color: rgba(255,255,255,0.1);
+}
+.goal-icon-fill {
+  color: inherit;
+}
+.text-stroke {
+  color: white;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+}
+
+/* Ticker Overlay */
+.ticker-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(0,0,0,0.8);
+  overflow: hidden;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+
+.ticker-track {
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ticker-content {
+  display: inline-block;
+  white-space: nowrap;
+  animation: ticker linear infinite;
+  color: white;
+  font-weight: 500;
+}
+
+.ticker-item {
+  display: inline-block;
+  padding: 0 20px;
+}
+
+.separator {
+  color: var(--primary);
+  margin-left: 10px;
+  opacity: 0.7;
+}
+
+@keyframes ticker {
+  0% { transform: translate3d(100%, 0, 0); }
+  100% { transform: translate3d(-100%, 0, 0); }
+}
