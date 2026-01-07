@@ -103,14 +103,14 @@ const Dashboard = () => {
         <div className="animate-fade">
           <header className="page-header">
             <div className="page-title">
-              <h1>환영합니다! 👋</h1>
+              <h1>환영합니다!</h1>
               <p>오늘의 스트림 현황을 확인해보세요.</p>
             </div>
             <div className="header-buttons">
-              <button className="btn-outline">
+              <button className="btn btn-outline">
                 <HelpCircle size={16} /> 피드백 보내기
               </button>
-              <button className="btn-primary" onClick={() => window.open('/overlay/chat', '_blank')}>
+              <button className="btn btn-primary" onClick={() => window.open('/overlay/chat', '_blank')}>
                 <ExternalLink size={16} /> 오버레이 열기
               </button>
             </div>
@@ -243,9 +243,9 @@ const Dashboard = () => {
                 </div>
               )}
               <div className="full-width">
-                <button 
-                  className="btn-primary" 
-                  style={{ width: '100%', justifyContent: 'center', height: '44px' }}
+                <button
+                  className="btn btn-primary btn-full"
+                  style={{ height: '44px' }}
                   onClick={triggerSimulate}
                   disabled={isSimulating}
                 >
@@ -285,7 +285,7 @@ const Dashboard = () => {
           <Settings size={64} style={{ color: 'var(--border-medium)' }} strokeWidth={1} />
           <h3 style={{ color: 'var(--text-main)', marginTop: '20px' }}>기능 준비 중</h3>
           <p>더 많은 커스터마이징 옵션을 준비하고 있습니다. 조금만 기다려주세요!</p>
-          <button className="btn-outline" style={{ marginTop: '24px' }} onClick={() => setActiveTab('dashboard')}>
+          <button className="btn btn-outline" style={{ marginTop: 'var(--spacing-lg)' }} onClick={() => setActiveTab('dashboard')}>
             대시보드로 돌아가기
           </button>
         </div>
@@ -349,9 +349,9 @@ const Dashboard = () => {
             <input type="text" placeholder="메뉴 검색..." />
           </div>
           <div className="top-actions">
-            <button className="action-icon-btn"><Bell size={18} /></button>
-            <button className="action-icon-btn"><Settings size={18} /></button>
-            <button className="btn-primary" style={{ padding: '8px 16px', borderRadius: '50px' }}>
+            <button className="btn btn-icon btn-ghost"><Bell size={18} /></button>
+            <button className="btn btn-icon btn-ghost"><Settings size={18} /></button>
+            <button className="btn btn-primary" style={{ borderRadius: 'var(--radius-full)' }}>
               방송 시작
             </button>
           </div>
