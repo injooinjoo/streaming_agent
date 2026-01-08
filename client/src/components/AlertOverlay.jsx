@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
+import { API_URL } from '../config/api';
 import './Overlay.css';
 
-const socket = io('http://localhost:3001');
+const socket = io(API_URL);
 
 const AlertOverlay = () => {
+  const { userHash } = useParams();
   const [activeAlert, setActiveAlert] = useState(null);
   const [settings, setSettings] = useState({
     theme: 'default',
@@ -16,10 +19,18 @@ const AlertOverlay = () => {
   });
 
   const fetchSettings = async () => {
-    const res = await fetch('http://localhost:3001/api/settings/alert');
-    const data = await res.json();
-    if (data.value && data.value !== '{}') {
-      setSettings(JSON.parse(data.value));
+    try {
+      const url = userHash
+        ? `${API_URL}/api/overlay/${userHash}/settings/alert`
+        : `${API_URL}/api/settings/alert`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.value && data.value !== '{}') {
+        setSettings(JSON.parse(data.value));
+      }
+    } catch (err) {
+      console.error("Failed to fetch settings:", err);
     }
   };
 
@@ -33,6 +44,10 @@ const AlertOverlay = () => {
 
   useEffect(() => {
     fetchSettings();
+
+    if (userHash) {
+      socket.emit("join-overlay", userHash);
+    }
 
     socket.on('new-event', (event) => {
       if (event.type === 'donation') {
@@ -52,10 +67,13 @@ const AlertOverlay = () => {
     });
 
     return () => {
+      if (userHash) {
+        socket.emit("leave-overlay", userHash);
+      }
       socket.off('new-event');
       socket.off('settings-updated');
     };
-  }, [settings]);
+  }, [userHash, settings]);
 
   if (!activeAlert) return null;
 

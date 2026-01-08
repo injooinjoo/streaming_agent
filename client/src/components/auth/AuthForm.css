@@ -1,0 +1,282 @@
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  padding: 20px;
+}
+
+.auth-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.08);
+  padding: 48px;
+  width: 100%;
+  max-width: 420px;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.auth-logo {
+  font-size: 32px;
+  font-weight: 700;
+  color: #3b82f6;
+  margin-bottom: 8px;
+}
+
+.auth-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.auth-subtitle {
+  font-size: 14px;
+  color: #64748b;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-input {
+  padding: 12px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 15px;
+  transition: all 0.2s;
+  outline: none;
+}
+
+.form-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-input::placeholder {
+  color: #94a3b8;
+}
+
+.auth-button {
+  padding: 14px 24px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.auth-button:hover {
+  background: #2563eb;
+}
+
+.auth-button:disabled {
+  background: #94a3b8;
+  cursor: not-allowed;
+}
+
+.auth-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #dc2626;
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.auth-footer {
+  margin-top: 24px;
+  text-align: center;
+  font-size: 14px;
+  color: #64748b;
+}
+
+.auth-link {
+  color: #3b82f6;
+  text-decoration: none;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #e2e8f0;
+}
+
+.auth-divider span {
+  font-size: 12px;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
+.guest-button {
+  width: 100%;
+  padding: 12px 24px;
+  background: white;
+  color: #374151;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.guest-button:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* OAuth Provider Buttons */
+.oauth-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.oauth-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: white;
+  color: #374151;
+}
+
+.oauth-button:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.oauth-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.oauth-button img,
+.oauth-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* SOOP (숲) */
+.oauth-button.soop {
+  background: #0066ff;
+  color: white;
+  border-color: #0066ff;
+}
+
+.oauth-button.soop:hover {
+  background: #0052cc;
+  border-color: #0052cc;
+}
+
+/* Naver */
+.oauth-button.naver {
+  background: #03c75a;
+  color: white;
+  border-color: #03c75a;
+}
+
+.oauth-button.naver:hover {
+  background: #02b351;
+  border-color: #02b351;
+}
+
+/* Google */
+.oauth-button.google {
+  background: white;
+  color: #374151;
+  border-color: #e2e8f0;
+}
+
+.oauth-button.google:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* Twitch */
+.oauth-button.twitch {
+  background: #9146ff;
+  color: white;
+  border-color: #9146ff;
+}
+
+.oauth-button.twitch:hover {
+  background: #7c3aed;
+  border-color: #7c3aed;
+}
+
+/* Email toggle button */
+.oauth-button.email {
+  background: #64748b;
+  color: white;
+  border-color: #64748b;
+}
+
+.oauth-button.email:hover {
+  background: #475569;
+  border-color: #475569;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

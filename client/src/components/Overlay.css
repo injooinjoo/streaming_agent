@@ -1,32 +1,44 @@
 .chat-overlay {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  width: auto;
-  min-width: 350px;
-  max-width: 600px;
-  height: 90%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  gap: 12px;
+  padding: 40px;
   background: transparent;
-  padding: 20px;
+  pointer-events: none;
+  overflow: hidden;
 }
 
-.chat-message {
-  padding: 12px 18px;
+.messages-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  max-width: 800px;
+}
+
+.chat-message-item {
+  padding: 10px 18px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  width: fit-content;
   display: flex;
   align-items: center;
-  gap: 10px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-  width: fit-content;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  pointer-events: auto;
+  min-height: 48px;
 }
 
 .platform-badge {
-  padding: 3px 8px;
+  padding: 2px 8px;
   border-radius: 4px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -38,11 +50,11 @@
 
 .sender {
   font-weight: 700;
-  color: var(--primary);
+  white-space: nowrap;
 }
 
-.message {
-  color: white;
+.message-text {
+  color: inherit;
   word-break: break-all;
 }
 
@@ -74,6 +86,13 @@
   letter-spacing: 2px;
 }
 
+.gradient-text {
+  background: linear-gradient(90deg, #f59e0b, #f43f5e, #a855f7);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
 .alert-sender {
   font-size: 38px;
   font-weight: 800;
@@ -103,8 +122,29 @@
   to { opacity: 1; transform: translateY(0); }
 }
 
+.animate-fade-in,
+.animate-fadeIn {
+  animation: fadeInOverlay 0.35s ease-out forwards;
+}
+@keyframes fadeInOverlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fadeOut {
+  animation: fadeOutOverlay 0.35s ease-in forwards;
+}
+@keyframes fadeOutOverlay {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
 /* Slide Right */
 .animate-slide-right {
+  animation: slideRight 0.4s ease-out forwards;
+}
+.animate-slide-in,
+.animate-slideInRight {
   animation: slideRight 0.4s ease-out forwards;
 }
 @keyframes slideRight {
@@ -116,9 +156,15 @@
 .animate-bounceIn {
   animation: bounceIn 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
 }
+.animate-bounce-in {
+  animation: bounceIn 0.7s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+}
 
 /* Zoom In */
 .animate-zoomIn {
+  animation: zoomIn 0.4s ease-out forwards;
+}
+.animate-zoom-in {
   animation: zoomIn 0.4s ease-out forwards;
 }
 @keyframes zoomIn {
@@ -145,6 +191,52 @@
   30%, 50%, 70%, 90% { transform: scale(1.1) rotate(3deg); }
   40%, 60%, 80% { transform: scale(1.1) rotate(-3deg); }
   100% { transform: scale(1) rotate(0); }
+}
+
+.animate-flash {
+  animation: flash 0.9s ease-in-out infinite;
+}
+@keyframes flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+
+.animate-wobble {
+  animation: wobble 0.8s ease-in-out;
+}
+@keyframes wobble {
+  0% { transform: translateX(0); }
+  15% { transform: translateX(-8px) rotate(-2deg); }
+  30% { transform: translateX(6px) rotate(2deg); }
+  45% { transform: translateX(-4px) rotate(-1deg); }
+  60% { transform: translateX(3px) rotate(1deg); }
+  75% { transform: translateX(-2px) rotate(-1deg); }
+  100% { transform: translateX(0); }
+}
+
+.animate-bounce {
+  animation: bounceText 0.9s ease;
+}
+@keyframes bounceText {
+  0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  60% { transform: translateY(-6px); }
+}
+
+.animate-rotate {
+  animation: rotateText 0.8s ease-in-out;
+}
+@keyframes rotateText {
+  from { transform: rotate(-6deg); }
+  to { transform: rotate(0deg); }
+}
+
+.animate-rollIn {
+  animation: rollIn 0.6s ease-out;
+}
+@keyframes rollIn {
+  from { opacity: 0; transform: translateX(-20px) rotate(-120deg); }
+  to { opacity: 1; transform: translateX(0) rotate(0); }
 }
 
 @keyframes bounceIn {
@@ -201,6 +293,29 @@
   min-width: 300px;
   color: white;
   border: 1px solid rgba(255,255,255,0.1);
+}
+
+.goal-bar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.goal-title {
+  font-weight: 700;
+}
+
+.goal-values {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.goal-percent {
+  color: white;
+}
+
+.progress-ring {
+  display: block;
 }
 
 .goal-header {
