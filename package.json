@@ -7,7 +7,7 @@
     "client": "npm run dev --prefix client",
     "server": "npm start --prefix server",
     "install-all": "npm install --prefix client && npm install --prefix server",
-    "build": "npm install --prefix client && npm install --prefix server && npm run build --prefix client",
+    "build": "cd client && npm install && npm run build && cd ../server && npm install",
     "start:prod": "cd server && npm start"
   },
   "engines": {
