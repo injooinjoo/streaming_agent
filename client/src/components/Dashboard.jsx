@@ -5,7 +5,8 @@ import {
   Type, Image as ImageIcon, HelpCircle,
   Send, Plus, ExternalLink, Settings,
   RefreshCw, Megaphone, Palette, Sparkles, Activity, TrendingUp, MousePointerClick,
-  DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, Link2
+  DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, Link2, Disc,
+  Smile, Vote, Film, Bot
 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -20,6 +21,11 @@ import DesignSettings from './settings/DesignSettings';
 import AccountSettings from './settings/AccountSettings';
 import AdSettings from './settings/AdSettings';
 import OverlayUrlsPanel from './settings/OverlayUrlsPanel';
+import RouletteSettings from './settings/RouletteSettings';
+import EmojiSettings from './settings/EmojiSettings';
+import VotingSettings from './settings/VotingSettings';
+import CreditsSettings from './settings/CreditsSettings';
+import BotSettings from './settings/BotSettings';
 import MarketplaceTab from './marketplace/MarketplaceTab';
 import RevenueAnalytics from './analytics/RevenueAnalytics';
 import ViewerAnalytics from './analytics/ViewerAnalytics';
@@ -58,6 +64,11 @@ const Dashboard = () => {
         { id: 'subtitles', label: '자막 설정', icon: <FileText size={18} /> },
         { id: 'goals', label: '목표치 위젯', icon: <BarChart3 size={18} /> },
         { id: 'ticker', label: '뉴스 티커', icon: <Megaphone size={18} /> },
+        { id: 'roulette', label: '룰렛', icon: <Disc size={18} /> },
+        { id: 'emoji', label: '이모지 리액션', icon: <Smile size={18} /> },
+        { id: 'voting', label: '투표 시스템', icon: <Vote size={18} /> },
+        { id: 'credits', label: '엔딩 크레딧', icon: <Film size={18} /> },
+        { id: 'bot', label: '챗봇', icon: <Bot size={18} /> },
         { id: 'text', label: '커스텀 텍스트', icon: <Type size={18} /> },
         { id: 'banners', label: '배너 위젯', icon: <ImageIcon size={18} /> },
         { id: 'design', label: '디자인 커스터마이저', icon: <Palette size={18} /> }
@@ -492,6 +503,11 @@ const Dashboard = () => {
       subtitles: SubtitleSettings,
       goals: GoalSettings,
       ticker: TickerSettings,
+      roulette: RouletteSettings,
+      emoji: EmojiSettings,
+      voting: VotingSettings,
+      credits: CreditsSettings,
+      bot: BotSettings,
       text: TextSettings,
       banners: BannerSettings,
       design: DesignSettings,

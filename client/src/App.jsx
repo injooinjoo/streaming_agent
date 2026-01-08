@@ -13,6 +13,7 @@ import CreditsOverlay from './components/CreditsOverlay';
 import AdOverlay from './components/AdOverlay';
 import LoginPage from './components/auth/LoginPage';
 import RegisterPage from './components/auth/RegisterPage';
+import AdvertiserDashboard from './components/advertiser/AdvertiserDashboard';
 import './App.css';
 
 function App() {
@@ -27,6 +28,9 @@ function App() {
             {/* 인증 */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
+
+            {/* 광고주 대시보드 */}
+            <Route path="/advertiser" element={<AdvertiserDashboard />} />
 
             {/* 해시 기반 오버레이 (신규) */}
             <Route path="/overlay/:userHash/chat" element={<ChatOverlay />} />
