@@ -1,0 +1,294 @@
+/* Roulette Settings Styles */
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.loading-state .spin,
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Warning Banner */
+.warning-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #fef3c7;
+  border: 1px solid #fcd34d;
+  border-radius: 12px;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 20px;
+}
+
+/* Segments List */
+.segments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.segment-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  transition: all 0.2s;
+}
+
+.segment-item:hover {
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.segment-drag {
+  cursor: grab;
+  color: #94a3b8;
+  padding: 4px;
+}
+
+.segment-drag:active {
+  cursor: grabbing;
+}
+
+.segment-number {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary);
+  color: white;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.segment-fields {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.segment-text {
+  flex: 1;
+  min-width: 120px;
+}
+
+.segment-color-wrap input[type="color"] {
+  width: 40px;
+  height: 36px;
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.segment-prob-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.segment-prob-wrap input {
+  width: 70px;
+  text-align: center;
+}
+
+.segment-prob-wrap span {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.btn-icon-small {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.btn-icon-small:hover {
+  background: #e2e8f0;
+  color: var(--primary);
+}
+
+.btn-icon-small.danger:hover {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.btn-icon-small:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-add-segment {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  border: 2px dashed var(--border-medium);
+  border-radius: 12px;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.btn-add-segment:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #eff6ff;
+}
+
+.btn-add-segment:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Roulette Preview */
+.roulette-preview-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 32px;
+  background: #f8fafc;
+  border-radius: 16px;
+}
+
+.roulette-preview {
+  position: relative;
+  width: 220px;
+  height: 220px;
+}
+
+.preview-wheel {
+  width: 100%;
+  height: 100%;
+}
+
+.wheel-svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.15));
+}
+
+.preview-pointer {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 24px;
+  color: #1e293b;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.btn-test-spin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 32px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.btn-test-spin:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
+}
+
+.btn-test-spin:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Save Controls */
+.save-controls-wrapper {
+  margin-top: 24px;
+}
+
+.btn-save-full {
+  width: 100%;
+  height: 56px;
+  background: #111827;
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-save-full:hover {
+  background: #000;
+  transform: translateY(-2px);
+}
+
+.btn-save-full:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* URL Copy */
+.url-action-btn.copied {
+  background: #10b981 !important;
+  border-color: #10b981 !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .segment-fields {
+    flex-wrap: wrap;
+  }
+
+  .segment-text {
+    min-width: 100%;
+  }
+}

@@ -1,0 +1,264 @@
+/* Voting Settings Styles */
+
+.loading-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Active Poll Card */
+.active-poll-card {
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+  border: 2px solid #86efac;
+}
+
+.active-poll-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.btn-end-poll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-end-poll:hover {
+  background: #dc2626;
+}
+
+.poll-title-display {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 20px;
+}
+
+.poll-options-display {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.poll-option-item {
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.poll-option-item:hover {
+  border-color: var(--primary);
+  transform: translateX(4px);
+}
+
+.option-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.option-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.option-stats {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.option-bar {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.option-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.simulate-hint {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* Poll Options List */
+.poll-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.poll-option-edit {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.poll-option-edit input[type="color"] {
+  width: 40px;
+  height: 40px;
+  border: 1px solid var(--border-medium);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.poll-option-edit input[type="text"] {
+  flex: 1;
+}
+
+.btn-icon-small {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #64748b;
+  transition: all 0.2s;
+}
+
+.btn-icon-small:hover {
+  background: #e2e8f0;
+  color: var(--primary);
+}
+
+.btn-icon-small.danger:hover {
+  background: #fef2f2;
+  color: #ef4444;
+}
+
+.btn-icon-small:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.btn-add-option {
+  width: 100%;
+  padding: 12px;
+  background: transparent;
+  border: 2px dashed var(--border-medium);
+  border-radius: 10px;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+  margin-bottom: 20px;
+}
+
+.btn-add-option:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: #eff6ff;
+}
+
+.btn-add-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-start-poll {
+  width: 100%;
+  padding: 16px;
+  background: var(--primary);
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+}
+
+.btn-start-poll:hover {
+  background: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.35);
+}
+
+/* Status Dot */
+.status-dot.gray {
+  background: #94a3b8;
+  box-shadow: 0 0 8px #94a3b8;
+}
+
+/* Save Controls */
+.save-controls-wrapper {
+  margin-top: 24px;
+}
+
+.btn-save-full {
+  width: 100%;
+  height: 56px;
+  background: #111827;
+  color: white;
+  border: none;
+  border-radius: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-save-full:hover {
+  background: #000;
+  transform: translateY(-2px);
+}
+
+.btn-save-full:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}

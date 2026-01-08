@@ -1363,6 +1363,80 @@ app.get("/api/ads/campaigns/:id/stats", authenticateToken, (req, res) => {
   );
 });
 
+// 캠페인 수정 (전체 업데이트)
+app.put("/api/ads/campaigns/:id", authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const {
+    name, content_type, content_url, click_url,
+    budget_daily, budget_total, cpm, cpc,
+    start_date, end_date, target_streamers, target_categories
+  } = req.body;
+
+  db.run(
+    `UPDATE ad_campaigns
+     SET name = ?, content_type = ?, content_url = ?, click_url = ?,
+         budget_daily = ?, budget_total = ?, cpm = ?, cpc = ?,
+         start_date = ?, end_date = ?, target_streamers = ?, target_categories = ?
+     WHERE id = ? AND advertiser_id = ?`,
+    [name, content_type, content_url, click_url,
+     budget_daily || 0, budget_total || 0, cpm || 1000, cpc || 100,
+     start_date, end_date, target_streamers, target_categories,
+     id, req.user.id],
+    function(err) {
+      if (err) return res.status(500).json({ error: err.message });
+      if (this.changes === 0) {
+        return res.status(404).json({ error: "캠페인을 찾을 수 없거나 권한이 없습니다." });
+      }
+      res.json({ success: true });
+    }
+  );
+});
+
+// 캠페인 삭제
+app.delete("/api/ads/campaigns/:id", authenticateToken, (req, res) => {
+  const { id } = req.params;
+
+  // 먼저 관련 노출 기록 삭제
+  db.run(
+    `DELETE FROM ad_impressions WHERE campaign_id = ?`,
+    [id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // 캠페인 삭제
+      db.run(
+        `DELETE FROM ad_campaigns WHERE id = ? AND advertiser_id = ?`,
+        [id, req.user.id],
+        function(err) {
+          if (err) return res.status(500).json({ error: err.message });
+          if (this.changes === 0) {
+            return res.status(404).json({ error: "캠페인을 찾을 수 없거나 권한이 없습니다." });
+          }
+          res.json({ success: true });
+        }
+      );
+    }
+  );
+});
+
+// 스트리머 목록 조회 (타겟팅용)
+app.get("/api/users/streamers", authenticateToken, (req, res) => {
+  db.all(
+    `SELECT id, display_name, email, created_at FROM users WHERE role = 'user' OR role = 'creator'`,
+    [],
+    (err, rows) => {
+      if (err) return res.status(500).json({ error: err.message });
+      // 실제로는 각 스트리머의 평균 시청자 수 등을 포함할 수 있음
+      const streamers = rows.map(r => ({
+        id: r.id,
+        display_name: r.display_name || r.email?.split('@')[0] || `User${r.id}`,
+        viewers_avg: Math.floor(Math.random() * 2000) + 100 // 임시 데이터
+      }));
+      res.json(streamers);
+    }
+  );
+});
+
 // Basic Routes
 app.get("/", (req, res) => {
   res.send("Weflab Clone Backend is running.");
@@ -1448,6 +1522,103 @@ io.on("connection", (socket) => {
     if (hash) {
       socket.leave(`overlay:${hash}`);
       console.log(`Socket ${socket.id} left ad overlay room overlay:${hash}`);
+    }
+  });
+
+  // 설정 업데이트 이벤트 (대시보드 → 오버레이)
+  socket.on("settings-update", (data) => {
+    if (data.userHash) {
+      io.to(`overlay:${data.userHash}`).emit("settings-updated", { key: data.key });
+      console.log(`Settings updated for ${data.key} in room overlay:${data.userHash}`);
+    }
+  });
+
+  // 룰렛 스핀 이벤트
+  socket.on("roulette-spin", (data) => {
+    if (data.userHash) {
+      io.to(`overlay:${data.userHash}`).emit("roulette-spin", {
+        resultIndex: data.resultIndex,
+        segments: data.segments
+      });
+      console.log(`Roulette spin triggered for overlay:${data.userHash}, result: ${data.resultIndex}`);
+    }
+  });
+
+  // 이모지 리액션 이벤트
+  socket.on("emoji-reaction", (data) => {
+    if (data.userHash) {
+      io.to(`overlay:${data.userHash}`).emit("emoji-reaction", {
+        emoji: data.emoji,
+        position: data.position
+      });
+    }
+  });
+
+  // 이모지 버스트 이벤트
+  socket.on("emoji-burst", (data) => {
+    if (data.userHash) {
+      io.to(`overlay:${data.userHash}`).emit("emoji-burst", {
+        emojis: data.emojis
+      });
+    }
+  });
+
+  // 투표 시작 이벤트
+  socket.on("poll-start", (data) => {
+    if (data.userHash) {
+      io.to(`overlay:${data.userHash}`).emit("poll-started", data.poll);
+    }
+  });
+
+  // 투표 업데이트 이벤트
+  socket.on("poll-vote", (data) => {
+    if (data.userHash) {
+      io.to(`overlay:${data.userHash}`).emit("poll-update", {
+        pollId: data.pollId,
+        optionId: data.optionId,
+        newCount: data.newCount
+      });
+    }
+  });
+
+  // 투표 종료 이벤트
+  socket.on("poll-end", (data) => {
+    if (data.userHash) {
+      io.to(`overlay:${data.userHash}`).emit("poll-ended", {
+        pollId: data.pollId,
+        results: data.results
+      });
+    }
+  });
+
+  // 크레딧 시작/정지 이벤트
+  socket.on("credits-start", (data) => {
+    if (data.userHash) {
+      io.to(`overlay:${data.userHash}`).emit("credits-start", data.credits);
+    }
+  });
+
+  socket.on("credits-stop", (data) => {
+    if (data.userHash) {
+      io.to(`overlay:${data.userHash}`).emit("credits-stop");
+    }
+  });
+
+  // Bot events
+  socket.on("bot-toggle", (data) => {
+    if (data.userHash) {
+      io.to(`overlay:${data.userHash}`).emit("bot-toggle", {
+        isActive: data.isActive
+      });
+    }
+  });
+
+  socket.on("bot-message", (data) => {
+    if (data.userHash) {
+      io.to(`overlay:${data.userHash}`).emit("bot-message", {
+        botName: data.botName,
+        message: data.message
+      });
     }
   });
 
