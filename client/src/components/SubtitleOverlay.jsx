@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { Medal } from 'lucide-react';
+import { API_URL } from '../config/api';
 import './Overlay.css';
 
-const socket = io('http://localhost:3001');
+const socket = io(API_URL);
 
 const SubtitleOverlay = () => {
+  const { userHash } = useParams();
   const [events, setEvents] = useState([]);
   const [settings, setSettings] = useState({
     theme: 'default',
@@ -16,15 +19,23 @@ const SubtitleOverlay = () => {
   });
 
   const fetchSettings = async () => {
-    const res = await fetch('http://localhost:3001/api/settings/subtitle');
-    const data = await res.json();
-    if (data.value && data.value !== '{}') {
-      setSettings(JSON.parse(data.value));
+    try {
+      const url = userHash
+        ? `${API_URL}/api/overlay/${userHash}/settings/subtitle`
+        : `${API_URL}/api/settings/subtitle`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.value && data.value !== '{}') {
+        setSettings(JSON.parse(data.value));
+      }
+    } catch (err) {
+      console.error("Failed to fetch settings:", err);
     }
   };
 
   const fetchEvents = async () => {
-    const res = await fetch('http://localhost:3001/api/events');
+    const res = await fetch(`${API_URL}/api/events`);
     const data = await res.json();
     setEvents(data.filter(e => e.type === 'donation'));
   };
@@ -32,6 +43,10 @@ const SubtitleOverlay = () => {
   useEffect(() => {
     fetchSettings();
     fetchEvents();
+
+    if (userHash) {
+      socket.emit("join-overlay", userHash);
+    }
 
     socket.on('new-event', (event) => {
       if (event.type === 'donation') fetchEvents();
@@ -42,10 +57,13 @@ const SubtitleOverlay = () => {
     });
 
     return () => {
+      if (userHash) {
+        socket.emit("leave-overlay", userHash);
+      }
       socket.off('new-event');
       socket.off('settings-updated');
     };
-  }, []);
+  }, [userHash]);
 
   const renderContent = () => {
     if (settings.mode === 'recent') {
@@ -55,7 +73,7 @@ const SubtitleOverlay = () => {
         .replace('{닉네임}', latest.sender)
         .replace('{금액}', `${latest.amount.toLocaleString()}원`);
     }
-    
+
     if (settings.mode === 'ranking') {
       // Group by sender and sum amounts
       const ranks = events.reduce((acc, curr) => {

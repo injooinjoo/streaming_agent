@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { io } from 'socket.io-client';
-import { Heart, Star, Circle, BarChart3 } from 'lucide-react';
+import { Heart, Star } from 'lucide-react';
+import { API_URL } from '../config/api';
 import './Overlay.css';
 
-const socket = io('http://localhost:3001');
+const socket = io(API_URL);
 
 const GoalOverlay = () => {
+  const { userHash } = useParams();
   const [settings, setSettings] = useState({
     theme: 'default',
     type: 'bar',
@@ -17,20 +20,32 @@ const GoalOverlay = () => {
   });
 
   const fetchSettings = async () => {
-    const res = await fetch('http://localhost:3001/api/settings/goal');
-    const data = await res.json();
-    if (data.value && data.value !== '{}') {
-      setSettings(JSON.parse(data.value));
+    try {
+      const url = userHash
+        ? `${API_URL}/api/overlay/${userHash}/settings/goal`
+        : `${API_URL}/api/settings/goal`;
+
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.value && data.value !== '{}') {
+        setSettings(JSON.parse(data.value));
+      }
+    } catch (err) {
+      console.error("Failed to fetch settings:", err);
     }
   };
 
   useEffect(() => {
     fetchSettings();
 
+    if (userHash) {
+      socket.emit("join-overlay", userHash);
+    }
+
     socket.on('settings-updated', (data) => {
       if (data.key === 'goal') fetchSettings();
     });
-    
+
     // Listen for donation events to auto-increment if configured
     socket.on('new-event', (event) => {
       if (event.type === 'donation') {
@@ -42,10 +57,13 @@ const GoalOverlay = () => {
     });
 
     return () => {
+      if (userHash) {
+        socket.emit("leave-overlay", userHash);
+      }
       socket.off('settings-updated');
       socket.off('new-event');
     };
-  }, []);
+  }, [userHash]);
 
   const percentage = Math.min(100, Math.max(0, (settings.currentValue / settings.targetValue) * 100));
 
@@ -54,7 +72,7 @@ const GoalOverlay = () => {
       const radius = 60;
       const circumference = 2 * Math.PI * radius;
       const offset = circumference - (percentage / 100) * circumference;
-      
+
       return (
         <div className="goal-circle">
           <svg width="140" height="140" className="progress-ring">
@@ -87,19 +105,19 @@ const GoalOverlay = () => {
     }
 
     if (settings.type === 'heart' || settings.type === 'star') {
-       // Simple fill effect for shapes
-       const Icon = settings.type === 'heart' ? Heart : Star;
-       return (
-         <div className="goal-shape" style={{ color: settings.barColor }}>
-           <Icon size={140} strokeWidth={1} className="goal-icon-bg" />
-           <div className="goal-shape-fill" style={{ height: `${percentage}%`, background: settings.barColor }}>
-             <Icon size={140} strokeWidth={1} className="goal-icon-fill" />
-           </div>
-           <div className="goal-percent absolute-center text-stroke">
-             {percentage.toFixed(0)}%
-           </div>
-         </div>
-       );
+      // Simple fill effect for shapes
+      const Icon = settings.type === 'heart' ? Heart : Star;
+      return (
+        <div className="goal-shape" style={{ color: settings.barColor }}>
+          <Icon size={140} strokeWidth={1} className="goal-icon-bg" />
+          <div className="goal-shape-fill" style={{ height: `${percentage}%`, background: settings.barColor }}>
+            <Icon size={140} strokeWidth={1} className="goal-icon-fill" />
+          </div>
+          <div className="goal-percent absolute-center text-stroke">
+            {percentage.toFixed(0)}%
+          </div>
+        </div>
+      );
     }
 
     return (
@@ -111,16 +129,16 @@ const GoalOverlay = () => {
           </span>
         </div>
         <div className="goal-bar-bg" style={{ height: `${settings.thickness}px` }}>
-           <div 
-             className="goal-bar-fill" 
-             style={{ 
-               width: `${percentage}%`, 
-               backgroundColor: settings.barColor,
-               boxShadow: `0 0 10px ${settings.barColor}`
-             }}
-           >
-             <div className="shine"></div>
-           </div>
+          <div
+            className="goal-bar-fill"
+            style={{
+              width: `${percentage}%`,
+              backgroundColor: settings.barColor,
+              boxShadow: `0 0 10px ${settings.barColor}`
+            }}
+          >
+            <div className="shine"></div>
+          </div>
         </div>
       </div>
     );
