@@ -3,9 +3,10 @@ import {
   DollarSign, Plus, Trash2, Edit2, Play, Pause, BarChart3,
   Eye, MousePointerClick, TrendingUp, Move, Maximize2,
   Image, Video, Settings, Save, X, Check, GripVertical,
-  Monitor, RefreshCw, AlertCircle, Calendar
+  Monitor, RefreshCw, AlertCircle, Calendar, Copy, Link, ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_URL } from '../../config/api';
 import './AdSettings.css';
 
 const CANVAS_WIDTH = 1920;
@@ -338,8 +339,34 @@ const AdSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState('slots');
+  const [copied, setCopied] = useState(false);
 
   const { isAuthenticated, user } = useAuth();
+
+  // Generate overlay URL
+  const overlayHash = user?.overlayHash || 'demo';
+  const clientUrl = API_URL.includes('localhost')
+    ? 'http://localhost:5173'
+    : window.location.origin;
+  const overlayUrl = `${clientUrl}/overlay/${overlayHash}/ads`;
+
+  const handleCopyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(overlayUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = overlayUrl;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   // Revenue stats (sample data)
   const [revenueStats] = useState({
@@ -549,6 +576,41 @@ const AdSettings = () => {
       {/* Slot Settings Tab */}
       {activeTab === 'slots' && (
         <div className="slot-settings-container">
+          {/* Overlay URL Section */}
+          <div className="overlay-url-section glass-card">
+            <div className="url-header">
+              <Link size={18} />
+              <h3>광고 오버레이 URL</h3>
+            </div>
+            <p className="url-description">
+              아래 URL을 OBS 브라우저 소스에 추가하세요. 설정한 위치에 타겟 광고가 자동으로 노출됩니다.
+            </p>
+            <div className="url-input-row">
+              <input
+                type="text"
+                value={overlayUrl}
+                readOnly
+                className="url-input"
+              />
+              <button
+                className={`btn-copy ${copied ? 'copied' : ''}`}
+                onClick={handleCopyUrl}
+              >
+                {copied ? <Check size={16} /> : <Copy size={16} />}
+                {copied ? '복사됨!' : 'URL 복사'}
+              </button>
+              <a
+                href={overlayUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-preview"
+              >
+                <ExternalLink size={16} />
+                미리보기
+              </a>
+            </div>
+          </div>
+
           <div className="slot-settings-main">
             {/* Canvas */}
             <SlotPreviewCanvas

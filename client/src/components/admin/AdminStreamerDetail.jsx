@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   ArrowLeft, RefreshCw, Users, DollarSign, Eye, Target, Zap, Award,
-  Gamepad2, Crown, Flame, TrendingUp, TrendingDown, Clock, Calendar
+  Gamepad2, Crown, Flame, TrendingUp, TrendingDown, Clock, Calendar, MousePointer
 } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, AreaChart, Area, RadarChart, Radar,
@@ -30,6 +30,109 @@ const MOCK_STREAMERS = {
   8: { id: 8, name: '따효니', platform: 'soop', followers: 480000, totalStreams: 978, joinDate: '2020-03-20', influenceScore: 72, adEfficiency: 3.3, donationRate: 3.1, totalRevenue: 175000000 },
   9: { id: 9, name: '금마', platform: 'chzzk', followers: 420000, totalStreams: 856, joinDate: '2021-01-10', influenceScore: 68, adEfficiency: 3.1, donationRate: 2.7, totalRevenue: 150000000 },
   10: { id: 10, name: '쫀득이', platform: 'soop', followers: 380000, totalStreams: 745, joinDate: '2021-06-15', influenceScore: 65, adEfficiency: 2.9, donationRate: 3.3, totalRevenue: 125000000 }
+};
+
+// 넥슨 캠페인 기여도 Mock 데이터
+const STREAMER_CAMPAIGN_ATTRIBUTION = {
+  1: {
+    totalEstimatedConversions: 245,
+    conversionsChange: 18.7,
+    contributionValue: 12500000,
+    valueChange: 23.5,
+    roiContribution: 28.5,
+    roiPercentile: 15,
+    campaigns: [
+      { campaignId: 1, campaignName: '더퍼디 런칭 캠페인', conversions: 142, contributionPercent: 11.8, conversionRate: 6.76, estimatedValue: 7100000, period: '2026-01-01 ~ 2026-01-15', status: 'active' },
+      { campaignId: 2, campaignName: '블루아카 3주년 기념', conversions: 78, contributionPercent: 8.8, conversionRate: 7.07, estimatedValue: 3900000, period: '2025-12-15 ~ 2025-12-31', status: 'completed' },
+      { campaignId: 4, campaignName: '메이플 드리머 업데이트', conversions: 25, contributionPercent: 3.5, conversionRate: 6.58, estimatedValue: 1500000, period: '2025-11-20 ~ 2025-12-10', status: 'completed' }
+    ],
+    monthlyTrend: [
+      { month: '9월', conversions: 45, value: 2250000 },
+      { month: '10월', conversions: 62, value: 3100000 },
+      { month: '11월', conversions: 58, value: 2900000 },
+      { month: '12월', conversions: 89, value: 4450000 },
+      { month: '1월', conversions: 112, value: 5600000 }
+    ],
+    nexonIPBreakdown: [
+      { ip: 'FC온라인', percent: 45 },
+      { ip: '메이플스토리', percent: 25 },
+      { ip: '블루아카이브', percent: 18 },
+      { ip: '더퍼디', percent: 12 }
+    ]
+  },
+  2: {
+    totalEstimatedConversions: 198,
+    conversionsChange: 12.3,
+    contributionValue: 9900000,
+    valueChange: 15.8,
+    roiContribution: 22.1,
+    roiPercentile: 22,
+    campaigns: [
+      { campaignId: 2, campaignName: '블루아카 3주년 기념', conversions: 112, contributionPercent: 12.6, conversionRate: 7.85, estimatedValue: 5600000, period: '2025-12-15 ~ 2025-12-31', status: 'completed' },
+      { campaignId: 4, campaignName: '메이플 드리머 업데이트', conversions: 86, contributionPercent: 11.9, conversionRate: 6.92, estimatedValue: 4300000, period: '2025-11-20 ~ 2025-12-10', status: 'completed' }
+    ],
+    monthlyTrend: [
+      { month: '9월', conversions: 38, value: 1900000 },
+      { month: '10월', conversions: 45, value: 2250000 },
+      { month: '11월', conversions: 52, value: 2600000 },
+      { month: '12월', conversions: 78, value: 3900000 },
+      { month: '1월', conversions: 85, value: 4250000 }
+    ],
+    nexonIPBreakdown: [
+      { ip: '메이플스토리', percent: 48 },
+      { ip: '블루아카이브', percent: 32 },
+      { ip: 'FC온라인', percent: 12 },
+      { ip: '더퍼디', percent: 8 }
+    ]
+  }
+};
+
+// 스트리머 기여도 데이터 생성기
+const generateStreamerAttribution = (streamerId) => {
+  const baseConversions = 30 + Math.floor(Math.random() * 150);
+  const valuePerConversion = 50000;
+
+  return {
+    totalEstimatedConversions: baseConversions,
+    conversionsChange: parseFloat((Math.random() * 30 - 5).toFixed(1)),
+    contributionValue: baseConversions * valuePerConversion,
+    valueChange: parseFloat((Math.random() * 35 - 5).toFixed(1)),
+    roiContribution: parseFloat((3 + Math.random() * 20).toFixed(1)),
+    roiPercentile: Math.floor(10 + Math.random() * 70),
+    campaigns: [
+      {
+        campaignId: 1,
+        campaignName: '더퍼디 런칭 캠페인',
+        conversions: Math.floor(baseConversions * 0.6),
+        contributionPercent: parseFloat((3 + Math.random() * 8).toFixed(1)),
+        conversionRate: parseFloat((4 + Math.random() * 4).toFixed(2)),
+        estimatedValue: Math.floor(baseConversions * 0.6 * valuePerConversion),
+        period: '2026-01-01 ~ 2026-01-15',
+        status: 'active'
+      },
+      {
+        campaignId: 2,
+        campaignName: '블루아카 3주년 기념',
+        conversions: Math.floor(baseConversions * 0.4),
+        contributionPercent: parseFloat((2 + Math.random() * 6).toFixed(1)),
+        conversionRate: parseFloat((4 + Math.random() * 4).toFixed(2)),
+        estimatedValue: Math.floor(baseConversions * 0.4 * valuePerConversion),
+        period: '2025-12-15 ~ 2025-12-31',
+        status: 'completed'
+      }
+    ],
+    monthlyTrend: ['9월', '10월', '11월', '12월', '1월'].map(month => ({
+      month,
+      conversions: 15 + Math.floor(Math.random() * 60),
+      value: 750000 + Math.floor(Math.random() * 3000000)
+    })),
+    nexonIPBreakdown: [
+      { ip: 'FC온라인', percent: 20 + Math.floor(Math.random() * 30) },
+      { ip: '메이플스토리', percent: 15 + Math.floor(Math.random() * 20) },
+      { ip: '블루아카이브', percent: 10 + Math.floor(Math.random() * 15) },
+      { ip: '더퍼디', percent: 5 + Math.floor(Math.random() * 15) }
+    ]
+  };
 };
 
 const AdminStreamerDetail = ({ streamerId, onBack }) => {
@@ -103,7 +206,10 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
       { id: 5, title: 'GTA RP 서버', game: 'GTA', date: '2026-01-04', duration: '4시간 00분', peakViewers: 30000, avgViewers: 22000, donations: 1800000, adEfficiency: 52 }
     ];
 
-    return { streamer, gamePerformance, performanceTrend, recentBroadcasts, gameRadarData, gameAdEfficiency };
+    // 넥슨 캠페인 기여도 데이터
+    const attribution = STREAMER_CAMPAIGN_ATTRIBUTION[streamerId] || generateStreamerAttribution(streamerId);
+
+    return { streamer, gamePerformance, performanceTrend, recentBroadcasts, gameRadarData, gameAdEfficiency, attribution };
   }, [streamerId]);
 
   useEffect(() => {
@@ -146,7 +252,7 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
 
   if (!data?.streamer) return null;
 
-  const { streamer, gamePerformance, performanceTrend, recentBroadcasts, gameRadarData, gameAdEfficiency } = data;
+  const { streamer, gamePerformance, performanceTrend, recentBroadcasts, gameRadarData, gameAdEfficiency, attribution } = data;
   const rank = getInfluenceRank(streamer.influenceScore);
 
   return (
@@ -429,6 +535,212 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
                 <Bar dataKey="efficiency" name="광고 효율" fill="#6366f1" radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Nexon Business Insight Banner */}
+      <div className="business-insight-banner" style={{ marginTop: '24px' }}>
+        <div className="business-insight-content">
+          <div className="business-insight-label">
+            <Zap size={14} />
+            Nexon Business Insight
+          </div>
+          <p className="business-insight-text">
+            채팅 로그 분석 결과, 넥슨의 <strong>서브컬처/성장형</strong> 타이틀에 대한 긍정 반응이
+            타 장르 대비 <strong>32%</strong> 높습니다. 블루아카이브 및 메이플스토리 관련 스트리머와의
+            우선적 협업을 추천합니다.
+          </p>
+        </div>
+      </div>
+
+      {/* ===== Nexon User Acquisition Contribution Section ===== */}
+      <div className="nexon-contribution-section">
+        <div className="influence-header">
+          <div className="influence-title">
+            <TrendingUp size={24} />
+            <h2>넥슨 유입 기여도</h2>
+          </div>
+          <p className="influence-description">
+            이 스트리머의 넥슨 캠페인 기여 분석 및 추정 전환 데이터
+          </p>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="nexon-contribution-grid">
+          <div className="nexon-contribution-card">
+            <div className="nexon-contribution-icon" style={{ backgroundColor: '#10b98120', color: '#10b981' }}>
+              <MousePointer size={24} />
+            </div>
+            <div className="nexon-contribution-content">
+              <span className="nexon-contribution-label">추정 전환수</span>
+              <span className="nexon-contribution-value">{attribution.totalEstimatedConversions.toLocaleString()}</span>
+              <span className={`nexon-contribution-change ${attribution.conversionsChange >= 0 ? 'positive' : 'negative'}`}>
+                {attribution.conversionsChange >= 0 ? '+' : ''}{attribution.conversionsChange}% vs 전월
+              </span>
+            </div>
+          </div>
+
+          <div className="nexon-contribution-card">
+            <div className="nexon-contribution-icon" style={{ backgroundColor: '#6366f120', color: '#6366f1' }}>
+              <DollarSign size={24} />
+            </div>
+            <div className="nexon-contribution-content">
+              <span className="nexon-contribution-label">기여 가치</span>
+              <span className="nexon-contribution-value">{formatCurrency(attribution.contributionValue)}</span>
+              <span className={`nexon-contribution-change ${attribution.valueChange >= 0 ? 'positive' : 'negative'}`}>
+                {attribution.valueChange >= 0 ? '+' : ''}{attribution.valueChange}% vs 전월
+              </span>
+            </div>
+          </div>
+
+          <div className="nexon-contribution-card">
+            <div className="nexon-contribution-icon" style={{ backgroundColor: '#f59e0b20', color: '#f59e0b' }}>
+              <Award size={24} />
+            </div>
+            <div className="nexon-contribution-content">
+              <span className="nexon-contribution-label">ROI 기여도</span>
+              <span className="nexon-contribution-value">{attribution.roiContribution}%</span>
+              <span className="nexon-contribution-change">상위 {attribution.roiPercentile}%</span>
+            </div>
+          </div>
+
+          <div className="nexon-contribution-card">
+            <div className="nexon-contribution-icon" style={{ backgroundColor: '#8b5cf620', color: '#8b5cf6' }}>
+              <Target size={24} />
+            </div>
+            <div className="nexon-contribution-content">
+              <span className="nexon-contribution-label">참여 캠페인</span>
+              <span className="nexon-contribution-value">{attribution.campaigns.length}개</span>
+              <span className="nexon-contribution-change">
+                진행중 {attribution.campaigns.filter(c => c.status === 'active').length} / 완료 {attribution.campaigns.filter(c => c.status === 'completed').length}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Charts */}
+        <div className="admin-charts-grid">
+          {/* Monthly Trend */}
+          <div className="admin-chart-card">
+            <div className="chart-header">
+              <h3>월별 기여도 추이</h3>
+            </div>
+            <div className="chart-body">
+              <ResponsiveContainer width="100%" height={280}>
+                <AreaChart data={attribution.monthlyTrend}>
+                  <defs>
+                    <linearGradient id="colorContribConversions" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} />
+                  <YAxis stroke="#94a3b8" fontSize={12} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '8px'
+                    }}
+                  />
+                  <Legend />
+                  <Area
+                    type="monotone"
+                    dataKey="conversions"
+                    name="전환수"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorContribConversions)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* IP Breakdown */}
+          <div className="admin-chart-card">
+            <div className="chart-header">
+              <h3>넥슨 IP별 전환 비중</h3>
+            </div>
+            <div className="chart-body">
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={attribution.nexonIPBreakdown} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis type="number" stroke="#94a3b8" fontSize={12} domain={[0, 50]} />
+                  <YAxis dataKey="ip" type="category" stroke="#94a3b8" fontSize={11} width={90} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: '#1e293b',
+                      border: '1px solid #334155',
+                      borderRadius: '8px'
+                    }}
+                    formatter={(value) => [`${value}%`, '기여 비중']}
+                  />
+                  <Bar dataKey="percent" name="기여 비중" fill="#6366f1" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* Campaign Breakdown Table */}
+        <div className="admin-table-card" style={{ marginTop: '24px' }}>
+          <div className="table-header">
+            <h3>캠페인별 기여도 분석</h3>
+          </div>
+          <div className="admin-table-container">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>캠페인명</th>
+                  <th>기간</th>
+                  <th>추정 전환</th>
+                  <th>기여율</th>
+                  <th>전환율</th>
+                  <th>추정 가치</th>
+                  <th>상태</th>
+                </tr>
+              </thead>
+              <tbody>
+                {attribution.campaigns.map((campaign) => (
+                  <tr key={campaign.campaignId}>
+                    <td style={{ fontWeight: 600 }}>{campaign.campaignName}</td>
+                    <td style={{ fontSize: 12, color: '#64748b' }}>{campaign.period}</td>
+                    <td style={{ fontWeight: 600 }}>{campaign.conversions.toLocaleString()}</td>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div style={{
+                          width: '60px',
+                          height: '6px',
+                          background: '#e2e8f0',
+                          borderRadius: '3px',
+                          overflow: 'hidden'
+                        }}>
+                          <div style={{
+                            width: `${Math.min(campaign.contributionPercent * 5, 100)}%`,
+                            height: '100%',
+                            background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+                            borderRadius: '3px'
+                          }} />
+                        </div>
+                        <span style={{ fontSize: '13px', fontWeight: 600 }}>{campaign.contributionPercent}%</span>
+                      </div>
+                    </td>
+                    <td>{campaign.conversionRate}%</td>
+                    <td style={{ fontWeight: 600, color: '#10b981' }}>{formatCurrency(campaign.estimatedValue)}</td>
+                    <td>
+                      <span className={`campaign-status ${campaign.status}`}>
+                        {campaign.status === 'active' ? '진행중' :
+                         campaign.status === 'completed' ? '완료' : '예정'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

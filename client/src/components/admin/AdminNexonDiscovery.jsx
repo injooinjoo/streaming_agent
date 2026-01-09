@@ -375,20 +375,6 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
         </div>
       </div>
 
-      {/* Business Insight Banner */}
-      <div className="business-insight-banner">
-        <div className="business-insight-content">
-          <div className="business-insight-label">
-            <Zap size={14} />
-            Nexon Business Insight
-          </div>
-          <p className="business-insight-text">
-            채팅 로그 분석 결과, 넥슨의 <strong>서브컬처/성장형</strong> 타이틀에 대한 긍정 반응이
-            타 장르 대비 <strong>32%</strong> 높습니다. 블루아카이브 및 메이플스토리 관련 스트리머와의
-            우선적 협업을 추천합니다.
-          </p>
-        </div>
-      </div>
     </div>
   );
 };
