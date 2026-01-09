@@ -1,4 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import Dashboard from './components/Dashboard';
 import ChatOverlay from './components/ChatOverlay';
@@ -14,14 +15,16 @@ import AdOverlay from './components/AdOverlay';
 import LoginPage from './components/auth/LoginPage';
 import RegisterPage from './components/auth/RegisterPage';
 import AdvertiserDashboard from './components/advertiser/AdvertiserDashboard';
+import AdminDashboard from './components/admin/AdminDashboard';
 import './App.css';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="app-container">
-          <Routes>
+    <ThemeProvider>
+      <AuthProvider>
+        <Router>
+          <div className="app-container">
+            <Routes>
             {/* 메인 */}
             <Route path="/" element={<Dashboard />} />
 
@@ -31,6 +34,9 @@ function App() {
 
             {/* 광고주 대시보드 */}
             <Route path="/advertiser" element={<AdvertiserDashboard />} />
+
+            {/* 관리자 대시보드 */}
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
 
             {/* 해시 기반 오버레이 (신규) */}
             <Route path="/overlay/:userHash/chat" element={<ChatOverlay />} />
@@ -51,10 +57,11 @@ function App() {
             <Route path="/overlay/goals" element={<GoalOverlay />} />
             <Route path="/overlay/ticker" element={<TickerOverlay />} />
             <Route path="/overlay/ads" element={<AdOverlay />} />
-          </Routes>
-        </div>
-      </Router>
-    </AuthProvider>
+            </Routes>
+          </div>
+        </Router>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

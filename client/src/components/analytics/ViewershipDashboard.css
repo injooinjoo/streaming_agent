@@ -1,0 +1,394 @@
+.viewership-dashboard {
+  padding: 0;
+}
+
+/* 플랫폼 랭킹 섹션 */
+.viewership-header-section {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.viewership-total-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  border: 1px solid var(--border-subtle);
+}
+
+.viewership-total-label {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.viewership-total-value {
+  font-size: 3.5rem;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1;
+}
+
+.viewership-total-unit {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.viewership-update-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 16px;
+}
+
+/* 플랫폼 랭킹 리스트 */
+.platform-ranking-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--border-subtle);
+}
+
+.platform-ranking-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.platform-ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.platform-ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-hover);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.platform-ranking-item:hover {
+  background: var(--bg-input);
+  transform: translateX(4px);
+}
+
+.platform-rank {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.platform-rank.rank-1 {
+  background: linear-gradient(135deg, #ffd700, #ffb700);
+  color: #1a1a1a;
+}
+
+.platform-rank.rank-2 {
+  background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+  color: #1a1a1a;
+}
+
+.platform-rank.rank-3 {
+  background: linear-gradient(135deg, #cd7f32, #b87333);
+  color: #fff;
+}
+
+.platform-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+.platform-info {
+  flex: 1;
+}
+
+.platform-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.platform-channels {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.platform-viewers {
+  text-align: right;
+}
+
+.platform-viewers-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.platform-viewers-unit {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+.platform-peak {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* 어제 방송 요약 */
+.yesterday-summary-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.yesterday-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.summary-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 20px;
+  border: 1px solid var(--border-subtle);
+}
+
+.summary-card-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.summary-card-icon.time {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.summary-card-icon.viewers {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.summary-card-icon.peak {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.summary-card-icon.donation {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.summary-card-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.summary-card-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.summary-card-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* 24시간 트렌드 차트 */
+.trend-chart-section {
+  margin-bottom: 24px;
+}
+
+.trend-chart-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--border-subtle);
+}
+
+.trend-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.trend-chart-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.trend-chart-legend {
+  display: flex;
+  gap: 16px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.legend-dot.chzzk {
+  background: #00ffa3;
+}
+
+.legend-dot.soop {
+  background: #3b82f6;
+}
+
+/* 최근 활동 피드 */
+.activity-feed-section {
+  margin-bottom: 24px;
+}
+
+.activity-feed-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--border-subtle);
+}
+
+.activity-feed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.activity-feed-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--bg-hover);
+  border-radius: 12px;
+  border-left: 4px solid var(--primary);
+  transition: all 0.2s ease;
+}
+
+.activity-feed-item:hover {
+  background: var(--bg-input);
+}
+
+.activity-feed-item.donation {
+  border-left-color: #ef4444;
+}
+
+.activity-feed-item.subscribe {
+  border-left-color: #f59e0b;
+}
+
+.activity-feed-item.follow {
+  border-left-color: #10b981;
+}
+
+.activity-platform-logo {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: contain;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-user {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.activity-message {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.activity-time {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.activity-amount {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ef4444;
+}
+
+/* 반응형 */
+@media (max-width: 1024px) {
+  .viewership-header-section {
+    grid-template-columns: 1fr;
+  }
+
+  .yesterday-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .viewership-total-value {
+    font-size: 2.5rem;
+  }
+
+  .yesterday-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .trend-chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+}
