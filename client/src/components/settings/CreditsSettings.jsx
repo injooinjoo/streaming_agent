@@ -169,6 +169,8 @@ const CreditsSettings = () => {
   useEffect(() => {
     if (token) {
       fetchSettings();
+    } else {
+      setLoading(false);
     }
   }, [token]);
 

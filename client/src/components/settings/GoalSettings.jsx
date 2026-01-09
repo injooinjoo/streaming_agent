@@ -4,6 +4,7 @@ import {
   Palette, Settings, Shield, Type, HelpCircle, ExternalLink, Info,
   Monitor, Plus, Trash2, RotateCcw, ChevronDown, Check, BarChart, Circle, Heart, Star
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
 import './ChatSettings.css';
 
@@ -66,9 +67,12 @@ const themeOptions = [
 ];
 
 const GoalSettings = () => {
+  const { token } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
   const [saving, setSaving] = useState(false);
   const [activeNav, setActiveNav] = useState('theme');
+  const [overlayHash, setOverlayHash] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   const sectionRefs = {
     theme: useRef(null),
@@ -109,6 +113,17 @@ const GoalSettings = () => {
 
   const fetchSettings = async () => {
     try {
+      // Fetch overlay hash
+      if (token) {
+        const urlsRes = await fetch(`${API_URL}/api/overlay/urls`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (urlsRes.ok) {
+          const urlsData = await urlsRes.json();
+          setOverlayHash(urlsData.hash);
+        }
+      }
+
       const res = await fetch(`${API_URL}/api/settings/goal`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
@@ -130,9 +145,19 @@ const GoalSettings = () => {
     } finally { setSaving(false); }
   };
 
-  const copyUrl = (url) => {
-    navigator.clipboard.writeText(url);
-    alert('URL이 복사되었습니다.');
+  const overlayUrl = overlayHash
+    ? `${window.location.origin}/overlay/${overlayHash}/goals`
+    : '';
+
+  const copyUrl = async () => {
+    if (!overlayUrl) return;
+    try {
+      await navigator.clipboard.writeText(overlayUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
   };
 
   const resetSettings = () => {
@@ -156,7 +181,7 @@ const GoalSettings = () => {
             <button className="btn-setup-guide">
               <HelpCircle size={16} /> 설정 가이드
             </button>
-            <button className="btn-external-view" onClick={() => window.open('/overlay/goals', '_blank')}>
+            <button className="btn-external-view" onClick={() => overlayHash && window.open(`/overlay/${overlayHash}/goals`, '_blank')} disabled={!overlayHash}>
               <ExternalLink size={16} /> 새창으로 열기
             </button>
           </div>
@@ -173,15 +198,16 @@ const GoalSettings = () => {
           <div className="url-copy-box">
             <div className="url-input-group">
               <Monitor className="url-icon" size={18} />
-              <input 
-                type="text" 
-                readOnly 
-                value={`${window.location.origin}/overlay/goals`} 
+              <input
+                type="text"
+                readOnly
+                value={overlayHash ? overlayUrl : '로그인이 필요합니다'}
               />
             </div>
             <div className="url-actions">
-              <button className="url-action-btn primary" onClick={() => copyUrl(`${window.location.origin}/overlay/goals`)}>
-                <Copy size={15} /> URL 복사
+              <button className={`url-action-btn primary ${copied ? 'copied' : ''}`} onClick={copyUrl} disabled={!overlayHash}>
+                {copied ? <Check size={15} /> : <Copy size={15} />}
+                {copied ? '복사됨' : 'URL 복사'}
               </button>
               <button className="url-action-btn" onClick={fetchSettings}>
                 <RefreshCw size={15} /> 새로고침

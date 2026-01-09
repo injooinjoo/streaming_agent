@@ -8,6 +8,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { API_URL } from '../../config/api';
+import { useAuth } from '../../contexts/AuthContext';
 import './ChatSettings.css';
 
 const defaultSettings = {
@@ -102,8 +103,10 @@ const widgetThemes = [
 const timerThemes = [...widgetThemes, '디지털', '네이버'];
 
 const ChatSettings = () => {
+  const { token } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
   const [saving, setSaving] = useState(false);
+  const [overlayHash, setOverlayHash] = useState(null);
   const [testChat, setTestChat] = useState({ 
     amount: '100', 
     message: '채팅 입력', 
@@ -160,6 +163,17 @@ const ChatSettings = () => {
 
   const fetchSettings = async () => {
     try {
+      // 해시 가져오기
+      if (token) {
+        const urlsRes = await fetch(`${API_URL}/api/overlay/urls`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (urlsRes.ok) {
+          const urlsData = await urlsRes.json();
+          setOverlayHash(urlsData.hash);
+        }
+      }
+
       const res = await fetch(`${API_URL}/api/settings/chat`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
@@ -241,7 +255,7 @@ const ChatSettings = () => {
             <button className="btn-setup-guide">
               <HelpCircle size={16} /> 설정 가이드
             </button>
-            <button className="btn-external-view" onClick={() => window.open('/overlay/chat', '_blank')}>
+            <button className="btn-external-view" onClick={() => overlayHash && window.open(`/overlay/${overlayHash}/chat`, '_blank')} disabled={!overlayHash}>
               <ExternalLink size={16} /> 새창으로 열기
             </button>
           </div>
@@ -258,14 +272,14 @@ const ChatSettings = () => {
           <div className="url-copy-box">
             <div className="url-input-group">
               <Monitor className="url-icon" size={18} />
-              <input 
-                type="text" 
-                readOnly 
-                value={`${window.location.origin}/overlay/chat`} 
+              <input
+                type="text"
+                readOnly
+                value={overlayHash ? `${window.location.origin}/overlay/${overlayHash}/chat` : '로그인이 필요합니다'}
               />
             </div>
             <div className="url-actions">
-              <button className="url-action-btn primary" onClick={() => copyUrl(`${window.location.origin}/overlay/chat`)}>
+              <button className="url-action-btn primary" onClick={() => overlayHash && copyUrl(`${window.location.origin}/overlay/${overlayHash}/chat`)} disabled={!overlayHash}>
                 <Copy size={15} /> URL 복사
               </button>
               <button className="url-action-btn" onClick={fetchSettings}>
@@ -631,8 +645,8 @@ const ChatSettings = () => {
                       <div className="url-copy-bar-mini">
                         <span className="bar-label">전용 URL</span>
                         <div className="url-box-wrap">
-                          <input type="text" readOnly value={`${window.location.origin}/overlay/chat?mode=view`} />
-                          <button onClick={()=>copyUrl(`${window.location.origin}/overlay/chat?mode=view`)}><Copy size={12}/> 복사</button>
+                          <input type="text" readOnly value={overlayHash ? `${window.location.origin}/overlay/${overlayHash}/chat?mode=view` : ''} />
+                          <button onClick={()=>overlayHash && copyUrl(`${window.location.origin}/overlay/${overlayHash}/chat?mode=view`)} disabled={!overlayHash}><Copy size={12}/> 복사</button>
                         </div>
                       </div>
                     </div>
@@ -661,8 +675,8 @@ const ChatSettings = () => {
                       <div className="url-copy-bar-mini">
                         <span className="bar-label">전용 URL</span>
                         <div className="url-box-wrap">
-                          <input type="text" readOnly value={`${window.location.origin}/overlay/chat?mode=notice`} />
-                          <button onClick={()=>copyUrl(`${window.location.origin}/overlay/chat?mode=notice`)}><Copy size={12}/> 복사</button>
+                          <input type="text" readOnly value={overlayHash ? `${window.location.origin}/overlay/${overlayHash}/chat?mode=notice` : ''} />
+                          <button onClick={()=>overlayHash && copyUrl(`${window.location.origin}/overlay/${overlayHash}/chat?mode=notice`)} disabled={!overlayHash}><Copy size={12}/> 복사</button>
                         </div>
                       </div>
                     </div>
@@ -737,8 +751,8 @@ const ChatSettings = () => {
                   <div className="url-copy-bar-mini" style={{ marginBottom: '24px' }}>
                     <span className="bar-label">전용 URL</span>
                     <div className="url-box-wrap">
-                      <input type="text" readOnly value={`${window.location.origin}/overlay/chat?mode=timer`} />
-                      <button onClick={()=>copyUrl(`${window.location.origin}/overlay/chat?mode=timer`)}><Copy size={12}/> 복사</button>
+                      <input type="text" readOnly value={overlayHash ? `${window.location.origin}/overlay/${overlayHash}/chat?mode=timer` : ''} />
+                      <button onClick={()=>overlayHash && copyUrl(`${window.location.origin}/overlay/${overlayHash}/chat?mode=timer`)} disabled={!overlayHash}><Copy size={12}/> 복사</button>
                     </div>
                   </div>
                   <div className="theme-scroll-grid">

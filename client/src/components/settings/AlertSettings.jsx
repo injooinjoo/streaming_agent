@@ -6,6 +6,7 @@ import {
   GripVertical, Plus, Trash2, ChevronDown, ChevronUp, Music
 } from 'lucide-react';
 import { API_URL } from '../../config/api';
+import { useAuth } from '../../contexts/AuthContext';
 import './ChatSettings.css';
 
 const defaultSettings = {
@@ -100,8 +101,10 @@ const textEffects = [
 ];
 
 const AlertSettings = () => {
+  const { token } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
   const [saving, setSaving] = useState(false);
+  const [overlayHash, setOverlayHash] = useState(null);
   const [activeNav, setActiveNav] = useState('theme');
   const [expandedSignatures, setExpandedSignatures] = useState({});
   const [draggedIdx, setDraggedIdx] = useState(null);
@@ -146,6 +149,17 @@ const AlertSettings = () => {
 
   const fetchSettings = async () => {
     try {
+      // 해시 가져오기
+      if (token) {
+        const urlsRes = await fetch(`${API_URL}/api/overlay/urls`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (urlsRes.ok) {
+          const urlsData = await urlsRes.json();
+          setOverlayHash(urlsData.hash);
+        }
+      }
+
       const res = await fetch(`${API_URL}/api/settings/alert`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
@@ -244,7 +258,8 @@ const AlertSettings = () => {
   };
 
   const copyUrl = () => {
-    const url = `${window.location.origin}/overlay/alerts`;
+    if (!overlayHash) return;
+    const url = `${window.location.origin}/overlay/${overlayHash}/alerts`;
     navigator.clipboard.writeText(url);
     alert('URL이 복사되었습니다.');
   };
@@ -270,7 +285,7 @@ const AlertSettings = () => {
             <button className="btn-setup-guide">
               <HelpCircle size={16} /> 설정 가이드
             </button>
-            <button className="btn-external-view" onClick={() => window.open('/overlay/alerts', '_blank')}>
+            <button className="btn-external-view" onClick={() => overlayHash && window.open(`/overlay/${overlayHash}/alerts`, '_blank')} disabled={!overlayHash}>
               <ExternalLink size={16} /> 새창으로 열기
             </button>
           </div>
@@ -287,14 +302,14 @@ const AlertSettings = () => {
           <div className="url-copy-box">
             <div className="url-input-group">
               <Monitor className="url-icon" size={18} />
-              <input 
-                type="text" 
-                readOnly 
-                value={`${window.location.origin}/overlay/alerts`} 
+              <input
+                type="text"
+                readOnly
+                value={overlayHash ? `${window.location.origin}/overlay/${overlayHash}/alerts` : '로그인이 필요합니다'}
               />
             </div>
             <div className="url-actions">
-              <button className="url-action-btn primary" onClick={copyUrl}>
+              <button className="url-action-btn primary" onClick={copyUrl} disabled={!overlayHash}>
                 <Copy size={15} /> URL 복사
               </button>
               <button className="url-action-btn" onClick={fetchSettings}>

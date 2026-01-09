@@ -25,8 +25,8 @@
   align-items: center;
   gap: 8px;
   padding: 10px 20px;
-  background: #e2e8f0;
-  color: #64748b;
+  background: var(--border-medium);
+  color: var(--text-muted);
   border: none;
   border-radius: 10px;
   font-size: 13px;
@@ -36,7 +36,7 @@
 }
 
 .btn-bot-toggle:hover {
-  background: #cbd5e1;
+  background: var(--border-light);
 }
 
 .btn-bot-toggle.active {
@@ -125,7 +125,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: #cbd5e1;
+  background-color: var(--border-medium);
   transition: 0.3s;
   border-radius: 28px;
 }
@@ -137,7 +137,7 @@
   width: 22px;
   left: 3px;
   bottom: 3px;
-  background-color: white;
+  background-color: var(--bg-card);
   transition: 0.3s;
   border-radius: 50%;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
@@ -169,7 +169,7 @@
 }
 
 .command-item {
-  background: #f8fafc;
+  background: var(--bg-hover);
   border: 1px solid var(--border-light);
   border-radius: 14px;
   padding: 16px;
@@ -202,7 +202,7 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--primary);
-  background: #eff6ff;
+  background: var(--primary-light);
   padding: 6px 12px;
   border-radius: 8px;
   cursor: pointer;
@@ -210,7 +210,8 @@
 }
 
 .command-name:hover {
-  background: #dbeafe;
+  background: var(--primary-light);
+  filter: brightness(0.95);
 }
 
 .command-name svg {
@@ -226,7 +227,7 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--primary);
-  background: white;
+  background: var(--bg-card);
   border: 2px solid var(--primary);
   padding: 6px 12px;
   border-radius: 8px;
@@ -294,12 +295,12 @@
   background: transparent;
   border-radius: 8px;
   cursor: pointer;
-  color: #64748b;
+  color: var(--text-muted);
   transition: all 0.2s;
 }
 
 .btn-icon-small:hover {
-  background: #e2e8f0;
+  background: var(--bg-hover);
   color: var(--primary);
 }
 
@@ -315,7 +316,7 @@
   background: transparent;
   border: 2px dashed var(--border-medium);
   border-radius: 12px;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -330,13 +331,13 @@
 .btn-add-command:hover {
   border-color: var(--primary);
   color: var(--primary);
-  background: #eff6ff;
+  background: var(--primary-light);
 }
 
 /* Variable Hint */
 .variable-hint {
   padding: 12px 16px;
-  background: #f1f5f9;
+  background: var(--bg-hover);
   border-radius: 10px;
   font-size: 12px;
   color: var(--text-muted);
@@ -355,7 +356,7 @@
 }
 
 .auto-message-item {
-  background: #f8fafc;
+  background: var(--bg-hover);
   border: 1px solid var(--border-light);
   border-radius: 14px;
   padding: 16px;
@@ -395,7 +396,7 @@
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  background: white;
+  background: var(--bg-card);
 }
 
 .trigger-type-selector select:focus {
@@ -452,7 +453,7 @@
   background: transparent;
   border: 2px dashed var(--border-medium);
   border-radius: 12px;
-  color: #64748b;
+  color: var(--text-muted);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -466,7 +467,7 @@
 .btn-add-auto-message:hover {
   border-color: var(--primary);
   color: var(--primary);
-  background: #eff6ff;
+  background: var(--primary-light);
 }
 
 /* Status Dot */
