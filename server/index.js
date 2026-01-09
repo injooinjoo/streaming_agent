@@ -326,6 +326,24 @@ const db = new sqlite3.Database(dbPath, (err) => {
   }
 });
 
+// JWT 인증 미들웨어
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({ error: "인증이 필요합니다." });
+  }
+
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: "유효하지 않은 토큰입니다." });
+    }
+    req.user = user;
+    next();
+  });
+};
+
 // Settings API
 app.get("/api/settings/:key", (req, res) => {
   db.get("SELECT value FROM settings WHERE key = ?", [req.params.key], (err, row) => {
@@ -469,24 +487,6 @@ app.post("/api/overlay/regenerate-hash", authenticateToken, (req, res) => {
     }
   );
 });
-
-// JWT 인증 미들웨어
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({ error: "인증이 필요합니다." });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: "유효하지 않은 토큰입니다." });
-    }
-    req.user = user;
-    next();
-  });
-};
 
 // ===== 인증 API =====
 
