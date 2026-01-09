@@ -10,7 +10,14 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(git push:*)",
-      "Bash(claude mcp add:*)"
+      "Bash(claude mcp add:*)",
+      "Bash(fly logs:*)",
+      "Bash(node:*)",
+      "Bash(ls:*)",
+      "Bash(paste:*)",
+      "Bash(npm run build:*)",
+      "Bash(tree:*)",
+      "Bash(lsof:*)"
     ]
   }
 }
