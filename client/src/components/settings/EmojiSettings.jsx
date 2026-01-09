@@ -136,6 +136,8 @@ const EmojiSettings = () => {
   useEffect(() => {
     if (token) {
       fetchSettings();
+    } else {
+      setLoading(false);
     }
   }, [token]);
 

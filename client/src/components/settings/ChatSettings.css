@@ -94,7 +94,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: white;
+  background: var(--bg-card);
   color: var(--primary);
   border: 1.5px solid var(--primary);
   padding: 8px 16px;
@@ -113,8 +113,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--bg-hover);
+  color: var(--text-muted);
   padding: 8px 16px;
   border-radius: 10px;
   font-size: 13px;
@@ -136,7 +136,7 @@
 .url-label-row .label {
   font-size: 14px;
   font-weight: 700;
-  color: #475569;
+  color: var(--text-muted);
 }
 
 .label-status {
@@ -158,7 +158,7 @@
 
 /* Base Settings Card */
 .settings-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium);
   border-radius: 16px;
   padding: 28px;
@@ -187,7 +187,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  background: #f1f5f9;
+  background: var(--bg-hover);
   padding: 14px 24px;
   border-radius: 16px;
   border: 1px solid var(--border-medium);
@@ -198,7 +198,7 @@
 }
 
 .url-copy-box:focus-within {
-  background: #fff;
+  background: var(--bg-card);
   border-color: var(--primary);
   box-shadow: 0 0 0 4px var(--primary-light);
 }
@@ -233,7 +233,7 @@
   align-items: center;
   gap: 8px;
   border: 1px solid var(--border-medium);
-  background: white;
+  background: var(--bg-card);
   color: var(--text-muted);
   cursor: pointer;
 }
@@ -245,7 +245,7 @@
   align-items: flex-start;
   gap: 10px;
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted);
   line-height: 1.6;
   margin-bottom: 40px;
   padding: 0 8px;
@@ -262,7 +262,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium);
   cursor: pointer;
 }
@@ -293,7 +293,7 @@
 
 .styled-select,
 .styled-input {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium);
   border-radius: 8px;
   padding: 8px 12px;
@@ -325,7 +325,7 @@
   padding: 6px 8px;
   border-radius: 10px;
   border: 1px solid var(--border-light);
-  background: white;
+  background: var(--bg-card);
 }
 
 .url-box-wrap input {
@@ -377,7 +377,7 @@
 }
 
 .theme-card {
-  background: #f8fafc;
+  background: var(--bg-hover);
   border: 2px solid transparent;
   border-radius: 12px;
   padding: 12px;
@@ -388,7 +388,7 @@
 
 .theme-card.active {
   border-color: var(--primary);
-  background: #eff6ff;
+  background: var(--primary-light);
 }
 
 .theme-thumb {
@@ -493,7 +493,7 @@
   gap: 16px;
   align-items: center;
   padding: 16px;
-  background: #f8fafc;
+  background: var(--bg-hover);
   border-radius: 12px;
   flex: 1;
 }
@@ -502,7 +502,7 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   gap: 20px;
-  background: #f8fafc;
+  background: var(--bg-hover);
   padding: 24px;
   border-radius: 16px;
   border: 1px solid var(--border-light);
@@ -514,7 +514,7 @@
   flex-wrap: wrap;
   gap: 24px;
   padding: 12px 16px;
-  background: #f8fafc;
+  background: var(--bg-hover);
   border-radius: 12px;
   flex: 1;
 }
@@ -524,9 +524,9 @@ input[type="checkbox"], input[type="radio"] {
   appearance: none;
   width: 20px;
   height: 20px;
-  border: 2px solid #cbd5e1;
+  border: 2px solid var(--border-medium);
   border-radius: 6px;
-  background: white;
+  background: var(--bg-card);
   cursor: pointer;
   position: relative;
   transition: all 0.2s;
@@ -547,12 +547,12 @@ input[type="radio"]:checked::after {
   background: var(--primary); border-radius: 50%; transform: translate(-50%, -50%);
 }
 
-label { display: flex; align-items: center; font-size: 14px; font-weight: 500; color: #475569; cursor: pointer; }
+label { display: flex; align-items: center; font-size: 14px; font-weight: 500; color: var(--text-muted); cursor: pointer; }
 
 /* Modern Toggle / Segmented Control */
 .segmented-control {
   display: inline-flex;
-  background: #f1f5f9;
+  background: var(--bg-hover);
   padding: 4px;
   border-radius: 10px;
   gap: 2px;
@@ -575,7 +575,7 @@ label { display: flex; align-items: center; font-size: 14px; font-weight: 500; c
   padding: 8px 14px;
   font-size: 13px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-muted);
   border-radius: 7px;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -584,7 +584,7 @@ label { display: flex; align-items: center; font-size: 14px; font-weight: 500; c
 }
 
 .segmented-item input:checked + .segmented-label {
-  background: white;
+  background: var(--bg-card);
   color: var(--primary);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
@@ -599,11 +599,11 @@ label { display: flex; align-items: center; font-size: 14px; font-weight: 500; c
   align-items: center;
   gap: 8px;
   padding: 8px 16px;
-  background: #f1f5f9;
+  background: var(--bg-hover);
   border-radius: 10px;
   font-size: 13px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
   border: 1.5px solid transparent;
@@ -615,7 +615,7 @@ label { display: flex; align-items: center; font-size: 14px; font-weight: 500; c
 }
 
 .toggle-button.active {
-  background: white;
+  background: var(--bg-card);
   border-color: var(--primary);
   color: var(--primary);
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
@@ -663,7 +663,7 @@ label { display: flex; align-items: center; font-size: 14px; font-weight: 500; c
 
 .widget-preview-card {
   border: 2px solid transparent;
-  background: #f8fafc;
+  background: var(--bg-hover);
   border-radius: 12px;
   padding: 12px;
   cursor: pointer;
@@ -671,7 +671,7 @@ label { display: flex; align-items: center; font-size: 14px; font-weight: 500; c
   transition: all 0.2s;
 }
 
-.widget-preview-card.active { border-color: var(--primary); background: #eff6ff; }
+.widget-preview-card.active { border-color: var(--primary); background: var(--primary-light); }
 
 .preview-thumb {
   height: 80px;
@@ -695,7 +695,7 @@ label { display: flex; align-items: center; font-size: 14px; font-weight: 500; c
 }
 
 .theme-item-box {
-  background: #f8fafc;
+  background: var(--bg-hover);
   border: 2px solid transparent;
   border-radius: 12px;
   padding: 16px;
@@ -704,7 +704,7 @@ label { display: flex; align-items: center; font-size: 14px; font-weight: 500; c
   transition: all 0.2s;
 }
 
-.theme-item-box.active { border-color: var(--primary); background: #eff6ff; }
+.theme-item-box.active { border-color: var(--primary); background: var(--primary-light); }
 
 .theme-visual {
   height: 60px;
@@ -721,7 +721,7 @@ label { display: flex; align-items: center; font-size: 14px; font-weight: 500; c
 /* Command Guides */
 .command-guide-box {
   margin-top: 32px;
-  background: #f8fafc;
+  background: var(--bg-hover);
   padding: 32px;
   border-radius: 16px;
   border: 1px solid var(--border-medium);
@@ -745,7 +745,7 @@ label { display: flex; align-items: center; font-size: 14px; font-weight: 500; c
 }
 
 .cmd-item {
-  background: white;
+  background: var(--bg-card);
   padding: 16px;
   border-radius: 12px;
   border: 1px solid var(--border-light);
@@ -781,7 +781,7 @@ label { display: flex; align-items: center; font-size: 14px; font-weight: 500; c
   align-items: center;
   gap: 24px;
   padding: 16px 24px;
-  background: #f8fafc;
+  background: var(--bg-hover);
   border-radius: 12px;
   margin-bottom: 12px;
 }
@@ -794,7 +794,7 @@ input[type="color"] {
   border: 1px solid var(--border-medium);
   border-radius: 6px;
   cursor: pointer;
-  background: white;
+  background: var(--bg-card);
   padding: 2px;
 }
 
@@ -809,7 +809,7 @@ input[type="color"] {
   font-size: 12px;
   border-radius: 6px;
   border: 1px solid var(--border-medium);
-  background: white;
+  background: var(--bg-card);
   color: var(--text-muted);
   font-weight: 600;
   cursor: pointer;
@@ -854,7 +854,7 @@ input[type="color"] {
 }
 
 .test-controls {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium);
   border-radius: 16px;
   padding: 24px;
@@ -879,11 +879,12 @@ input[type="color"] {
   width: 100%;
   margin-top: 16px;
   padding: 12px;
-  background: #f1f5f9;
+  background: var(--bg-hover);
   border: none;
   font-weight: 700;
   border-radius: 8px;
   cursor: pointer;
+  color: var(--text-main);
 }
 
 .large-action {
@@ -921,7 +922,7 @@ input[type="color"] {
 }
 
 .preview-box {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: 20px;
   overflow: hidden;
@@ -930,7 +931,7 @@ input[type="color"] {
 
 /* Setup Preview & Premium Sidebar */
 .setup-preview-container {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-light);
   border-radius: 20px;
   overflow: hidden;
@@ -1189,6 +1190,60 @@ input[type="color"] {
   .chat-settings-preview-aside { width: 100%; position: static; }
 }
 
+@media (max-width: 768px) {
+  .chat-settings-preview-aside {
+    max-height: 280px;
+    overflow: hidden;
+    border-radius: var(--radius-md);
+  }
+
+  .theme-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+  }
+
+  .theme-card {
+    padding: 10px;
+  }
+
+  .theme-preview {
+    height: 50px;
+  }
+
+  .theme-name {
+    font-size: 11px;
+  }
+
+  .settings-section-header h3 {
+    font-size: 15px;
+  }
+
+  .settings-row-pair {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .row-label {
+    min-width: auto;
+  }
+
+  .signature-details .row-label {
+    min-width: auto;
+  }
+
+  .mode-selector-tabs {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .mode-tab {
+    flex: 1;
+    justify-content: center;
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+}
+
 /* Utilities */
 .divider-line { height: 1px; background: var(--border-light); margin: 32px 0; }
 .badge-new { background: #fee2e2; color: #ef4444; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
@@ -1200,7 +1255,7 @@ input[type="color"] {
 .mode-selector-tabs {
   display: flex;
   gap: 8px;
-  background: #f1f5f9;
+  background: var(--bg-hover);
   padding: 6px;
   border-radius: 12px;
   width: fit-content;
@@ -1214,7 +1269,7 @@ input[type="color"] {
   border-radius: 8px;
   font-size: 13px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-muted);
   transition: all 0.2s;
   cursor: pointer;
 }
@@ -1224,7 +1279,7 @@ input[type="color"] {
 }
 
 .mode-tab.active {
-  background: white;
+  background: var(--bg-card);
   color: var(--primary);
   box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
@@ -1282,10 +1337,10 @@ input[type="color"] {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  background: #f8fafc;
+  background: var(--bg-hover);
   gap: 8px;
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted);
   transition: all 0.2s;
 }
 
@@ -1309,7 +1364,7 @@ input[type="color"] {
 }
 
 .signature-item {
-  background: #f8fafc;
+  background: var(--bg-hover);
   border: 1px solid var(--border-light);
   border-radius: 12px;
   padding: 16px;
