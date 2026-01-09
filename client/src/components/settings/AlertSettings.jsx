@@ -16,6 +16,7 @@ const defaultSettings = {
   ttsVolume: 50,
   ttsSpeed: 1,
   ttsMaxChars: 120,
+  ttsVoice: 'default',
   animation: 'bounceIn',
   exitAnimation: 'fadeOut',
   textAnimation: 'tada',
@@ -98,6 +99,17 @@ const textEffects = [
   { value: 'bounce', label: '통통' },
   { value: 'rotate', label: '회전' },
   { value: 'rollIn', label: '롤인' }
+];
+
+const ttsVoiceOptions = [
+  { value: 'default', label: '기본 (여성)' },
+  { value: 'male1', label: '남성 1' },
+  { value: 'male2', label: '남성 2 (저음)' },
+  { value: 'female1', label: '여성 1' },
+  { value: 'female2', label: '여성 2 (밝은)' },
+  { value: 'child', label: '어린이' },
+  { value: 'robot', label: '로봇' },
+  { value: 'streamer', label: '스트리머 목소리', badge: 'NEW' }
 ];
 
 const AlertSettings = () => {
@@ -478,6 +490,20 @@ const AlertSettings = () => {
                 <div className="settings-row-pair">
                   <div className="row-label">TTS 설정</div>
                   <div className="flex-row-gap wrap-row">
+                    <div className="color-input-item" style={{ minWidth: '140px' }}>
+                        <span className="tiny-label">TTS 목소리</span>
+                        <select
+                          value={settings.ttsVoice}
+                          onChange={(e) => setSettings({ ...settings, ttsVoice: e.target.value })}
+                          className="styled-select"
+                        >
+                          {ttsVoiceOptions.map((voice) => (
+                            <option key={voice.value} value={voice.value}>
+                              {voice.label}{voice.badge ? ` (${voice.badge})` : ''}
+                            </option>
+                          ))}
+                        </select>
+                    </div>
                     <div className="color-input-item">
                         <span className="tiny-label">TTS 볼륨</span>
                         <input type="range" min="0" max="100" value={settings.ttsVolume} onChange={(e) => setSettings({ ...settings, ttsVolume: parseInt(e.target.value) })} />

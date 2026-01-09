@@ -24,6 +24,18 @@
   --sidebar-width: 280px;
   --header-height: 64px;
 
+  /* Z-Index Hierarchy */
+  --z-base: 1;
+  --z-dropdown: 50;
+  --z-header: 90;
+  --z-sidebar: 100;
+  --z-overlay: 200;
+  --z-modal: 300;
+  --z-toast: 400;
+
+  /* Viewport Height (set by JS for mobile) */
+  --vh: 1vh;
+
   --shadow-premium: 0 10px 40px -10px rgba(0, 0, 0, 0.05), 0 4px 12px -4px rgba(0, 0, 0, 0.02);
   --shadow-hover: 0 20px 50px -12px rgba(0, 0, 0, 0.08);
   --glass-blur: blur(12px);
@@ -66,7 +78,7 @@
 body {
   background-color: var(--bg-page);
   color: var(--text-main);
-  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
   width: 100vw;
   overflow: hidden;
   font-size: 14px;
@@ -97,7 +109,7 @@ input:focus, select:focus, textarea:focus {
 }
 
 .app-container {
-  height: 100vh;
+  height: calc(var(--vh, 1vh) * 100);
   width: 100vw;
   display: flex;
 }
@@ -207,5 +219,56 @@ input:focus {
   /* Form elements */
   input, select, textarea {
     font-size: 16px; /* Prevent iOS zoom on focus */
+  }
+}
+
+/* ===== Streaming Mode - 민감 정보 블러 ===== */
+[data-streaming-mode="true"] .sensitive-blur {
+  filter: blur(8px);
+  user-select: none;
+  transition: filter 0.3s ease;
+}
+
+[data-streaming-mode="true"] .sensitive-blur:hover {
+  filter: blur(4px);
+}
+
+/* 스트리밍 모드 토글 버튼 */
+.streaming-mode-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-hover);
+  border-radius: var(--radius-full, 9999px);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-right: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.streaming-mode-toggle:hover {
+  background: var(--bg-input);
+}
+
+.streaming-mode-toggle.active {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.streaming-mode-toggle .toggle-switch {
+  margin-left: 4px;
+}
+
+@media (max-width: 768px) {
+  .streaming-mode-toggle span {
+    display: none;
+  }
+
+  .streaming-mode-toggle {
+    padding: 8px;
+    margin-right: 4px;
   }
 }

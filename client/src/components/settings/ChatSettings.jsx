@@ -44,6 +44,10 @@ const defaultSettings = {
   botFilter: true,
   wordFilter: '',
   donationMessageFilter: true,
+  // 노딱방지 필터
+  profanityFilter: false,
+  profanityFilterLevel: 'medium',
+  profanityFilterAction: 'hide',
   // Notifications
   donationNotify: 'image', // none, text, image
   entryNotify: 'none', // none, text, alert, voice
@@ -555,6 +559,65 @@ const ChatSettings = () => {
                      </div>
                   </div>
                 </div>
+                <div className="divider-line" />
+
+                <div className="card-header">
+                  <h3>
+                    <span className="badge-orange">NEW</span> 유튜브 노딱방지 필터
+                  </h3>
+                  <p>욕설, 비속어, 부적절한 채팅을 자동으로 감지하여 오버레이에 표시하지 않습니다.</p>
+                </div>
+
+                <div className="settings-row-pair">
+                  <div className="row-label">노딱방지 필터</div>
+                  <label className={`toggle-button ${settings.profanityFilter ? 'active' : ''}`}>
+                    <input type="checkbox" checked={settings.profanityFilter} onChange={(e) => setSettings({...settings, profanityFilter: e.target.checked})}/>
+                    <div className="check-icon">{settings.profanityFilter && <Check size={10} />}</div>
+                    사용
+                  </label>
+                </div>
+
+                {settings.profanityFilter && (
+                  <>
+                    <div className="settings-row-pair">
+                      <div className="row-label">필터 강도</div>
+                      <div className="segmented-control">
+                        <div className="segmented-item">
+                          <input type="radio" id="prof-low" name="profLevel" checked={settings.profanityFilterLevel === 'low'} onChange={() => setSettings({...settings, profanityFilterLevel: 'low'})}/>
+                          <label htmlFor="prof-low" className="segmented-label">약함</label>
+                        </div>
+                        <div className="segmented-item">
+                          <input type="radio" id="prof-medium" name="profLevel" checked={settings.profanityFilterLevel === 'medium'} onChange={() => setSettings({...settings, profanityFilterLevel: 'medium'})}/>
+                          <label htmlFor="prof-medium" className="segmented-label">보통</label>
+                        </div>
+                        <div className="segmented-item">
+                          <input type="radio" id="prof-high" name="profLevel" checked={settings.profanityFilterLevel === 'high'} onChange={() => setSettings({...settings, profanityFilterLevel: 'high'})}/>
+                          <label htmlFor="prof-high" className="segmented-label">강함</label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="settings-row-pair">
+                      <div className="row-label">필터링 동작</div>
+                      <div className="segmented-control">
+                        <div className="segmented-item">
+                          <input type="radio" id="prof-hide" name="profAction" checked={settings.profanityFilterAction === 'hide'} onChange={() => setSettings({...settings, profanityFilterAction: 'hide'})}/>
+                          <label htmlFor="prof-hide" className="segmented-label">숨김</label>
+                        </div>
+                        <div className="segmented-item">
+                          <input type="radio" id="prof-mask" name="profAction" checked={settings.profanityFilterAction === 'mask'} onChange={() => setSettings({...settings, profanityFilterAction: 'mask'})}/>
+                          <label htmlFor="prof-mask" className="segmented-label">*** 처리</label>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="settings-info-text">
+                      <Info size={16} />
+                      <span>약함: 심한 욕설만 필터링 | 보통: 일반 비속어 포함 | 강함: 은어, 변형어까지 필터링</span>
+                    </div>
+                  </>
+                )}
+
                 <div className="info-box-blue">
                    <p><Info size={16}/> 필터링은 모든 채팅창, 후원알림 프리셋에 공통으로 적용됩니다.</p>
                    <p><Info size={16}/> 필터링된 단어는 ♡ 로 표시됩니다.</p>

@@ -5,11 +5,12 @@ import {
   HelpCircle, Send, Plus, ExternalLink, Settings,
   RefreshCw, Megaphone, Palette, Sparkles, Activity, TrendingUp, MousePointerClick,
   DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, ChevronDown, Disc,
-  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield
+  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket
 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useStreamingMode } from '../contexts/StreamingModeContext';
 import ChatSettings from './settings/ChatSettings';
 import AlertSettings from './settings/AlertSettings';
 import SubtitleSettings from './settings/SubtitleSettings';
@@ -38,6 +39,7 @@ const Dashboard = () => {
   const [events, setEvents] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState({});
+  const [feedTab, setFeedTab] = useState('recent');
   const [simulation, setSimulation] = useState({
     type: 'chat',
     sender: '',
@@ -48,6 +50,7 @@ const Dashboard = () => {
 
   const { user, isAuthenticated, logout } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
+  const { isStreamingMode, toggleStreamingMode } = useStreamingMode();
   const navigate = useNavigate();
 
   // Developer mode - 바로 어드민 대시보드로 이동
@@ -295,7 +298,7 @@ const Dashboard = () => {
                 <ChevronRight size={14} />
               </div>
               <div className="stat-content">
-                <span className="value">₩{stats.todayDonation.toLocaleString()}</span>
+                <span className="value sensitive-blur">₩{stats.todayDonation.toLocaleString()}</span>
                 <span className="subtext">오늘 방송 누적</span>
               </div>
               <div className="stat-link">
@@ -309,7 +312,7 @@ const Dashboard = () => {
                 <ChevronRight size={14} />
               </div>
               <div className="stat-content">
-                <span className="value">{stats.peakViewers.toLocaleString()}</span>
+                <span className="value sensitive-blur">{stats.peakViewers.toLocaleString()}</span>
                 <span className="subtext">어제 대비 24% 증가</span>
               </div>
               <div className="stat-link">
@@ -323,7 +326,7 @@ const Dashboard = () => {
                 <ChevronRight size={14} />
               </div>
               <div className="stat-content">
-                <span className="value">{stats.newSubs}</span>
+                <span className="value sensitive-blur">{stats.newSubs}</span>
                 <span className="subtext">모든 플랫폼 통합</span>
               </div>
               <div className="stat-link">
@@ -379,11 +382,11 @@ const Dashboard = () => {
                       <div className="category-stats">
                         <div className="category-stat">
                           <span className="stat-label">반응도</span>
-                          <span className="stat-value">{category.engagement}%</span>
+                          <span className="stat-value sensitive-blur">{category.engagement}%</span>
                         </div>
                         <div className="category-stat">
                           <span className="stat-label">평균 시청자</span>
-                          <span className="stat-value">{category.avgViewers.toLocaleString()}</span>
+                          <span className="stat-value sensitive-blur">{category.avgViewers.toLocaleString()}</span>
                         </div>
                         <span className={`category-growth ${category.growth.startsWith('+') ? 'positive' : 'negative'}`}>
                           {category.growth}
@@ -440,66 +443,189 @@ const Dashboard = () => {
           </div>
 
           <div className="tabs-container">
-            <button className="tab-btn active">최근 활동 피드</button>
-            <button className="tab-btn">대기중인 이벤트</button>
-            <button className="tab-btn">방송 통계</button>
+            <button
+              className={`tab-btn ${feedTab === 'recent' ? 'active' : ''}`}
+              onClick={() => setFeedTab('recent')}
+            >최근 활동 피드</button>
+            <button
+              className={`tab-btn ${feedTab === 'pending' ? 'active' : ''}`}
+              onClick={() => setFeedTab('pending')}
+            >대기중인 이벤트</button>
+            <button
+              className={`tab-btn ${feedTab === 'stats' ? 'active' : ''}`}
+              onClick={() => setFeedTab('stats')}
+            >방송 통계</button>
           </div>
 
-          <div className="table-container">
-            <div className="table-header">
-              <span>이벤트 타입</span>
-              <span>상태</span>
-              <span>송신자</span>
-              <span>금액 / 메시지</span>
-              <span style={{ textAlign: 'right' }}>시간</span>
-            </div>
-            <div className="table-list">
-              {events.length === 0 ? (
-                <div className="empty-state">최근 활동 내역이 없습니다.</div>
-              ) : (
-                events.map((ev) => {
-                  const getPlatformLogo = (p) => {
-                    const lowP = p?.toLowerCase();
-                    if (lowP === 'soop') return '/assets/logos/soop.png';
-                    if (lowP === 'chzzk') return '/assets/logos/chzzk.png';
-                    if (lowP === 'youtube') return '/assets/logos/youtube.png';
-                    return null;
-                  };
-                  const platformLogo = getPlatformLogo(ev.platform);
-                  
-                  return (
-                    <div key={ev.id} className="table-row">
-                      <div className="recipient-cell">
-                        <div className="platform-tag" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          {platformLogo ? (
-                             <img src={platformLogo} alt={ev.platform} style={{ height: '14px', borderRadius: '2px' }} />
-                          ) : (
-                             <MessageSquare size={12} className="text-muted" />
-                          )}
+          {feedTab === 'recent' && (
+            <div className="table-container">
+              <div className="table-header">
+                <span>이벤트 타입</span>
+                <span>상태</span>
+                <span>송신자</span>
+                <span>금액 / 메시지</span>
+                <span style={{ textAlign: 'right' }}>시간</span>
+              </div>
+              <div className="table-list">
+                {events.length === 0 ? (
+                  <div className="empty-state">최근 활동 내역이 없습니다.</div>
+                ) : (
+                  events.map((ev) => {
+                    const getPlatformLogo = (p) => {
+                      const lowP = p?.toLowerCase();
+                      if (lowP === 'soop') return '/assets/logos/soop.png';
+                      if (lowP === 'chzzk') return '/assets/logos/chzzk.png';
+                      if (lowP === 'youtube') return '/assets/logos/youtube.png';
+                      return null;
+                    };
+                    const platformLogo = getPlatformLogo(ev.platform);
+
+                    return (
+                      <div key={ev.id} className="table-row">
+                        <div className="recipient-cell">
+                          <div className="platform-tag" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {platformLogo ? (
+                               <img src={platformLogo} alt={ev.platform} style={{ height: '14px', borderRadius: '2px' }} />
+                            ) : (
+                               <MessageSquare size={12} className="text-muted" />
+                            )}
+                          </div>
+                          <div className="recipient-icon" style={{ marginLeft: '4px' }}>
+                            {ev.type === 'donation' ? <Plus size={14} /> : <MessageSquare size={14} />}
+                          </div>
+                          <span>{ev.type.charAt(0).toUpperCase() + ev.type.slice(1)}</span>
                         </div>
-                        <div className="recipient-icon" style={{ marginLeft: '4px' }}>
-                          {ev.type === 'donation' ? <Plus size={14} /> : <MessageSquare size={14} />}
-                        </div>
-                        <span>{ev.type.charAt(0).toUpperCase() + ev.type.slice(1)}</span>
+                      <div>
+                        <span className={`status-badge ${ev.type}`}>
+                          {ev.type === 'donation' ? '후원' : '채팅'}
+                        </span>
                       </div>
-                    <div>
-                      <span className={`status-badge ${ev.type}`}>
-                        {ev.type === 'donation' ? '후원' : '채팅'}
-                      </span>
-                    </div>
-                    <div style={{ fontWeight: 500 }}>{ev.sender}</div>
-                    <div className="amount-cell">
-                      {ev.type === 'donation' ? `₩${ev.amount.toLocaleString()}` : ev.message}
-                    </div>
-                    <div className="time-cell">
-                      {new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
-                    </div>
-                  );
-                })
-              )}
+                      <div style={{ fontWeight: 500 }}>{ev.sender}</div>
+                      <div className="amount-cell">
+                        {ev.type === 'donation' ? `₩${ev.amount.toLocaleString()}` : ev.message}
+                      </div>
+                      <div className="time-cell">
+                        {new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
-          </div>
+          )}
+
+          {feedTab === 'pending' && (
+            <div className="table-container">
+              <div className="table-header">
+                <span>이벤트 타입</span>
+                <span>상태</span>
+                <span>송신자</span>
+                <span>금액 / 메시지</span>
+                <span style={{ textAlign: 'right' }}>액션</span>
+              </div>
+              <div className="table-list">
+                {events.filter(ev => ev.type === 'donation').length === 0 ? (
+                  <div className="empty-state">대기중인 알림이 없습니다.</div>
+                ) : (
+                  events.filter(ev => ev.type === 'donation').slice(0, 5).map((ev) => {
+                    const getPlatformLogo = (p) => {
+                      const lowP = p?.toLowerCase();
+                      if (lowP === 'soop') return '/assets/logos/soop.png';
+                      if (lowP === 'chzzk') return '/assets/logos/chzzk.png';
+                      if (lowP === 'youtube') return '/assets/logos/youtube.png';
+                      return null;
+                    };
+                    const platformLogo = getPlatformLogo(ev.platform);
+
+                    return (
+                      <div key={ev.id} className="table-row">
+                        <div className="recipient-cell">
+                          <div className="platform-tag" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            {platformLogo ? (
+                               <img src={platformLogo} alt={ev.platform} style={{ height: '14px', borderRadius: '2px' }} />
+                            ) : (
+                               <Bell size={12} className="text-muted" />
+                            )}
+                          </div>
+                          <div className="recipient-icon" style={{ marginLeft: '4px' }}>
+                            <Bell size={14} />
+                          </div>
+                          <span>후원 알림</span>
+                        </div>
+                        <div>
+                          <span className="status-badge pending" style={{ background: '#fef3c7', color: '#d97706' }}>
+                            대기중
+                          </span>
+                        </div>
+                        <div style={{ fontWeight: 500 }}>{ev.sender}</div>
+                        <div className="amount-cell">₩{ev.amount.toLocaleString()}</div>
+                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                          <button className="btn btn-sm btn-primary" style={{ padding: '4px 12px', fontSize: '12px' }}>
+                            재생
+                          </button>
+                          <button className="btn btn-sm btn-outline" style={{ padding: '4px 12px', fontSize: '12px' }}>
+                            스킵
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
+          {feedTab === 'stats' && (
+            <div className="table-container">
+              <div className="stats-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', padding: '24px' }}>
+                <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 채팅 수</div>
+                  <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
+                    {events.filter(ev => ev.type === 'chat').length}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>오늘 누적</div>
+                </div>
+                <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 후원 수</div>
+                  <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
+                    {events.filter(ev => ev.type === 'donation').length}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>오늘 누적</div>
+                </div>
+                <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 후원 금액</div>
+                  <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--primary-color)' }}>
+                    ₩{events.filter(ev => ev.type === 'donation').reduce((acc, curr) => acc + (curr.amount || 0), 0).toLocaleString()}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>오늘 누적</div>
+                </div>
+                <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>평균 후원 금액</div>
+                  <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
+                    ₩{events.filter(ev => ev.type === 'donation').length > 0
+                      ? Math.round(events.filter(ev => ev.type === 'donation').reduce((acc, curr) => acc + (curr.amount || 0), 0) / events.filter(ev => ev.type === 'donation').length).toLocaleString()
+                      : 0}
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>후원당 평균</div>
+                </div>
+                <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>현재 시청자</div>
+                  <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
+                    {stats.peakViewers}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#10b981', marginTop: '4px' }}>+24% 어제 대비</div>
+                </div>
+                <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>방송 시간</div>
+                  <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
+                    2시간 34분
+                  </div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>오늘 누적</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="simulator-card">
             <div className="card-title">이벤트 시뮬레이터</div>
@@ -736,7 +862,28 @@ const Dashboard = () => {
             <BarChart3 className="search-icon" size={16} />
             <input type="text" placeholder="메뉴 검색..." />
           </div>
+          <button
+            className="btn btn-onboarding"
+            onClick={() => setActiveTab('account')}
+            title="시작 가이드"
+          >
+            <Rocket size={16} />
+            <span>처음이신가요?</span>
+          </button>
           <div className="top-actions">
+            <div className={`streaming-mode-toggle ${isStreamingMode ? 'active' : ''}`}>
+              {isStreamingMode ? <EyeOff size={16} /> : <Eye size={16} />}
+              <span>스트리밍 모드</span>
+              <div className="toggle-switch">
+                <input
+                  type="checkbox"
+                  id="streaming-mode"
+                  checked={isStreamingMode}
+                  onChange={toggleStreamingMode}
+                />
+                <label htmlFor="streaming-mode"></label>
+              </div>
+            </div>
             <button
               className="btn btn-icon btn-ghost"
               onClick={toggleTheme}
