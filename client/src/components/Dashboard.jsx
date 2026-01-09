@@ -77,7 +77,8 @@ const Dashboard = () => {
         { id: 'voting', label: '투표 시스템', icon: <Vote size={18} /> },
         { id: 'credits', label: '엔딩 크레딧', icon: <Film size={18} /> },
         { id: 'bot', label: '챗봇', icon: <Bot size={18} /> },
-        { id: 'design', label: '디자인 커스터마이저', icon: <Palette size={18} /> }
+        { id: 'design', label: '디자인 커스터마이저', icon: <Palette size={18} /> },
+        { id: 'marketplace', label: '디자인 마켓', icon: <Store size={18} /> }
       ]
     },
     {
@@ -85,15 +86,14 @@ const Dashboard = () => {
       items: [
         { id: 'analytics-revenue', label: '수익 분석', icon: <DollarSign size={18} /> },
         { id: 'analytics-viewers', label: '시청자 분석', icon: <Users size={18} /> },
-        { id: 'analytics-content', label: '콘텐츠 분석', icon: <PieChart size={18} /> },
-        { id: 'analytics-ads', label: '광고 분석', icon: <TrendingUp size={18} /> }
+        { id: 'analytics-content', label: '콘텐츠 분석', icon: <PieChart size={18} /> }
       ]
     },
     {
-      label: '수익 관리',
+      label: '광고 관리',
       items: [
-        { id: 'ads', label: '광고 관리', icon: <Megaphone size={18} /> },
-        { id: 'marketplace', label: '디자인 마켓', icon: <Store size={18} /> }
+        { id: 'ads', label: '광고 위젯', icon: <Megaphone size={18} /> },
+        { id: 'analytics-ads', label: '광고 분석', icon: <TrendingUp size={18} /> }
       ]
     }
   ];
