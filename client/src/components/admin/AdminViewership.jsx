@@ -78,6 +78,64 @@ const AdminViewership = ({ onStreamerSelect }) => {
       .sort((a, b) => b.donationRate - a.donationRate)
       .slice(0, 3);
 
+    // 시청자 추이 데이터 (7일)
+    const viewershipTrend = Array.from({ length: 7 }, (_, i) => {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - i));
+      const dayName = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
+      return {
+        date: `${date.getMonth() + 1}/${date.getDate()} (${dayName})`,
+        viewers: 150000 + Math.floor(Math.random() * 100000),
+        unique: 80000 + Math.floor(Math.random() * 50000)
+      };
+    });
+
+    // 디바이스 분포
+    const deviceDistribution = [
+      { name: '데스크톱', value: 58 },
+      { name: '모바일', value: 35 },
+      { name: '태블릿', value: 5 },
+      { name: '기타', value: 2 }
+    ];
+
+    // 시간대별 시청자 (피크 시간대)
+    const peakHours = Array.from({ length: 24 }, (_, i) => {
+      // 저녁~밤 시간대에 시청자 증가 패턴
+      let baseViewers = 50000;
+      if (i >= 19 && i <= 23) baseViewers = 180000; // 피크타임
+      else if (i >= 14 && i < 19) baseViewers = 120000; // 오후
+      else if (i >= 10 && i < 14) baseViewers = 80000; // 낮
+      else if (i >= 0 && i < 6) baseViewers = 30000; // 새벽
+
+      return {
+        hour: `${i.toString().padStart(2, '0')}시`,
+        viewers: baseViewers + Math.floor(Math.random() * 30000)
+      };
+    });
+
+    // 지역별 시청자 분포
+    const geoDistribution = [
+      { name: '대한민국', flag: '🇰🇷', viewers: 185000, percentage: 81, avgWatchTime: 48 },
+      { name: '미국', flag: '🇺🇸', viewers: 18500, percentage: 8, avgWatchTime: 32 },
+      { name: '일본', flag: '🇯🇵', viewers: 11400, percentage: 5, avgWatchTime: 28 },
+      { name: '중국', flag: '🇨🇳', viewers: 6850, percentage: 3, avgWatchTime: 25 },
+      { name: '기타', flag: '🌍', viewers: 5562, percentage: 3, avgWatchTime: 20 }
+    ];
+
+    // 시청자 이탈률 데이터
+    const retentionData = [
+      { minute: '0분', retention: 100 },
+      { minute: '5분', retention: 85 },
+      { minute: '10분', retention: 72 },
+      { minute: '15분', retention: 65 },
+      { minute: '20분', retention: 58 },
+      { minute: '30분', retention: 48 },
+      { minute: '45분', retention: 38 },
+      { minute: '60분', retention: 32 },
+      { minute: '90분', retention: 25 },
+      { minute: '120분', retention: 18 }
+    ];
+
     return {
       hourlyTrend,
       platformStats,
@@ -87,7 +145,20 @@ const AdminViewership = ({ onStreamerSelect }) => {
       streamerInfluence: filteredStreamers,
       topAdEfficiency,
       trendingStreamers,
-      topDonationRate
+      topDonationRate,
+      // 새로 추가된 데이터
+      totalViews: 2847500,
+      viewsGrowth: 12.5,
+      uniqueViewers: 185420,
+      uniqueGrowth: 8.3,
+      avgWatchTime: 42,
+      watchTimeGrowth: 5.2,
+      peakConcurrent: 227312,
+      viewershipTrend,
+      deviceDistribution,
+      peakHours,
+      geoDistribution,
+      retentionData
     };
   }, [selectedGame]);
 

@@ -5,7 +5,7 @@ import {
   HelpCircle, Send, Plus, ExternalLink, Settings,
   RefreshCw, Megaphone, Palette, Sparkles, Activity, TrendingUp, MousePointerClick,
   DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, ChevronDown, Disc,
-  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2
+  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield
 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -753,11 +753,13 @@ const Dashboard = () => {
               <Settings size={18} />
             </button>
             <button
-              className="btn btn-text btn-ghost dev-mode-toggle-dashboard"
+              className="btn btn-secondary"
               onClick={handleDeveloperMode}
               title="관리자 대시보드"
+              style={{ borderRadius: 'var(--radius-full)' }}
             >
-              어드민 모드
+              <Shield size={16} />
+              관리자
             </button>
             {isAuthenticated ? (
               <button className="btn btn-primary" style={{ borderRadius: 'var(--radius-full)' }}>
