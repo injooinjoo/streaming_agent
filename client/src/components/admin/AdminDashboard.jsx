@@ -39,7 +39,7 @@ const AdminDashboard = () => {
     { id: 'streamers', label: '스트리머 관리', icon: <Users size={18} /> },
     { id: 'revenue', label: '수익 분석', icon: <DollarSign size={18} /> },
     { id: 'platforms', label: '플랫폼 비교', icon: <BarChart3 size={18} /> },
-    { id: 'viewership', label: '시청자 분석', icon: <Activity size={18} /> },
+    { id: 'viewership', label: '스트리머 분석', icon: <Activity size={18} /> },
     { id: 'game-analytics', label: '게임 데이터', icon: <Gamepad2 size={18} /> },
   ];
 
