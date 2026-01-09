@@ -75,14 +75,14 @@ if (process.env.NODE_ENV === 'production') {
 
 // Initialize SQLite Database
 const dbPath = path.resolve(__dirname, "weflab_clone.db");
-const db = new sqlite3.Database(dbPath, (err) => {
-  if (err) {
-    console.error("Database connection error:", err.message);
-  } else {
-    console.log("Connected to SQLite database.");
+const db = new sqlite3.Database(dbPath);
 
-    // 기존 테이블
-    db.run(`CREATE TABLE IF NOT EXISTS events (
+// Database initialization function
+const initializeDatabase = () => {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      // 기존 테이블
+      db.run(`CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       type TEXT,
       sender TEXT,
@@ -322,9 +322,16 @@ const db = new sqlite3.Database(dbPath, (err) => {
       UNIQUE(design_id, user_id)
     )`);
 
-    console.log("All database tables initialized.");
-  }
-});
+      console.log("All database tables initialized.");
+      resolve();
+    });
+  });
+};
+
+// Initialize database
+initializeDatabase()
+  .then(() => console.log("Database ready."))
+  .catch((err) => console.error("Database initialization error:", err));
 
 // JWT 인증 미들웨어
 const authenticateToken = (req, res, next) => {
