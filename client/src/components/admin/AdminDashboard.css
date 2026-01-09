@@ -2141,3 +2141,86 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== Game Analytics Styles ===== */
+
+.admin-game-analytics {
+  width: 100%;
+}
+
+.game-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.game-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.game-select {
+  margin-left: auto;
+  padding: 8px 12px;
+  border: 1px solid var(--border-medium, #e2e8f0);
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
+  color: var(--text-main, #1e293b);
+  cursor: pointer;
+}
+
+.game-select:focus {
+  outline: none;
+  border-color: var(--primary, #3b82f6);
+}
+
+.influence-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 150px;
+}
+
+.influence-fill {
+  height: 8px;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.influence-bar span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main, #1e293b);
+  min-width: 28px;
+}
+
+/* Revenue Summary Grid 4 columns for game analytics */
+.admin-game-analytics .revenue-summary-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (max-width: 1200px) {
+  .admin-game-analytics .revenue-summary-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-game-analytics .revenue-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .game-select {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 12px;
+  }
+
+  .top-list-header {
+    flex-wrap: wrap;
+  }
+}
