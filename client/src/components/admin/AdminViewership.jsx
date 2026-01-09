@@ -1,14 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  RefreshCw, Users, Clock, TrendingUp, Eye, Monitor, Smartphone, Globe,
-  Gamepad2, Crown, Flame, Target, ChevronRight, Star, Zap, Award
+  RefreshCw, Users, Clock, Gamepad2, Crown, Flame, Target, ChevronRight, Star, Zap, Award
 } from 'lucide-react';
-import {
-  AreaChart, Area, LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
-} from 'recharts';
-
-const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 // Game categories for filtering
 const GAME_CATEGORIES = [
@@ -41,22 +34,6 @@ const AdminViewership = ({ onStreamerSelect }) => {
 
   // Mock 데이터 생성
   const data = useMemo(() => {
-    // 시간대별 데이터
-    const hourlyTrend = Array.from({ length: 24 }, (_, i) => ({
-      hour: `${i.toString().padStart(2, '0')}:00`,
-      soop: Math.floor(Math.random() * 50000) + 20000,
-      chzzk: Math.floor(Math.random() * 60000) + 30000,
-      youtube: Math.floor(Math.random() * 30000) + 10000,
-      twitch: Math.floor(Math.random() * 10000) + 2000
-    }));
-
-    const platformStats = {
-      soop: { current: 87107, peak: 361049, channels: 2144 },
-      chzzk: { current: 92289, peak: 264871, channels: 2438 },
-      youtube: { current: 45000, peak: 120000, channels: 850 },
-      twitch: { current: 2916, peak: 4633, channels: 108 }
-    };
-
     // 게임 필터링
     const filteredStreamers = selectedGame === 'all'
       ? MOCK_STREAMER_INFLUENCE
@@ -78,92 +55,15 @@ const AdminViewership = ({ onStreamerSelect }) => {
       .sort((a, b) => b.donationRate - a.donationRate)
       .slice(0, 3);
 
-    // 시청자 추이 데이터 (7일)
-    const viewershipTrend = Array.from({ length: 7 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (6 - i));
-      const dayName = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()];
-      return {
-        date: `${date.getMonth() + 1}/${date.getDate()} (${dayName})`,
-        viewers: 150000 + Math.floor(Math.random() * 100000),
-        unique: 80000 + Math.floor(Math.random() * 50000)
-      };
-    });
-
-    // 디바이스 분포
-    const deviceDistribution = [
-      { name: '데스크톱', value: 58 },
-      { name: '모바일', value: 35 },
-      { name: '태블릿', value: 5 },
-      { name: '기타', value: 2 }
-    ];
-
-    // 시간대별 시청자 (피크 시간대)
-    const peakHours = Array.from({ length: 24 }, (_, i) => {
-      // 저녁~밤 시간대에 시청자 증가 패턴
-      let baseViewers = 50000;
-      if (i >= 19 && i <= 23) baseViewers = 180000; // 피크타임
-      else if (i >= 14 && i < 19) baseViewers = 120000; // 오후
-      else if (i >= 10 && i < 14) baseViewers = 80000; // 낮
-      else if (i >= 0 && i < 6) baseViewers = 30000; // 새벽
-
-      return {
-        hour: `${i.toString().padStart(2, '0')}시`,
-        viewers: baseViewers + Math.floor(Math.random() * 30000)
-      };
-    });
-
-    // 지역별 시청자 분포
-    const geoDistribution = [
-      { name: '대한민국', flag: '🇰🇷', viewers: 185000, percentage: 81, avgWatchTime: 48 },
-      { name: '미국', flag: '🇺🇸', viewers: 18500, percentage: 8, avgWatchTime: 32 },
-      { name: '일본', flag: '🇯🇵', viewers: 11400, percentage: 5, avgWatchTime: 28 },
-      { name: '중국', flag: '🇨🇳', viewers: 6850, percentage: 3, avgWatchTime: 25 },
-      { name: '기타', flag: '🌍', viewers: 5562, percentage: 3, avgWatchTime: 20 }
-    ];
-
-    // 시청자 이탈률 데이터
-    const retentionData = [
-      { minute: '0분', retention: 100 },
-      { minute: '5분', retention: 85 },
-      { minute: '10분', retention: 72 },
-      { minute: '15분', retention: 65 },
-      { minute: '20분', retention: 58 },
-      { minute: '30분', retention: 48 },
-      { minute: '45분', retention: 38 },
-      { minute: '60분', retention: 32 },
-      { minute: '90분', retention: 25 },
-      { minute: '120분', retention: 18 }
-    ];
-
     return {
-      hourlyTrend,
-      platformStats,
-      totalViewers: 227312,
-      peakToday: 450000,
-      avgConcurrent: 180000,
       streamerInfluence: filteredStreamers,
       topAdEfficiency,
       trendingStreamers,
-      topDonationRate,
-      // 새로 추가된 데이터
-      totalViews: 2847500,
-      viewsGrowth: 12.5,
-      uniqueViewers: 185420,
-      uniqueGrowth: 8.3,
-      avgWatchTime: 42,
-      watchTimeGrowth: 5.2,
-      peakConcurrent: 227312,
-      viewershipTrend,
-      deviceDistribution,
-      peakHours,
-      geoDistribution,
-      retentionData
+      topDonationRate
     };
   }, [selectedGame]);
 
   useEffect(() => {
-    // 로딩 시뮬레이션
     setLoading(true);
     const timer = setTimeout(() => setLoading(false), 500);
     return () => clearTimeout(timer);
@@ -173,24 +73,6 @@ const AdminViewership = ({ onStreamerSelect }) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
     if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
     return num?.toLocaleString() || '0';
-  };
-
-  const formatDuration = (minutes) => {
-    if (!minutes) return '0분';
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours > 0) {
-      return `${hours}시간 ${mins}분`;
-    }
-    return `${mins}분`;
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      maximumFractionDigits: 0
-    }).format(amount || 0);
   };
 
   const getInfluenceRank = (score) => {
@@ -204,7 +86,7 @@ const AdminViewership = ({ onStreamerSelect }) => {
 
   const getTrendBadge = (trend) => {
     if (trend === 'hot') return { label: '🔥 급상승', color: '#ef4444' };
-    if (trend === 'rising') return { label: '📈 상승세', color: '#10b981' };
+    if (trend === 'up') return { label: '📈 상승세', color: '#10b981' };
     if (trend === 'stable') return { label: '➡️ 유지', color: '#6366f1' };
     return { label: '📉 하락', color: '#94a3b8' };
   };
@@ -229,7 +111,7 @@ const AdminViewership = ({ onStreamerSelect }) => {
       {/* Mock Data Notice */}
       <div className="mock-data-notice">
         <span className="notice-icon">ℹ️</span>
-        <span>시청자 데이터는 샘플 데이터입니다. 실제 API 연동 시 갱신됩니다.</span>
+        <span>스트리머 데이터는 샘플 데이터입니다. 실제 API 연동 시 갱신됩니다.</span>
       </div>
 
       {/* Time Range Selector */}
@@ -251,244 +133,8 @@ const AdminViewership = ({ onStreamerSelect }) => {
         </button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="viewership-summary-grid">
-        <div className="viewership-card">
-          <div className="viewership-card-icon" style={{ backgroundColor: '#6366f120', color: '#6366f1' }}>
-            <Eye size={24} />
-          </div>
-          <div className="viewership-card-content">
-            <span className="viewership-card-label">총 시청 수</span>
-            <span className="viewership-card-value">{formatNumber(data?.totalViews)}</span>
-            <span className="viewership-card-change positive">+{data?.viewsGrowth || 0}%</span>
-          </div>
-        </div>
-        <div className="viewership-card">
-          <div className="viewership-card-icon" style={{ backgroundColor: '#10b98120', color: '#10b981' }}>
-            <Users size={24} />
-          </div>
-          <div className="viewership-card-content">
-            <span className="viewership-card-label">순 시청자</span>
-            <span className="viewership-card-value">{formatNumber(data?.uniqueViewers)}</span>
-            <span className="viewership-card-change positive">+{data?.uniqueGrowth || 0}%</span>
-          </div>
-        </div>
-        <div className="viewership-card">
-          <div className="viewership-card-icon" style={{ backgroundColor: '#f59e0b20', color: '#f59e0b' }}>
-            <Clock size={24} />
-          </div>
-          <div className="viewership-card-content">
-            <span className="viewership-card-label">평균 시청 시간</span>
-            <span className="viewership-card-value">{formatDuration(data?.avgWatchTime)}</span>
-            <span className="viewership-card-change positive">+{data?.watchTimeGrowth || 0}%</span>
-          </div>
-        </div>
-        <div className="viewership-card">
-          <div className="viewership-card-icon" style={{ backgroundColor: '#ef444420', color: '#ef4444' }}>
-            <TrendingUp size={24} />
-          </div>
-          <div className="viewership-card-content">
-            <span className="viewership-card-label">동시 접속 최고</span>
-            <span className="viewership-card-value">{formatNumber(data?.peakConcurrent)}</span>
-            <span className="viewership-card-change">최근 기록</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Charts Grid */}
-      <div className="admin-charts-grid">
-        {/* Viewership Trend */}
-        <div className="admin-chart-card large">
-          <div className="chart-header">
-            <h3>시청자 추이</h3>
-          </div>
-          <div className="chart-body">
-            <ResponsiveContainer width="100%" height={300}>
-              <AreaChart data={data?.viewershipTrend || []}>
-                <defs>
-                  <linearGradient id="colorViewers" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="colorUnique" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
-                <YAxis stroke="#94a3b8" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Legend />
-                <Area
-                  type="monotone"
-                  dataKey="viewers"
-                  name="총 시청"
-                  stroke="#6366f1"
-                  fillOpacity={1}
-                  fill="url(#colorViewers)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="unique"
-                  name="순 시청자"
-                  stroke="#10b981"
-                  fillOpacity={1}
-                  fill="url(#colorUnique)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Device Distribution */}
-        <div className="admin-chart-card">
-          <div className="chart-header">
-            <h3>디바이스 분포</h3>
-          </div>
-          <div className="chart-body">
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={data?.deviceDistribution || []}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={40}
-                  outerRadius={70}
-                  paddingAngle={5}
-                  dataKey="value"
-                  nameKey="name"
-                >
-                  {(data?.deviceDistribution || []).map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="device-icons">
-              <div className="device-item">
-                <Monitor size={18} />
-                <span>데스크톱</span>
-              </div>
-              <div className="device-item">
-                <Smartphone size={18} />
-                <span>모바일</span>
-              </div>
-              <div className="device-item">
-                <Globe size={18} />
-                <span>기타</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Peak Hours */}
-        <div className="admin-chart-card">
-          <div className="chart-header">
-            <h3>시간대별 시청자</h3>
-          </div>
-          <div className="chart-body">
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={data?.peakHours || []}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="hour" stroke="#94a3b8" fontSize={10} />
-                <YAxis stroke="#94a3b8" fontSize={12} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: '#1e293b',
-                    border: '1px solid #334155',
-                    borderRadius: '8px'
-                  }}
-                />
-                <Bar dataKey="viewers" name="시청자" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-
-      {/* Geographic Distribution */}
-      <div className="admin-table-card">
-        <div className="table-header">
-          <h3>지역별 시청자 분포</h3>
-        </div>
-        <div className="admin-table-container">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>지역</th>
-                <th>시청자 수</th>
-                <th>비율</th>
-                <th>평균 시청 시간</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(data?.geoDistribution || []).map((region, index) => (
-                <tr key={index}>
-                  <td>
-                    <span className="region-flag">{region.flag}</span>
-                    {region.name}
-                  </td>
-                  <td>{formatNumber(region.viewers)}</td>
-                  <td>
-                    <div className="share-bar">
-                      <div
-                        className="share-fill"
-                        style={{ width: `${region.percentage}%`, backgroundColor: COLORS[index % COLORS.length] }}
-                      />
-                      <span>{region.percentage}%</span>
-                    </div>
-                  </td>
-                  <td>{formatDuration(region.avgWatchTime)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Retention Chart */}
-      <div className="admin-chart-card full-width">
-        <div className="chart-header">
-          <h3>시청자 이탈률</h3>
-        </div>
-        <div className="chart-body">
-          <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={data?.retentionData || []}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis dataKey="minute" stroke="#94a3b8" fontSize={12} />
-              <YAxis stroke="#94a3b8" fontSize={12} domain={[0, 100]} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1e293b',
-                  border: '1px solid #334155',
-                  borderRadius: '8px'
-                }}
-                formatter={(value) => [`${value}%`, '유지율']}
-              />
-              <Line
-                type="monotone"
-                dataKey="retention"
-                name="유지율"
-                stroke="#10b981"
-                strokeWidth={2}
-                dot={false}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
       {/* ===== Game-based Streamer Influence Score Section ===== */}
-      <div className="influence-section">
+      <div className="influence-section" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
         <div className="influence-header">
           <div className="influence-title">
             <Award size={24} />
@@ -589,9 +235,9 @@ const AdminViewership = ({ onStreamerSelect }) => {
                             <div
                               className="efficiency-fill"
                               style={{
-                                width: `${streamer.adEfficiency}%`,
-                                backgroundColor: streamer.adEfficiency >= 70 ? '#10b981' :
-                                  streamer.adEfficiency >= 50 ? '#f59e0b' : '#ef4444'
+                                width: `${streamer.adEfficiency * 20}%`,
+                                backgroundColor: streamer.adEfficiency >= 4 ? '#10b981' :
+                                  streamer.adEfficiency >= 3 ? '#f59e0b' : '#ef4444'
                               }}
                             />
                           </div>
