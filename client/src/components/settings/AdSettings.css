@@ -966,3 +966,46 @@
     transform: rotate(360deg);
   }
 }
+
+/* ===== Dark Mode Overrides ===== */
+[data-theme="dark"] .stat-card.highlight {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%);
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+[data-theme="dark"] .tips-card {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.2);
+}
+
+[data-theme="dark"] .tips-card h4 {
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .tips-card li {
+  color: #fcd34d;
+}
+
+[data-theme="dark"] .btn-delete {
+  background: var(--bg-card);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+[data-theme="dark"] .btn-delete:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+[data-theme="dark"] .settlement-status.paid {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+[data-theme="dark"] .settlement-status.pending {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .editor-field input[type="text"],
+[data-theme="dark"] .editor-field input[type="number"] {
+  background: var(--bg-input);
+}

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, DollarSign, Activity, BarChart3,
-  LogOut, Shield, ArrowLeft, Monitor, Gamepad2, Search, Megaphone
+  LogOut, Shield, ArrowLeft, Monitor, Gamepad2, Search, Megaphone,
+  Menu, X
 } from 'lucide-react';
 import AdminOverview from './AdminOverview';
 import AdminStreamers from './AdminStreamers';
@@ -19,6 +20,7 @@ const AdminDashboard = () => {
   const [activeSection, setActiveSection] = useState('discovery');
   const [selectedStreamerId, setSelectedStreamerId] = useState(null);
   const [previousSection, setPreviousSection] = useState('streamers');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleBack = () => {
@@ -34,6 +36,11 @@ const AdminDashboard = () => {
   const handleBackFromDetail = () => {
     setSelectedStreamerId(null);
     setActiveSection(previousSection);
+  };
+
+  const handleNavClick = (sectionId) => {
+    setActiveSection(sectionId);
+    setMobileMenuOpen(false);
   };
 
   const navItems = [
@@ -91,10 +98,22 @@ const AdminDashboard = () => {
 
   return (
     <div className="admin-layout">
-      <aside className="admin-sidebar">
+      {/* 모바일 오버레이 */}
+      <div
+        className={`admin-mobile-overlay ${mobileMenuOpen ? 'active' : ''}`}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+
+      <aside className={`admin-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
         <div className="admin-sidebar-header">
           <Shield size={24} className="admin-shield-icon" />
           <span>관리자 대시보드</span>
+          <button
+            className="admin-mobile-close-btn"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <X size={20} />
+          </button>
         </div>
 
         <nav className="admin-nav">
@@ -107,7 +126,7 @@ const AdminDashboard = () => {
                 <button
                   key={item.id}
                   className={`admin-nav-item ${activeSection === item.id ? 'active' : ''}`}
-                  onClick={() => setActiveSection(item.id)}
+                  onClick={() => handleNavClick(item.id)}
                 >
                   {item.icon}
                   <span>{item.label}</span>
@@ -121,6 +140,12 @@ const AdminDashboard = () => {
 
       <main className="admin-main">
         <header className="admin-header">
+          <button
+            className="admin-mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(true)}
+          >
+            <Menu size={22} />
+          </button>
           <h1>{getCurrentTitle()}</h1>
           <div className="admin-header-actions">
             <button className="admin-streamer-mode-btn" onClick={handleBack}>

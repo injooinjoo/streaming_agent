@@ -19,7 +19,9 @@
       "Bash(tree:*)",
       "Bash(lsof:*)",
       "Bash(fly deploy:*)",
-      "Bash(fly status:*)"
+      "Bash(fly status:*)",
+      "Bash(wc:*)",
+      "Bash(grep:*)"
     ]
   }
 }

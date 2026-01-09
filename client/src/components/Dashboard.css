@@ -666,10 +666,10 @@
   color: #ef4444;
 }
 
-/* Categories Wrapper - 양쪽 섹션 배치 */
+/* Categories Wrapper - 세로 배치 */
 .categories-wrapper {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
   margin-bottom: 32px;
 }
@@ -852,6 +852,17 @@
 .status-badge.chat {
   background: #dcfce7;
   color: #166534;
+}
+
+/* Dark mode variants for status badges */
+[data-theme="dark"] .status-badge.donation {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+}
+
+[data-theme="dark"] .status-badge.chat {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
 }
 
 .amount-cell {
@@ -1492,9 +1503,17 @@
     min-width: 600px;
   }
 
-  /* 카테고리 카드 */
+  /* 카테고리 그리드 - 모바일에서 가로 스크롤 제거 */
+  .categories-grid {
+    overflow-x: hidden;
+    flex-wrap: wrap;
+  }
+
+  /* 카테고리 카드 - 2열 그리드 */
   .category-card {
-    width: 120px;
+    flex: 1 1 calc(50% - 8px);
+    min-width: 120px;
+    width: auto;
   }
 
   /* 액션 바 */
@@ -1505,6 +1524,14 @@
   .save-btn {
     padding: 12px 20px;
     font-size: 14px;
+  }
+}
+
+/* 480px 이하: 소형 모바일 레이아웃 */
+@media (max-width: 480px) {
+  /* 카테고리 카드 - 1열 풀 너비 */
+  .category-card {
+    flex: 1 1 100%;
   }
 }
 
@@ -1683,12 +1710,50 @@
 }
 
 @keyframes slideUp {
-  from { 
+  from {
     opacity: 0;
     transform: translateY(20px);
   }
-  to { 
+  to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* 처음이신가요? 버튼 */
+.btn-onboarding {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border: none;
+  border-radius: var(--radius-full);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+  white-space: nowrap;
+}
+
+.btn-onboarding:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.btn-onboarding:active {
+  transform: translateY(0);
+}
+
+@media (max-width: 768px) {
+  .btn-onboarding span {
+    display: none;
+  }
+
+  .btn-onboarding {
+    padding: 8px;
+    border-radius: 50%;
   }
 }

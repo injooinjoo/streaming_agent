@@ -19,7 +19,7 @@
 /* Sidebar */
 .admin-sidebar {
   width: 260px;
-  background: white;
+  background: var(--bg-card);
   border-right: 1px solid var(--border-medium, #e2e8f0);
   display: flex;
   flex-direction: column;
@@ -139,7 +139,7 @@
 
 .admin-header {
   padding: 20px 32px;
-  background: white;
+  background: var(--bg-card);
   border-bottom: 1px solid var(--border-medium, #e2e8f0);
   display: flex;
   align-items: center;
@@ -174,7 +174,7 @@
 
 /* Admin Cards & Components */
 .admin-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 24px;
@@ -232,7 +232,7 @@
   align-items: flex-start;
   gap: 16px;
   padding: 20px;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
 }
@@ -292,7 +292,7 @@
 }
 
 .admin-summary-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
@@ -342,7 +342,7 @@
 }
 
 .admin-activity-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
@@ -485,7 +485,7 @@
   flex: 1;
   max-width: 400px;
   padding: 8px 16px;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 10px;
 }
@@ -524,7 +524,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 10px;
   cursor: pointer;
@@ -539,7 +539,7 @@
 
 /* Admin Table */
 .admin-table-container {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   overflow: hidden;
@@ -640,7 +640,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 8px;
   cursor: pointer;
@@ -672,7 +672,7 @@
 }
 
 .platform-stat-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
@@ -725,7 +725,7 @@
 }
 
 .viewership-platform-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
@@ -849,7 +849,7 @@
 
 /* Chart Container */
 .chart-container {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 24px;
@@ -898,7 +898,7 @@
 }
 
 .time-range-btn.active {
-  background: white;
+  background: var(--bg-card);
   color: var(--primary, #3b82f6);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -943,6 +943,64 @@
   }
 }
 
+/* Mobile Menu Elements (hidden on desktop) */
+.admin-mobile-menu-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--bg-hover);
+  color: var(--text-main);
+  border: 1px solid var(--border-medium);
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.admin-mobile-menu-btn:hover {
+  background: var(--bg-card);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.admin-mobile-close-btn {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  border: none;
+  cursor: pointer;
+  margin-left: auto;
+  transition: all 0.2s;
+}
+
+.admin-mobile-close-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.admin-mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: var(--z-overlay, 200);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s, visibility 0.3s;
+}
+
+.admin-mobile-overlay.active {
+  opacity: 1;
+  visibility: visible;
+}
+
 /* Responsive - 1024px */
 @media (max-width: 1024px) {
   .admin-content {
@@ -956,8 +1014,35 @@
 
 /* Responsive - 768px (Mobile) */
 @media (max-width: 768px) {
+  /* Mobile menu elements visible */
+  .admin-mobile-menu-btn {
+    display: flex;
+  }
+
+  .admin-mobile-close-btn {
+    display: flex;
+  }
+
+  .admin-mobile-overlay {
+    display: block;
+  }
+
+  /* Sidebar as drawer */
   .admin-sidebar {
-    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    height: calc(var(--vh, 1vh) * 100);
+    z-index: var(--z-sidebar, 100);
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: none;
+  }
+
+  .admin-sidebar.mobile-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
   }
 
   .admin-content {
@@ -966,17 +1051,21 @@
 
   .admin-header {
     padding: 16px;
-    flex-wrap: wrap;
     gap: 12px;
   }
 
   .admin-header h1 {
-    font-size: 20px;
+    font-size: 18px;
+    flex: 1;
   }
 
   .admin-header-actions {
     flex-wrap: wrap;
     gap: 8px;
+  }
+
+  .admin-streamer-mode-btn span {
+    display: none;
   }
 
   .admin-metrics-grid,
@@ -1069,19 +1158,19 @@
 }
 
 .game-tab:hover {
-  background: white;
+  background: var(--bg-card);
   color: var(--text-main, #1e293b);
 }
 
 .game-tab.active {
-  background: white;
+  background: var(--bg-card);
   color: var(--primary, #3b82f6);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
 /* Influence Table */
 .influence-table-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   overflow: hidden;
@@ -1259,7 +1348,7 @@
 }
 
 .ad-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
@@ -1365,7 +1454,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
@@ -1463,7 +1552,7 @@
 }
 
 .admin-chart-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   overflow: hidden;
@@ -1519,7 +1608,7 @@
   align-items: center;
   gap: 16px;
   padding: 20px;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
 }
@@ -1555,7 +1644,7 @@
   padding: 8px 12px;
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 8px;
-  background: white;
+  background: var(--bg-card);
   font-size: 14px;
   color: var(--text-main, #1e293b);
   cursor: pointer;
@@ -1563,7 +1652,7 @@
 
 /* Top List Card (Revenue) */
 .admin-top-list-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   overflow: hidden;
@@ -1665,7 +1754,7 @@
 }
 
 .platform-card {
-  background: white;
+  background: var(--bg-card);
   border: 2px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
@@ -1753,7 +1842,7 @@
 
 /* Admin Table Card (Platforms) */
 .admin-table-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   overflow: hidden;
@@ -1885,7 +1974,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 8px;
   font-size: 13px;
@@ -1970,7 +2059,7 @@
   align-items: center;
   gap: 24px;
   padding: 24px;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 16px;
   margin-bottom: 24px;
@@ -2051,7 +2140,7 @@
 }
 
 .game-performance-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
@@ -2166,7 +2255,7 @@
   padding: 8px 12px;
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 8px;
-  background: white;
+  background: var(--bg-card);
   font-size: 14px;
   color: var(--text-main, #1e293b);
   cursor: pointer;
@@ -2257,7 +2346,7 @@
 }
 
 .nexon-ip-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 16px;
   padding: 20px;
@@ -2499,7 +2588,7 @@
 }
 
 .campaign-metric-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 16px;
   padding: 20px;
@@ -2747,7 +2836,7 @@
   display: flex;
   align-items: center;
   gap: 16px;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
@@ -2812,7 +2901,7 @@
 }
 
 .nexon-contribution-chart-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 20px;
@@ -2826,7 +2915,7 @@
 }
 
 .nexon-contribution-table-card {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid var(--border-medium, #e2e8f0);
   border-radius: 12px;
   padding: 20px;

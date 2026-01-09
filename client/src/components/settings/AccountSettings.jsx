@@ -2,7 +2,8 @@ import { useState } from 'react';
 import {
   Link2, User, Shield, AlertCircle, Copy, Check,
   LogOut, Info, Key, Monitor, Lock, Smartphone,
-  ChevronDown, Mail, Eye, EyeOff, UserPlus, CheckCircle
+  ChevronDown, Mail, Eye, EyeOff, UserPlus, CheckCircle,
+  Download, Upload, X, FileJson, AlertTriangle, CheckCircle2
 } from 'lucide-react';
 import './AccountSettings.css';
 
@@ -51,6 +52,32 @@ const AccountSettings = () => {
     loginAlerts: true
   });
 
+  // Import settings state
+  const [selectedPlatform, setSelectedPlatform] = useState(null);
+  const [importUrl, setImportUrl] = useState('');
+  const [fileUploaded, setFileUploaded] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+
+  // Import platforms data
+  const importPlatforms = [
+    { id: 'weplab', name: '위플랩', icon: '🎮', format: '.json', color: '#6366f1' },
+    { id: 'obs', name: 'OBS', icon: '📹', format: '.json', color: '#302e5c' },
+    { id: 'xsplit', name: 'XSplit', icon: '🎬', format: '.xml', color: '#00a4ef' },
+    { id: 'prickshot', name: '프릭샷', icon: '📷', format: '.ini', color: '#ff6b35' }
+  ];
+
+  // Mock imported settings (for preview)
+  const mockImportedSettings = {
+    theme: 'heart',
+    duration: 25,
+    volume: 70,
+    ttsEnabled: true,
+    ttsVolume: 60,
+    animation: 'fadeIn',
+    fontSize: 24,
+    showBadge: true
+  };
+
   // Login history data
   const loginHistory = [
     { date: '2026-01-08 00:39:27', platform: 'SOOP', ip: '211.***.***.124', device: 'PC', current: true },
@@ -83,6 +110,64 @@ const AccountSettings = () => {
     return '/assets/logos/soop.png';
   };
 
+  // Import settings handlers
+  const handlePlatformSelect = (platformId) => {
+    setSelectedPlatform(platformId);
+    setFileUploaded(false);
+    setShowPreview(false);
+  };
+
+  const handleFileDrop = (e) => {
+    e.preventDefault();
+    // UI only - simulate file upload
+    setFileUploaded(true);
+    setShowPreview(true);
+  };
+
+  const handleImportFromUrl = () => {
+    if (importUrl.trim()) {
+      // UI only - simulate URL import
+      setFileUploaded(true);
+      setShowPreview(true);
+    }
+  };
+
+  const handleApplyImport = () => {
+    // UI only - show success message
+    alert('설정이 성공적으로 적용되었습니다! (UI 목업)');
+    setSelectedPlatform(null);
+    setFileUploaded(false);
+    setShowPreview(false);
+    setImportUrl('');
+  };
+
+  const handleExportSettings = () => {
+    // UI only - simulate export
+    alert('현재 설정을 내보냈습니다! (UI 목업)');
+  };
+
+  const getSettingLabel = (key) => {
+    const labels = {
+      theme: '테마',
+      duration: '표시 시간',
+      volume: '볼륨',
+      ttsEnabled: 'TTS 사용',
+      ttsVolume: 'TTS 볼륨',
+      animation: '애니메이션',
+      fontSize: '글꼴 크기',
+      showBadge: '뱃지 표시'
+    };
+    return labels[key] || key;
+  };
+
+  const formatSettingValue = (key, value) => {
+    if (typeof value === 'boolean') return value ? '사용' : '미사용';
+    if (key === 'duration') return `${value}초`;
+    if (key === 'volume' || key === 'ttsVolume') return `${value}%`;
+    if (key === 'fontSize') return `${value}px`;
+    return value;
+  };
+
   return (
     <div className="account-settings settings-panel animate-fade">
       <div className="account-settings-header">
@@ -108,6 +193,12 @@ const AccountSettings = () => {
           onClick={() => setActiveSubTab('security')}
         >
           <Shield size={16} /> 보안 관리
+        </button>
+        <button
+          className={`account-tab ${activeSubTab === 'import' ? 'active' : ''}`}
+          onClick={() => setActiveSubTab('import')}
+        >
+          <Download size={16} /> 설정 가져오기
         </button>
       </div>
 
@@ -387,6 +478,125 @@ const AccountSettings = () => {
                 <ChevronDown size={16} /> 더 보기
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4: Import Settings */}
+      {activeSubTab === 'import' && (
+        <div className="animate-fade">
+          <div className="settings-card glass-premium import-settings-card">
+            <div className="card-header">
+              <h3><Download size={18} /> 다른 프로그램에서 설정 가져오기</h3>
+              <p>기존에 사용하던 프로그램의 설정을 가져와 빠르게 시작하세요</p>
+            </div>
+
+            {/* Platform Selection */}
+            <div className="import-platform-section">
+              <h4><FileJson size={16} /> 플랫폼 선택</h4>
+              <div className="import-platform-grid">
+                {importPlatforms.map(platform => (
+                  <button
+                    key={platform.id}
+                    className={`import-platform-card ${selectedPlatform === platform.id ? 'selected' : ''}`}
+                    onClick={() => handlePlatformSelect(platform.id)}
+                    style={{ '--platform-color': platform.color }}
+                  >
+                    <span className="platform-icon">{platform.icon}</span>
+                    <span className="platform-name">{platform.name}</span>
+                    <span className="platform-format">{platform.format}</span>
+                    {selectedPlatform === platform.id && (
+                      <CheckCircle2 size={18} className="selected-check" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* File Upload */}
+            {selectedPlatform && (
+              <div className="import-upload-section">
+                <h4><Upload size={16} /> 설정 파일 업로드</h4>
+                <div
+                  className={`import-upload-zone ${fileUploaded ? 'uploaded' : ''}`}
+                  onDrop={handleFileDrop}
+                  onDragOver={(e) => e.preventDefault()}
+                  onClick={() => document.getElementById('import-file-input')?.click()}
+                >
+                  {fileUploaded ? (
+                    <>
+                      <CheckCircle2 size={32} className="upload-success-icon" />
+                      <p>settings_{selectedPlatform}.json 업로드 완료</p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload size={32} />
+                      <p>설정 파일을 드래그하거나 클릭해서 업로드</p>
+                      <span className="upload-hint">
+                        지원 형식: {importPlatforms.find(p => p.id === selectedPlatform)?.format}
+                      </span>
+                    </>
+                  )}
+                  <input type="file" id="import-file-input" hidden />
+                </div>
+
+                <div className="import-url-section">
+                  <span className="divider-text">또는 URL로 가져오기</span>
+                  <div className="input-with-button">
+                    <input
+                      type="text"
+                      placeholder="설정 URL 입력..."
+                      value={importUrl}
+                      onChange={(e) => setImportUrl(e.target.value)}
+                    />
+                    <button className="btn-primary-sm" onClick={handleImportFromUrl}>
+                      가져오기
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Preview */}
+            {showPreview && (
+              <div className="import-preview-section">
+                <h4><Info size={16} /> 가져올 설정 미리보기</h4>
+                <div className="import-preview-box">
+                  {Object.entries(mockImportedSettings).map(([key, value]) => (
+                    <div key={key} className="preview-item">
+                      <CheckCircle2 size={14} className="preview-check" />
+                      <span className="preview-label">{getSettingLabel(key)}:</span>
+                      <span className="preview-value">{formatSettingValue(key, value)}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="import-warning">
+                  <AlertTriangle size={16} />
+                  <span>현재 설정을 덮어씁니다. 백업을 권장합니다.</span>
+                </div>
+
+                <div className="import-actions">
+                  <button className="btn-outline-sm" onClick={handleExportSettings}>
+                    <Upload size={14} /> 현재 설정 내보내기
+                  </button>
+                  <button className="btn-primary-sm" onClick={handleApplyImport}>
+                    <Download size={14} /> 설정 적용하기
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Tips */}
+            {!selectedPlatform && (
+              <div className="import-tips">
+                <Info size={16} />
+                <div>
+                  <p><strong>처음 사용하시나요?</strong></p>
+                  <p>기존에 사용하던 스트리밍 도구가 있다면, 설정 파일을 내보내서 여기에 업로드하면 됩니다.</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

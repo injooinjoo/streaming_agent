@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
+import { StreamingModeProvider } from './contexts/StreamingModeContext';
 import Dashboard from './components/Dashboard';
 import ChatOverlay from './components/ChatOverlay';
 import AlertOverlay from './components/AlertOverlay';
@@ -19,9 +21,27 @@ import AdminDashboard from './components/admin/AdminDashboard';
 import './App.css';
 
 function App() {
+  // 모바일 브라우저 주소창 대응 viewport height 설정
+  useEffect(() => {
+    const setVh = () => {
+      const vh = window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+    };
+
+    setVh();
+    window.addEventListener('resize', setVh);
+    window.addEventListener('orientationchange', setVh);
+
+    return () => {
+      window.removeEventListener('resize', setVh);
+      window.removeEventListener('orientationchange', setVh);
+    };
+  }, []);
+
   return (
     <ThemeProvider>
       <AuthProvider>
+        <StreamingModeProvider>
         <Router>
           <div className="app-container">
             <Routes>
@@ -60,6 +80,7 @@ function App() {
             </Routes>
           </div>
         </Router>
+        </StreamingModeProvider>
       </AuthProvider>
     </ThemeProvider>
   );
