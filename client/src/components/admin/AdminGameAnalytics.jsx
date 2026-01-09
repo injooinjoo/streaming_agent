@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, Users, Radio, TrendingUp, RefreshCw, Trophy, Calendar, Gamepad2 } from 'lucide-react';
+import { Clock, Users, Radio, TrendingUp, RefreshCw, Trophy, Calendar, Gamepad2, ChevronRight } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -20,67 +20,73 @@ const GAMES = [
 
 const TOP_STREAMERS_BY_GAME = {
   '메이플스토리': [
-    { rank: 1, name: '떡호떡', viewers: 25000, influence: 98 },
-    { rank: 2, name: '케인', viewers: 18500, influence: 92 },
-    { rank: 3, name: '풍월량', viewers: 15200, influence: 88 },
-    { rank: 4, name: '우왁굳', viewers: 12800, influence: 85 },
-    { rank: 5, name: '감스트', viewers: 9500, influence: 78 },
+    { id: 11, rank: 1, name: '떡호떡', viewers: 25000, influence: 98 },
+    { id: 12, rank: 2, name: '케인', viewers: 18500, influence: 92 },
+    { id: 2, rank: 3, name: '풍월량', viewers: 15200, influence: 88 },
+    { id: 3, rank: 4, name: '우왁굳', viewers: 12800, influence: 85 },
+    { id: 1, rank: 5, name: '감스트', viewers: 9500, influence: 78 },
   ],
   '던전앤파이터': [
-    { rank: 1, name: '던파BJ', viewers: 15000, influence: 95 },
-    { rank: 2, name: '아라드', viewers: 12000, influence: 88 },
-    { rank: 3, name: '세리아', viewers: 9800, influence: 82 },
-    { rank: 4, name: '카인서버', viewers: 7500, influence: 75 },
-    { rank: 5, name: '시로코', viewers: 5200, influence: 68 },
+    { id: 21, rank: 1, name: '던파BJ', viewers: 15000, influence: 95 },
+    { id: 22, rank: 2, name: '아라드', viewers: 12000, influence: 88 },
+    { id: 23, rank: 3, name: '세리아', viewers: 9800, influence: 82 },
+    { id: 24, rank: 4, name: '카인서버', viewers: 7500, influence: 75 },
+    { id: 25, rank: 5, name: '시로코', viewers: 5200, influence: 68 },
   ],
   'FIFA 온라인 4': [
-    { rank: 1, name: '감스트', viewers: 22000, influence: 97 },
-    { rank: 2, name: '침착맨', viewers: 18000, influence: 94 },
-    { rank: 3, name: '피파온라인', viewers: 8500, influence: 78 },
-    { rank: 4, name: '축구왕', viewers: 6200, influence: 72 },
-    { rank: 5, name: '골키퍼', viewers: 4800, influence: 65 },
+    { id: 1, rank: 1, name: '감스트', viewers: 22000, influence: 97 },
+    { id: 4, rank: 2, name: '침착맨', viewers: 18000, influence: 94 },
+    { id: 31, rank: 3, name: '피파온라인', viewers: 8500, influence: 78 },
+    { id: 32, rank: 4, name: '축구왕', viewers: 6200, influence: 72 },
+    { id: 33, rank: 5, name: '골키퍼', viewers: 4800, influence: 65 },
   ],
   '마비노기': [
-    { rank: 1, name: '마비노기킹', viewers: 12000, influence: 92 },
-    { rank: 2, name: '에린', viewers: 8500, influence: 85 },
-    { rank: 3, name: '밀레시안', viewers: 6200, influence: 78 },
-    { rank: 4, name: '던바튼', viewers: 4800, influence: 70 },
-    { rank: 5, name: '티르나노이', viewers: 3500, influence: 62 },
+    { id: 41, rank: 1, name: '마비노기킹', viewers: 12000, influence: 92 },
+    { id: 42, rank: 2, name: '에린', viewers: 8500, influence: 85 },
+    { id: 43, rank: 3, name: '밀레시안', viewers: 6200, influence: 78 },
+    { id: 44, rank: 4, name: '던바튼', viewers: 4800, influence: 70 },
+    { id: 45, rank: 5, name: '티르나노이', viewers: 3500, influence: 62 },
   ],
   '카트라이더: 드리프트': [
-    { rank: 1, name: '문호준', viewers: 9500, influence: 95 },
-    { rank: 2, name: '카트왕', viewers: 7200, influence: 88 },
-    { rank: 3, name: '드리프트', viewers: 5800, influence: 82 },
-    { rank: 4, name: '배찌', viewers: 4200, influence: 75 },
-    { rank: 5, name: '다오', viewers: 3100, influence: 68 },
+    { id: 51, rank: 1, name: '문호준', viewers: 9500, influence: 95 },
+    { id: 52, rank: 2, name: '카트왕', viewers: 7200, influence: 88 },
+    { id: 53, rank: 3, name: '드리프트', viewers: 5800, influence: 82 },
+    { id: 54, rank: 4, name: '배찌', viewers: 4200, influence: 75 },
+    { id: 55, rank: 5, name: '다오', viewers: 3100, influence: 68 },
   ],
   '서든어택': [
-    { rank: 1, name: '서든킹', viewers: 8000, influence: 90 },
-    { rank: 2, name: 'FPS마스터', viewers: 5500, influence: 82 },
-    { rank: 3, name: '헤드샷', viewers: 4200, influence: 75 },
-    { rank: 4, name: '스나이퍼', viewers: 3100, influence: 68 },
-    { rank: 5, name: '돌격대', viewers: 2400, influence: 60 },
+    { id: 61, rank: 1, name: '서든킹', viewers: 8000, influence: 90 },
+    { id: 62, rank: 2, name: 'FPS마스터', viewers: 5500, influence: 82 },
+    { id: 63, rank: 3, name: '헤드샷', viewers: 4200, influence: 75 },
+    { id: 64, rank: 4, name: '스나이퍼', viewers: 3100, influence: 68 },
+    { id: 65, rank: 5, name: '돌격대', viewers: 2400, influence: 60 },
   ],
   '바람의나라': [
-    { rank: 1, name: '바람왕', viewers: 6500, influence: 88 },
-    { rank: 2, name: '부여성', viewers: 4800, influence: 80 },
-    { rank: 3, name: '도사', viewers: 3500, influence: 72 },
-    { rank: 4, name: '검사', viewers: 2800, influence: 65 },
-    { rank: 5, name: '궁수', viewers: 2100, influence: 58 },
+    { id: 71, rank: 1, name: '바람왕', viewers: 6500, influence: 88 },
+    { id: 72, rank: 2, name: '부여성', viewers: 4800, influence: 80 },
+    { id: 73, rank: 3, name: '도사', viewers: 3500, influence: 72 },
+    { id: 74, rank: 4, name: '검사', viewers: 2800, influence: 65 },
+    { id: 75, rank: 5, name: '궁수', viewers: 2100, influence: 58 },
   ],
   '크레이지아케이드': [
-    { rank: 1, name: '물풍선왕', viewers: 4500, influence: 85 },
-    { rank: 2, name: '배찌마스터', viewers: 3200, influence: 78 },
-    { rank: 3, name: '아케이드', viewers: 2400, influence: 70 },
-    { rank: 4, name: '크아킹', viewers: 1800, influence: 62 },
-    { rank: 5, name: '폭탄마', viewers: 1200, influence: 55 },
+    { id: 81, rank: 1, name: '물풍선왕', viewers: 4500, influence: 85 },
+    { id: 82, rank: 2, name: '배찌마스터', viewers: 3200, influence: 78 },
+    { id: 83, rank: 3, name: '아케이드', viewers: 2400, influence: 70 },
+    { id: 84, rank: 4, name: '크아킹', viewers: 1800, influence: 62 },
+    { id: 85, rank: 5, name: '폭탄마', viewers: 1200, influence: 55 },
   ],
 };
 
-const AdminGameAnalytics = () => {
+const AdminGameAnalytics = ({ onStreamerSelect }) => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('week');
   const [selectedGame, setSelectedGame] = useState('메이플스토리');
+
+  const handleStreamerClick = (streamerId) => {
+    if (onStreamerSelect) {
+      onStreamerSelect(streamerId);
+    }
+  };
 
   // 트렌드 데이터 생성 (7일)
   const trendData = useMemo(() => {
@@ -376,7 +382,12 @@ const AdminGameAnalytics = () => {
             </thead>
             <tbody>
               {TOP_STREAMERS_BY_GAME[selectedGame]?.map((streamer) => (
-                <tr key={streamer.rank}>
+                <tr
+                  key={streamer.rank}
+                  className="clickable"
+                  onClick={() => handleStreamerClick(streamer.id)}
+                  style={{ cursor: 'pointer' }}
+                >
                   <td>
                     <span className={`rank-badge rank-${streamer.rank}`}>
                       {streamer.rank}
@@ -399,6 +410,11 @@ const AdminGameAnalytics = () => {
                       />
                       <span>{streamer.influence}</span>
                     </div>
+                  </td>
+                  <td>
+                    <button className="view-detail-btn">
+                      <ChevronRight size={18} />
+                    </button>
                   </td>
                 </tr>
               ))}

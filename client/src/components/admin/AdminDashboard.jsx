@@ -50,7 +50,7 @@ const AdminDashboard = () => {
       case 'revenue': return <AdminRevenue />;
       case 'platforms': return <AdminPlatforms />;
       case 'viewership': return <AdminViewership onStreamerSelect={handleStreamerSelect} />;
-      case 'game-analytics': return <AdminGameAnalytics />;
+      case 'game-analytics': return <AdminGameAnalytics onStreamerSelect={handleStreamerSelect} />;
       case 'streamer-detail':
         return (
           <AdminStreamerDetail
