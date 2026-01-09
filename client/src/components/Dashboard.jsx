@@ -2,41 +2,42 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Layout, MessageSquare, Bell, FileText, BarChart3,
-  Type, Image as ImageIcon, HelpCircle,
-  Send, Plus, ExternalLink, Settings,
+  HelpCircle, Send, Plus, ExternalLink, Settings,
   RefreshCw, Megaphone, Palette, Sparkles, Activity, TrendingUp, MousePointerClick,
-  DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, Link2, Disc,
-  Smile, Vote, Film, Bot
+  DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, ChevronDown, Disc,
+  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2
 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import ChatSettings from './settings/ChatSettings';
 import AlertSettings from './settings/AlertSettings';
 import SubtitleSettings from './settings/SubtitleSettings';
 import GoalSettings from './settings/GoalSettings';
 import TickerSettings from './settings/TickerSettings';
-import TextSettings from './settings/TextSettings';
-import BannerSettings from './settings/BannerSettings';
 import DesignSettings from './settings/DesignSettings';
 import AccountSettings from './settings/AccountSettings';
 import AdSettings from './settings/AdSettings';
-import OverlayUrlsPanel from './settings/OverlayUrlsPanel';
 import RouletteSettings from './settings/RouletteSettings';
 import EmojiSettings from './settings/EmojiSettings';
 import VotingSettings from './settings/VotingSettings';
 import CreditsSettings from './settings/CreditsSettings';
 import BotSettings from './settings/BotSettings';
+import GameSettings from './settings/GameSettings';
 import MarketplaceTab from './marketplace/MarketplaceTab';
 import RevenueAnalytics from './analytics/RevenueAnalytics';
 import ViewerAnalytics from './analytics/ViewerAnalytics';
 import ContentAnalytics from './analytics/ContentAnalytics';
 import AdAnalytics from './analytics/AdAnalytics';
+import ViewershipDashboard from './analytics/ViewershipDashboard';
 import './Dashboard.css';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isSimulating, setIsSimulating] = useState(false);
   const [events, setEvents] = useState([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [collapsedGroups, setCollapsedGroups] = useState({});
   const [simulation, setSimulation] = useState({
     type: 'chat',
     sender: '',
@@ -46,21 +47,28 @@ const Dashboard = () => {
   });
 
   const { user, isAuthenticated, logout } = useAuth();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+
+  // Developer mode - 바로 어드민 대시보드로 이동
+  const handleDeveloperMode = () => {
+    navigate('/admin-dashboard');
+  };
 
   const menuGroups = [
     {
       label: '메인 메뉴',
       items: [
         { id: 'dashboard', label: '대시보드', icon: <Layout size={18} /> },
-        { id: 'overlay-urls', label: '오버레이 URL', icon: <Link2 size={18} /> },
         { id: 'chat', label: '채팅 오버레이', icon: <MessageSquare size={18} /> },
-        { id: 'alerts', label: '후원 알림', icon: <Bell size={18} /> }
+        { id: 'alerts', label: '후원 알림', icon: <Bell size={18} /> },
+        { id: 'viewership', label: '시장 현황', icon: <Activity size={18} /> }
       ]
     },
     {
       label: '커스텀 위젯',
       items: [
+        { id: 'game', label: '게임 오버레이', icon: <Gamepad2 size={18} /> },
         { id: 'subtitles', label: '자막 설정', icon: <FileText size={18} /> },
         { id: 'goals', label: '목표치 위젯', icon: <BarChart3 size={18} /> },
         { id: 'ticker', label: '뉴스 티커', icon: <Megaphone size={18} /> },
@@ -69,8 +77,6 @@ const Dashboard = () => {
         { id: 'voting', label: '투표 시스템', icon: <Vote size={18} /> },
         { id: 'credits', label: '엔딩 크레딧', icon: <Film size={18} /> },
         { id: 'bot', label: '챗봇', icon: <Bot size={18} /> },
-        { id: 'text', label: '커스텀 텍스트', icon: <Type size={18} /> },
-        { id: 'banners', label: '배너 위젯', icon: <ImageIcon size={18} /> },
         { id: 'design', label: '디자인 커스터마이저', icon: <Palette size={18} /> }
       ]
     },
@@ -177,6 +183,53 @@ const Dashboard = () => {
       engagement: 71,
       avgViewers: 450,
       growth: '+5%'
+    }
+  ];
+
+  const recommendedCategories = [
+    {
+      id: 101,
+      name: 'Dungeon Fighter Online',
+      nameKr: '던전앤파이터',
+      image: 'https://static-cdn.jtvnw.net/ttv-boxart/31507_IGDB-285x380.jpg',
+      recommendType: 'revenue',
+      recommendLabel: '수익 잠재력',
+      reason: '광고 단가 높음',
+      potentialRevenue: '+35%',
+      avgViewers: 2100
+    },
+    {
+      id: 102,
+      name: 'Lost Ark',
+      nameKr: '로스트아크',
+      image: 'https://static-cdn.jtvnw.net/ttv-boxart/490100-285x380.jpg',
+      recommendType: 'trending',
+      recommendLabel: '트렌딩',
+      reason: '시청자 급증',
+      growth: '+45%',
+      avgViewers: 3200
+    },
+    {
+      id: 103,
+      name: 'FC Online',
+      nameKr: 'FC 온라인',
+      image: 'https://static-cdn.jtvnw.net/ttv-boxart/32399_IGDB-285x380.jpg',
+      recommendType: 'viewers',
+      recommendLabel: '시청자 추천',
+      reason: '내 시청자 관심',
+      matchRate: '78%',
+      avgViewers: 1800
+    },
+    {
+      id: 104,
+      name: 'Minecraft',
+      nameKr: '마인크래프트',
+      image: 'https://static-cdn.jtvnw.net/ttv-boxart/27471_IGDB-285x380.jpg',
+      recommendType: 'trending',
+      recommendLabel: '트렌딩',
+      reason: '주간 인기 상승',
+      growth: '+28%',
+      avgViewers: 2800
     }
   ];
 
@@ -303,41 +356,86 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="categories-section">
-            <div className="section-header">
-              <div className="section-title">
-                <BarChart3 size={18} className="text-primary" />
-                <h2>내 방송 인기 카테고리</h2>
+          <div className="categories-wrapper">
+            <div className="categories-section">
+              <div className="section-header">
+                <div className="section-title">
+                  <BarChart3 size={18} className="text-primary" />
+                  <h2>내 방송 인기 카테고리</h2>
+                </div>
+                <button className="section-link" onClick={() => setActiveTab('analytics-content')}>
+                  콘텐츠 분석 보기 <ChevronRight size={14} />
+                </button>
               </div>
-              <button className="section-link" onClick={() => setActiveTab('analytics-content')}>
-                콘텐츠 분석 보기 <ChevronRight size={14} />
-              </button>
-            </div>
-            <div className="categories-grid">
-              {topCategories.map((category, index) => (
-                <div key={category.id} className="category-card">
-                  <div className="category-rank">#{index + 1}</div>
-                  <div className="category-image">
-                    <img src={category.image} alt={category.name} />
-                  </div>
-                  <div className="category-info">
-                    <span className="category-name">{category.nameKr}</span>
-                    <div className="category-stats">
-                      <div className="category-stat">
-                        <span className="stat-label">반응도</span>
-                        <span className="stat-value">{category.engagement}%</span>
+              <div className="categories-grid">
+                {topCategories.map((category, index) => (
+                  <div key={category.id} className="category-card">
+                    <div className="category-rank">#{index + 1}</div>
+                    <div className="category-image">
+                      <img src={category.image} alt={category.name} />
+                    </div>
+                    <div className="category-info">
+                      <span className="category-name">{category.nameKr}</span>
+                      <div className="category-stats">
+                        <div className="category-stat">
+                          <span className="stat-label">반응도</span>
+                          <span className="stat-value">{category.engagement}%</span>
+                        </div>
+                        <div className="category-stat">
+                          <span className="stat-label">평균 시청자</span>
+                          <span className="stat-value">{category.avgViewers.toLocaleString()}</span>
+                        </div>
+                        <span className={`category-growth ${category.growth.startsWith('+') ? 'positive' : 'negative'}`}>
+                          {category.growth}
+                        </span>
                       </div>
-                      <div className="category-stat">
-                        <span className="stat-label">평균 시청자</span>
-                        <span className="stat-value">{category.avgViewers.toLocaleString()}</span>
-                      </div>
-                      <span className={`category-growth ${category.growth.startsWith('+') ? 'positive' : 'negative'}`}>
-                        {category.growth}
-                      </span>
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="categories-section recommended">
+              <div className="section-header">
+                <div className="section-title">
+                  <Sparkles size={18} className="text-primary" />
+                  <h2>카테고리 추천</h2>
                 </div>
-              ))}
+                <button className="section-link" onClick={() => setActiveTab('analytics-content')}>
+                  더 보기 <ChevronRight size={14} />
+                </button>
+              </div>
+              <div className="categories-grid">
+                {recommendedCategories.map((category) => (
+                  <div key={category.id} className="category-card recommended">
+                    <div className={`recommend-badge ${category.recommendType}`}>
+                      {category.recommendLabel}
+                    </div>
+                    <div className="category-image">
+                      <img src={category.image} alt={category.name} />
+                    </div>
+                    <div className="category-info">
+                      <span className="category-name">{category.nameKr}</span>
+                      <div className="category-stats">
+                        <div className="recommend-reason">{category.reason}</div>
+                        <div className="category-stat">
+                          <span className="stat-label">예상 시청자</span>
+                          <span className="stat-value">{category.avgViewers.toLocaleString()}</span>
+                        </div>
+                        {category.growth && (
+                          <span className="category-growth positive">{category.growth}</span>
+                        )}
+                        {category.potentialRevenue && (
+                          <span className="category-growth revenue">{category.potentialRevenue}</span>
+                        )}
+                        {category.matchRate && (
+                          <span className="category-growth viewers">{category.matchRate}</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
@@ -508,17 +606,16 @@ const Dashboard = () => {
       voting: VotingSettings,
       credits: CreditsSettings,
       bot: BotSettings,
-      text: TextSettings,
-      banners: BannerSettings,
+      game: GameSettings,
       design: DesignSettings,
       account: AccountSettings,
       ads: AdSettings,
-      'overlay-urls': OverlayUrlsPanel,
       marketplace: MarketplaceTab,
       'analytics-revenue': RevenueAnalytics,
       'analytics-viewers': ViewerAnalytics,
       'analytics-content': ContentAnalytics,
       'analytics-ads': AdAnalytics,
+      'viewership': ViewershipDashboard,
     }[activeTab];
 
     if (ActiveComponent) return <ActiveComponent />;
@@ -543,9 +640,30 @@ const Dashboard = () => {
     );
   };
 
+  const handleNavItemClick = (itemId) => {
+    setActiveTab(itemId);
+    setMobileMenuOpen(false); // 모바일에서 메뉴 선택 시 드로어 닫기
+  };
+
+  const toggleGroup = (groupLabel) => {
+    setCollapsedGroups(prev => ({
+      ...prev,
+      [groupLabel]: !prev[groupLabel]
+    }));
+  };
+
   return (
     <div className="dashboard-layout">
-      <aside className="chatgpt-sidebar">
+      {/* 모바일 오버레이 배경 */}
+      {mobileMenuOpen && (
+        <div className="mobile-overlay" onClick={() => setMobileMenuOpen(false)} />
+      )}
+
+      <aside className={`chatgpt-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+        {/* 모바일 닫기 버튼 */}
+        <button className="mobile-close-btn" onClick={() => setMobileMenuOpen(false)}>
+          <X size={24} />
+        </button>
         <div className="sidebar-top">
           <div className="app-logo">
             <div className="logo-icon">S</div>
@@ -554,26 +672,42 @@ const Dashboard = () => {
         </div>
 
         <nav className="sidebar-nav">
-          {menuGroups.map((group) => (
-            <div key={group.label} className="nav-group">
-              <span className="group-label">{group.label}</span>
-              {group.items.map((item) => (
+          {menuGroups.map((group) => {
+            const isCollapsed = collapsedGroups[group.label];
+            const hasActiveItem = group.items.some(item => item.id === activeTab);
+
+            return (
+              <div key={group.label} className="nav-group">
                 <button
-                  key={item.id}
-                  className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-                  onClick={() => setActiveTab(item.id)}
-                  title={item.label}
+                  className={`group-label-btn ${hasActiveItem ? 'has-active' : ''}`}
+                  onClick={() => toggleGroup(group.label)}
                 >
-                  {item.icon}
-                  <span className="nav-label">{item.label}</span>
+                  <span className="group-label">{group.label}</span>
+                  <ChevronDown
+                    size={14}
+                    className={`group-chevron ${isCollapsed ? 'collapsed' : ''}`}
+                  />
                 </button>
-              ))}
-            </div>
-          ))}
+                <div className={`nav-group-items ${isCollapsed ? 'collapsed' : ''}`}>
+                  {group.items.map((item) => (
+                    <button
+                      key={item.id}
+                      className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                      onClick={() => handleNavItemClick(item.id)}
+                      title={item.label}
+                    >
+                      {item.icon}
+                      <span className="nav-label">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </nav>
 
-        <div className="sidebar-user">
-          {isAuthenticated ? (
+        {isAuthenticated && (
+          <div className="sidebar-user">
             <div className="user-profile" onClick={() => setActiveTab('account')} title="계정 설정">
               <div className="avatar">{user?.displayName?.charAt(0)?.toUpperCase() || 'U'}</div>
               <div className="user-info">
@@ -588,31 +722,53 @@ const Dashboard = () => {
                 <LogOut size={16} />
               </button>
             </div>
-          ) : (
-            <button
-              className="login-btn"
-              onClick={() => navigate('/login')}
-              style={{ width: '100%' }}
-            >
-              <LogIn size={18} />
-              <span className="login-text">로그인</span>
-            </button>
-          )}
-        </div>
+          </div>
+        )}
       </aside>
 
       <main className="chatgpt-main">
         <header className="top-nav">
-          <div className="search-container">
+          {/* 모바일 햄버거 메뉴 버튼 */}
+          <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(true)}>
+            <Menu size={24} />
+          </button>
+          <div className="search-container hide-mobile">
             <BarChart3 className="search-icon" size={16} />
             <input type="text" placeholder="메뉴 검색..." />
           </div>
           <div className="top-actions">
-            <button className="btn btn-icon btn-ghost"><Bell size={18} /></button>
-            <button className="btn btn-icon btn-ghost"><Settings size={18} /></button>
-            <button className="btn btn-primary" style={{ borderRadius: 'var(--radius-full)' }}>
-              방송 시작
+            <button
+              className="btn btn-icon btn-ghost"
+              onClick={toggleTheme}
+              title={resolvedTheme === 'dark' ? '라이트 모드' : '다크 모드'}
+            >
+              {resolvedTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
+            <button className="btn btn-icon btn-ghost"><Bell size={18} /></button>
+            <button
+              className="btn btn-icon btn-ghost"
+              onClick={() => setActiveTab('account')}
+              title="계정 설정"
+            >
+              <Settings size={18} />
+            </button>
+            <button
+              className="btn btn-text btn-ghost dev-mode-toggle-dashboard"
+              onClick={handleDeveloperMode}
+              title="관리자 대시보드"
+            >
+              어드민 모드
+            </button>
+            {isAuthenticated ? (
+              <button className="btn btn-primary" style={{ borderRadius: 'var(--radius-full)' }}>
+                방송 시작
+              </button>
+            ) : (
+              <button className="btn btn-primary" style={{ borderRadius: 'var(--radius-full)' }} onClick={() => navigate('/login')}>
+                <LogIn size={16} />
+                로그인
+              </button>
+            )}
           </div>
         </header>
         <div className="content-body">
