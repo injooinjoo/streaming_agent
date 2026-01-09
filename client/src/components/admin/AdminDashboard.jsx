@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, DollarSign, Activity, BarChart3,
-  LogOut, Shield, ArrowLeft, Monitor
+  LogOut, Shield, ArrowLeft, Monitor, Gamepad2
 } from 'lucide-react';
 import AdminOverview from './AdminOverview';
 import AdminStreamers from './AdminStreamers';
@@ -10,6 +10,7 @@ import AdminRevenue from './AdminRevenue';
 import AdminPlatforms from './AdminPlatforms';
 import AdminViewership from './AdminViewership';
 import AdminStreamerDetail from './AdminStreamerDetail';
+import AdminGameAnalytics from './AdminGameAnalytics';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -39,6 +40,7 @@ const AdminDashboard = () => {
     { id: 'revenue', label: '수익 분석', icon: <DollarSign size={18} /> },
     { id: 'platforms', label: '플랫폼 비교', icon: <BarChart3 size={18} /> },
     { id: 'viewership', label: '시청자 분석', icon: <Activity size={18} /> },
+    { id: 'game-analytics', label: '게임 데이터', icon: <Gamepad2 size={18} /> },
   ];
 
   const renderContent = () => {
@@ -48,6 +50,7 @@ const AdminDashboard = () => {
       case 'revenue': return <AdminRevenue />;
       case 'platforms': return <AdminPlatforms />;
       case 'viewership': return <AdminViewership onStreamerSelect={handleStreamerSelect} />;
+      case 'game-analytics': return <AdminGameAnalytics />;
       case 'streamer-detail':
         return (
           <AdminStreamerDetail
