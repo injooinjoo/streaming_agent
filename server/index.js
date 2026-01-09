@@ -1629,7 +1629,7 @@ io.on("connection", (socket) => {
 
 // 프로덕션 환경에서 SPA 라우팅 지원 (모든 API 라우트 뒤에 위치)
 if (process.env.NODE_ENV === 'production') {
-  app.get('*', (req, res) => {
+  app.get('/{*splat}', (req, res) => {
     res.sendFile(path.join(__dirname, '../client/dist/index.html'));
   });
 }
