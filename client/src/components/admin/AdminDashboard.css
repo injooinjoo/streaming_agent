@@ -2224,3 +2224,486 @@
     flex-wrap: wrap;
   }
 }
+
+/* ===== Nexon BI Dashboard Styles ===== */
+
+/* Navigation Category Headers */
+.admin-nav-category {
+  padding: 12px 20px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-top: 20px;
+}
+
+.admin-nav-category.first {
+  margin-top: 0;
+}
+
+/* Nexon Discovery Page */
+.admin-nexon-discovery,
+.admin-nexon-campaign {
+  width: 100%;
+}
+
+/* Nexon IP Intelligence Cards */
+.nexon-ip-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.nexon-ip-card {
+  background: white;
+  border: 1px solid var(--border-medium, #e2e8f0);
+  border-radius: 16px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.nexon-ip-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.nexon-ip-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+}
+
+.nexon-ip-card.blue-archive::before { background: #0088FF; }
+.nexon-ip-card.fc-online::before { background: #00AA44; }
+.nexon-ip-card.maplestory::before { background: #FF8800; }
+.nexon-ip-card.the-first-descendant::before { background: #9933FF; }
+
+.nexon-ip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.nexon-ip-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main, #1e293b);
+}
+
+.nexon-ip-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.nexon-ip-trend.rising {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.nexon-ip-trend.stable {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.nexon-ip-trend.declining {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.nexon-ip-stats {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.nexon-ip-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nexon-ip-stat .label {
+  font-size: 11px;
+  color: var(--text-muted, #64748b);
+  font-weight: 500;
+}
+
+.nexon-ip-stat .value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-main, #1e293b);
+}
+
+.nexon-ip-insight {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light, #f1f5f9);
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+  line-height: 1.5;
+  font-style: italic;
+}
+
+/* Sentiment Gauge */
+.sentiment-gauge {
+  height: 6px;
+  background: var(--bg-page, #e2e8f0);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.sentiment-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.sentiment-fill.high { background: #10b981; }
+.sentiment-fill.medium { background: #f59e0b; }
+.sentiment-fill.low { background: #ef4444; }
+
+/* Affinity Badge */
+.affinity-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.affinity-badge.high {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.affinity-badge.medium {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.affinity-badge.low {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Chat Velocity Bar */
+.chat-velocity-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chat-velocity-bar {
+  height: 6px;
+  background: var(--bg-page, #e2e8f0);
+  border-radius: 3px;
+  overflow: hidden;
+  width: 80px;
+}
+
+.chat-velocity-fill {
+  height: 100%;
+  background: var(--primary, #6366f1);
+  border-radius: 3px;
+  transition: width 0.3s;
+}
+
+.chat-velocity-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main, #1e293b);
+}
+
+/* Discovery Table */
+.discovery-table {
+  width: 100%;
+}
+
+.discovery-table .streamer-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.discovery-table .streamer-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.discovery-table .platform-badge {
+  display: inline-flex;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+/* Campaign Status Badge */
+.campaign-status {
+  display: inline-flex;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.campaign-status.active {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.campaign-status.completed {
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
+}
+
+.campaign-status.scheduled {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+/* Campaign Metrics */
+.campaign-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.campaign-metric-card {
+  background: white;
+  border: 1px solid var(--border-medium, #e2e8f0);
+  border-radius: 16px;
+  padding: 20px;
+}
+
+.campaign-metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.campaign-metric-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.campaign-metric-change {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.campaign-metric-change.positive {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.campaign-metric-change.negative {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.campaign-metric-label {
+  font-size: 12px;
+  color: var(--text-muted, #64748b);
+  margin-bottom: 4px;
+}
+
+.campaign-metric-value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--text-main, #1e293b);
+}
+
+/* Campaign ROI Summary */
+.campaign-roi-summary {
+  background: linear-gradient(135deg, #1e293b, #334155);
+  border-radius: 20px;
+  padding: 28px;
+  color: white;
+}
+
+.campaign-roi-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.campaign-roi-header h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+}
+
+.campaign-roi-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.campaign-roi-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.campaign-roi-stat .label {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.6);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.campaign-roi-stat .value {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.campaign-roi-stat .value.highlight {
+  color: #10b981;
+}
+
+/* Interest Radar Container */
+.interest-radar-container {
+  background: linear-gradient(135deg, #1e293b, #334155);
+  border-radius: 20px;
+  padding: 24px;
+  color: white;
+}
+
+.interest-radar-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.interest-radar-header h3 {
+  font-size: 16px;
+  font-weight: 700;
+  color: white;
+}
+
+/* Business Insight Card */
+.business-insight-banner {
+  background: linear-gradient(135deg, #1e293b, #334155);
+  border-radius: 20px;
+  padding: 28px;
+  color: white;
+  margin-top: 28px;
+  position: relative;
+  overflow: hidden;
+}
+
+.business-insight-banner::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -10%;
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.2), transparent);
+  border-radius: 50%;
+}
+
+.business-insight-content {
+  position: relative;
+  z-index: 1;
+}
+
+.business-insight-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #818cf8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 16px;
+}
+
+.business-insight-text {
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.business-insight-text strong {
+  color: #10b981;
+  font-weight: 700;
+}
+
+/* Responsive for Nexon BI */
+@media (max-width: 1200px) {
+  .nexon-ip-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .campaign-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .campaign-roi-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .nexon-ip-grid,
+  .campaign-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-roi-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .campaign-roi-stat .value {
+    font-size: 22px;
+  }
+}

@@ -17,7 +17,9 @@
       "Bash(paste:*)",
       "Bash(npm run build:*)",
       "Bash(tree:*)",
-      "Bash(lsof:*)"
+      "Bash(lsof:*)",
+      "Bash(fly deploy:*)",
+      "Bash(fly status:*)"
     ]
   }
 }
