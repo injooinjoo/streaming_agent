@@ -481,24 +481,6 @@ const AdSettings = () => {
 
   const selectedSlot = slots.find((s) => s.id === selectedSlotId);
 
-  if (!isAuthenticated) {
-    return (
-      <div className="ad-settings animate-fade">
-        <header className="page-header">
-          <div className="page-title">
-            <h1>광고 관리</h1>
-            <p>광고 슬롯을 설정하고 수익을 관리하세요.</p>
-          </div>
-        </header>
-        <div className="placeholder-view" style={{ padding: '80px 40px', textAlign: 'center' }}>
-          <DollarSign size={64} style={{ color: '#cbd5e1' }} strokeWidth={1} />
-          <h3 style={{ marginTop: '20px', color: '#374151' }}>로그인이 필요합니다</h3>
-          <p style={{ color: '#64748b' }}>광고 관리 기능을 사용하려면 로그인해주세요.</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="ad-settings animate-fade">
       <header className="page-header">
