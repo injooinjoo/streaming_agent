@@ -691,6 +691,54 @@ label { display: flex; align-items: center; font-size: 14px; font-weight: 500; c
 .preview-label { font-size: 13px; font-weight: 600; color: #475569; }
 
 /* Theme Grids */
+.theme-grid-mini {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1;
+}
+
+.theme-card-mini {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 16px;
+  background: var(--bg-hover);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.theme-card-mini:hover {
+  border-color: var(--border-medium);
+  background: var(--bg-card);
+}
+
+.theme-card-mini.active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+.theme-card-mini .theme-preview-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  margin-bottom: 2px;
+}
+
+.theme-preview-dot.default { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+.theme-preview-dot.forest { background: linear-gradient(135deg, #22c55e, #15803d); }
+.theme-preview-dot.chzzk { background: linear-gradient(135deg, #00ffa3, #00cc82); }
+.theme-preview-dot.pink { background: linear-gradient(135deg, #f472b6, #db2777); }
+.theme-preview-dot.windows { background: linear-gradient(135deg, #0ea5e9, #0284c7); }
+.theme-preview-dot.neon { background: linear-gradient(135deg, #22d3ee, #06b6d4); }
+
 .theme-scroll-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
