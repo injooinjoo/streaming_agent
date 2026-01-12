@@ -5,7 +5,7 @@ import {
   HelpCircle, Send, Plus, ExternalLink, Settings,
   RefreshCw, Megaphone, Palette, Sparkles, Activity, TrendingUp, MousePointerClick,
   DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, ChevronDown, Disc,
-  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket
+  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket, Trophy
 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -25,6 +25,8 @@ import VotingSettings from './settings/VotingSettings';
 import CreditsSettings from './settings/CreditsSettings';
 import BotSettings from './settings/BotSettings';
 import GameSettings from './settings/GameSettings';
+import GameCatalog from './catalog/GameCatalog';
+import GameDetail from './catalog/GameDetail';
 import MarketplaceTab from './marketplace/MarketplaceTab';
 import RevenueAnalytics from './analytics/RevenueAnalytics';
 import ViewerAnalytics from './analytics/ViewerAnalytics';
@@ -40,6 +42,7 @@ const Dashboard = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [feedTab, setFeedTab] = useState('recent');
+  const [selectedGameId, setSelectedGameId] = useState(null);
   const [simulation, setSimulation] = useState({
     type: 'chat',
     sender: '',
@@ -58,6 +61,17 @@ const Dashboard = () => {
     navigate('/admin-dashboard');
   };
 
+  // 게임 카탈로그 핸들러
+  const handleGameSelect = (gameId) => {
+    setSelectedGameId(gameId);
+    setActiveTab('game-detail');
+  };
+
+  const handleBackFromGame = () => {
+    setSelectedGameId(null);
+    setActiveTab('game-catalog');
+  };
+
   const menuGroups = [
     {
       label: '메인 메뉴',
@@ -65,7 +79,8 @@ const Dashboard = () => {
         { id: 'dashboard', label: '대시보드', icon: <Layout size={18} /> },
         { id: 'chat', label: '채팅 오버레이', icon: <MessageSquare size={18} /> },
         { id: 'alerts', label: '후원 알림', icon: <Bell size={18} /> },
-        { id: 'viewership', label: '시장 현황', icon: <Activity size={18} /> }
+        { id: 'viewership', label: '시장 현황', icon: <Activity size={18} /> },
+        { id: 'game-catalog', label: '게임 카탈로그', icon: <Trophy size={18} /> }
       ]
     },
     {
@@ -719,6 +734,14 @@ const Dashboard = () => {
           </div>
         </div>
       );
+    }
+
+    // 게임 카탈로그 특별 처리 (props 필요)
+    if (activeTab === 'game-catalog') {
+      return <GameCatalog onGameSelect={handleGameSelect} />;
+    }
+    if (activeTab === 'game-detail') {
+      return <GameDetail gameId={selectedGameId} onBack={handleBackFromGame} />;
     }
 
     const ActiveComponent = {
