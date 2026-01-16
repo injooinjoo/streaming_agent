@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Link2, User, Shield, AlertCircle, Copy, Check,
   LogOut, Info, Key, Monitor, Lock, Smartphone,
   ChevronDown, Mail, Eye, EyeOff, UserPlus, CheckCircle,
-  Download, Upload, X, FileJson, AlertTriangle, CheckCircle2
+  Download, Upload, X, FileJson, AlertTriangle, CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import './AccountSettings.css';
 
@@ -13,22 +14,54 @@ const AccountSettings = () => {
   const [copied, setCopied] = useState(false);
   const [showMemberId, setShowMemberId] = useState(false);
   const [managerInput, setManagerInput] = useState('');
+  const [connectionStatus, setConnectionStatus] = useState({ soop: {}, chzzk: {} });
+  const [loadingConnections, setLoadingConnections] = useState(true);
 
-  // Platform connection states (UI only)
+  // Fetch connection status on mount
+  useEffect(() => {
+    fetchConnectionStatus();
+  }, []);
+
+  const fetchConnectionStatus = async () => {
+    setLoadingConnections(true);
+    try {
+      const response = await fetch('http://localhost:3001/api/connections/status');
+      const data = await response.json();
+      setConnectionStatus(data);
+    } catch (error) {
+      console.error('Failed to fetch connection status:', error);
+    } finally {
+      setLoadingConnections(false);
+    }
+  };
+
+  // Platform connection states - dynamically built from API data
   const platforms = [
     {
       id: 'soop',
       name: 'SOOP',
       logo: '/assets/logos/soop.png',
-      connected: true,
-      profile: { name: '제이콥씨', date: '2024.01.08' }
+      connected: connectionStatus.soop?.connected || false,
+      profile: connectionStatus.soop?.connected
+        ? {
+            name: connectionStatus.soop?.channels?.[0]?.channelId || '연결됨',
+            date: new Date().toLocaleDateString('ko-KR')
+          }
+        : null,
+      channels: connectionStatus.soop?.channels || []
     },
     {
       id: 'chzzk',
       name: '치지직',
       logo: '/assets/logos/chzzk.png',
-      connected: false,
-      profile: null
+      connected: connectionStatus.chzzk?.connected || false,
+      profile: connectionStatus.chzzk?.connected
+        ? {
+            name: connectionStatus.chzzk?.channels?.[0]?.channelId?.substring(0, 8) + '...' || '연결됨',
+            date: new Date().toLocaleDateString('ko-KR')
+          }
+        : null,
+      channels: connectionStatus.chzzk?.channels || []
     },
     {
       id: 'youtube',
@@ -205,6 +238,27 @@ const AccountSettings = () => {
       {/* Tab 1: Channel Connection */}
       {activeSubTab === 'connection' && (
         <div className="animate-fade">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <p style={{ color: '#94a3b8', margin: 0 }}>실시간 플랫폼 연결 상태</p>
+            <button
+              onClick={fetchConnectionStatus}
+              disabled={loadingConnections}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                background: 'rgba(99, 102, 241, 0.1)',
+                border: '1px solid rgba(99, 102, 241, 0.3)',
+                borderRadius: '8px',
+                color: '#6366f1',
+                cursor: loadingConnections ? 'not-allowed' : 'pointer'
+              }}
+            >
+              <RefreshCw size={14} className={loadingConnections ? 'spin' : ''} />
+              {loadingConnections ? '로딩 중...' : '새로고침'}
+            </button>
+          </div>
           <div className="platform-cards-grid">
             {platforms.map(platform => (
               <div

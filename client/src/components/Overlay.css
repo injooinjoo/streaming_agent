@@ -1,3 +1,146 @@
+/* ===========================================
+   호버 컨트롤 패널 스타일
+   =========================================== */
+
+.overlay-hover-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.4), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-overlay:hover .overlay-hover-panel {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.hover-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 20px;
+}
+
+.hover-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  color: white;
+  padding: 8px 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+  min-width: 44px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hover-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.05);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.hover-btn.active {
+  background: rgba(59, 130, 246, 0.5);
+  border-color: rgba(59, 130, 246, 0.7);
+}
+
+.hover-btn.small {
+  padding: 6px 10px;
+  font-size: 13px;
+  min-width: 36px;
+  height: 32px;
+  font-weight: 600;
+}
+
+.hover-select {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  min-width: 120px;
+  height: 36px;
+}
+
+.hover-select:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.hover-select option {
+  background: #1f2937;
+  color: white;
+}
+
+.hover-divider {
+  width: 1px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.2);
+  margin: 0 4px;
+}
+
+.font-size-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.font-size-display {
+  color: white;
+  font-size: 13px;
+  min-width: 45px;
+  text-align: center;
+  font-weight: 500;
+}
+
+/* 일시정지 인디케이터 */
+.paused-indicator {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.85);
+  color: white;
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  z-index: 999;
+  pointer-events: none;
+}
+
+/* 일시정지 상태 */
+.chat-overlay.paused .messages-container {
+  opacity: 0.5;
+}
+
+/* 샘플 메시지 스타일 */
+.chat-message-item.sample {
+  opacity: 0.75;
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+}
+
+/* ===========================================
+   기존 채팅 오버레이 스타일
+   =========================================== */
+
 .chat-overlay {
   position: fixed;
   top: 0;
@@ -9,7 +152,7 @@
   justify-content: flex-end;
   padding: 40px;
   background: transparent;
-  pointer-events: none;
+  pointer-events: auto; /* 호버 감지를 위해 auto로 변경 */
   overflow: hidden;
 }
 

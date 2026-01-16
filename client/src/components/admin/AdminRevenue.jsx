@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { DollarSign, TrendingUp, Calendar, RefreshCw, Trophy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { DollarSign, TrendingUp, Calendar, RefreshCw, Trophy, Activity } from 'lucide-react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -10,68 +10,64 @@ const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'
 const AdminRevenue = () => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('month');
-
-  // Mock 데이터 생성
-  const data = useMemo(() => {
-    // 수익 트렌드 데이터 (30일)
-    const revenueTrend = Array.from({ length: 30 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (29 - i));
-      return {
-        date: `${date.getMonth() + 1}/${date.getDate()}`,
-        adRevenue: 10000000 + Math.floor(Math.random() * 8000000),
-        donations: 5000000 + Math.floor(Math.random() * 6000000)
-      };
-    });
-
-    // 플랫폼별 수익
-    const platformRevenue = [
-      { name: 'SOOP', value: 180000000 },
-      { name: 'Chzzk', value: 165000000 },
-      { name: 'YouTube', value: 85000000 },
-      { name: 'Twitch', value: 55000000 }
-    ];
-
-    // 월별 비교
-    const monthlyComparison = [
-      { month: '8월', revenue: 380000000 },
-      { month: '9월', revenue: 420000000 },
-      { month: '10월', revenue: 455000000 },
-      { month: '11월', revenue: 440000000 },
-      { month: '12월', revenue: 510000000 },
-      { month: '1월', revenue: 485000000 }
-    ];
-
-    // TOP 10 스트리머
-    const topStreamers = [
-      { id: 1, username: '감스트', totalRevenue: 48500000, share: 10.0 },
-      { id: 2, username: '풍월량', totalRevenue: 42000000, share: 8.7 },
-      { id: 3, username: '우왁굳', totalRevenue: 38000000, share: 7.8 },
-      { id: 4, username: '침착맨', totalRevenue: 32000000, share: 6.6 },
-      { id: 5, username: '주르르', totalRevenue: 28000000, share: 5.8 },
-      { id: 6, username: '릴파', totalRevenue: 34000000, share: 7.0 },
-      { id: 7, username: '고세구', totalRevenue: 29000000, share: 6.0 },
-      { id: 8, username: '비챤', totalRevenue: 26000000, share: 5.4 },
-      { id: 9, username: '아이리칸나', totalRevenue: 22000000, share: 4.5 },
-      { id: 10, username: '징버거', totalRevenue: 21000000, share: 4.3 }
-    ];
-
-    return {
-      totalRevenue: 485000000,
-      adRevenue: 320000000,
-      donationRevenue: 165000000,
-      revenueTrend,
-      platformRevenue,
-      monthlyComparison,
-      topStreamers
-    };
-  }, [timeRange]);
+  const [data, setData] = useState({
+    totalRevenue: 0,
+    adRevenue: 0,
+    donationRevenue: 0,
+    revenueTrend: [],
+    platformRevenue: [],
+    monthlyComparison: [],
+    topStreamers: []
+  });
 
   useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
+    fetchData();
   }, [timeRange]);
+
+  const getDaysFromTimeRange = () => {
+    switch (timeRange) {
+      case 'week': return 7;
+      case 'month': return 30;
+      case 'quarter': return 90;
+      case 'year': return 365;
+      default: return 30;
+    }
+  };
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const days = getDaysFromTimeRange();
+
+      const [revenueRes, trendRes, platformRes, monthlyRes, topRes] = await Promise.all([
+        fetch(`http://localhost:3001/api/stats/revenue?days=${days}`),
+        fetch(`http://localhost:3001/api/stats/revenue/trend?days=${days}`),
+        fetch('http://localhost:3001/api/stats/revenue/by-platform'),
+        fetch('http://localhost:3001/api/stats/revenue/monthly?months=6'),
+        fetch('http://localhost:3001/api/stats/revenue/top-streamers?limit=10')
+      ]);
+
+      const revenue = await revenueRes.json();
+      const trend = await trendRes.json();
+      const platform = await platformRes.json();
+      const monthly = await monthlyRes.json();
+      const top = await topRes.json();
+
+      setData({
+        totalRevenue: revenue.totalRevenue || 0,
+        adRevenue: revenue.adRevenue || 0,
+        donationRevenue: revenue.donationRevenue || 0,
+        revenueTrend: trend || [],
+        platformRevenue: platform || [],
+        monthlyComparison: monthly || [],
+        topStreamers: top || []
+      });
+    } catch (error) {
+      console.error('Failed to fetch revenue data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('ko-KR', {
@@ -112,6 +108,8 @@ const AdminRevenue = () => {
     );
   }
 
+  const hasData = data.totalRevenue > 0 || data.revenueTrend.some(t => t.donations > 0);
+
   return (
     <div className="admin-revenue">
       {/* Time Range Selector */}
@@ -129,6 +127,23 @@ const AdminRevenue = () => {
             <option value="year">지난 1년</option>
           </select>
         </div>
+        <button
+          onClick={fetchData}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            background: 'var(--color-primary)',
+            border: 'none',
+            borderRadius: '8px',
+            color: 'white',
+            cursor: 'pointer'
+          }}
+        >
+          <RefreshCw size={14} />
+          새로고침
+        </button>
       </div>
 
       {/* Summary Cards */}
@@ -170,31 +185,31 @@ const AdminRevenue = () => {
             <h3>수익 트렌드</h3>
           </div>
           <div className="chart-body">
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={data.revenueTrend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={formatCompactCurrency} />
-                <Tooltip content={<CustomTooltip />} />
-                <Legend />
-                <Line
-                  type="monotone"
-                  dataKey="adRevenue"
-                  name="광고 수익"
-                  stroke="#6366f1"
-                  strokeWidth={2}
-                  dot={false}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="donations"
-                  name="후원금"
-                  stroke="#10b981"
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
+            {data.revenueTrend.some(t => t.donations > 0) ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={data.revenueTrend}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
+                  <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={formatCompactCurrency} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="donations"
+                    name="후원금"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="no-data-message" style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
+                <Activity size={48} style={{ opacity: 0.5, marginBottom: '16px' }} />
+                <p>수익 데이터가 없습니다</p>
+                <p style={{ fontSize: '12px' }}>플랫폼 연결 후 후원 데이터가 수집됩니다</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -204,26 +219,33 @@ const AdminRevenue = () => {
             <h3>플랫폼별 수익</h3>
           </div>
           <div className="chart-body">
-            <ResponsiveContainer width="100%" height={250}>
-              <PieChart>
-                <Pie
-                  data={data.platformRevenue}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                  nameKey="name"
-                >
-                  {data.platformRevenue.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => formatCurrency(value)} />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            {data.platformRevenue.length > 0 && data.platformRevenue.some(p => p.value > 0) ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={data.platformRevenue}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={50}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    nameKey="name"
+                  >
+                    {data.platformRevenue.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(value) => formatCurrency(value)} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="no-data-message" style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
+                <DollarSign size={48} style={{ opacity: 0.5, marginBottom: '16px' }} />
+                <p>플랫폼별 데이터가 없습니다</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -233,15 +255,22 @@ const AdminRevenue = () => {
             <h3>월별 비교</h3>
           </div>
           <div className="chart-body">
-            <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={data.monthlyComparison}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={formatCompactCurrency} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="revenue" name="수익" fill="#6366f1" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {data.monthlyComparison.length > 0 && data.monthlyComparison.some(m => m.revenue > 0) ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <BarChart data={data.monthlyComparison}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} />
+                  <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={formatCompactCurrency} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Bar dataKey="revenue" name="수익" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="no-data-message" style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
+                <Calendar size={48} style={{ opacity: 0.5, marginBottom: '16px' }} />
+                <p>월별 데이터가 없습니다</p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -250,48 +279,55 @@ const AdminRevenue = () => {
       <div className="admin-top-list-card">
         <div className="top-list-header">
           <Trophy size={20} />
-          <h3>수익 TOP 10 스트리머</h3>
+          <h3>후원 TOP 10</h3>
         </div>
         <div className="top-list-body">
-          <table className="top-list-table">
-            <thead>
-              <tr>
-                <th>순위</th>
-                <th>스트리머</th>
-                <th>총 수익</th>
-                <th>점유율</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.topStreamers.map((streamer, index) => (
-                <tr key={streamer.id}>
-                  <td>
-                    <span className={`rank-badge rank-${index + 1}`}>
-                      {index + 1}
-                    </span>
-                  </td>
-                  <td>
-                    <div className="streamer-cell">
-                      <div className="streamer-avatar">
-                        {streamer.username?.charAt(0).toUpperCase()}
-                      </div>
-                      <span>{streamer.username}</span>
-                    </div>
-                  </td>
-                  <td>{formatCurrency(streamer.totalRevenue)}</td>
-                  <td>
-                    <div className="share-bar">
-                      <div
-                        className="share-fill"
-                        style={{ width: `${streamer.share * 10}%`, backgroundColor: '#6366f1' }}
-                      />
-                      <span>{streamer.share.toFixed(1)}%</span>
-                    </div>
-                  </td>
+          {data.topStreamers.length > 0 ? (
+            <table className="top-list-table">
+              <thead>
+                <tr>
+                  <th>순위</th>
+                  <th>닉네임</th>
+                  <th>총 후원금</th>
+                  <th>점유율</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {data.topStreamers.map((streamer, index) => (
+                  <tr key={streamer.id}>
+                    <td>
+                      <span className={`rank-badge rank-${index + 1}`}>
+                        {index + 1}
+                      </span>
+                    </td>
+                    <td>
+                      <div className="streamer-cell">
+                        <div className="streamer-avatar">
+                          {streamer.username?.charAt(0).toUpperCase()}
+                        </div>
+                        <span>{streamer.username}</span>
+                      </div>
+                    </td>
+                    <td>{formatCurrency(streamer.totalRevenue)}</td>
+                    <td>
+                      <div className="share-bar">
+                        <div
+                          className="share-fill"
+                          style={{ width: `${parseFloat(streamer.share) * 10}%`, backgroundColor: '#6366f1' }}
+                        />
+                        <span>{streamer.share}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="no-data-message" style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+              <Trophy size={48} style={{ opacity: 0.5, marginBottom: '16px' }} />
+              <p>후원 데이터가 없습니다</p>
+            </div>
+          )}
         </div>
       </div>
     </div>
