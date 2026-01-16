@@ -19,11 +19,20 @@ const initializeDatabase = (db) => {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT,
         sender TEXT,
+        sender_id TEXT,
         amount INTEGER,
         message TEXT,
         platform TEXT,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
+
+      // Add sender_id column for existing databases (SQLite safe migration)
+      db.run(`ALTER TABLE events ADD COLUMN sender_id TEXT`, (err) => {
+        // Ignore error if column already exists
+        if (err && !err.message.includes("duplicate column")) {
+          dbLogger.warn("Could not add sender_id column:", err.message);
+        }
+      });
 
       db.run(`CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,

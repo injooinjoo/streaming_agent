@@ -315,6 +315,7 @@ class EventNormalizer {
     return {
       type: unifiedEvent.type,
       sender: unifiedEvent.sender.nickname,
+      sender_id: unifiedEvent.sender.id || null,
       amount: unifiedEvent.content.amount || 0,
       message: unifiedEvent.content.message || "",
       platform: unifiedEvent.platform,
