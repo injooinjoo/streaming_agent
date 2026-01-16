@@ -5,6 +5,8 @@
  * Fuzzy matching을 사용하여 자동 매핑을 지원합니다.
  */
 
+const { category: categoryLogger } = require("./logger");
+
 // 자동 매핑 신뢰도 임계값
 const CONFIDENCE_THRESHOLD = 0.85;
 
@@ -389,15 +391,15 @@ class CategoryMapper {
         });
         mapped++;
       } catch (error) {
-        console.error(
-          `[categoryMapper] Failed to map ${category.platform_category_name}:`,
-          error.message
-        );
+        categoryLogger.error("Failed to map category", {
+          category: category.platform_category_name,
+          error: error.message,
+        });
         failed++;
       }
     }
 
-    console.log(`[categoryMapper] Mapping complete. Mapped: ${mapped}, Failed: ${failed}`);
+    categoryLogger.info("Mapping complete", { mapped, failed });
     return { mapped, failed };
   }
 }

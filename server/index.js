@@ -9,6 +9,10 @@ const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
+// Validate environment variables before starting
+const { validateEnv } = require("./config/validateEnv");
+validateEnv(process.env.NODE_ENV === "production"); // Only exit in production
+
 // Application modules
 const { createApp } = require("./app");
 const { initializeDatabase } = require("./db/init");
@@ -22,6 +26,12 @@ const normalizer = require("./services/normalizer");
 
 // Category Service
 const CategoryService = require("./services/categoryService");
+
+// Redis Service
+const { getRedisService } = require("./services/redisService");
+
+// Logger
+const { logger, db: dbLogger, socket: socketLogger } = require("./services/logger");
 
 // ===== Configuration =====
 const PORT = process.env.PORT || 3001;
@@ -42,9 +52,18 @@ const riotApi = new RiotAdapter({
 // ===== Main Initialization =====
 const main = async () => {
   try {
+    // Initialize Redis connection (optional - will fallback to memory if not configured)
+    const redisService = getRedisService();
+    const redisConnected = await redisService.connect();
+    if (redisConnected) {
+      logger.info("Redis connected");
+    } else {
+      logger.info("Redis not configured, using in-memory fallback");
+    }
+
     // Initialize database tables
     await initializeDatabase(db);
-    console.log("Database ready.");
+    dbLogger.info("Database ready");
 
     // Create HTTP server (app will be attached after initialization)
     const express = require("express");
@@ -61,7 +80,7 @@ const main = async () => {
     // Initialize Category Service
     const categoryService = new CategoryService(db, io);
     await categoryService.initialize().catch((err) => {
-      console.error("Category service initialization error:", err);
+      logger.error("Category service initialization error", { error: err.message, stack: err.stack });
     });
 
     // Create Express app with all dependencies
@@ -90,42 +109,52 @@ const main = async () => {
 
     // Start server
     server.listen(PORT, () => {
-      console.log(`Server is listening on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV || "development"}`);
+      logger.info("Server started", {
+        port: PORT,
+        environment: process.env.NODE_ENV || "development",
+      });
     });
   } catch (error) {
-    console.error("Failed to initialize server:", error);
+    logger.fatal("Failed to initialize server", { error: error.message, stack: error.stack });
     process.exit(1);
   }
 };
 
 // ===== Graceful Shutdown =====
-const shutdown = () => {
-  console.log("\nShutting down gracefully...");
+const shutdown = async () => {
+  logger.info("Shutting down gracefully...");
 
   // Disconnect all platform adapters
   for (const [key, adapter] of activeAdapters.entries()) {
     try {
       adapter.disconnect();
-      console.log(`Disconnected adapter: ${key}`);
+      logger.info("Disconnected adapter", { adapter: key });
     } catch (err) {
-      console.error(`Error disconnecting adapter ${key}:`, err.message);
+      logger.error("Error disconnecting adapter", { adapter: key, error: err.message });
     }
+  }
+
+  // Close Redis connection
+  try {
+    const redisService = getRedisService();
+    await redisService.disconnect();
+  } catch (err) {
+    logger.error("Error closing Redis", { error: err.message });
   }
 
   // Close database connection
   db.close((err) => {
     if (err) {
-      console.error("Error closing database:", err.message);
+      dbLogger.error("Error closing database", { error: err.message });
     } else {
-      console.log("Database connection closed.");
+      dbLogger.info("Database connection closed");
     }
   });
 
   // Close server if available
   if (module.exports.server) {
     module.exports.server.close(() => {
-      console.log("Server closed.");
+      logger.info("Server closed");
       process.exit(0);
     });
   } else {
@@ -134,7 +163,7 @@ const shutdown = () => {
 
   // Force exit after timeout
   setTimeout(() => {
-    console.error("Forced shutdown after timeout.");
+    logger.error("Forced shutdown after timeout");
     process.exit(1);
   }, 10000);
 };

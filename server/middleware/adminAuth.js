@@ -1,10 +1,14 @@
 const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-jwt-key-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = "7d";
 
 // Admin access code from environment
-const ADMIN_ACCESS_CODE = process.env.ADMIN_ACCESS_CODE || "dev-admin-2026";
+// Falls back to a development default with warning
+const ADMIN_ACCESS_CODE = process.env.ADMIN_ACCESS_CODE;
+if (!ADMIN_ACCESS_CODE && process.env.NODE_ENV !== "production") {
+  console.warn("⚠️  ADMIN_ACCESS_CODE not set - admin dashboard will be disabled");
+}
 
 /**
  * Middleware to authenticate admin users
@@ -38,6 +42,11 @@ const authenticateAdmin = (req, res, next) => {
  */
 const developerLogin = (req, res) => {
   const { accessCode } = req.body;
+
+  // Check if admin access is configured
+  if (!ADMIN_ACCESS_CODE) {
+    return res.status(503).json({ error: "관리자 접근이 구성되지 않았습니다." });
+  }
 
   if (!accessCode) {
     return res.status(400).json({ error: "개발자 접근 코드를 입력해주세요." });

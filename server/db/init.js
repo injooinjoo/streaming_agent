@@ -3,6 +3,8 @@
  * Creates all required tables for the application
  */
 
+const { db: dbLogger } = require("../services/logger");
+
 /**
  * Initialize database tables
  * @param {sqlite3.Database} db - Database instance
@@ -309,7 +311,7 @@ const initializeDatabase = (db) => {
       db.run(`CREATE INDEX IF NOT EXISTS idx_category_stats_platform ON category_stats(platform, platform_category_id)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_mappings_game ON category_game_mappings(unified_game_id)`);
 
-      console.log("All database tables initialized.");
+      dbLogger.info("All database tables initialized");
       resolve();
     });
   });
