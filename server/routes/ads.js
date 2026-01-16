@@ -271,6 +271,20 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
   });
 
   /**
+   * GET /api/ads/trend
+   * Get user's ad revenue trend
+   */
+  router.get("/ads/trend", authenticateToken, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days, 10) || 7;
+      const trend = await adService.getStreamerRevenueTrend(req.user.id, days);
+      res.json(trend);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
    * GET /api/ads/settlements
    * Get user's settlement history
    */

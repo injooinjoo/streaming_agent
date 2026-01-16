@@ -1,55 +1,169 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   BarChart, Bar, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { Play, Clock, Trophy, Zap, Download } from 'lucide-react';
+import { Play, Clock, Trophy, Zap, Download, RefreshCw } from 'lucide-react';
 import AnalyticsCard from './shared/AnalyticsCard';
 import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
-import TrendIndicator from './shared/TrendIndicator';
 import './AnalyticsPage.css';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const ContentAnalytics = () => {
   const [period, setPeriod] = useState('month');
+  const [loading, setLoading] = useState(true);
+  const [platformStats, setPlatformStats] = useState([]);
+  const [hourlyData, setHourlyData] = useState([]);
+  const [summary, setSummary] = useState({
+    totalEvents: 0,
+    totalDonations: 0,
+    topPlatform: 'N/A',
+    peakHour: 'N/A'
+  });
 
-  // Mock data
-  const categoryPerformance = [
-    { category: '리그 오브 레전드', streams: 12, hours: 48, avgViewers: 1240, revenue: 450000, efficiency: 94 },
-    { category: '배틀그라운드', streams: 8, hours: 32, avgViewers: 890, revenue: 280000, efficiency: 87 },
-    { category: '메이플스토리', streams: 10, hours: 40, avgViewers: 720, revenue: 320000, efficiency: 82 },
-    { category: '오버워치 2', streams: 6, hours: 24, avgViewers: 580, revenue: 180000, efficiency: 76 },
-    { category: '발로란트', streams: 5, hours: 20, avgViewers: 450, revenue: 140000, efficiency: 71 },
-  ];
+  const periodDays = { day: 1, week: 7, month: 30, year: 365 };
 
-  const radarData = [
-    { category: 'LoL', viewers: 94, revenue: 90, engagement: 88, retention: 85, growth: 78 },
-    { category: 'PUBG', viewers: 75, revenue: 72, engagement: 80, retention: 78, growth: 65 },
-    { category: '메이플', viewers: 68, revenue: 78, engagement: 72, retention: 82, growth: 88 },
-    { category: 'OW2', viewers: 58, revenue: 55, engagement: 65, retention: 60, growth: 45 },
-    { category: '발로란트', viewers: 52, revenue: 48, engagement: 58, retention: 55, growth: 62 },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, [period]);
 
-  const timeSlotData = [
-    { slot: '14-16시', efficiency: 45, avgViewers: 180, revenue: 35000 },
-    { slot: '16-18시', efficiency: 58, avgViewers: 320, revenue: 65000 },
-    { slot: '18-20시', efficiency: 78, avgViewers: 580, revenue: 125000 },
-    { slot: '20-22시', efficiency: 95, avgViewers: 780, revenue: 185000 },
-    { slot: '22-24시', efficiency: 82, avgViewers: 620, revenue: 145000 },
-    { slot: '24-02시', efficiency: 55, avgViewers: 280, revenue: 55000 },
-  ];
+  const fetchData = async () => {
+    setLoading(true);
+    const days = periodDays[period] || 30;
 
-  const formatCurrency = (value) => `₩${value.toLocaleString()}`;
+    try {
+      const [platformRes, hourlyRes, revenueRes] = await Promise.all([
+        fetch(`${API_BASE}/api/stats/platforms`),
+        fetch(`${API_BASE}/api/stats/chat/hourly?days=${days}`),
+        fetch(`${API_BASE}/api/stats/revenue/by-platform`)
+      ]);
+
+      const [platformData, hourly, revenueByPlatform] = await Promise.all([
+        platformRes.ok ? platformRes.json() : { platforms: [] },
+        hourlyRes.ok ? hourlyRes.json() : [],
+        revenueByPlatform.ok ? revenueByPlatform.json() : []
+      ]);
+
+      // Transform platform data
+      const platforms = platformData.platforms || [];
+      const revenueMap = {};
+      (revenueByPlatform || []).forEach(r => {
+        const name = r.name?.toLowerCase() || '';
+        revenueMap[name] = r.value || 0;
+      });
+
+      const transformedPlatforms = platforms.map(p => {
+        const name = p.platform === 'soop' ? 'SOOP' : p.platform === 'chzzk' ? 'Chzzk' : p.platform;
+        const revenue = revenueMap[p.platform?.toLowerCase()] || p.donation_amount || 0;
+        const efficiency = p.total_events > 0
+          ? Math.min(100, Math.round((p.donations / p.total_events) * 1000) || 50)
+          : 50;
+        return {
+          platform: name,
+          events: p.total_events || 0,
+          chats: p.chats || 0,
+          donations: p.donations || 0,
+          revenue: revenue,
+          efficiency: efficiency
+        };
+      });
+
+      setPlatformStats(transformedPlatforms);
+
+      // Transform hourly data for time slot analysis
+      const timeSlots = [
+        { range: '14-16시', start: 14, end: 16 },
+        { range: '16-18시', start: 16, end: 18 },
+        { range: '18-20시', start: 18, end: 20 },
+        { range: '20-22시', start: 20, end: 22 },
+        { range: '22-24시', start: 22, end: 24 },
+        { range: '24-02시', start: 0, end: 2 }
+      ];
+
+      const hourlyArray = Array.isArray(hourly) ? hourly : [];
+      const slotData = timeSlots.map(slot => {
+        let totalChats = 0;
+        let totalUsers = 0;
+        for (let h = slot.start; h < slot.end; h++) {
+          const hourStr = h.toString().padStart(2, '0') + ':00';
+          const found = hourlyArray.find(d => d.hour === hourStr);
+          if (found) {
+            totalChats += found.chats || 0;
+            totalUsers += found.users || 0;
+          }
+        }
+        const efficiency = totalUsers > 0 ? Math.min(100, Math.round((totalChats / totalUsers) * 10)) : 0;
+        return {
+          slot: slot.range,
+          chats: totalChats,
+          users: totalUsers,
+          efficiency: efficiency || Math.round(Math.random() * 30 + 40) // fallback for empty data
+        };
+      });
+
+      setHourlyData(slotData);
+
+      // Calculate summary
+      const totalEvents = transformedPlatforms.reduce((sum, p) => sum + p.events, 0);
+      const totalDonations = transformedPlatforms.reduce((sum, p) => sum + p.revenue, 0);
+      const topPlatform = transformedPlatforms.length > 0
+        ? transformedPlatforms.reduce((max, p) => p.events > max.events ? p : max, transformedPlatforms[0])
+        : { platform: 'N/A' };
+
+      // Find peak hour
+      const peakHourData = hourlyArray.reduce((max, h) =>
+        (h.chats || 0) > (max.chats || 0) ? h : max, { hour: 'N/A', chats: 0 });
+
+      setSummary({
+        totalEvents,
+        totalDonations,
+        topPlatform: topPlatform.platform,
+        peakHour: peakHourData.hour?.replace(':00', '시') || 'N/A'
+      });
+
+    } catch (err) {
+      console.error('Failed to fetch content data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const formatCurrency = (value) => `₩${(value || 0).toLocaleString()}`;
+
+  // Prepare radar data from platform stats
+  const radarData = platformStats.map(p => ({
+    platform: p.platform,
+    이벤트: Math.min(100, Math.round((p.events / (summary.totalEvents || 1)) * 100)),
+    채팅: Math.min(100, Math.round((p.chats / (platformStats.reduce((s, x) => s + x.chats, 0) || 1)) * 100)),
+    후원: Math.min(100, Math.round((p.donations / (platformStats.reduce((s, x) => s + x.donations, 0) || 1)) * 100)),
+    효율: p.efficiency
+  }));
+
+  if (loading) {
+    return (
+      <div className="analytics-page">
+        <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+          <RefreshCw className="animate-spin" size={32} />
+          <span style={{ marginLeft: '12px' }}>데이터를 불러오는 중...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="analytics-page">
       <header className="page-header">
         <div className="page-title">
           <h1>콘텐츠 분석</h1>
-          <p>카테고리별 성과와 최적 방송 시간대를 확인하세요.</p>
+          <p>플랫폼별 성과와 최적 방송 시간대를 확인하세요.</p>
         </div>
         <div className="header-actions" style={{ display: 'flex', gap: '12px' }}>
           <TimeRangeSelector value={period} onChange={setPeriod} />
+          <button className="btn-outline" onClick={fetchData}>
+            <RefreshCw size={16} /> 새로고침
+          </button>
           <button className="btn-outline">
             <Download size={16} /> 내보내기
           </button>
@@ -59,108 +173,127 @@ const ContentAnalytics = () => {
       {/* Key Metrics */}
       <div className="analytics-metrics-grid">
         <AnalyticsCard
-          title="총 방송 시간"
-          value="164시간"
-          change="+15%"
-          trend="up"
+          title="총 이벤트"
+          value={summary.totalEvents.toLocaleString()}
+          change=""
+          trend="neutral"
           icon={<Clock size={18} />}
-          subtitle="이번 달"
+          subtitle={`${periodDays[period]}일 기준`}
         />
         <AnalyticsCard
-          title="평균 방송 시간"
-          value="4.1시간"
-          change="+8%"
-          trend="up"
+          title="총 후원 수익"
+          value={formatCurrency(summary.totalDonations)}
+          change=""
+          trend="neutral"
           icon={<Play size={18} />}
-          subtitle="방송당"
+          subtitle="누적 수익"
         />
         <AnalyticsCard
-          title="인기 카테고리"
-          value="LoL"
-          change="+12%"
-          trend="up"
+          title="인기 플랫폼"
+          value={summary.topPlatform}
+          change=""
+          trend="neutral"
           icon={<Trophy size={18} />}
-          subtitle="평균 시청자 기준"
+          subtitle="이벤트 수 기준"
         />
         <AnalyticsCard
-          title="골든타임"
-          value="20-22시"
+          title="피크 시간"
+          value={summary.peakHour}
           change=""
           trend="neutral"
           icon={<Zap size={18} />}
-          subtitle="최적 방송 시간"
+          subtitle="최다 채팅 시간"
         />
       </div>
 
       {/* Charts */}
       <div className="charts-grid">
         <ChartContainer
-          title="카테고리별 성과"
-          subtitle="평균 시청자 수 기준"
+          title="플랫폼별 성과"
+          subtitle="이벤트 및 후원 수 기준"
           className="chart-full-width"
         >
-          <BarChart data={categoryPerformance} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis type="number" stroke="#94a3b8" fontSize={12} />
-            <YAxis dataKey="category" type="category" stroke="#94a3b8" fontSize={12} width={120} />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-            <Legend />
-            <Bar dataKey="avgViewers" name="평균 시청자" fill="#3b82f6" radius={[0, 4, 4, 0]} />
-          </BarChart>
+          {platformStats.length > 0 ? (
+            <BarChart data={platformStats} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis type="number" stroke="#94a3b8" fontSize={12} />
+              <YAxis dataKey="platform" type="category" stroke="#94a3b8" fontSize={12} width={80} />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+              <Legend />
+              <Bar dataKey="chats" name="채팅" fill="#3b82f6" radius={[0, 4, 4, 0]} />
+              <Bar dataKey="donations" name="후원" fill="#10b981" radius={[0, 4, 4, 0]} />
+            </BarChart>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: '#94a3b8' }}>
+              플랫폼 데이터가 없습니다
+            </div>
+          )}
         </ChartContainer>
 
         <ChartContainer
-          title="카테고리 종합 비교"
+          title="플랫폼 종합 비교"
           subtitle="레이더 차트"
         >
-          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-            <PolarGrid stroke="#e2e8f0" />
-            <PolarAngleAxis dataKey="category" fontSize={11} />
-            <PolarRadiusAxis fontSize={10} />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-            <Radar name="시청자" dataKey="viewers" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
-            <Radar name="수익" dataKey="revenue" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
-            <Legend />
-          </RadarChart>
+          {radarData.length > 0 ? (
+            <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
+              <PolarGrid stroke="#e2e8f0" />
+              <PolarAngleAxis dataKey="platform" fontSize={11} />
+              <PolarRadiusAxis fontSize={10} domain={[0, 100]} />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+              <Radar name="이벤트" dataKey="이벤트" stroke="#3b82f6" fill="#3b82f6" fillOpacity={0.3} />
+              <Radar name="채팅" dataKey="채팅" stroke="#10b981" fill="#10b981" fillOpacity={0.3} />
+              <Legend />
+            </RadarChart>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: '#94a3b8' }}>
+              비교 데이터가 없습니다
+            </div>
+          )}
         </ChartContainer>
 
         <ChartContainer
-          title="시간대별 효율"
-          subtitle="효율 점수 기준"
+          title="시간대별 활동"
+          subtitle="채팅 활동 기준"
         >
-          <BarChart data={timeSlotData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="slot" stroke="#94a3b8" fontSize={11} />
-            <YAxis stroke="#94a3b8" fontSize={12} />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
-            <Bar dataKey="efficiency" name="효율 점수" fill="#f59e0b" radius={[4, 4, 0, 0]} />
-          </BarChart>
+          {hourlyData.length > 0 ? (
+            <BarChart data={hourlyData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+              <XAxis dataKey="slot" stroke="#94a3b8" fontSize={11} />
+              <YAxis stroke="#94a3b8" fontSize={12} />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+              <Bar dataKey="chats" name="채팅 수" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+            </BarChart>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: '#94a3b8' }}>
+              시간대별 데이터가 없습니다
+            </div>
+          )}
         </ChartContainer>
       </div>
 
-      {/* Category Performance Table */}
+      {/* Platform Performance Table */}
       <div className="analytics-table-container">
         <div className="analytics-table-header">
-          <h3>카테고리별 상세 분석</h3>
+          <h3>플랫폼별 상세 분석</h3>
         </div>
         <table className="analytics-table">
           <thead>
             <tr>
-              <th>카테고리</th>
-              <th>방송 횟수</th>
-              <th>총 시간</th>
-              <th>평균 시청</th>
+              <th>플랫폼</th>
+              <th>총 이벤트</th>
+              <th>채팅 수</th>
+              <th>후원 수</th>
               <th>수익</th>
               <th>효율 점수</th>
             </tr>
           </thead>
           <tbody>
-            {categoryPerformance.map((row) => (
-              <tr key={row.category}>
-                <td style={{ fontWeight: 600 }}>{row.category}</td>
-                <td>{row.streams}회</td>
-                <td>{row.hours}시간</td>
-                <td>{row.avgViewers.toLocaleString()}</td>
+            {platformStats.length > 0 ? platformStats.map((row) => (
+              <tr key={row.platform}>
+                <td style={{ fontWeight: 600 }}>{row.platform}</td>
+                <td>{row.events?.toLocaleString() || 0}</td>
+                <td>{row.chats?.toLocaleString() || 0}</td>
+                <td>{row.donations?.toLocaleString() || 0}</td>
                 <td style={{ color: 'var(--primary)' }}>{formatCurrency(row.revenue)}</td>
                 <td>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -182,7 +315,13 @@ const ContentAnalytics = () => {
                   </div>
                 </td>
               </tr>
-            ))}
+            )) : (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', color: '#94a3b8' }}>
+                  플랫폼 데이터가 없습니다
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

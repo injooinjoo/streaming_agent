@@ -99,19 +99,40 @@ const createPlatformsRouter = (db, io, activeAdapters, ChzzkAdapter, SoopAdapter
       adapter.on("event", (event) => {
         const legacyEvent = normalizer.toEventsFormat(event);
 
-        db.run(
-          `INSERT INTO events (type, sender, sender_id, amount, message, platform, timestamp)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [
-            legacyEvent.type,
-            legacyEvent.sender,
-            legacyEvent.sender_id,
-            legacyEvent.amount,
-            legacyEvent.message,
-            legacyEvent.platform,
-            legacyEvent.timestamp,
-          ]
-        );
+        // Save user events (chat, donation, subscribe) to events table
+        if (["chat", "donation", "subscribe"].includes(event.type)) {
+          db.run(
+            `INSERT INTO events (type, sender, sender_id, amount, message, platform, timestamp)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+              legacyEvent.type,
+              legacyEvent.sender,
+              legacyEvent.sender_id,
+              legacyEvent.amount,
+              legacyEvent.message,
+              legacyEvent.platform,
+              legacyEvent.timestamp,
+            ],
+            (err) => {
+              if (err) {
+                console.error(`[chzzk] DB insert error for ${event.type}:`, err.message);
+              }
+            }
+          );
+        }
+
+        // Save viewer-update events to viewer_stats table
+        if (event.type === "viewer-update" && event.content?.viewerCount !== undefined) {
+          db.run(
+            `INSERT INTO viewer_stats (platform, channel_id, viewer_count, timestamp) VALUES (?, ?, ?, ?)`,
+            ["chzzk", channelId, event.content.viewerCount, new Date().toISOString()],
+            (err) => {
+              if (err) {
+                console.error(`[chzzk] DB insert error for viewer_stats:`, err.message);
+              }
+            }
+          );
+        }
 
         if (userHash) {
           io.to(`overlay:${userHash}`).emit("new-event", legacyEvent);
@@ -119,7 +140,7 @@ const createPlatformsRouter = (db, io, activeAdapters, ChzzkAdapter, SoopAdapter
           io.emit("new-event", legacyEvent);
         }
 
-        console.log(`[chzzk] Event: ${event.type} from ${event.sender.nickname}`);
+        console.log(`[chzzk] Event: ${event.type} from ${event.sender?.nickname || "system"}`);
       });
 
       adapter.on("connected", () => {
@@ -265,8 +286,7 @@ const createPlatformsRouter = (db, io, activeAdapters, ChzzkAdapter, SoopAdapter
       adapter.on("event", (event) => {
         const legacyEvent = normalizer.toEventsFormat(event);
 
-        // Save all event types (chat, donation, subscribe) to DB
-        // Skip viewer-update as it's not a user event
+        // Save user events (chat, donation, subscribe) to events table
         if (["chat", "donation", "subscribe"].includes(event.type)) {
           db.run(
             `INSERT INTO events (type, sender, sender_id, amount, message, platform, timestamp)
@@ -279,7 +299,25 @@ const createPlatformsRouter = (db, io, activeAdapters, ChzzkAdapter, SoopAdapter
               legacyEvent.message,
               legacyEvent.platform,
               legacyEvent.timestamp,
-            ]
+            ],
+            (err) => {
+              if (err) {
+                console.error(`[soop] DB insert error for ${event.type}:`, err.message);
+              }
+            }
+          );
+        }
+
+        // Save viewer-update events to viewer_stats table
+        if (event.type === "viewer-update" && event.content?.viewerCount !== undefined) {
+          db.run(
+            `INSERT INTO viewer_stats (platform, channel_id, viewer_count, timestamp) VALUES (?, ?, ?, ?)`,
+            ["soop", bjId, event.content.viewerCount, new Date().toISOString()],
+            (err) => {
+              if (err) {
+                console.error(`[soop] DB insert error for viewer_stats:`, err.message);
+              }
+            }
           );
         }
 
@@ -289,7 +327,7 @@ const createPlatformsRouter = (db, io, activeAdapters, ChzzkAdapter, SoopAdapter
           io.emit("new-event", legacyEvent);
         }
 
-        console.log(`[soop] Event: ${event.type} from ${event.sender.nickname}`);
+        console.log(`[soop] Event: ${event.type} from ${event.sender?.nickname || "system"}`);
       });
 
       adapter.on("connected", () => {

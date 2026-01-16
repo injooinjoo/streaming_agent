@@ -299,10 +299,42 @@ class CategoryCrawler {
   }
 
   /**
+   * 카테고리 존재 여부 확인
+   * @param {string} platform
+   * @param {string} platformCategoryId
+   * @returns {Promise<boolean>}
+   */
+  checkCategoryExists(platform, platformCategoryId) {
+    return new Promise((resolve) => {
+      this.db.get(
+        `SELECT 1 FROM platform_categories WHERE platform = ? AND platform_category_id = ?`,
+        [platform, platformCategoryId],
+        (err, row) => resolve(!!row)
+      );
+    });
+  }
+
+  /**
    * 카테고리 Upsert (없으면 생성, 있으면 업데이트)
+   * 새 카테고리 발견 시 로그 출력
    * @param {PlatformCategory} category
    */
-  upsertCategory(category) {
+  async upsertCategory(category) {
+    // 새 카테고리인지 확인
+    const exists = await this.checkCategoryExists(
+      category.platform,
+      category.platformCategoryId
+    );
+
+    if (!exists) {
+      categoryLogger.info("새 카테고리 발견", {
+        platform: category.platform,
+        name: category.platformCategoryName,
+        id: category.platformCategoryId,
+        type: category.categoryType,
+      });
+    }
+
     return new Promise((resolve, reject) => {
       const sql = `
         INSERT INTO platform_categories

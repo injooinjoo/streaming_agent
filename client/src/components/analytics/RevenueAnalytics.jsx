@@ -1,53 +1,110 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { DollarSign, Gift, Users, Megaphone, Download } from 'lucide-react';
+import { DollarSign, Gift, Users, Megaphone, Download, RefreshCw } from 'lucide-react';
 import AnalyticsCard from './shared/AnalyticsCard';
 import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
 import TrendIndicator from './shared/TrendIndicator';
 import './AnalyticsPage.css';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 const RevenueAnalytics = () => {
   const [period, setPeriod] = useState('week');
+  const [loading, setLoading] = useState(true);
+  const [revenueData, setRevenueData] = useState([]);
+  const [platformData, setPlatformData] = useState([]);
+  const [topDonors, setTopDonors] = useState([]);
+  const [summary, setSummary] = useState({ totalRevenue: 0, donationRevenue: 0, donationCount: 0 });
 
-  // Mock data
-  const revenueData = [
-    { date: '1/1', donation: 180000, subscription: 45000, ads: 12000 },
-    { date: '1/2', donation: 220000, subscription: 48000, ads: 15000 },
-    { date: '1/3', donation: 150000, subscription: 42000, ads: 11000 },
-    { date: '1/4', donation: 280000, subscription: 52000, ads: 18000 },
-    { date: '1/5', donation: 195000, subscription: 47000, ads: 14000 },
-    { date: '1/6', donation: 310000, subscription: 55000, ads: 22000 },
-    { date: '1/7', donation: 245000, subscription: 50000, ads: 17000 },
-  ];
+  const periodDays = { day: 1, week: 7, month: 30, year: 365 };
 
-  const platformData = [
-    { name: 'SOOP', value: 450000, color: '#5c3cff' },
-    { name: '치지직', value: 380000, color: '#00c896' },
-    { name: 'YouTube', value: 270000, color: '#ff0000' },
-    { name: 'Twitch', value: 150000, color: '#9146ff' },
-  ];
+  useEffect(() => {
+    fetchData();
+  }, [period]);
 
-  const topDonors = [
-    { rank: 1, name: 'RichGuy', amount: 500000, count: 10, platforms: ['twitch', 'soop'] },
-    { rank: 2, name: 'BigFan', amount: 350000, count: 7, platforms: ['chzzk'] },
-    { rank: 3, name: 'LoyalViewer', amount: 280000, count: 15, platforms: ['youtube'] },
-    { rank: 4, name: 'GenerousDonor', amount: 220000, count: 5, platforms: ['soop'] },
-    { rank: 5, name: 'TopSupporter', amount: 180000, count: 8, platforms: ['twitch', 'chzzk'] },
-  ];
+  const fetchData = async () => {
+    setLoading(true);
+    const days = periodDays[period] || 7;
 
-  const dailyBreakdown = [
-    { date: '2026-01-01', donation: 180000, subscription: 45000, ads: 12000, total: 237000, change: '+15%' },
-    { date: '2026-01-02', donation: 220000, subscription: 48000, ads: 15000, total: 283000, change: '+19%' },
-    { date: '2026-01-03', donation: 150000, subscription: 42000, ads: 11000, total: 203000, change: '-28%' },
-    { date: '2026-01-04', donation: 280000, subscription: 52000, ads: 18000, total: 350000, change: '+72%' },
-    { date: '2026-01-05', donation: 195000, subscription: 47000, ads: 14000, total: 256000, change: '-27%' },
-  ];
+    try {
+      const [trendRes, platformRes, donorsRes, summaryRes] = await Promise.all([
+        fetch(`${API_BASE}/api/stats/revenue/trend?days=${days}`),
+        fetch(`${API_BASE}/api/stats/revenue/by-platform`),
+        fetch(`${API_BASE}/api/stats/donations/top-donors?limit=5`),
+        fetch(`${API_BASE}/api/stats/revenue?days=${days}`)
+      ]);
 
-  const totalRevenue = 1580000 + 339000 + 109000;
+      const [trend, platforms, donors, sum] = await Promise.all([
+        trendRes.json(),
+        platformRes.json(),
+        donorsRes.json(),
+        summaryRes.json()
+      ]);
+
+      // Transform trend data for charts
+      setRevenueData(trend.map(d => ({
+        date: d.date,
+        donation: d.donations || 0,
+        subscription: 0,
+        ads: d.adRevenue || 0
+      })));
+
+      // Platform colors
+      const platformColors = {
+        SOOP: '#5c3cff',
+        soop: '#5c3cff',
+        Chzzk: '#00c896',
+        chzzk: '#00c896',
+        YouTube: '#ff0000',
+        youtube: '#ff0000',
+        Twitch: '#9146ff',
+        twitch: '#9146ff'
+      };
+
+      setPlatformData(platforms.map(p => ({
+        name: p.name,
+        value: p.value || 0,
+        color: platformColors[p.name] || '#666'
+      })));
+
+      // Transform donors
+      setTopDonors(donors.map((d, i) => ({
+        rank: i + 1,
+        name: d.sender || d.username || '익명',
+        amount: d.total || d.totalRevenue || 0,
+        count: d.count || d.donationCount || 0,
+        platforms: [d.platform || 'unknown']
+      })));
+
+      setSummary(sum);
+    } catch (err) {
+      console.error('Failed to fetch revenue data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate daily breakdown from revenueData
+  const dailyBreakdown = revenueData.slice(-5).map((d, i, arr) => {
+    const prev = i > 0 ? arr[i-1] : null;
+    const total = d.donation + d.subscription + d.ads;
+    const prevTotal = prev ? (prev.donation + prev.subscription + prev.ads) : total;
+    const change = prevTotal > 0 ? (((total - prevTotal) / prevTotal) * 100).toFixed(0) : 0;
+    return {
+      date: d.date,
+      donation: d.donation,
+      subscription: d.subscription,
+      ads: d.ads,
+      total,
+      change: change >= 0 ? `+${change}%` : `${change}%`
+    };
+  });
+
+  const totalRevenue = summary.donationRevenue || 0;
   const COLORS = ['#5c3cff', '#00c896', '#ff0000', '#9146ff'];
 
   const getRankClass = (rank) => {
@@ -57,7 +114,18 @@ const RevenueAnalytics = () => {
     return 'default';
   };
 
-  const formatCurrency = (value) => `₩${value.toLocaleString()}`;
+  const formatCurrency = (value) => `₩${(value || 0).toLocaleString()}`;
+
+  if (loading) {
+    return (
+      <div className="analytics-page">
+        <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
+          <RefreshCw className="animate-spin" size={32} />
+          <span style={{ marginLeft: '12px' }}>데이터를 불러오는 중...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="analytics-page">
@@ -68,6 +136,9 @@ const RevenueAnalytics = () => {
         </div>
         <div className="header-actions" style={{ display: 'flex', gap: '12px' }}>
           <TimeRangeSelector value={period} onChange={setPeriod} />
+          <button className="btn-outline" onClick={fetchData}>
+            <RefreshCw size={16} /> 새로고침
+          </button>
           <button className="btn-outline">
             <Download size={16} /> 내보내기
           </button>
@@ -79,34 +150,34 @@ const RevenueAnalytics = () => {
         <AnalyticsCard
           title="총 수익"
           value={formatCurrency(totalRevenue)}
-          change="+15%"
-          trend="up"
+          change={summary.donationCount > 0 ? '+' : ''}
+          trend={summary.donationCount > 0 ? 'up' : 'neutral'}
           icon={<DollarSign size={18} />}
-          subtitle="이번 주"
+          subtitle={`${periodDays[period]}일 기준`}
         />
         <AnalyticsCard
           title="후원금"
-          value={formatCurrency(1580000)}
-          change="+8%"
-          trend="up"
+          value={formatCurrency(summary.donationRevenue)}
+          change=""
+          trend="neutral"
           icon={<Gift size={18} />}
-          subtitle="156건의 후원"
+          subtitle={`${summary.donationCount}건의 후원`}
         />
         <AnalyticsCard
           title="구독 수익"
-          value={formatCurrency(339000)}
-          change="+23%"
-          trend="up"
+          value={formatCurrency(0)}
+          change=""
+          trend="neutral"
           icon={<Users size={18} />}
-          subtitle="신규 구독 12명"
+          subtitle="구독 데이터 미연동"
         />
         <AnalyticsCard
           title="광고 수익"
-          value={formatCurrency(109000)}
-          change="-5%"
-          trend="down"
+          value={formatCurrency(summary.adRevenue || 0)}
+          change=""
+          trend="neutral"
           icon={<Megaphone size={18} />}
-          subtitle="노출 4,520회"
+          subtitle="광고 데이터 미연동"
         />
       </div>
 
@@ -155,23 +226,29 @@ const RevenueAnalytics = () => {
           title="플랫폼별 수익"
           subtitle="비율 분포"
         >
-          <PieChart>
-            <Pie
-              data={platformData}
-              cx="50%"
-              cy="50%"
-              innerRadius={60}
-              outerRadius={100}
-              paddingAngle={2}
-              dataKey="value"
-              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-            >
-              {platformData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(value) => formatCurrency(value)} />
-          </PieChart>
+          {platformData.length > 0 ? (
+            <PieChart>
+              <Pie
+                data={platformData}
+                cx="50%"
+                cy="50%"
+                innerRadius={60}
+                outerRadius={100}
+                paddingAngle={2}
+                dataKey="value"
+                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+              >
+                {platformData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip formatter={(value) => formatCurrency(value)} />
+            </PieChart>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '200px', color: '#94a3b8' }}>
+              플랫폼 수익 데이터가 없습니다
+            </div>
+          )}
         </ChartContainer>
       </div>
 
@@ -180,11 +257,11 @@ const RevenueAnalytics = () => {
         <div className="chart-header">
           <div className="chart-title-section">
             <h3 className="chart-title">탑 도네이터</h3>
-            <p className="chart-subtitle">이번 주 후원 순위</p>
+            <p className="chart-subtitle">후원 순위</p>
           </div>
         </div>
         <div className="top-donors-list">
-          {topDonors.map((donor) => (
+          {topDonors.length > 0 ? topDonors.map((donor) => (
             <div key={donor.rank} className="top-donor-item">
               <div className={`top-donor-rank ${getRankClass(donor.rank)}`}>
                 {donor.rank}
@@ -200,7 +277,11 @@ const RevenueAnalytics = () => {
               </div>
               <div className="top-donor-amount">{formatCurrency(donor.amount)}</div>
             </div>
-          ))}
+          )) : (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>
+              후원자 데이터가 없습니다
+            </div>
+          )}
         </div>
       </div>
 
@@ -221,7 +302,7 @@ const RevenueAnalytics = () => {
             </tr>
           </thead>
           <tbody>
-            {dailyBreakdown.map((row) => (
+            {dailyBreakdown.length > 0 ? dailyBreakdown.map((row) => (
               <tr key={row.date}>
                 <td>{row.date}</td>
                 <td>{formatCurrency(row.donation)}</td>
@@ -232,7 +313,11 @@ const RevenueAnalytics = () => {
                   <TrendIndicator value={row.change} />
                 </td>
               </tr>
-            ))}
+            )) : (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', color: '#94a3b8' }}>데이터가 없습니다</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

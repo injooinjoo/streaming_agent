@@ -258,198 +258,306 @@ const createAdminRouter = (db, authenticateAdmin, developerLogin) => {
 
   /**
    * GET /api/admin/viewership
-   * Get viewership analytics (mock data)
+   * Get viewership analytics (real data from events table)
    */
   router.get("/admin/viewership", authenticateAdmin, (req, res) => {
-    const generateHourlyData = () => {
-      const hours = Array.from({ length: 24 }, (_, i) => i);
-      return hours.map((hour) => ({
-        hour: `${hour.toString().padStart(2, "0")}:00`,
-        soop: Math.floor(Math.random() * 50000) + 20000,
-        chzzk: Math.floor(Math.random() * 60000) + 30000,
-        youtube: Math.floor(Math.random() * 30000) + 10000,
-        twitch: Math.floor(Math.random() * 10000) + 2000,
-      }));
+    const queries = {
+      hourlyTrend: `
+        SELECT
+          strftime('%H:00', timestamp) as hour,
+          SUM(CASE WHEN platform = 'soop' THEN 1 ELSE 0 END) as soop,
+          SUM(CASE WHEN platform = 'chzzk' THEN 1 ELSE 0 END) as chzzk,
+          SUM(CASE WHEN platform = 'youtube' THEN 1 ELSE 0 END) as youtube,
+          SUM(CASE WHEN platform = 'twitch' THEN 1 ELSE 0 END) as twitch
+        FROM events
+        WHERE timestamp >= datetime('now', '-24 hours')
+        GROUP BY strftime('%H', timestamp)
+        ORDER BY hour
+      `,
+      platformStats: `
+        SELECT
+          platform,
+          COUNT(*) as total_events,
+          COUNT(CASE WHEN type = 'donation' THEN 1 END) as donations,
+          COUNT(CASE WHEN type = 'chat' THEN 1 END) as chats,
+          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount,
+          COUNT(DISTINCT sender) as unique_users
+        FROM events
+        GROUP BY platform
+      `,
+      todayStats: `
+        SELECT
+          COUNT(*) as total_events,
+          COUNT(DISTINCT sender) as unique_users,
+          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as total_donations
+        FROM events
+        WHERE DATE(timestamp) = DATE('now')
+      `,
+      topDonors: `
+        SELECT
+          sender as name,
+          platform,
+          COUNT(*) as donation_count,
+          COALESCE(SUM(amount), 0) as total_amount
+        FROM events
+        WHERE type = 'donation' AND sender IS NOT NULL AND sender != ''
+        GROUP BY sender
+        ORDER BY total_amount DESC
+        LIMIT 10
+      `,
+      recentActivity: `
+        SELECT
+          COUNT(*) as count,
+          platform
+        FROM events
+        WHERE timestamp >= datetime('now', '-1 hour')
+        GROUP BY platform
+      `
     };
 
-    const platformStats = {
-      soop: { current: 87107, peak: 361049, channels: 2144 },
-      chzzk: { current: 92289, peak: 264871, channels: 2438 },
-      youtube: { current: 45000, peak: 120000, channels: 850 },
-      twitch: { current: 2916, peak: 4633, channels: 108 },
-    };
+    const results = {};
+    let completed = 0;
+    const keys = Object.keys(queries);
 
-    const streamerInfluence = [
-      {
-        id: 1,
-        name: "감스트",
-        platform: "soop",
-        influenceScore: 95,
-        avgViewers: 45000,
-        adEfficiency: 4.8,
-        donationRate: 3.2,
-        trend: "up",
-        mainGame: "league",
-        games: ["league", "valorant", "talk"],
-      },
-      {
-        id: 2,
-        name: "풍월량",
-        platform: "chzzk",
-        influenceScore: 92,
-        avgViewers: 38000,
-        adEfficiency: 4.5,
-        donationRate: 2.8,
-        trend: "up",
-        mainGame: "league",
-        games: ["league", "minecraft"],
-      },
-      {
-        id: 3,
-        name: "우왁굳",
-        platform: "soop",
-        influenceScore: 88,
-        avgViewers: 32000,
-        adEfficiency: 4.2,
-        donationRate: 4.1,
-        trend: "stable",
-        mainGame: "minecraft",
-        games: ["minecraft", "gta", "talk"],
-      },
-    ];
+    keys.forEach((key) => {
+      db.all(queries[key], [], (err, rows) => {
+        results[key] = err ? [] : rows;
+        completed++;
 
-    const topAdEfficiency = [...streamerInfluence]
-      .sort((a, b) => b.adEfficiency - a.adEfficiency)
-      .slice(0, 3)
-      .map((s) => ({ id: s.id, name: s.name, value: s.adEfficiency, unit: "% CTR" }));
+        if (completed === keys.length) {
+          // Build hourly trend with all 24 hours
+          const hourlyMap = {};
+          (results.hourlyTrend || []).forEach(row => {
+            hourlyMap[row.hour] = row;
+          });
 
-    const trendingStreamers = streamerInfluence
-      .filter((s) => s.trend === "up")
-      .sort((a, b) => b.influenceScore - a.influenceScore)
-      .slice(0, 3)
-      .map((s) => ({ id: s.id, name: s.name, value: s.influenceScore, unit: "점" }));
+          const hourlyTrend = [];
+          for (let i = 0; i < 24; i++) {
+            const hour = `${i.toString().padStart(2, '0')}:00`;
+            if (hourlyMap[hour]) {
+              hourlyTrend.push(hourlyMap[hour]);
+            } else {
+              hourlyTrend.push({ hour, soop: 0, chzzk: 0, youtube: 0, twitch: 0 });
+            }
+          }
 
-    const topDonationRate = [...streamerInfluence]
-      .sort((a, b) => b.donationRate - a.donationRate)
-      .slice(0, 3)
-      .map((s) => ({ id: s.id, name: s.name, value: s.donationRate, unit: "%" }));
+          // Build platform stats
+          const platformStats = {};
+          (results.platformStats || []).forEach(p => {
+            platformStats[p.platform] = {
+              current: p.total_events || 0,
+              peak: p.donation_amount || 0,
+              channels: p.unique_users || 0,
+              donations: p.donations || 0,
+              chats: p.chats || 0
+            };
+          });
 
-    res.json({
-      hourlyTrend: generateHourlyData(),
-      platformStats,
-      totalViewers: 227312,
-      peakToday: 450000,
-      avgConcurrent: 180000,
-      streamerInfluence,
-      topAdEfficiency,
-      trendingStreamers,
-      topDonationRate,
+          // Ensure all platforms exist
+          ['soop', 'chzzk', 'youtube', 'twitch'].forEach(platform => {
+            if (!platformStats[platform]) {
+              platformStats[platform] = { current: 0, peak: 0, channels: 0, donations: 0, chats: 0 };
+            }
+          });
+
+          // Calculate totals
+          const totalEvents = Object.values(platformStats).reduce((sum, p) => sum + p.current, 0);
+          const todayData = results.todayStats?.[0] || { total_events: 0, unique_users: 0, total_donations: 0 };
+
+          // Build top donors as "streamer influence"
+          const streamerInfluence = (results.topDonors || []).map((donor, idx) => ({
+            id: idx + 1,
+            name: donor.name || '익명',
+            platform: donor.platform || 'unknown',
+            influenceScore: Math.min(100, Math.round(donor.total_amount / 10000)),
+            avgViewers: donor.donation_count,
+            adEfficiency: donor.donation_count > 0 ? (donor.total_amount / donor.donation_count / 1000).toFixed(1) : 0,
+            donationRate: donor.donation_count,
+            trend: donor.total_amount > 50000 ? 'up' : 'stable',
+            totalAmount: donor.total_amount
+          }));
+
+          // Build ranking lists from real data
+          const topAdEfficiency = streamerInfluence
+            .slice(0, 3)
+            .map(s => ({ id: s.id, name: s.name, value: parseFloat(s.adEfficiency), unit: "천원/건" }));
+
+          const trendingStreamers = streamerInfluence
+            .filter(s => s.trend === 'up')
+            .slice(0, 3)
+            .map(s => ({ id: s.id, name: s.name, value: s.influenceScore, unit: "점" }));
+
+          const topDonationRate = streamerInfluence
+            .sort((a, b) => b.donationRate - a.donationRate)
+            .slice(0, 3)
+            .map(s => ({ id: s.id, name: s.name, value: s.donationRate, unit: "건" }));
+
+          res.json({
+            hourlyTrend,
+            platformStats,
+            totalViewers: totalEvents,
+            peakToday: todayData.total_donations || 0,
+            avgConcurrent: todayData.unique_users || 0,
+            streamerInfluence,
+            topAdEfficiency,
+            trendingStreamers,
+            topDonationRate,
+          });
+        }
+      });
     });
   });
 
   /**
    * GET /api/admin/streamer/:streamerId
-   * Get streamer detail
+   * Get streamer detail (real data from events table)
    */
   router.get("/admin/streamer/:streamerId", authenticateAdmin, (req, res) => {
     const { streamerId } = req.params;
 
-    // Try to get real user data first
-    db.get("SELECT * FROM users WHERE id = ?", [streamerId], (err, user) => {
-      const streamer = user
-        ? {
-            id: user.id,
-            name: user.display_name || `스트리머 ${user.id}`,
-            platform: "soop",
-            profileImage: user.avatar_url,
-            followers: 100000 + Math.floor(Math.random() * 500000),
-            totalStreams: 500 + Math.floor(Math.random() * 2000),
-            joinDate: user.created_at,
-            influenceScore: 50 + Math.floor(Math.random() * 40),
-            adEfficiency: 2 + Math.random() * 3,
-            donationRate: 1 + Math.random() * 4,
-            totalRevenue: 50000000 + Math.floor(Math.random() * 300000000),
+    const queries = {
+      user: "SELECT * FROM users WHERE id = ?",
+      eventStats: `
+        SELECT
+          COUNT(*) as total_events,
+          COUNT(CASE WHEN type = 'donation' THEN 1 END) as donation_count,
+          COUNT(CASE WHEN type = 'chat' THEN 1 END) as chat_count,
+          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as total_donations,
+          COUNT(DISTINCT DATE(timestamp)) as active_days
+        FROM events
+      `,
+      performanceTrend: `
+        SELECT
+          DATE(timestamp) as date,
+          COUNT(CASE WHEN type = 'chat' THEN 1 END) as chats,
+          COUNT(CASE WHEN type = 'donation' THEN 1 END) as donations,
+          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount,
+          COUNT(DISTINCT sender) as unique_users
+        FROM events
+        WHERE timestamp >= datetime('now', '-7 days')
+        GROUP BY DATE(timestamp)
+        ORDER BY date
+      `,
+      recentActivity: `
+        SELECT
+          id,
+          type,
+          sender,
+          amount,
+          message,
+          platform,
+          timestamp
+        FROM events
+        WHERE type = 'donation'
+        ORDER BY timestamp DESC
+        LIMIT 10
+      `,
+      platformBreakdown: `
+        SELECT
+          platform,
+          COUNT(*) as events,
+          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as donations
+        FROM events
+        GROUP BY platform
+      `
+    };
+
+    db.get(queries.user, [streamerId], (err, user) => {
+      const results = { user };
+      let completed = 0;
+      const otherKeys = ['eventStats', 'performanceTrend', 'recentActivity', 'platformBreakdown'];
+
+      otherKeys.forEach(key => {
+        db.all(queries[key], [], (err, rows) => {
+          results[key] = err ? [] : (Array.isArray(rows) ? rows : [rows]);
+          completed++;
+
+          if (completed === otherKeys.length) {
+            const eventStats = results.eventStats?.[0] || {};
+
+            const streamer = user ? {
+              id: user.id,
+              name: user.display_name || `스트리머 ${user.id}`,
+              platform: "soop",
+              profileImage: user.avatar_url,
+              followers: eventStats.total_events || 0,
+              totalStreams: eventStats.active_days || 0,
+              joinDate: user.created_at,
+              influenceScore: Math.min(100, Math.round((eventStats.total_donations || 0) / 10000)),
+              adEfficiency: eventStats.donation_count > 0 ? ((eventStats.total_donations || 0) / eventStats.donation_count / 1000).toFixed(1) : 0,
+              donationRate: eventStats.donation_count || 0,
+              totalRevenue: eventStats.total_donations || 0,
+            } : {
+              id: parseInt(streamerId),
+              name: `스트리머 ${streamerId}`,
+              platform: "soop",
+              profileImage: null,
+              followers: 0,
+              totalStreams: 0,
+              joinDate: new Date().toISOString(),
+              influenceScore: 0,
+              adEfficiency: 0,
+              donationRate: 0,
+              totalRevenue: 0,
+            };
+
+            // Build platform breakdown as "game performance"
+            const gamePerformance = (results.platformBreakdown || []).map(p => ({
+              game: p.platform,
+              gameName: p.platform === 'soop' ? 'SOOP' : p.platform === 'chzzk' ? '치지직' : p.platform,
+              avgViewers: p.events || 0,
+              donations: p.donations || 0,
+              adEfficiency: p.events > 0 ? (p.donations / p.events / 100).toFixed(1) : 0,
+              streamHours: 0,
+            }));
+
+            // Build performance trend from real data
+            const performanceTrend = (results.performanceTrend || []).map(day => ({
+              date: day.date,
+              viewers: day.unique_users || 0,
+              donations: day.donation_amount || 0,
+              adRevenue: 0,
+              chats: day.chats || 0,
+            }));
+
+            // Fill missing days
+            const filledTrend = [];
+            for (let i = 6; i >= 0; i--) {
+              const d = new Date();
+              d.setDate(d.getDate() - i);
+              const dateStr = d.toISOString().split('T')[0];
+              const existing = performanceTrend.find(t => t.date === dateStr);
+              if (existing) {
+                filledTrend.push(existing);
+              } else {
+                filledTrend.push({ date: dateStr, viewers: 0, donations: 0, adRevenue: 0, chats: 0 });
+              }
+            }
+
+            // Build recent broadcasts from recent donations
+            const recentBroadcasts = (results.recentActivity || []).slice(0, 5).map((event, idx) => {
+              const eventDate = new Date(event.timestamp);
+              return {
+                id: event.id,
+                title: event.message || '후원',
+                game: event.platform === 'soop' ? 'SOOP' : event.platform === 'chzzk' ? '치지직' : event.platform,
+                date: event.timestamp?.split('T')[0] || '-',
+                duration: '-',
+                peakViewers: 0,
+                avgViewers: 0,
+                donations: event.amount || 0,
+                sender: event.sender || '익명',
+              };
+            });
+
+            res.json({
+              streamer,
+              gamePerformance,
+              performanceTrend: filledTrend,
+              recentBroadcasts,
+            });
           }
-        : {
-            id: parseInt(streamerId),
-            name: `스트리머 ${streamerId}`,
-            platform: "soop",
-            profileImage: null,
-            followers: 100000 + Math.floor(Math.random() * 500000),
-            totalStreams: 500 + Math.floor(Math.random() * 2000),
-            joinDate: "2020-01-01",
-            influenceScore: 50 + Math.floor(Math.random() * 40),
-            adEfficiency: 2 + Math.random() * 3,
-            donationRate: 1 + Math.random() * 4,
-            totalRevenue: 50000000 + Math.floor(Math.random() * 300000000),
-          };
-
-      const gamePerformance = [
-        {
-          game: "league",
-          gameName: "리그오브레전드",
-          avgViewers: 28000 + Math.floor(Math.random() * 20000),
-          donations: 12500000 + Math.floor(Math.random() * 10000000),
-          adEfficiency: 3.5 + Math.random() * 2,
-          streamHours: 120 + Math.floor(Math.random() * 80),
-        },
-        {
-          game: "valorant",
-          gameName: "발로란트",
-          avgViewers: 22000 + Math.floor(Math.random() * 15000),
-          donations: 8500000 + Math.floor(Math.random() * 8000000),
-          adEfficiency: 3.2 + Math.random() * 1.8,
-          streamHours: 80 + Math.floor(Math.random() * 60),
-        },
-        {
-          game: "minecraft",
-          gameName: "마인크래프트",
-          avgViewers: 18000 + Math.floor(Math.random() * 12000),
-          donations: 6500000 + Math.floor(Math.random() * 6000000),
-          adEfficiency: 2.8 + Math.random() * 1.5,
-          streamHours: 60 + Math.floor(Math.random() * 50),
-        },
-      ];
-
-      const performanceTrend = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() - (6 - i));
-        return {
-          date: date.toISOString().split("T")[0],
-          viewers: 15000 + Math.floor(Math.random() * 25000),
-          donations: 2000000 + Math.floor(Math.random() * 8000000),
-          adRevenue: 500000 + Math.floor(Math.random() * 2000000),
-        };
-      });
-
-      const recentBroadcasts = [
-        {
-          id: 1,
-          title: "랭크 올리기 도전!",
-          game: "리그오브레전드",
-          date: "2026-01-08",
-          duration: "4시간 32분",
-          peakViewers: 45000,
-          avgViewers: 32000,
-          donations: 3500000,
-        },
-        {
-          id: 2,
-          title: "시청자 게임 같이해요",
-          game: "발로란트",
-          date: "2026-01-07",
-          duration: "3시간 15분",
-          peakViewers: 38000,
-          avgViewers: 28000,
-          donations: 2800000,
-        },
-      ];
-
-      res.json({
-        streamer,
-        gamePerformance,
-        performanceTrend,
-        recentBroadcasts,
+        });
       });
     });
   });
