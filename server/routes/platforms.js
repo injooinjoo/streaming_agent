@@ -100,11 +100,12 @@ const createPlatformsRouter = (db, io, activeAdapters, ChzzkAdapter, SoopAdapter
         const legacyEvent = normalizer.toEventsFormat(event);
 
         db.run(
-          `INSERT INTO events (type, sender, amount, message, platform, timestamp)
-           VALUES (?, ?, ?, ?, ?, ?)`,
+          `INSERT INTO events (type, sender, sender_id, amount, message, platform, timestamp)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
           [
             legacyEvent.type,
             legacyEvent.sender,
+            legacyEvent.sender_id,
             legacyEvent.amount,
             legacyEvent.message,
             legacyEvent.platform,
@@ -264,13 +265,16 @@ const createPlatformsRouter = (db, io, activeAdapters, ChzzkAdapter, SoopAdapter
       adapter.on("event", (event) => {
         const legacyEvent = normalizer.toEventsFormat(event);
 
-        if (event.type === "donation") {
+        // Save all event types (chat, donation, subscribe) to DB
+        // Skip viewer-update as it's not a user event
+        if (["chat", "donation", "subscribe"].includes(event.type)) {
           db.run(
-            `INSERT INTO events (type, sender, amount, message, platform, timestamp)
-             VALUES (?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO events (type, sender, sender_id, amount, message, platform, timestamp)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [
               legacyEvent.type,
               legacyEvent.sender,
+              legacyEvent.sender_id,
               legacyEvent.amount,
               legacyEvent.message,
               legacyEvent.platform,
