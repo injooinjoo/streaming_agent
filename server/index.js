@@ -7,7 +7,7 @@ const path = require("path");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const crypto = require("crypto");
-require("dotenv").config();
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 // Admin authentication middleware
 const { authenticateAdmin, developerLogin } = require("./middleware/adminAuth");
@@ -19,6 +19,25 @@ const generateOverlayHash = () => {
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-jwt-key-change-in-production";
 const JWT_EXPIRES_IN = "7d";
+
+// Platform Adapters
+const ChzzkAdapter = require("./adapters/chzzk");
+const SoopAdapter = require("./adapters/soop");
+const RiotAdapter = require("./adapters/riot");
+const normalizer = require("./services/normalizer");
+
+// Category Service
+const CategoryService = require("./services/categoryService");
+const createCategoriesRouter = require("./routes/categories");
+
+// Riot Games API 인스턴스
+const riotApi = new RiotAdapter({
+  apiKey: process.env.RIOT_API_KEY,
+  region: "kr",
+});
+
+// Active adapter instances (channelId -> adapter)
+const activeAdapters = new Map();
 
 // OAuth Configuration
 const OAUTH_CONFIG = {
@@ -325,16 +344,74 @@ const initializeDatabase = () => {
       UNIQUE(design_id, user_id)
     )`);
 
+    // ===== 카테고리 크롤링 테이블 =====
+
+    // 플랫폼별 카테고리 테이블
+    db.run(`CREATE TABLE IF NOT EXISTS platform_categories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform TEXT NOT NULL CHECK(platform IN ('soop', 'chzzk', 'twitch', 'youtube')),
+      platform_category_id TEXT NOT NULL,
+      platform_category_name TEXT NOT NULL,
+      category_type TEXT,
+      thumbnail_url TEXT,
+      viewer_count INTEGER DEFAULT 0,
+      streamer_count INTEGER DEFAULT 0,
+      is_active INTEGER DEFAULT 1,
+      first_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(platform, platform_category_id)
+    )`);
+
+    // 통합 게임 카탈로그 테이블
+    db.run(`CREATE TABLE IF NOT EXISTS unified_games (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      name_kr TEXT,
+      genre TEXT,
+      genre_kr TEXT,
+      developer TEXT,
+      release_date TEXT,
+      description TEXT,
+      image_url TEXT,
+      is_verified INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`);
+
+    // 카테고리-게임 매핑 테이블
+    db.run(`CREATE TABLE IF NOT EXISTS category_game_mappings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      unified_game_id INTEGER REFERENCES unified_games(id) ON DELETE CASCADE,
+      platform TEXT NOT NULL,
+      platform_category_id TEXT NOT NULL,
+      confidence REAL DEFAULT 1.0,
+      is_manual INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(platform, platform_category_id)
+    )`);
+
+    // 카테고리 통계 테이블 (시계열)
+    db.run(`CREATE TABLE IF NOT EXISTS category_stats (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform TEXT NOT NULL,
+      platform_category_id TEXT NOT NULL,
+      recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      viewer_count INTEGER DEFAULT 0,
+      streamer_count INTEGER DEFAULT 0
+    )`);
+
+    // 카테고리 테이블 인덱스 생성
+    db.run(`CREATE INDEX IF NOT EXISTS idx_platform_categories_platform ON platform_categories(platform)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_platform_categories_active ON platform_categories(is_active)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_category_stats_recorded ON category_stats(recorded_at)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_category_stats_platform ON category_stats(platform, platform_category_id)`);
+    db.run(`CREATE INDEX IF NOT EXISTS idx_mappings_game ON category_game_mappings(unified_game_id)`);
+
       console.log("All database tables initialized.");
       resolve();
     });
   });
 };
-
-// Initialize database
-initializeDatabase()
-  .then(() => console.log("Database ready."))
-  .catch((err) => console.error("Database initialization error:", err));
 
 // JWT 인증 미들웨어
 const authenticateToken = (req, res, next) => {
@@ -353,6 +430,28 @@ const authenticateToken = (req, res, next) => {
     next();
   });
 };
+
+// Category Service 인스턴스 (전역)
+let categoryService = null;
+
+// Initialize database
+initializeDatabase()
+  .then(() => {
+    console.log("Database ready.");
+
+    // Initialize Category Service
+    categoryService = new CategoryService(db, io);
+    categoryService.initialize().catch((err) => {
+      console.error("Category service initialization error:", err);
+    });
+
+    // Register Categories API routes
+    const categoriesRouter = createCategoriesRouter(db, categoryService, authenticateToken);
+    app.use("/api", categoriesRouter);
+
+    console.log("Category service and routes registered.");
+  })
+  .catch((err) => console.error("Database initialization error:", err));
 
 // Settings API
 app.get("/api/settings/:key", (req, res) => {
@@ -1918,6 +2017,893 @@ app.get("/api/events", (req, res) => {
       res.json(rows);
     }
   );
+});
+
+// ============================================================
+// 치지직 (Chzzk) 연동 API
+// ============================================================
+
+/**
+ * 치지직 채팅 연결
+ * POST /api/chzzk/connect
+ * Body: { channelId: string, userHash?: string }
+ */
+app.post("/api/chzzk/connect", async (req, res) => {
+  const { channelId, userHash } = req.body;
+
+  if (!channelId) {
+    return res.status(400).json({ error: "channelId is required" });
+  }
+
+  // 이미 연결된 어댑터가 있는지 확인
+  const adapterKey = userHash ? `${channelId}:${userHash}` : channelId;
+  if (activeAdapters.has(adapterKey)) {
+    const existing = activeAdapters.get(adapterKey);
+    if (existing.isConnected) {
+      return res.json({
+        success: true,
+        message: "Already connected",
+        info: existing.getInfo(),
+      });
+    }
+  }
+
+  try {
+    const adapter = new ChzzkAdapter({ channelId });
+
+    // 이벤트 리스너 설정
+    adapter.on("event", (event) => {
+      // 정규화된 이벤트를 기존 이벤트 형식으로 변환
+      const legacyEvent = normalizer.toEventsFormat(event);
+
+      // DB에 저장
+      db.run(
+        `INSERT INTO events (type, sender, amount, message, platform, timestamp)
+         VALUES (?, ?, ?, ?, ?, ?)`,
+        [
+          legacyEvent.type,
+          legacyEvent.sender,
+          legacyEvent.amount,
+          legacyEvent.message,
+          legacyEvent.platform,
+          legacyEvent.timestamp,
+        ]
+      );
+
+      // Socket.io로 브로드캐스트
+      if (userHash) {
+        io.to(`overlay:${userHash}`).emit("new-event", legacyEvent);
+      } else {
+        io.emit("new-event", legacyEvent);
+      }
+
+      console.log(`[chzzk] Event: ${event.type} from ${event.sender.nickname}`);
+    });
+
+    adapter.on("connected", () => {
+      console.log(`[chzzk] Adapter connected for channel: ${channelId}`);
+    });
+
+    adapter.on("disconnected", () => {
+      console.log(`[chzzk] Adapter disconnected for channel: ${channelId}`);
+    });
+
+    adapter.on("error", (error) => {
+      console.error(`[chzzk] Adapter error:`, error.message);
+    });
+
+    // 연결 시도
+    await adapter.connect();
+
+    // 활성 어댑터에 저장
+    activeAdapters.set(adapterKey, adapter);
+
+    res.json({
+      success: true,
+      message: "Connected to Chzzk chat",
+      info: adapter.getInfo(),
+    });
+  } catch (error) {
+    console.error(`[chzzk] Connection failed:`, error.message);
+    res.status(500).json({
+      error: "Failed to connect",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * 치지직 채팅 연결 해제
+ * POST /api/chzzk/disconnect
+ * Body: { channelId: string, userHash?: string }
+ */
+app.post("/api/chzzk/disconnect", (req, res) => {
+  const { channelId, userHash } = req.body;
+
+  if (!channelId) {
+    return res.status(400).json({ error: "channelId is required" });
+  }
+
+  const adapterKey = userHash ? `${channelId}:${userHash}` : channelId;
+  const adapter = activeAdapters.get(adapterKey);
+
+  if (!adapter) {
+    return res.status(404).json({ error: "No active connection found" });
+  }
+
+  adapter.disconnect();
+  activeAdapters.delete(adapterKey);
+
+  res.json({
+    success: true,
+    message: "Disconnected from Chzzk chat",
+  });
+});
+
+/**
+ * 치지직 연결 상태 조회
+ * GET /api/chzzk/status
+ */
+app.get("/api/chzzk/status", (req, res) => {
+  const connections = [];
+
+  for (const [key, adapter] of activeAdapters.entries()) {
+    if (adapter.platform === "chzzk") {
+      connections.push({
+        key,
+        ...adapter.getInfo(),
+      });
+    }
+  }
+
+  res.json({
+    activeConnections: connections.length,
+    connections,
+  });
+});
+
+/**
+ * 치지직 채널 정보 조회 (라이브 상태 포함)
+ * GET /api/chzzk/channel/:channelId
+ */
+app.get("/api/chzzk/channel/:channelId", async (req, res) => {
+  const { channelId } = req.params;
+
+  // 치지직 API 요청에 필요한 헤더
+  const headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  };
+
+  try {
+    // 채널 정보 조회
+    const channelResponse = await fetch(
+      `https://api.chzzk.naver.com/service/v1/channels/${channelId}`,
+      { headers }
+    );
+    const channelData = await channelResponse.json();
+
+    if (channelData.code !== 200) {
+      return res.status(404).json({ error: "Channel not found" });
+    }
+
+    // 라이브 상태 조회
+    const liveResponse = await fetch(
+      `https://api.chzzk.naver.com/service/v3/channels/${channelId}/live-detail`,
+      { headers }
+    );
+    const liveData = await liveResponse.json();
+
+    res.json({
+      channel: channelData.content,
+      live: liveData.content,
+      isLive: liveData.content?.status === "OPEN",
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================================
+// 게임 통계 API (Riot Games: LoL, VALORANT, TFT)
+// ============================================================
+
+/**
+ * LoL 플레이어 전적 조회
+ * GET /api/game-stats/lol?name=Faker&tag=KR1
+ */
+app.get("/api/game-stats/lol", async (req, res) => {
+  const { name, tag } = req.query;
+
+  if (!name || !tag) {
+    return res.status(400).json({ error: "name and tag are required" });
+  }
+
+  if (!process.env.RIOT_API_KEY) {
+    return res.status(500).json({ error: "RIOT_API_KEY not configured" });
+  }
+
+  try {
+    const stats = await riotApi.getLolPlayerStats(name, tag);
+    res.json({
+      success: true,
+      game: "lol",
+      data: stats,
+    });
+  } catch (error) {
+    console.error(`[game-stats] LoL error:`, error.message);
+    res.status(500).json({
+      error: "Failed to fetch LoL stats",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * VALORANT 플레이어 전적 조회
+ * GET /api/game-stats/valorant?name=Faker&tag=KR1
+ */
+app.get("/api/game-stats/valorant", async (req, res) => {
+  const { name, tag } = req.query;
+
+  if (!name || !tag) {
+    return res.status(400).json({ error: "name and tag are required" });
+  }
+
+  if (!process.env.RIOT_API_KEY) {
+    return res.status(500).json({ error: "RIOT_API_KEY not configured" });
+  }
+
+  try {
+    const stats = await riotApi.getValPlayerStats(name, tag);
+    res.json({
+      success: true,
+      game: "valorant",
+      data: stats,
+    });
+  } catch (error) {
+    console.error(`[game-stats] VALORANT error:`, error.message);
+    res.status(500).json({
+      error: "Failed to fetch VALORANT stats",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * TFT 플레이어 전적 조회
+ * GET /api/game-stats/tft?name=Faker&tag=KR1
+ */
+app.get("/api/game-stats/tft", async (req, res) => {
+  const { name, tag } = req.query;
+
+  if (!name || !tag) {
+    return res.status(400).json({ error: "name and tag are required" });
+  }
+
+  if (!process.env.RIOT_API_KEY) {
+    return res.status(500).json({ error: "RIOT_API_KEY not configured" });
+  }
+
+  try {
+    const stats = await riotApi.getTftPlayerStats(name, tag);
+    res.json({
+      success: true,
+      game: "tft",
+      data: stats,
+    });
+  } catch (error) {
+    console.error(`[game-stats] TFT error:`, error.message);
+    res.status(500).json({
+      error: "Failed to fetch TFT stats",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * Riot Games 계정 검색 (자동완성용)
+ * GET /api/game-stats/riot/account?name=Faker&tag=KR1
+ */
+app.get("/api/game-stats/riot/account", async (req, res) => {
+  const { name, tag } = req.query;
+
+  if (!name || !tag) {
+    return res.status(400).json({ error: "name and tag are required" });
+  }
+
+  if (!process.env.RIOT_API_KEY) {
+    return res.status(500).json({ error: "RIOT_API_KEY not configured" });
+  }
+
+  try {
+    const account = await riotApi.getAccountByRiotId(name, tag);
+    res.json({
+      success: true,
+      data: {
+        gameName: account.gameName,
+        tagLine: account.tagLine,
+        puuid: account.puuid,
+      },
+    });
+  } catch (error) {
+    console.error(`[game-stats] Account search error:`, error.message);
+    res.status(404).json({
+      error: "Account not found",
+      message: error.message,
+    });
+  }
+});
+
+// ============================================================
+// SOOP API Routes
+// ============================================================
+
+/**
+ * SOOP 채팅 연결
+ * POST /api/soop/connect
+ * Body: { bjId: string, userHash?: string }
+ */
+app.post("/api/soop/connect", async (req, res) => {
+  const { bjId, userHash } = req.body;
+
+  if (!bjId) {
+    return res.status(400).json({ error: "bjId is required" });
+  }
+
+  // 이미 연결된 어댑터가 있는지 확인
+  const adapterKey = userHash ? `soop:${bjId}:${userHash}` : `soop:${bjId}`;
+  if (activeAdapters.has(adapterKey)) {
+    const existing = activeAdapters.get(adapterKey);
+    return res.json({
+      success: true,
+      message: "Already connected",
+      status: existing.getInfo(),
+    });
+  }
+
+  try {
+    const adapter = new SoopAdapter({ channelId: bjId });
+
+    // 이벤트 리스너 등록
+    adapter.on("event", (event) => {
+      // 기존 events 테이블 형식으로 정규화
+      const legacyEvent = normalizer.toEventsFormat(event);
+
+      // 후원 이벤트만 DB에 저장
+      if (event.type === "donation") {
+        db.run(
+          `INSERT INTO events (type, sender, amount, message, platform, timestamp)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [
+            legacyEvent.type,
+            legacyEvent.sender,
+            legacyEvent.amount,
+            legacyEvent.message,
+            legacyEvent.platform,
+            legacyEvent.timestamp,
+          ]
+        );
+      }
+
+      // Socket.io로 브로드캐스트 (AlertOverlay가 수신할 수 있는 형식)
+      if (userHash) {
+        io.to(`overlay:${userHash}`).emit("new-event", legacyEvent);
+      } else {
+        io.emit("new-event", legacyEvent);
+      }
+
+      console.log(`[soop] Event: ${event.type} from ${event.sender.nickname}`);
+    });
+
+    adapter.on("connected", () => {
+      console.log(`[soop] Adapter connected for ${bjId}`);
+    });
+
+    adapter.on("disconnected", () => {
+      console.log(`[soop] Adapter disconnected for ${bjId}`);
+      activeAdapters.delete(adapterKey);
+    });
+
+    adapter.on("error", (error) => {
+      console.error(`[soop] Adapter error:`, error.message);
+    });
+
+    // 연결 시도
+    await adapter.connect();
+
+    // 활성 어댑터 목록에 추가
+    activeAdapters.set(adapterKey, adapter);
+
+    res.json({
+      success: true,
+      message: "Connected to SOOP chat",
+      status: adapter.getInfo(),
+    });
+  } catch (error) {
+    console.error(`[soop] Connection failed:`, error.message);
+    res.status(500).json({
+      error: "Failed to connect to SOOP chat",
+      message: error.message,
+    });
+  }
+});
+
+/**
+ * SOOP 채팅 연결 해제
+ * POST /api/soop/disconnect
+ * Body: { bjId: string, userHash?: string }
+ */
+app.post("/api/soop/disconnect", (req, res) => {
+  const { bjId, userHash } = req.body;
+
+  if (!bjId) {
+    return res.status(400).json({ error: "bjId is required" });
+  }
+
+  const adapterKey = userHash ? `soop:${bjId}:${userHash}` : `soop:${bjId}`;
+  const adapter = activeAdapters.get(adapterKey);
+
+  if (!adapter) {
+    return res.status(404).json({ error: "No active connection found" });
+  }
+
+  adapter.disconnect();
+  activeAdapters.delete(adapterKey);
+
+  res.json({
+    success: true,
+    message: "Disconnected from SOOP chat",
+  });
+});
+
+/**
+ * SOOP 연결 상태 조회
+ * GET /api/soop/status
+ */
+app.get("/api/soop/status", (req, res) => {
+  const connections = [];
+
+  for (const [key, adapter] of activeAdapters.entries()) {
+    if (adapter.platform === "soop") {
+      connections.push({
+        key,
+        ...adapter.getInfo(),
+      });
+    }
+  }
+
+  res.json({
+    success: true,
+    connections,
+  });
+});
+
+/**
+ * SOOP BJ 방송 정보 조회
+ * GET /api/soop/broadcast/:bjId
+ */
+app.get("/api/soop/broadcast/:bjId", async (req, res) => {
+  const { bjId } = req.params;
+
+  try {
+    const adapter = new SoopAdapter({ channelId: bjId });
+    const broadcastInfo = await adapter.getBroadcastStatus();
+
+    if (!broadcastInfo) {
+      return res.status(404).json({
+        error: "Broadcast not found or BJ is not live",
+      });
+    }
+
+    res.json({
+      success: true,
+      data: broadcastInfo,
+    });
+  } catch (error) {
+    console.error(`[soop] Broadcast info error:`, error.message);
+    res.status(500).json({
+      error: "Failed to get broadcast info",
+      message: error.message,
+    });
+  }
+});
+
+// =============================================================================
+// 통계 API (Statistics API)
+// =============================================================================
+
+/**
+ * 총 이벤트 수 조회
+ * GET /api/stats/events/count
+ */
+app.get("/api/stats/events/count", (req, res) => {
+  db.get("SELECT COUNT(*) as total FROM events", (err, row) => {
+    if (err) {
+      return res.status(500).json({ error: err.message });
+    }
+    res.json({ total: row?.total || 0 });
+  });
+});
+
+/**
+ * 플랫폼별 이벤트 수 조회
+ * GET /api/stats/events/by-platform
+ */
+app.get("/api/stats/events/by-platform", (req, res) => {
+  db.all(
+    "SELECT platform, COUNT(*) as count FROM events GROUP BY platform",
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(rows || []);
+    }
+  );
+});
+
+/**
+ * 후원 통계 조회
+ * GET /api/stats/donations
+ */
+app.get("/api/stats/donations", (req, res) => {
+  db.all(
+    `SELECT
+      platform,
+      COUNT(*) as count,
+      SUM(amount) as total,
+      AVG(amount) as average
+    FROM events
+    WHERE type = 'donation'
+    GROUP BY platform`,
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(rows || []);
+    }
+  );
+});
+
+/**
+ * 후원 트렌드 (최근 7일)
+ * GET /api/stats/donations/trend
+ */
+app.get("/api/stats/donations/trend", (req, res) => {
+  db.all(
+    `SELECT
+      DATE(timestamp) as date,
+      COUNT(*) as count,
+      SUM(amount) as total
+    FROM events
+    WHERE type = 'donation'
+      AND timestamp >= datetime('now', '-7 days')
+    GROUP BY DATE(timestamp)
+    ORDER BY date`,
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(rows || []);
+    }
+  );
+});
+
+/**
+ * 인기 후원자 랭킹
+ * GET /api/stats/donations/top-donors
+ */
+app.get("/api/stats/donations/top-donors", (req, res) => {
+  const limit = parseInt(req.query.limit, 10) || 10;
+  db.all(
+    `SELECT
+      sender,
+      COUNT(*) as count,
+      SUM(amount) as total
+    FROM events
+    WHERE type = 'donation'
+    GROUP BY sender
+    ORDER BY total DESC
+    LIMIT ?`,
+    [limit],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json(rows || []);
+    }
+  );
+});
+
+/**
+ * 수익 요약 통계
+ * GET /api/stats/revenue
+ */
+app.get("/api/stats/revenue", (req, res) => {
+  const days = parseInt(req.query.days, 10) || 30;
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+  const startDateStr = startDate.toISOString().split("T")[0];
+
+  db.get(
+    `SELECT
+      COUNT(*) as donationCount,
+      COALESCE(SUM(amount), 0) as totalDonations
+    FROM events
+    WHERE type = 'donation'
+      AND DATE(timestamp) >= ?`,
+    [startDateStr],
+    (err, row) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      res.json({
+        totalRevenue: row?.totalDonations || 0,
+        donationRevenue: row?.totalDonations || 0,
+        donationCount: row?.donationCount || 0,
+        adRevenue: 0, // 광고 수익은 아직 구현되지 않음
+        period: `${days}일`,
+      });
+    }
+  );
+});
+
+/**
+ * 수익 트렌드 (일별)
+ * GET /api/stats/revenue/trend
+ */
+app.get("/api/stats/revenue/trend", (req, res) => {
+  const days = parseInt(req.query.days, 10) || 30;
+
+  db.all(
+    `SELECT
+      DATE(timestamp) as date,
+      COUNT(*) as count,
+      COALESCE(SUM(amount), 0) as donations
+    FROM events
+    WHERE type = 'donation'
+      AND timestamp >= datetime('now', '-${days} days')
+    GROUP BY DATE(timestamp)
+    ORDER BY date ASC`,
+    [],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      // 빈 날짜 채우기
+      const result = [];
+      const today = new Date();
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const dateStr = d.toISOString().split("T")[0];
+        const existing = rows?.find((r) => r.date === dateStr);
+        result.push({
+          date: `${d.getMonth() + 1}/${d.getDate()}`,
+          donations: existing?.donations || 0,
+          adRevenue: 0,
+        });
+      }
+      res.json(result);
+    }
+  );
+});
+
+/**
+ * 플랫폼별 수익
+ * GET /api/stats/revenue/by-platform
+ */
+app.get("/api/stats/revenue/by-platform", (req, res) => {
+  db.all(
+    `SELECT
+      platform,
+      COALESCE(SUM(amount), 0) as value
+    FROM events
+    WHERE type = 'donation'
+    GROUP BY platform`,
+    [],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      const result = (rows || []).map((row) => ({
+        name: row.platform === "soop" ? "SOOP" : row.platform === "chzzk" ? "Chzzk" : row.platform,
+        value: row.value || 0,
+      }));
+      res.json(result);
+    }
+  );
+});
+
+/**
+ * 월별 수익 비교
+ * GET /api/stats/revenue/monthly
+ */
+app.get("/api/stats/revenue/monthly", (req, res) => {
+  const months = parseInt(req.query.months, 10) || 6;
+
+  db.all(
+    `SELECT
+      strftime('%Y-%m', timestamp) as month,
+      COALESCE(SUM(amount), 0) as revenue
+    FROM events
+    WHERE type = 'donation'
+      AND timestamp >= datetime('now', '-${months} months')
+    GROUP BY strftime('%Y-%m', timestamp)
+    ORDER BY month ASC`,
+    [],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+      const result = (rows || []).map((row) => {
+        const [year, month] = row.month.split("-");
+        return {
+          month: `${parseInt(month, 10)}월`,
+          revenue: row.revenue || 0,
+        };
+      });
+      res.json(result);
+    }
+  );
+});
+
+/**
+ * 수익 TOP 스트리머
+ * GET /api/stats/revenue/top-streamers
+ */
+app.get("/api/stats/revenue/top-streamers", (req, res) => {
+  const limit = parseInt(req.query.limit, 10) || 10;
+
+  db.all(
+    `SELECT
+      sender as username,
+      COUNT(*) as donationCount,
+      COALESCE(SUM(amount), 0) as totalRevenue
+    FROM events
+    WHERE type = 'donation' AND sender IS NOT NULL AND sender != ''
+    GROUP BY sender
+    ORDER BY totalRevenue DESC
+    LIMIT ?`,
+    [limit],
+    (err, rows) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      // 전체 합계 계산해서 점유율 산출
+      const totalSum = (rows || []).reduce((sum, r) => sum + (r.totalRevenue || 0), 0);
+      const result = (rows || []).map((row, index) => ({
+        id: index + 1,
+        username: row.username || "익명",
+        totalRevenue: row.totalRevenue || 0,
+        share: totalSum > 0 ? ((row.totalRevenue / totalSum) * 100).toFixed(1) : 0,
+      }));
+      res.json(result);
+    }
+  );
+});
+
+/**
+ * 스트리머 목록 조회 (후원 데이터 기반)
+ * GET /api/streamers
+ */
+app.get("/api/streamers", (req, res) => {
+  const search = req.query.search || "";
+  const sortBy = req.query.sortBy || "total_donations";
+  const sortOrder = req.query.sortOrder || "desc";
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const offset = (page - 1) * limit;
+
+  // 유효한 정렬 컬럼 확인
+  const validSortColumns = ["username", "total_events", "total_donations", "first_seen"];
+  const sortColumn = validSortColumns.includes(sortBy) ? sortBy : "total_donations";
+  const order = sortOrder === "asc" ? "ASC" : "DESC";
+
+  let whereClause = "";
+  const params = [];
+
+  if (search) {
+    whereClause = "WHERE sender LIKE ?";
+    params.push(`%${search}%`);
+  }
+
+  // 총 개수 조회
+  db.get(
+    `SELECT COUNT(DISTINCT sender) as total
+    FROM events
+    ${whereClause}`,
+    params,
+    (err, countRow) => {
+      if (err) {
+        return res.status(500).json({ error: err.message });
+      }
+
+      const totalCount = countRow?.total || 0;
+      const totalPages = Math.ceil(totalCount / limit);
+
+      // 스트리머 목록 조회
+      db.all(
+        `SELECT
+          sender as username,
+          COUNT(*) as total_events,
+          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as total_donations,
+          MIN(timestamp) as first_seen,
+          MAX(timestamp) as last_seen
+        FROM events
+        ${whereClause}
+        GROUP BY sender
+        ORDER BY ${sortColumn} ${order}
+        LIMIT ? OFFSET ?`,
+        [...params, limit, offset],
+        (err, rows) => {
+          if (err) {
+            return res.status(500).json({ error: err.message });
+          }
+
+          const streamers = (rows || []).map((row, index) => ({
+            id: offset + index + 1,
+            username: row.username || "익명",
+            email: "-",
+            role: "user",
+            total_events: row.total_events || 0,
+            total_donations: row.total_donations || 0,
+            created_at: row.first_seen,
+            last_seen: row.last_seen,
+          }));
+
+          res.json({
+            streamers,
+            totalCount,
+            totalPages,
+            page,
+            limit,
+          });
+        }
+      );
+    }
+  );
+});
+
+/**
+ * 플랫폼 연결 상태 조회
+ * GET /api/connections/status
+ */
+app.get("/api/connections/status", (req, res) => {
+  const connections = {
+    soop: [],
+    chzzk: [],
+  };
+
+  for (const [key, adapter] of activeAdapters.entries()) {
+    if (adapter.platform === "soop") {
+      connections.soop.push({
+        key,
+        connected: adapter.isConnected,
+        channelId: adapter.bjId,
+        broadNo: adapter.broadNo,
+      });
+    } else if (adapter.platform === "chzzk") {
+      connections.chzzk.push({
+        key,
+        connected: adapter.isConnected,
+        channelId: adapter.channelId,
+        chatChannelId: adapter.chatChannelId,
+      });
+    }
+  }
+
+  res.json({
+    soop: {
+      connected: connections.soop.some((c) => c.connected),
+      channels: connections.soop,
+    },
+    chzzk: {
+      connected: connections.chzzk.some((c) => c.connected),
+      channels: connections.chzzk,
+    },
+  });
 });
 
 // Socket.io Connection

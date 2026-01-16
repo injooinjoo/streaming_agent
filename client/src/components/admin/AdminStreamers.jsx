@@ -1,81 +1,51 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, User, Mail, Calendar } from 'lucide-react';
-
-// Mock 스트리머 데이터
-const MOCK_STREAMERS = [
-  { id: 1, username: '감스트', email: 'gamst@email.com', role: 'streamer', total_events: 145280, total_donations: 485000000, created_at: '2019-03-15' },
-  { id: 2, username: '풍월량', email: 'pung@email.com', role: 'streamer', total_events: 132450, total_donations: 420000000, created_at: '2018-06-20' },
-  { id: 3, username: '우왁굳', email: 'wak@email.com', role: 'streamer', total_events: 98760, total_donations: 380000000, created_at: '2017-09-10' },
-  { id: 4, username: '침착맨', email: 'chimchak@email.com', role: 'streamer', total_events: 87650, total_donations: 320000000, created_at: '2020-01-15' },
-  { id: 5, username: '주르르', email: 'jururu@email.com', role: 'streamer', total_events: 76540, total_donations: 280000000, created_at: '2021-04-22' },
-  { id: 6, username: '아이리칸나', email: 'irikanna@email.com', role: 'streamer', total_events: 65430, total_donations: 220000000, created_at: '2020-08-12' },
-  { id: 7, username: '섭이', email: 'sub@email.com', role: 'streamer', total_events: 54320, total_donations: 195000000, created_at: '2019-11-05' },
-  { id: 8, username: '따효니', email: 'ddahyoni@email.com', role: 'streamer', total_events: 43210, total_donations: 175000000, created_at: '2020-03-20' },
-  { id: 9, username: '금마', email: 'goldma@email.com', role: 'streamer', total_events: 32100, total_donations: 150000000, created_at: '2021-01-10' },
-  { id: 10, username: '쫀득이', email: 'jjonduk@email.com', role: 'streamer', total_events: 21000, total_donations: 125000000, created_at: '2021-06-15' },
-  { id: 11, username: '릴파', email: 'lilpa@email.com', role: 'streamer', total_events: 89760, total_donations: 340000000, created_at: '2020-05-18' },
-  { id: 12, username: '비챤', email: 'vichan@email.com', role: 'streamer', total_events: 67890, total_donations: 260000000, created_at: '2021-02-14' },
-  { id: 13, username: '고세구', email: 'gosegu@email.com', role: 'streamer', total_events: 78900, total_donations: 290000000, created_at: '2020-09-08' },
-  { id: 14, username: '징버거', email: 'jingburger@email.com', role: 'streamer', total_events: 56780, total_donations: 210000000, created_at: '2020-11-22' },
-  { id: 15, username: 'Admin', email: 'admin@streamagent.com', role: 'admin', total_events: 0, total_donations: 0, created_at: '2018-01-01' }
-];
+import React, { useState, useEffect } from 'react';
+import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, User, Mail, Calendar, Users } from 'lucide-react';
 
 const AdminStreamers = ({ onStreamerSelect }) => {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
-  const [sortBy, setSortBy] = useState('created_at');
+  const [sortBy, setSortBy] = useState('total_donations');
   const [sortOrder, setSortOrder] = useState('desc');
   const [page, setPage] = useState(1);
+  const [streamers, setStreamers] = useState([]);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalCount, setTotalCount] = useState(0);
   const limit = 10;
+
+  useEffect(() => {
+    fetchStreamers();
+  }, [search, sortBy, sortOrder, page]);
+
+  const fetchStreamers = async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams({
+        search,
+        sortBy,
+        sortOrder,
+        page: page.toString(),
+        limit: limit.toString()
+      });
+
+      const response = await fetch(`http://localhost:3001/api/streamers?${params}`);
+      const data = await response.json();
+
+      setStreamers(data.streamers || []);
+      setTotalPages(data.totalPages || 1);
+      setTotalCount(data.totalCount || 0);
+    } catch (error) {
+      console.error('Failed to fetch streamers:', error);
+      setStreamers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleStreamerClick = (streamerId) => {
     if (onStreamerSelect) {
       onStreamerSelect(streamerId);
     }
   };
-
-  // 필터링 및 정렬된 데이터
-  const { streamers, totalPages, totalCount } = useMemo(() => {
-    let filtered = [...MOCK_STREAMERS];
-
-    // 검색 필터
-    if (search) {
-      const searchLower = search.toLowerCase();
-      filtered = filtered.filter(s =>
-        s.username.toLowerCase().includes(searchLower) ||
-        s.email.toLowerCase().includes(searchLower)
-      );
-    }
-
-    // 정렬
-    filtered.sort((a, b) => {
-      let aVal = a[sortBy];
-      let bVal = b[sortBy];
-
-      if (sortBy === 'created_at') {
-        aVal = new Date(aVal).getTime();
-        bVal = new Date(bVal).getTime();
-      }
-
-      if (sortOrder === 'asc') {
-        return aVal > bVal ? 1 : -1;
-      }
-      return aVal < bVal ? 1 : -1;
-    });
-
-    const totalCount = filtered.length;
-    const totalPages = Math.ceil(totalCount / limit);
-    const start = (page - 1) * limit;
-    const paged = filtered.slice(start, start + limit);
-
-    return { streamers: paged, totalPages, totalCount };
-  }, [search, sortBy, sortOrder, page]);
-
-  useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 300);
-    return () => clearTimeout(timer);
-  }, [search, sortBy, sortOrder, page]);
 
   const handleSort = (column) => {
     if (sortBy === column) {
@@ -90,6 +60,7 @@ const AdminStreamers = ({ onStreamerSelect }) => {
   const handleSearch = (e) => {
     e.preventDefault();
     setPage(1);
+    fetchStreamers();
   };
 
   const formatDate = (dateString) => {
@@ -136,7 +107,7 @@ const AdminStreamers = ({ onStreamerSelect }) => {
         <form onSubmit={handleSearch} className="admin-search-form">
           <input
             type="text"
-            placeholder="이름, 이메일로 검색..."
+            placeholder="닉네임으로 검색..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="admin-search-input"
@@ -145,8 +116,25 @@ const AdminStreamers = ({ onStreamerSelect }) => {
             검색
           </button>
         </form>
-        <div className="admin-toolbar-info">
+        <div className="admin-toolbar-info" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <span>총 {totalCount.toLocaleString()}명</span>
+          <button
+            onClick={fetchStreamers}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 16px',
+              background: 'var(--color-primary)',
+              border: 'none',
+              borderRadius: '8px',
+              color: 'white',
+              cursor: 'pointer'
+            }}
+          >
+            <RefreshCw size={14} />
+            새로고침
+          </button>
         </div>
       </div>
 
@@ -157,13 +145,8 @@ const AdminStreamers = ({ onStreamerSelect }) => {
             <tr>
               <th onClick={() => handleSort('username')} className="sortable">
                 <User size={14} />
-                사용자명
+                닉네임
                 <SortIcon column="username" />
-              </th>
-              <th onClick={() => handleSort('email')} className="sortable">
-                <Mail size={14} />
-                이메일
-                <SortIcon column="email" />
               </th>
               <th>역할</th>
               <th onClick={() => handleSort('total_events')} className="sortable">
@@ -174,25 +157,29 @@ const AdminStreamers = ({ onStreamerSelect }) => {
                 총 후원금
                 <SortIcon column="total_donations" />
               </th>
-              <th onClick={() => handleSort('created_at')} className="sortable">
+              <th onClick={() => handleSort('first_seen')} className="sortable">
                 <Calendar size={14} />
-                가입일
-                <SortIcon column="created_at" />
+                첫 활동일
+                <SortIcon column="first_seen" />
               </th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={6} className="table-loading">
+                <td colSpan={5} className="table-loading">
                   <RefreshCw size={20} className="spin" />
                   <span>로딩 중...</span>
                 </td>
               </tr>
             ) : streamers.length === 0 ? (
               <tr>
-                <td colSpan={6} className="table-empty">
-                  {search ? '검색 결과가 없습니다.' : '등록된 스트리머가 없습니다.'}
+                <td colSpan={5} className="table-empty">
+                  <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+                    <Users size={48} style={{ opacity: 0.5, marginBottom: '16px' }} />
+                    <p>{search ? '검색 결과가 없습니다.' : '활동 내역이 없습니다.'}</p>
+                    <p style={{ fontSize: '12px' }}>플랫폼 연결 후 채팅/후원 데이터가 수집됩니다</p>
+                  </div>
                 </td>
               </tr>
             ) : (
@@ -210,7 +197,6 @@ const AdminStreamers = ({ onStreamerSelect }) => {
                       <span>{streamer.username || '-'}</span>
                     </div>
                   </td>
-                  <td>{streamer.email || '-'}</td>
                   <td>{getRoleBadge(streamer.role)}</td>
                   <td>{(streamer.total_events || 0).toLocaleString()}</td>
                   <td>{formatCurrency(streamer.total_donations)}</td>

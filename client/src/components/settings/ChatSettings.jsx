@@ -38,6 +38,12 @@ const defaultSettings = {
   setNicknameColor: true,
   topFadeout: true,
   autoHide: false,
+  // Overlay Controls (위플랩 스타일)
+  showSampleChat: true,
+  sampleDelay: 30,
+  showHoverPanel: true,
+  filterEnabled: true,
+  notificationEnabled: true,
   // Filtering
   userFilter: '',
   donationFilter: true,
@@ -482,6 +488,66 @@ const ChatSettings = () => {
                      <div className="check-icon">{settings.showPreview && <Check size={10} />}</div>
                      채팅 미리보기 사용
                    </label>
+                </div>
+
+                <div className="divider-line" />
+
+                {/* 오버레이 컨트롤 설정 (위플랩 스타일) */}
+                <div className="settings-row-pair">
+                  <div className="row-label">
+                    <span className="badge-orange">NEW</span> 오버레이 호버 패널
+                  </div>
+                  <div className="checkbox-group">
+                    <label className={`toggle-button ${settings.showHoverPanel ? 'active' : ''}`}>
+                      <input type="checkbox" checked={settings.showHoverPanel} onChange={(e) => setSettings({...settings, showHoverPanel: e.target.checked})}/>
+                      <div className="check-icon">{settings.showHoverPanel && <Check size={10} />}</div>
+                      마우스오버 시 컨트롤 패널 표시
+                    </label>
+                  </div>
+                </div>
+
+                <div className="settings-row-pair">
+                  <div className="row-label">
+                    <span className="badge-orange">NEW</span> 샘플 채팅
+                  </div>
+                  <div className="checkbox-group wrap-row">
+                    <label className={`toggle-button ${settings.showSampleChat ? 'active' : ''}`}>
+                      <input type="checkbox" checked={settings.showSampleChat} onChange={(e) => setSettings({...settings, showSampleChat: e.target.checked})}/>
+                      <div className="check-icon">{settings.showSampleChat && <Check size={10} />}</div>
+                      실제 채팅 없을 때 샘플 표시
+                    </label>
+                    {settings.showSampleChat && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="tiny-label">표시 딜레이:</span>
+                        <input
+                          type="number"
+                          value={settings.sampleDelay}
+                          onChange={(e) => setSettings({...settings, sampleDelay: parseInt(e.target.value) || 30})}
+                          className="tiny-input"
+                          style={{ width: '60px' }}
+                          min="5"
+                          max="300"
+                        />
+                        <span className="tiny-label">초</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="settings-row-pair">
+                  <div className="row-label">호버 패널 기본값</div>
+                  <div className="checkbox-group">
+                    <label className={`toggle-button ${settings.filterEnabled ? 'active' : ''}`}>
+                      <input type="checkbox" checked={settings.filterEnabled} onChange={(e) => setSettings({...settings, filterEnabled: e.target.checked})}/>
+                      <div className="check-icon">{settings.filterEnabled && <Check size={10} />}</div>
+                      필터 활성화
+                    </label>
+                    <label className={`toggle-button ${settings.notificationEnabled ? 'active' : ''}`}>
+                      <input type="checkbox" checked={settings.notificationEnabled} onChange={(e) => setSettings({...settings, notificationEnabled: e.target.checked})}/>
+                      <div className="check-icon">{settings.notificationEnabled && <Check size={10} />}</div>
+                      알림 활성화
+                    </label>
+                  </div>
                 </div>
 
                 <div className="divider-line" />
