@@ -1,12 +1,63 @@
+# Dependencies
 node_modules
 client/node_modules
 server/node_modules
+
+# Build outputs (will be created in Docker)
 client/dist
+
+# Git
 .git
 .gitignore
+.gitattributes
+
+# Documentation
 *.md
+docs/
+
+# Environment files
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+
+# IDE and Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
 .DS_Store
+Thumbs.db
+
+# Logs
 *.log
+logs/
+
+# Test files
+**/*.test.js
+**/*.spec.js
+**/__tests__/
+coverage/
+
+# Development files
+.eslintrc*
+.prettierrc*
+jest.config.*
+vitest.config.*
+
+# SQLite database (development only)
+*.db
+*.sqlite
+*.sqlite3
+
+# CI/CD
+.github/
+
+# Render config (not needed in container)
+render.yaml
+
+# Temporary files
+tmp/
+temp/
+*.tmp

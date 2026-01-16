@@ -4,6 +4,8 @@
  * SOOP과 Chzzk 플랫폼에서 게임/카테고리 목록을 수집합니다.
  */
 
+const { category: categoryLogger } = require("./logger");
+
 /**
  * 플랫폼 카테고리 스키마
  *
@@ -88,10 +90,11 @@ class CategoryCrawler {
 
         return await response.json();
       } catch (error) {
-        console.error(
-          `[categoryCrawler] ${platform} fetch error (attempt ${attempt + 1}):`,
-          error.message
-        );
+        categoryLogger.error("Fetch error", {
+          platform,
+          attempt: attempt + 1,
+          error: error.message,
+        });
 
         if (attempt < config.maxRetries - 1) {
           await new Promise((resolve) =>
@@ -109,7 +112,7 @@ class CategoryCrawler {
    * @returns {Promise<PlatformCategory[]>}
    */
   async fetchSoopCategories() {
-    console.log("[categoryCrawler] Fetching SOOP categories...");
+    categoryLogger.debug("Fetching SOOP categories...");
 
     const categories = [];
     let pageNo = 1;
@@ -127,7 +130,7 @@ class CategoryCrawler {
         });
 
         if (!data || !Array.isArray(data.data)) {
-          console.log("[categoryCrawler] SOOP: No more data or invalid response");
+          categoryLogger.debug("SOOP: No more data or invalid response");
           break;
         }
 
@@ -149,9 +152,7 @@ class CategoryCrawler {
           });
         }
 
-        console.log(
-          `[categoryCrawler] SOOP page ${pageNo}: ${items.length} categories`
-        );
+        categoryLogger.debug("SOOP page fetched", { page: pageNo, count: items.length });
 
         // 다음 페이지
         if (items.length < listCnt) {
@@ -160,17 +161,12 @@ class CategoryCrawler {
           pageNo++;
         }
       } catch (error) {
-        console.error(
-          `[categoryCrawler] SOOP page ${pageNo} failed:`,
-          error.message
-        );
+        categoryLogger.error("SOOP page failed", { page: pageNo, error: error.message });
         hasMore = false;
       }
     }
 
-    console.log(
-      `[categoryCrawler] SOOP total: ${categories.length} categories`
-    );
+    categoryLogger.info("SOOP crawl complete", { total: categories.length });
     return categories;
   }
 
@@ -179,7 +175,7 @@ class CategoryCrawler {
    * @returns {Promise<PlatformCategory[]>}
    */
   async fetchChzzkCategories() {
-    console.log("[categoryCrawler] Fetching Chzzk categories...");
+    categoryLogger.debug("Fetching Chzzk categories...");
 
     const categoryMap = new Map();
 
@@ -194,7 +190,7 @@ class CategoryCrawler {
         const data = await this.fetchWithRetry("chzzk", url);
 
         if (!data || !data.content || !data.content.data) {
-          console.log("[categoryCrawler] Chzzk: No more data");
+          categoryLogger.debug("Chzzk: No more data");
           break;
         }
 
@@ -224,22 +220,15 @@ class CategoryCrawler {
           }
         }
 
-        console.log(
-          `[categoryCrawler] Chzzk page ${page + 1}: found ${categoryMap.size} unique categories`
-        );
+        categoryLogger.debug("Chzzk page fetched", { page: page + 1, uniqueCategories: categoryMap.size });
       } catch (error) {
-        console.error(
-          `[categoryCrawler] Chzzk page ${page + 1} failed:`,
-          error.message
-        );
+        categoryLogger.error("Chzzk page failed", { page: page + 1, error: error.message });
         break;
       }
     }
 
     const categories = Array.from(categoryMap.values());
-    console.log(
-      `[categoryCrawler] Chzzk total: ${categories.length} categories`
-    );
+    categoryLogger.info("Chzzk crawl complete", { total: categories.length });
     return categories;
   }
 
@@ -248,7 +237,7 @@ class CategoryCrawler {
    * @returns {Promise<{soop: number, chzzk: number}>}
    */
   async crawlAllPlatforms() {
-    console.log("[categoryCrawler] Starting full crawl...");
+    categoryLogger.info("Starting full crawl...");
 
     const results = {
       soop: 0,
@@ -263,7 +252,7 @@ class CategoryCrawler {
       }
       results.soop = soopCategories.length;
     } catch (error) {
-      console.error("[categoryCrawler] SOOP crawl failed:", error.message);
+      categoryLogger.error("SOOP crawl failed", { error: error.message });
     }
 
     try {
@@ -274,12 +263,10 @@ class CategoryCrawler {
       }
       results.chzzk = chzzkCategories.length;
     } catch (error) {
-      console.error("[categoryCrawler] Chzzk crawl failed:", error.message);
+      categoryLogger.error("Chzzk crawl failed", { error: error.message });
     }
 
-    console.log(
-      `[categoryCrawler] Crawl complete. SOOP: ${results.soop}, Chzzk: ${results.chzzk}`
-    );
+    categoryLogger.info("Crawl complete", { soop: results.soop, chzzk: results.chzzk });
     return results;
   }
 
@@ -288,7 +275,7 @@ class CategoryCrawler {
    * @returns {Promise<void>}
    */
   async updateViewerCounts() {
-    console.log("[categoryCrawler] Updating viewer counts...");
+    categoryLogger.debug("Updating viewer counts...");
 
     try {
       const soopCategories = await this.fetchSoopCategories();
@@ -296,10 +283,7 @@ class CategoryCrawler {
         await this.updateCategoryViewers(category);
       }
     } catch (error) {
-      console.error(
-        "[categoryCrawler] SOOP viewer update failed:",
-        error.message
-      );
+      categoryLogger.error("SOOP viewer update failed", { error: error.message });
     }
 
     try {
@@ -308,13 +292,10 @@ class CategoryCrawler {
         await this.updateCategoryViewers(category);
       }
     } catch (error) {
-      console.error(
-        "[categoryCrawler] Chzzk viewer update failed:",
-        error.message
-      );
+      categoryLogger.error("Chzzk viewer update failed", { error: error.message });
     }
 
-    console.log("[categoryCrawler] Viewer counts updated");
+    categoryLogger.debug("Viewer counts updated");
   }
 
   /**
@@ -351,10 +332,10 @@ class CategoryCrawler {
         ],
         (err) => {
           if (err) {
-            console.error(
-              `[categoryCrawler] Upsert failed for ${category.platformCategoryName}:`,
-              err.message
-            );
+            categoryLogger.error("Upsert failed", {
+              category: category.platformCategoryName,
+              error: err.message,
+            });
             reject(err);
           } else {
             resolve();
@@ -424,7 +405,7 @@ class CategoryCrawler {
    * 모든 카테고리의 현재 통계 기록
    */
   async recordAllStats() {
-    console.log("[categoryCrawler] Recording statistics...");
+    categoryLogger.debug("Recording statistics...");
 
     return new Promise((resolve, reject) => {
       this.db.all(
@@ -445,14 +426,14 @@ class CategoryCrawler {
                 streamerCount: row.streamer_count,
               });
             } catch (error) {
-              console.error(
-                `[categoryCrawler] Stats record failed for ${row.platform_category_name}:`,
-                error.message
-              );
+              categoryLogger.error("Stats record failed", {
+                category: row.platform_category_name,
+                error: error.message,
+              });
             }
           }
 
-          console.log(`[categoryCrawler] Recorded stats for ${rows.length} categories`);
+          categoryLogger.debug("Recorded stats", { count: rows.length });
           resolve();
         }
       );
@@ -475,9 +456,7 @@ class CategoryCrawler {
           reject(err);
         } else {
           if (this.changes > 0) {
-            console.log(
-              `[categoryCrawler] Deactivated ${this.changes} stale categories`
-            );
+            categoryLogger.info("Deactivated stale categories", { count: this.changes });
           }
           resolve(this.changes);
         }

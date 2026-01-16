@@ -3,10 +3,13 @@
  *
  * CategoryCrawler와 CategoryMapper를 조율하고,
  * 스케줄링과 API를 제공합니다.
+ * Uses Redis for caching when available, falls back to in-memory.
  */
 
 const CategoryCrawler = require("./categoryCrawler");
 const CategoryMapper = require("./categoryMapper");
+const { category: categoryLogger } = require("./logger");
+const { getRedisService } = require("./redisService");
 
 // 스케줄 간격 (밀리초)
 const SCHEDULE = {
@@ -22,6 +25,7 @@ class CategoryService {
     this.io = io;
     this.crawler = new CategoryCrawler(db);
     this.mapper = new CategoryMapper(db);
+    this.redis = getRedisService();
 
     // 스케줄러 인터벌 저장
     this.intervals = {
@@ -31,8 +35,8 @@ class CategoryService {
       mappingRefresh: null,
     };
 
-    // 메모리 캐시
-    this.cache = {
+    // 메모리 캐시 (fallback when Redis unavailable)
+    this.memoryCache = {
       games: null,
       gamesUpdatedAt: null,
       categories: null,
@@ -41,13 +45,74 @@ class CategoryService {
 
     // 캐시 TTL (5분)
     this.cacheTTL = 5 * 60 * 1000;
+    this.cacheTTLSec = 5 * 60; // For Redis (seconds)
+  }
+
+  /**
+   * Check if Redis is available
+   * @returns {boolean}
+   */
+  isRedisAvailable() {
+    return this.redis.getIsConnected();
+  }
+
+  /**
+   * Get cached data from Redis or memory
+   * @param {string} key - Cache key
+   * @returns {Promise<any>}
+   */
+  async getCached(key) {
+    if (this.isRedisAvailable()) {
+      const data = await this.redis.getCategoryCache(key);
+      if (data) {
+        categoryLogger.debug("Cache hit (Redis)", { key });
+        return data;
+      }
+    }
+
+    // Memory fallback
+    const memKey = key === "games" ? "games" : "categories";
+    const updatedKey = key === "games" ? "gamesUpdatedAt" : "categoriesUpdatedAt";
+
+    if (
+      this.memoryCache[memKey] &&
+      this.memoryCache[updatedKey] &&
+      Date.now() - this.memoryCache[updatedKey] < this.cacheTTL
+    ) {
+      categoryLogger.debug("Cache hit (memory)", { key });
+      return this.memoryCache[memKey];
+    }
+
+    return null;
+  }
+
+  /**
+   * Set cached data to Redis and memory
+   * @param {string} key - Cache key
+   * @param {any} data - Data to cache
+   */
+  async setCached(key, data) {
+    const memKey = key === "games" ? "games" : "categories";
+    const updatedKey = key === "games" ? "gamesUpdatedAt" : "categoriesUpdatedAt";
+
+    // Always update memory cache
+    this.memoryCache[memKey] = data;
+    this.memoryCache[updatedKey] = Date.now();
+
+    // Try Redis
+    if (this.isRedisAvailable()) {
+      const success = await this.redis.setCategoryCache(key, data, this.cacheTTLSec);
+      if (success) {
+        categoryLogger.debug("Cached to Redis", { key });
+      }
+    }
   }
 
   /**
    * 서비스 초기화 및 스케줄러 시작
    */
   async initialize() {
-    console.log("[categoryService] Initializing...");
+    categoryLogger.info("Initializing...");
 
     try {
       // 초기 크롤링 실행
@@ -59,9 +124,9 @@ class CategoryService {
       // 스케줄러 시작
       this.startSchedulers();
 
-      console.log("[categoryService] Initialization complete");
+      categoryLogger.info("Initialization complete");
     } catch (error) {
-      console.error("[categoryService] Initialization error:", error.message);
+      categoryLogger.error("Initialization error", { error: error.message });
     }
   }
 
@@ -71,13 +136,13 @@ class CategoryService {
   startSchedulers() {
     // 전체 크롤링 (6시간마다)
     this.intervals.fullCrawl = setInterval(async () => {
-      console.log("[categoryService] Running scheduled full crawl...");
+      categoryLogger.info("Running scheduled full crawl...");
       try {
         await this.crawler.crawlAllPlatforms();
         await this.crawler.deactivateStaleCategories();
-        this.invalidateCache();
+        await this.invalidateCache();
       } catch (error) {
-        console.error("[categoryService] Full crawl error:", error.message);
+        categoryLogger.error("Full crawl error", { error: error.message });
       }
     }, SCHEDULE.FULL_CRAWL);
 
@@ -85,14 +150,14 @@ class CategoryService {
     this.intervals.viewerUpdate = setInterval(async () => {
       try {
         await this.crawler.updateViewerCounts();
-        this.invalidateCache();
+        await this.invalidateCache();
 
         // Socket.io로 실시간 알림
         if (this.io) {
           this.io.emit("categories-updated", { type: "viewers" });
         }
       } catch (error) {
-        console.error("[categoryService] Viewer update error:", error.message);
+        categoryLogger.error("Viewer update error", { error: error.message });
       }
     }, SCHEDULE.VIEWER_UPDATE);
 
@@ -101,29 +166,29 @@ class CategoryService {
       try {
         await this.crawler.recordAllStats();
       } catch (error) {
-        console.error("[categoryService] Stats record error:", error.message);
+        categoryLogger.error("Stats record error", { error: error.message });
       }
     }, SCHEDULE.STATS_RECORD);
 
     // 매핑 갱신 (24시간마다)
     this.intervals.mappingRefresh = setInterval(async () => {
-      console.log("[categoryService] Running scheduled mapping refresh...");
+      categoryLogger.info("Running scheduled mapping refresh...");
       try {
         await this.mapper.mapAllUnmapped();
-        this.invalidateCache();
+        await this.invalidateCache();
       } catch (error) {
-        console.error("[categoryService] Mapping refresh error:", error.message);
+        categoryLogger.error("Mapping refresh error", { error: error.message });
       }
     }, SCHEDULE.MAPPING_REFRESH);
 
-    console.log("[categoryService] Schedulers started");
+    categoryLogger.info("Schedulers started");
   }
 
   /**
    * 서비스 종료
    */
   shutdown() {
-    console.log("[categoryService] Shutting down...");
+    categoryLogger.info("Shutting down...");
 
     Object.values(this.intervals).forEach((interval) => {
       if (interval) clearInterval(interval);
@@ -140,21 +205,32 @@ class CategoryService {
   /**
    * 캐시 무효화
    */
-  invalidateCache() {
-    this.cache.games = null;
-    this.cache.gamesUpdatedAt = null;
-    this.cache.categories = null;
-    this.cache.categoriesUpdatedAt = null;
+  async invalidateCache() {
+    // Clear memory cache
+    this.memoryCache.games = null;
+    this.memoryCache.gamesUpdatedAt = null;
+    this.memoryCache.categories = null;
+    this.memoryCache.categoriesUpdatedAt = null;
+
+    // Clear Redis cache
+    if (this.isRedisAvailable()) {
+      try {
+        await this.redis.invalidateCategoryCache();
+        categoryLogger.debug("Cache invalidated (Redis)");
+      } catch (error) {
+        categoryLogger.warn("Failed to invalidate Redis cache", { error: error.message });
+      }
+    }
   }
 
   /**
    * 강제 새로고침
    */
   async forceRefresh() {
-    console.log("[categoryService] Force refreshing...");
+    categoryLogger.info("Force refreshing...");
     await this.crawler.crawlAllPlatforms();
     await this.mapper.mapAllUnmapped();
-    this.invalidateCache();
+    await this.invalidateCache();
     return { success: true };
   }
 
@@ -166,13 +242,10 @@ class CategoryService {
   async getGameCatalog(options = {}) {
     const { sort = "viewers", order = "desc", limit = 100, genre = null, search = null } = options;
 
-    // 캐시 확인
-    if (
-      this.cache.games &&
-      this.cache.gamesUpdatedAt &&
-      Date.now() - this.cache.gamesUpdatedAt < this.cacheTTL
-    ) {
-      return this.filterAndSortGames(this.cache.games, { sort, order, limit, genre, search });
+    // 캐시 확인 (Redis or memory)
+    const cached = await this.getCached("games");
+    if (cached) {
+      return this.filterAndSortGames(cached, { sort, order, limit, genre, search });
     }
 
     return new Promise((resolve, reject) => {
@@ -201,7 +274,7 @@ class CategoryService {
         ORDER BY total_viewers DESC
       `;
 
-      this.db.all(sql, [], (err, rows) => {
+      this.db.all(sql, [], async (err, rows) => {
         if (err) {
           reject(err);
           return;
@@ -224,9 +297,8 @@ class CategoryService {
           createdAt: row.created_at,
         }));
 
-        // 캐시 업데이트
-        this.cache.games = games;
-        this.cache.gamesUpdatedAt = Date.now();
+        // 캐시 업데이트 (Redis and memory)
+        await this.setCached("games", games);
 
         resolve(this.filterAndSortGames(games, { sort, order, limit, genre, search }));
       });
@@ -436,7 +508,7 @@ class CategoryService {
    */
   async setManualMapping(platform, platformCategoryId, unifiedGameId) {
     await this.mapper.setManualMapping(platform, platformCategoryId, unifiedGameId);
-    this.invalidateCache();
+    await this.invalidateCache();
   }
 
   /**

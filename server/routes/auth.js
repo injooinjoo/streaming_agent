@@ -4,12 +4,10 @@
  */
 
 const express = require("express");
-const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, "../.env") });
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-super-secret-jwt-key-change-in-production";
-const JWT_EXPIRES_IN = "7d";
 const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3001";
 
@@ -50,36 +48,21 @@ const OAUTH_CONFIG = {
 };
 
 /**
- * Generate random state for OAuth
+ * Generate cryptographically secure random state for OAuth (CSRF protection)
  */
 const generateState = () => {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
-};
-
-/**
- * Generate JWT token for user
- */
-const generateToken = (user) => {
-  return jwt.sign(
-    {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName || user.display_name,
-      role: user.role,
-      overlayHash: user.overlayHash || user.overlay_hash,
-    },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
+  return crypto.randomBytes(32).toString("hex");
 };
 
 /**
  * Create auth router
  * @param {Object} userService - User service instance
+ * @param {Object} stateStore - State store service for OAuth CSRF protection
+ * @param {Object} tokenService - Token service for JWT management
  * @param {Function} authenticateToken - Auth middleware
  * @returns {express.Router}
  */
-const createAuthRouter = (userService, authenticateToken) => {
+const createAuthRouter = (userService, stateStore, tokenService, authenticateToken) => {
   const router = express.Router();
 
   // ===== Local Auth =====
@@ -101,7 +84,7 @@ const createAuthRouter = (userService, authenticateToken) => {
 
     try {
       const user = await userService.create({ email, password, displayName });
-      const token = generateToken(user);
+      const { accessToken, refreshToken } = tokenService.generateTokenPair(user);
 
       res.json({
         success: true,
@@ -112,7 +95,10 @@ const createAuthRouter = (userService, authenticateToken) => {
           role: user.role,
           overlayHash: user.overlayHash,
         },
-        token,
+        accessToken,
+        refreshToken,
+        // Backwards compatibility
+        token: accessToken,
       });
     } catch (err) {
       if (err.message.includes("UNIQUE constraint failed")) {
@@ -151,13 +137,15 @@ const createAuthRouter = (userService, authenticateToken) => {
         overlayHash = await userService.updateOverlayHash(user.id);
       }
 
-      const token = generateToken({
+      const userData = {
         id: user.id,
         email: user.email,
         displayName: user.display_name,
         role: user.role,
         overlayHash,
-      });
+      };
+
+      const { accessToken, refreshToken } = tokenService.generateTokenPair(userData);
 
       res.json({
         success: true,
@@ -169,8 +157,87 @@ const createAuthRouter = (userService, authenticateToken) => {
           avatarUrl: user.avatar_url,
           overlayHash,
         },
-        token,
+        accessToken,
+        refreshToken,
+        // Backwards compatibility
+        token: accessToken,
       });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/auth/refresh
+   * Refresh access token using refresh token
+   */
+  router.post("/auth/refresh", async (req, res) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({ error: "Refresh token이 필요합니다." });
+    }
+
+    try {
+      // Verify refresh token
+      const decoded = tokenService.verifyRefreshToken(refreshToken);
+      if (!decoded) {
+        return res.status(401).json({ error: "유효하지 않은 refresh token입니다." });
+      }
+
+      // Get user data
+      const user = await userService.findById(decoded.id);
+      if (!user) {
+        return res.status(401).json({ error: "사용자를 찾을 수 없습니다." });
+      }
+
+      const userData = {
+        id: user.id,
+        email: user.email,
+        displayName: user.display_name,
+        role: user.role,
+        overlayHash: user.overlay_hash,
+      };
+
+      // Generate new token pair (refresh token rotation)
+      const tokens = await tokenService.refreshTokens(refreshToken, userData);
+      if (!tokens) {
+        return res.status(401).json({ error: "토큰 갱신에 실패했습니다." });
+      }
+
+      res.json({
+        success: true,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+        // Backwards compatibility
+        token: tokens.accessToken,
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/auth/logout
+   * Invalidate tokens
+   */
+  router.post("/auth/logout", authenticateToken, async (req, res) => {
+    try {
+      // Get token from header
+      const authHeader = req.headers["authorization"];
+      const token = authHeader && authHeader.split(" ")[1];
+
+      if (token) {
+        // Blacklist the access token
+        await tokenService.blacklistToken(token);
+      }
+
+      // Optionally revoke all refresh tokens for user
+      if (req.body && req.body.revokeAll) {
+        await tokenService.revokeAllUserTokens(req.user.id);
+      }
+
+      res.json({ success: true, message: "로그아웃되었습니다." });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -227,7 +294,7 @@ const createAuthRouter = (userService, authenticateToken) => {
    * GET /api/auth/:provider
    * Start OAuth flow - redirect to provider
    */
-  router.get("/auth/:provider", (req, res) => {
+  router.get("/auth/:provider", async (req, res) => {
     const { provider } = req.params;
     const config = OAUTH_CONFIG[provider];
 
@@ -236,7 +303,10 @@ const createAuthRouter = (userService, authenticateToken) => {
     }
 
     const state = generateState();
-    // TODO: Phase 2 - Store state in Redis for validation
+
+    // Store state for CSRF validation (5 minute TTL)
+    await stateStore.set(state, { provider });
+
     const redirectUri = `${SERVER_URL}/api/auth/${provider}/callback`;
 
     let authUrl;
@@ -261,7 +331,7 @@ const createAuthRouter = (userService, authenticateToken) => {
    */
   router.get("/auth/:provider/callback", async (req, res) => {
     const { provider } = req.params;
-    const { code, error } = req.query;
+    const { code, error, state } = req.query;
     const config = OAUTH_CONFIG[provider];
 
     if (error) {
@@ -272,8 +342,20 @@ const createAuthRouter = (userService, authenticateToken) => {
       return res.redirect(`${CLIENT_URL}/login?error=No authorization code provided`);
     }
 
+    // Validate state for CSRF protection
+    const stateData = await stateStore.validate(state);
+    if (!stateData) {
+      console.warn(`OAuth state validation failed for provider: ${provider}`);
+      return res.redirect(`${CLIENT_URL}/login?error=Invalid or expired state. Please try again.`);
+    }
+
+    // Verify the state was created for this provider
+    if (stateData.provider !== provider) {
+      console.warn(`OAuth provider mismatch: expected ${stateData.provider}, got ${provider}`);
+      return res.redirect(`${CLIENT_URL}/login?error=Provider mismatch. Please try again.`);
+    }
+
     try {
-      // TODO: Phase 2 - Validate state from Redis
       const redirectUri = `${SERVER_URL}/api/auth/${provider}/callback`;
 
       // Exchange code for access token
@@ -297,9 +379,9 @@ const createAuthRouter = (userService, authenticateToken) => {
       }
 
       const tokenData = await tokenResponse.json();
-      const accessToken = tokenData.access_token;
+      const oauthAccessToken = tokenData.access_token;
 
-      if (!accessToken) {
+      if (!oauthAccessToken) {
         return res.redirect(`${CLIENT_URL}/login?error=Failed to get access token`);
       }
 
@@ -308,7 +390,7 @@ const createAuthRouter = (userService, authenticateToken) => {
       if (provider === "twitch") {
         const userResponse = await fetch(config.userInfoUrl, {
           headers: {
-            Authorization: `Bearer ${accessToken}`,
+            Authorization: `Bearer ${oauthAccessToken}`,
             "Client-Id": config.clientId,
           },
         });
@@ -316,13 +398,13 @@ const createAuthRouter = (userService, authenticateToken) => {
         userInfo = userData.data?.[0];
       } else if (provider === "naver") {
         const userResponse = await fetch(config.userInfoUrl, {
-          headers: { Authorization: `Bearer ${accessToken}` },
+          headers: { Authorization: `Bearer ${oauthAccessToken}` },
         });
         const userData = await userResponse.json();
         userInfo = userData.response;
       } else {
         const userResponse = await fetch(config.userInfoUrl, {
-          headers: { Authorization: `Bearer ${accessToken}` },
+          headers: { Authorization: `Bearer ${oauthAccessToken}` },
         });
         userInfo = await userResponse.json();
       }
@@ -365,15 +447,20 @@ const createAuthRouter = (userService, authenticateToken) => {
           overlayHash = await userService.updateOverlayHash(existingUser.id);
         }
 
-        // User exists, generate token
-        const token = generateToken({
+        // User exists, generate token pair
+        const userData = {
           id: existingUser.id,
           email: existingUser.email,
           displayName: existingUser.display_name,
           role: existingUser.role,
           overlayHash,
-        });
-        return res.redirect(`${CLIENT_URL}/?token=${token}`);
+        };
+        const { accessToken, refreshToken } = tokenService.generateTokenPair(userData);
+
+        // Redirect with tokens (backwards compatible - token param still works)
+        return res.redirect(
+          `${CLIENT_URL}/?token=${accessToken}&accessToken=${accessToken}&refreshToken=${encodeURIComponent(refreshToken)}`
+        );
       }
 
       // Create new user
@@ -385,8 +472,10 @@ const createAuthRouter = (userService, authenticateToken) => {
         oauthId,
       });
 
-      const token = generateToken(newUser);
-      return res.redirect(`${CLIENT_URL}/?token=${token}`);
+      const { accessToken, refreshToken } = tokenService.generateTokenPair(newUser);
+      return res.redirect(
+        `${CLIENT_URL}/?token=${accessToken}&accessToken=${accessToken}&refreshToken=${encodeURIComponent(refreshToken)}`
+      );
     } catch (err) {
       console.error("OAuth error:", err);
       return res.redirect(`${CLIENT_URL}/login?error=OAuth authentication failed`);

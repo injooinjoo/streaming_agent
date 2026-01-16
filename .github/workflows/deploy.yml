@@ -1,0 +1,46 @@
+# Deployment Workflow
+# Deploys to Render on push to main
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  deploy:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    # Only deploy if CI passes
+    # needs: ci  # Uncomment when CI workflow is stable
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Render
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            curl -X POST "$RENDER_DEPLOY_HOOK_URL"
+            echo "Deployment triggered successfully"
+          else
+            echo "RENDER_DEPLOY_HOOK_URL not configured, skipping deployment"
+          fi
+
+  notify:
+    name: Notify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always()
+
+    steps:
+      - name: Deployment Status
+        run: |
+          if [ "${{ needs.deploy.result }}" == "success" ]; then
+            echo "✅ Deployment to Render triggered successfully"
+          else
+            echo "❌ Deployment failed or was skipped"
+          fi
