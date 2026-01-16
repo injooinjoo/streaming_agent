@@ -1,184 +1,86 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   RefreshCw, Search, Users, MessageSquare, Target, TrendingUp,
-  ChevronRight, Zap, Activity
+  ChevronRight, Zap, Activity, AlertTriangle
 } from 'lucide-react';
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   ResponsiveContainer
 } from 'recharts';
+import { useAuth } from '../../contexts/AuthContext';
 
-// Nexon IP Intelligence Mock Data
-const NEXON_IP_INTELLIGENCE = [
-  {
-    id: 'blue-archive',
-    name: '블루아카이브',
-    mentionCount: 12500,
-    sentiment: 87,
-    trend: 23,
-    trendType: 'rising',
-    insight: '최근 신규 캐릭터 출시로 채팅 언급량 급증. 굿즈 관련 키워드 비중 24% 상승.',
-    keyStreamer: '스트리머A'
-  },
-  {
-    id: 'fc-online',
-    name: 'FC온라인',
-    mentionCount: 28400,
-    sentiment: 72,
-    trend: 5,
-    trendType: 'stable',
-    insight: '강화 이벤트 시점 후원 데이터 활발. 경기 분석 채팅 밀도 높음.',
-    keyStreamer: '스트리머B'
-  },
-  {
-    id: 'maplestory',
-    name: '메이플스토리',
-    mentionCount: 45200,
-    sentiment: 68,
-    trend: -2,
-    trendType: 'stable',
-    insight: '코어 유저 구독 개월 수 타 게임 대비 1.8배. 장기 캠페인 적합.',
-    keyStreamer: '스트리머C'
-  },
-  {
-    id: 'the-first-descendant',
-    name: '더퍼스트디센던트',
-    mentionCount: 8900,
-    sentiment: 91,
-    trend: 156,
-    trendType: 'rising',
-    insight: '글로벌 채팅 로그에서 고사양 하드웨어 언급 다수. 프리미엄 타겟 적합.',
-    keyStreamer: '스트리머K'
-  }
-];
-
-// Streamer Discovery Mock Data
-const STREAMS_DATA = [
-  {
-    id: 1,
-    name: '감스트',
-    platform: 'soop',
-    avgViewers: 45000,
-    chatVelocity: 142,
-    donationConversion: 3.8,
-    nexonAffinity: 92,
-    sentiment: 85,
-    trend: 'up',
-    mainNexonIP: 'FC온라인'
-  },
-  {
-    id: 2,
-    name: '풍월량',
-    platform: 'chzzk',
-    avgViewers: 38000,
-    chatVelocity: 98,
-    donationConversion: 5.2,
-    nexonAffinity: 88,
-    sentiment: 78,
-    trend: 'up',
-    mainNexonIP: '메이플스토리'
-  },
-  {
-    id: 3,
-    name: '우왁굳',
-    platform: 'soop',
-    avgViewers: 32000,
-    chatVelocity: 185,
-    donationConversion: 4.1,
-    nexonAffinity: 75,
-    sentiment: 82,
-    trend: 'stable',
-    mainNexonIP: '블루아카이브'
-  },
-  {
-    id: 4,
-    name: '침착맨',
-    platform: 'chzzk',
-    avgViewers: 28000,
-    chatVelocity: 156,
-    donationConversion: 2.5,
-    nexonAffinity: 68,
-    sentiment: 88,
-    trend: 'up',
-    mainNexonIP: '더퍼스트디센던트'
-  },
-  {
-    id: 5,
-    name: '주르르',
-    platform: 'chzzk',
-    avgViewers: 25000,
-    chatVelocity: 210,
-    donationConversion: 6.8,
-    nexonAffinity: 94,
-    sentiment: 91,
-    trend: 'up',
-    mainNexonIP: '블루아카이브'
-  },
-  {
-    id: 6,
-    name: '아이리칸나',
-    platform: 'soop',
-    avgViewers: 22000,
-    chatVelocity: 134,
-    donationConversion: 4.5,
-    nexonAffinity: 82,
-    sentiment: 79,
-    trend: 'stable',
-    mainNexonIP: '메이플스토리'
-  },
-  {
-    id: 7,
-    name: '섭이',
-    platform: 'chzzk',
-    avgViewers: 19000,
-    chatVelocity: 88,
-    donationConversion: 3.2,
-    nexonAffinity: 71,
-    sentiment: 75,
-    trend: 'down',
-    mainNexonIP: 'FC온라인'
-  },
-  {
-    id: 8,
-    name: '따효니',
-    platform: 'soop',
-    avgViewers: 16000,
-    chatVelocity: 76,
-    donationConversion: 2.9,
-    nexonAffinity: 65,
-    sentiment: 72,
-    trend: 'stable',
-    mainNexonIP: '메이플스토리'
-  }
-];
-
-// Viewer Interest Keywords
-const VIEWER_INTEREST_KEYWORDS = [
-  { keyword: 'e스포츠', value: 85 },
-  { keyword: '캐주얼게임', value: 72 },
-  { keyword: 'RPG', value: 68 },
-  { keyword: '스포츠게임', value: 90 },
-  { keyword: 'FPS/TPS', value: 45 },
-  { keyword: '서브컬처', value: 88 }
-];
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const AdminNexonDiscovery = ({ onStreamerSelect }) => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [streamersData, setStreamersData] = useState([]);
+  const [ipIntelligence, setIpIntelligence] = useState([]);
+  const [interestKeywords, setInterestKeywords] = useState([]);
+  const [error, setError] = useState(null);
+
+  const { accessToken } = useAuth();
 
   useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
+    fetchData();
   }, []);
 
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+    };
+
+    try {
+      // Try to fetch real data from API
+      const [streamersRes] = await Promise.all([
+        fetch(`${API_BASE}/api/streamers?limit=20`, { headers })
+      ]);
+
+      if (streamersRes.ok) {
+        const streamersResult = await streamersRes.json();
+        // Transform to expected format
+        const transformed = (streamersResult.streamers || []).map((s, i) => ({
+          id: s.id || i + 1,
+          name: s.username || '익명',
+          platform: 'chzzk', // Default, would come from actual data
+          avgViewers: 0,
+          chatVelocity: Math.round((s.total_events || 0) / 60), // Rough estimate
+          donationConversion: 0,
+          nexonAffinity: 0,
+          sentiment: 0,
+          trend: 'stable',
+          mainNexonIP: '-',
+          totalDonations: s.total_donations || 0,
+          totalEvents: s.total_events || 0
+        }));
+        setStreamersData(transformed);
+      } else {
+        setStreamersData([]);
+      }
+
+      // These would come from separate API endpoints when implemented
+      setIpIntelligence([]);
+      setInterestKeywords([]);
+
+    } catch (err) {
+      console.error('Failed to fetch discovery data:', err);
+      setError('데이터를 불러오는데 실패했습니다');
+      setStreamersData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const filteredStreamers = useMemo(() => {
-    if (!searchQuery) return STREAMS_DATA;
-    return STREAMS_DATA.filter(s =>
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.mainNexonIP.toLowerCase().includes(searchQuery.toLowerCase())
+    if (!searchQuery) return streamersData;
+    return streamersData.filter(s =>
+      s.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
-  }, [searchQuery]);
+  }, [searchQuery, streamersData]);
 
   const formatNumber = (num) => {
     if (num >= 10000) return `${(num / 10000).toFixed(1)}만`;
@@ -234,7 +136,7 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
 
       {/* Nexon IP Intelligence Cards */}
       <div className="nexon-ip-grid">
-        {NEXON_IP_INTELLIGENCE.map((ip) => (
+        {ipIntelligence.length > 0 ? ipIntelligence.map((ip) => (
           <div key={ip.id} className={`nexon-ip-card ${ip.id}`}>
             <div className="nexon-ip-header">
               <span className="nexon-ip-name">{ip.name}</span>
@@ -262,7 +164,13 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
               "{ip.insight}"
             </div>
           </div>
-        ))}
+        )) : (
+          <div className="empty-state-card" style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+            <AlertTriangle size={32} style={{ opacity: 0.5, marginBottom: '12px' }} />
+            <p style={{ margin: 0 }}>IP 인텔리전스 데이터가 없습니다</p>
+            <p style={{ margin: '8px 0 0', fontSize: '12px' }}>채팅 데이터 수집 후 자동 생성됩니다</p>
+          </div>
+        )}
       </div>
 
       {/* Main Content Grid */}
@@ -349,28 +257,35 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
             <h3>시청자 코어 관심 키워드</h3>
           </div>
           <div style={{ height: 280 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <RadarChart data={VIEWER_INTEREST_KEYWORDS}>
-                <PolarGrid stroke="#475569" />
-                <PolarAngleAxis
-                  dataKey="keyword"
-                  tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600 }}
-                />
-                <PolarRadiusAxis
-                  angle={30}
-                  domain={[0, 100]}
-                  tick={{ fill: '#64748b', fontSize: 10 }}
-                />
-                <Radar
-                  name="관심도"
-                  dataKey="value"
-                  stroke="#6366f1"
-                  fill="#6366f1"
-                  fillOpacity={0.4}
-                  strokeWidth={3}
-                />
-              </RadarChart>
-            </ResponsiveContainer>
+            {interestKeywords.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <RadarChart data={interestKeywords}>
+                  <PolarGrid stroke="#475569" />
+                  <PolarAngleAxis
+                    dataKey="keyword"
+                    tick={{ fontSize: 11, fill: '#94a3b8', fontWeight: 600 }}
+                  />
+                  <PolarRadiusAxis
+                    angle={30}
+                    domain={[0, 100]}
+                    tick={{ fill: '#64748b', fontSize: 10 }}
+                  />
+                  <Radar
+                    name="관심도"
+                    dataKey="value"
+                    stroke="#6366f1"
+                    fill="#6366f1"
+                    fillOpacity={0.4}
+                    strokeWidth={3}
+                  />
+                </RadarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', height: '100%', color: '#94a3b8' }}>
+                <Activity size={32} style={{ opacity: 0.5, marginBottom: '12px' }} />
+                <p style={{ margin: 0 }}>키워드 데이터 없음</p>
+              </div>
+            )}
           </div>
         </div>
       </div>

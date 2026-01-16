@@ -16,6 +16,7 @@ import CreditsOverlay from './components/CreditsOverlay';
 import AdOverlay from './components/AdOverlay';
 import LoginPage from './components/auth/LoginPage';
 import RegisterPage from './components/auth/RegisterPage';
+import ProtectedRoute, { AdminRoute, AdvertiserRoute } from './components/auth/ProtectedRoute';
 import AdvertiserDashboard from './components/advertiser/AdvertiserDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
 import './App.css';
@@ -52,11 +53,19 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
 
-            {/* 광고주 대시보드 */}
-            <Route path="/advertiser" element={<AdvertiserDashboard />} />
+            {/* 광고주 대시보드 (인증 필요) */}
+            <Route path="/advertiser" element={
+              <AdvertiserRoute>
+                <AdvertiserDashboard />
+              </AdvertiserRoute>
+            } />
 
-            {/* 관리자 대시보드 */}
-            <Route path="/admin-dashboard" element={<AdminDashboard />} />
+            {/* 관리자 대시보드 (관리자 권한 필요) */}
+            <Route path="/admin-dashboard" element={
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            } />
 
             {/* 해시 기반 오버레이 (신규) */}
             <Route path="/overlay/:userHash/chat" element={<ChatOverlay />} />

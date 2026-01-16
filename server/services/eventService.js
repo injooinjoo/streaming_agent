@@ -178,11 +178,19 @@ const createEventService = (db, io) => {
      * @returns {Promise<Array>}
      */
     async getTopDonors(limit = 10) {
+      // Get top donors with their most frequent platform
       return dbAll(
         `SELECT
           sender,
           COUNT(*) as count,
-          SUM(amount) as total
+          SUM(amount) as total,
+          (
+            SELECT platform FROM events e2
+            WHERE e2.sender = events.sender AND e2.type = 'donation'
+            GROUP BY platform
+            ORDER BY COUNT(*) DESC
+            LIMIT 1
+          ) as platform
         FROM events
         WHERE type = 'donation'
         GROUP BY sender
