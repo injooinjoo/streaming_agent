@@ -13,7 +13,7 @@ const { getRedisService } = require("./redisService");
 
 // 스케줄 간격 (밀리초)
 const SCHEDULE = {
-  FULL_CRAWL: 6 * 60 * 60 * 1000,      // 6시간마다 전체 크롤링
+  FULL_CRAWL: 24 * 60 * 60 * 1000,     // 24시간마다 전체 크롤링 (새 카테고리 확인)
   VIEWER_UPDATE: 5 * 60 * 1000,         // 5분마다 시청자 수 업데이트
   STATS_RECORD: 15 * 60 * 1000,         // 15분마다 통계 기록
   MAPPING_REFRESH: 24 * 60 * 60 * 1000, // 24시간마다 매핑 갱신

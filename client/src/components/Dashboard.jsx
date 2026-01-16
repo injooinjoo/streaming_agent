@@ -50,6 +50,14 @@ const Dashboard = () => {
     amount: 1000,
     platform: 'twitch'
   });
+  const [dashboardData, setDashboardData] = useState({
+    todayDonation: 0,
+    peakViewers: 0,
+    newSubs: 0,
+    insights: [],
+    topCategories: []
+  });
+  const [dashboardLoading, setDashboardLoading] = useState(true);
 
   const { user, isAuthenticated, logout } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
@@ -118,138 +126,16 @@ const Dashboard = () => {
 
   const menuItems = menuGroups.flatMap((group) => group.items);
 
-  const stats = {
-    todayDonation: events
-      .filter(e => e.type === 'donation')
-      .reduce((acc, curr) => acc + (curr.amount || 0), 0),
-    peakViewers: 842,
-    newSubs: 12
+  // 인사이트 아이콘 및 스타일 매핑
+  const getInsightStyle = (type) => {
+    const styles = {
+      donation: { icon: <DollarSign size={18} />, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', title: '후원 현황' },
+      viewers: { icon: <TrendingUp size={18} />, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', title: '시청자 현황' },
+      platform: { icon: <Activity size={18} />, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', title: '플랫폼 활동' },
+      info: { icon: <Sparkles size={18} />, color: '#6b7280', bg: 'rgba(107, 114, 128, 0.1)', title: '안내' }
+    };
+    return styles[type] || styles.info;
   };
-
-  const insights = [
-    {
-      id: 1,
-      type: 'performance',
-      icon: <TrendingUp size={18} />,
-      title: '성과 분석',
-      message: '어제한 메이플스토리 방송시간에 최고 평균 수익이 나왔어요!',
-      color: '#3b82f6',
-      bg: 'rgba(59, 130, 246, 0.1)'
-    },
-    {
-      id: 2,
-      type: 'trend',
-      icon: <Activity size={18} />,
-      title: '플랫폼 트렌드',
-      message: '롤 방송이 요즘 플랫폼 전체적으로 하향세 입니다. 새로운 게임을 시도해보는건 어떨까요?',
-      color: '#ef4444',
-      bg: 'rgba(239, 68, 68, 0.1)'
-    },
-    {
-      id: 3,
-      type: 'ads',
-      icon: <MousePointerClick size={18} />,
-      title: '광고 수익 최적화',
-      message: '요즘 던전앤파이터 방송광고가 클릭전환율이 높아서 수익률 반응이 좋습니다.',
-      color: '#10b981',
-      bg: 'rgba(16, 185, 129, 0.1)'
-    }
-  ];
-
-  const topCategories = [
-    {
-      id: 1,
-      name: 'League of Legends',
-      nameKr: '리그 오브 레전드',
-      image: 'https://static-cdn.jtvnw.net/ttv-boxart/21779-285x380.jpg',
-      engagement: 94,
-      avgViewers: 1240,
-      growth: '+12%'
-    },
-    {
-      id: 2,
-      name: 'PUBG: BATTLEGROUNDS',
-      nameKr: '배틀그라운드',
-      image: 'https://static-cdn.jtvnw.net/ttv-boxart/493057-285x380.jpg',
-      engagement: 87,
-      avgViewers: 890,
-      growth: '+8%'
-    },
-    {
-      id: 3,
-      name: 'MapleStory',
-      nameKr: '메이플스토리',
-      image: 'https://static-cdn.jtvnw.net/ttv-boxart/19976-285x380.jpg',
-      engagement: 82,
-      avgViewers: 720,
-      growth: '+24%'
-    },
-    {
-      id: 4,
-      name: 'Overwatch 2',
-      nameKr: '오버워치 2',
-      image: 'https://static-cdn.jtvnw.net/ttv-boxart/515025-285x380.jpg',
-      engagement: 76,
-      avgViewers: 580,
-      growth: '-3%'
-    },
-    {
-      id: 5,
-      name: 'Valorant',
-      nameKr: '발로란트',
-      image: 'https://static-cdn.jtvnw.net/ttv-boxart/516575-285x380.jpg',
-      engagement: 71,
-      avgViewers: 450,
-      growth: '+5%'
-    }
-  ];
-
-  const recommendedCategories = [
-    {
-      id: 101,
-      name: 'Dungeon Fighter Online',
-      nameKr: '던전앤파이터',
-      image: 'https://static-cdn.jtvnw.net/ttv-boxart/31507_IGDB-285x380.jpg',
-      recommendType: 'revenue',
-      recommendLabel: '수익 잠재력',
-      reason: '광고 단가 높음',
-      potentialRevenue: '+35%',
-      avgViewers: 2100
-    },
-    {
-      id: 102,
-      name: 'Lost Ark',
-      nameKr: '로스트아크',
-      image: 'https://static-cdn.jtvnw.net/ttv-boxart/490100-285x380.jpg',
-      recommendType: 'trending',
-      recommendLabel: '트렌딩',
-      reason: '시청자 급증',
-      growth: '+45%',
-      avgViewers: 3200
-    },
-    {
-      id: 103,
-      name: 'FC Online',
-      nameKr: 'FC 온라인',
-      image: 'https://static-cdn.jtvnw.net/ttv-boxart/32399_IGDB-285x380.jpg',
-      recommendType: 'viewers',
-      recommendLabel: '시청자 추천',
-      reason: '내 시청자 관심',
-      matchRate: '78%',
-      avgViewers: 1800
-    },
-    {
-      id: 104,
-      name: 'Minecraft',
-      nameKr: '마인크래프트',
-      image: 'https://static-cdn.jtvnw.net/ttv-boxart/27471_IGDB-285x380.jpg',
-      recommendType: 'trending',
-      recommendLabel: '트렌딩',
-      reason: '주간 인기 상승',
-      growth: '+28%',
-      avgViewers: 2800
-    }
-  ];
 
   const fetchEvents = async () => {
     try {
@@ -261,10 +147,30 @@ const Dashboard = () => {
     }
   };
 
+  const fetchDashboardData = async () => {
+    try {
+      setDashboardLoading(true);
+      const res = await fetch(`${API_URL}/api/stats/dashboard`);
+      if (res.ok) {
+        const data = await res.json();
+        setDashboardData(data);
+      }
+    } catch (e) {
+      console.error('Failed to fetch dashboard data', e);
+    } finally {
+      setDashboardLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchEvents();
-    const interval = setInterval(fetchEvents, 3000);
-    return () => clearInterval(interval);
+    fetchDashboardData();
+    const eventsInterval = setInterval(fetchEvents, 3000);
+    const dashboardInterval = setInterval(fetchDashboardData, 30000); // 30초마다 갱신
+    return () => {
+      clearInterval(eventsInterval);
+      clearInterval(dashboardInterval);
+    };
   }, []);
 
   const triggerSimulate = async () => {
@@ -313,7 +219,7 @@ const Dashboard = () => {
                 <ChevronRight size={14} />
               </div>
               <div className="stat-content">
-                <span className="value sensitive-blur">₩{stats.todayDonation.toLocaleString()}</span>
+                <span className="value sensitive-blur">₩{dashboardData.todayDonation.toLocaleString()}</span>
                 <span className="subtext">오늘 방송 누적</span>
               </div>
               <div className="stat-link">
@@ -327,8 +233,8 @@ const Dashboard = () => {
                 <ChevronRight size={14} />
               </div>
               <div className="stat-content">
-                <span className="value sensitive-blur">{stats.peakViewers.toLocaleString()}</span>
-                <span className="subtext">어제 대비 24% 증가</span>
+                <span className="value sensitive-blur">{dashboardData.peakViewers.toLocaleString()}</span>
+                <span className="subtext">오늘 기준</span>
               </div>
               <div className="stat-link">
                 <span>시청자 분석 보기</span>
@@ -341,7 +247,7 @@ const Dashboard = () => {
                 <ChevronRight size={14} />
               </div>
               <div className="stat-content">
-                <span className="value sensitive-blur">{stats.newSubs}</span>
+                <span className="value sensitive-blur">{dashboardData.newSubs}</span>
                 <span className="subtext">모든 플랫폼 통합</span>
               </div>
               <div className="stat-link">
@@ -355,22 +261,36 @@ const Dashboard = () => {
             <div className="section-header">
               <div className="section-title">
                 <Sparkles size={18} className="text-primary" />
-                <h2>실시간 AI 인사이트</h2>
+                <h2>실시간 인사이트</h2>
               </div>
-              <span className="timestamp">방금 업데이트됨</span>
+              <span className="timestamp">{dashboardLoading ? '로딩 중...' : '방금 업데이트됨'}</span>
             </div>
             <div className="insights-grid">
-              {insights.map((insight) => (
-                <div key={insight.id} className="insight-card" style={{ borderColor: insight.color }}>
-                   <div className="insight-icon" style={{ backgroundColor: insight.bg, color: insight.color }}>
-                     {insight.icon}
-                   </div>
-                   <div className="insight-content">
-                     <span className="insight-label" style={{ color: insight.color }}>{insight.title}</span>
-                     <p className="insight-message">{insight.message}</p>
-                   </div>
+              {dashboardData.insights.length > 0 ? dashboardData.insights.map((insight, index) => {
+                const style = getInsightStyle(insight.type);
+                return (
+                  <div key={index} className="insight-card" style={{ borderColor: style.color }}>
+                     <div className="insight-icon" style={{ backgroundColor: style.bg, color: style.color }}>
+                       {style.icon}
+                     </div>
+                     <div className="insight-content">
+                       <span className="insight-label" style={{ color: style.color }}>{style.title}</span>
+                       <p className="insight-message">{insight.message}</p>
+                       {insight.value && <span className="insight-value" style={{ color: style.color, fontWeight: 600 }}>{insight.value}</span>}
+                     </div>
+                  </div>
+                );
+              }) : (
+                <div className="insight-card" style={{ borderColor: '#6b7280' }}>
+                  <div className="insight-icon" style={{ backgroundColor: 'rgba(107, 114, 128, 0.1)', color: '#6b7280' }}>
+                    <Sparkles size={18} />
+                  </div>
+                  <div className="insight-content">
+                    <span className="insight-label" style={{ color: '#6b7280' }}>시작하기</span>
+                    <p className="insight-message">플랫폼을 연결하여 데이터 수집을 시작하세요</p>
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
           </div>
 
@@ -379,80 +299,58 @@ const Dashboard = () => {
               <div className="section-header">
                 <div className="section-title">
                   <BarChart3 size={18} className="text-primary" />
-                  <h2>내 방송 인기 카테고리</h2>
+                  <h2>플랫폼별 활동 현황</h2>
                 </div>
                 <button className="section-link" onClick={() => setActiveTab('analytics-content')}>
                   콘텐츠 분석 보기 <ChevronRight size={14} />
                 </button>
               </div>
               <div className="categories-grid">
-                {topCategories.map((category, index) => (
-                  <div key={category.id} className="category-card">
-                    <div className="category-rank">#{index + 1}</div>
-                    <div className="category-image">
-                      <img src={category.image} alt={category.name} />
-                    </div>
-                    <div className="category-info">
-                      <span className="category-name">{category.nameKr}</span>
-                      <div className="category-stats">
-                        <div className="category-stat">
-                          <span className="stat-label">반응도</span>
-                          <span className="stat-value sensitive-blur">{category.engagement}%</span>
+                {dashboardData.topCategories && dashboardData.topCategories.length > 0 ?
+                  dashboardData.topCategories.map((platform, index) => {
+                    const getPlatformLogo = (p) => {
+                      if (p === 'soop') return '/assets/logos/soop.png';
+                      if (p === 'chzzk') return '/assets/logos/chzzk.png';
+                      if (p === 'youtube') return '/assets/logos/youtube.png';
+                      return null;
+                    };
+                    return (
+                      <div key={platform.platform || index} className="category-card">
+                        <div className="category-rank">#{index + 1}</div>
+                        <div className="category-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-card-hover)' }}>
+                          {getPlatformLogo(platform.platform) ? (
+                            <img src={getPlatformLogo(platform.platform)} alt={platform.name} style={{ height: '40px', objectFit: 'contain' }} />
+                          ) : (
+                            <Activity size={32} style={{ color: 'var(--text-muted)' }} />
+                          )}
                         </div>
-                        <div className="category-stat">
-                          <span className="stat-label">평균 시청자</span>
-                          <span className="stat-value sensitive-blur">{category.avgViewers.toLocaleString()}</span>
+                        <div className="category-info">
+                          <span className="category-name">{platform.name}</span>
+                          <div className="category-stats">
+                            <div className="category-stat">
+                              <span className="stat-label">총 활동</span>
+                              <span className="stat-value sensitive-blur">{platform.activity?.toLocaleString() || 0}</span>
+                            </div>
+                            <div className="category-stat">
+                              <span className="stat-label">채팅</span>
+                              <span className="stat-value sensitive-blur">{platform.chats?.toLocaleString() || 0}</span>
+                            </div>
+                            <div className="category-stat">
+                              <span className="stat-label">후원</span>
+                              <span className="stat-value sensitive-blur">{platform.donations?.toLocaleString() || 0}</span>
+                            </div>
+                          </div>
                         </div>
-                        <span className={`category-growth ${category.growth.startsWith('+') ? 'positive' : 'negative'}`}>
-                          {category.growth}
-                        </span>
                       </div>
+                    );
+                  }) : (
+                    <div className="empty-state" style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center' }}>
+                      <Activity size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
+                      <p>아직 플랫폼 활동 데이터가 없습니다.</p>
+                      <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>SOOP이나 치지직에 연결하여 데이터 수집을 시작하세요.</p>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="categories-section recommended">
-              <div className="section-header">
-                <div className="section-title">
-                  <Sparkles size={18} className="text-primary" />
-                  <h2>카테고리 추천</h2>
-                </div>
-                <button className="section-link" onClick={() => setActiveTab('analytics-content')}>
-                  더 보기 <ChevronRight size={14} />
-                </button>
-              </div>
-              <div className="categories-grid">
-                {recommendedCategories.map((category) => (
-                  <div key={category.id} className="category-card recommended">
-                    <div className={`recommend-badge ${category.recommendType}`}>
-                      {category.recommendLabel}
-                    </div>
-                    <div className="category-image">
-                      <img src={category.image} alt={category.name} />
-                    </div>
-                    <div className="category-info">
-                      <span className="category-name">{category.nameKr}</span>
-                      <div className="category-stats">
-                        <div className="recommend-reason">{category.reason}</div>
-                        <div className="category-stat">
-                          <span className="stat-label">예상 시청자</span>
-                          <span className="stat-value">{category.avgViewers.toLocaleString()}</span>
-                        </div>
-                        {category.growth && (
-                          <span className="category-growth positive">{category.growth}</span>
-                        )}
-                        {category.potentialRevenue && (
-                          <span className="category-growth revenue">{category.potentialRevenue}</span>
-                        )}
-                        {category.matchRate && (
-                          <span className="category-growth viewers">{category.matchRate}</span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+                  )
+                }
               </div>
             </div>
           </div>
@@ -625,18 +523,18 @@ const Dashboard = () => {
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>후원당 평균</div>
                 </div>
                 <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>현재 시청자</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>최고 시청자</div>
                   <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                    {stats.peakViewers}
+                    {dashboardData.peakViewers.toLocaleString()}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#10b981', marginTop: '4px' }}>+24% 어제 대비</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>오늘 기준</div>
                 </div>
                 <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>방송 시간</div>
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>신규 구독</div>
                   <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                    2시간 34분
+                    {dashboardData.newSubs}
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>오늘 누적</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>오늘 기준</div>
                 </div>
               </div>
             </div>

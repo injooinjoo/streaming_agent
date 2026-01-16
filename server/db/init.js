@@ -314,11 +314,29 @@ const initializeDatabase = (db) => {
 
       // ===== Indexes =====
 
+      // ===== Viewer Stats Table (for viewer-update events) =====
+
+      db.run(`CREATE TABLE IF NOT EXISTS viewer_stats (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        viewer_count INTEGER DEFAULT 0,
+        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      db.run(`CREATE INDEX IF NOT EXISTS idx_viewer_stats_channel ON viewer_stats(platform, channel_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_viewer_stats_timestamp ON viewer_stats(timestamp)`);
+
+      // ===== Indexes =====
+
       db.run(`CREATE INDEX IF NOT EXISTS idx_platform_categories_platform ON platform_categories(platform)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_platform_categories_active ON platform_categories(is_active)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_category_stats_recorded ON category_stats(recorded_at)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_category_stats_platform ON category_stats(platform, platform_category_id)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_mappings_game ON category_game_mappings(unified_game_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_events_platform ON events(platform)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_events_type ON events(type)`);
 
       dbLogger.info("All database tables initialized");
       resolve();

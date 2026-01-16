@@ -192,6 +192,148 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
     }
   });
 
+  // ===== Chat/Activity Statistics =====
+
+  /**
+   * GET /api/stats/chat/summary
+   * Get chat activity summary
+   */
+  router.get("/stats/chat/summary", async (req, res) => {
+    try {
+      const days = parseInt(req.query.days, 10) || 7;
+      const result = await statsService.getChatActivitySummary(days);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/chat/hourly
+   * Get chat trend by hour
+   */
+  router.get("/stats/chat/hourly", async (req, res) => {
+    try {
+      const days = parseInt(req.query.days, 10) || 7;
+      const result = await statsService.getChatTrendByHour(days);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/chat/daily
+   * Get chat trend by day of week
+   */
+  router.get("/stats/chat/daily", async (req, res) => {
+    try {
+      const weeks = parseInt(req.query.weeks, 10) || 4;
+      const result = await statsService.getChatTrendByDayOfWeek(weeks);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/activity/timeline
+   * Get activity timeline
+   */
+  router.get("/stats/activity/timeline", async (req, res) => {
+    try {
+      const days = parseInt(req.query.days, 10) || 7;
+      const result = await statsService.getActivityTimeline(days);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/activity/recent
+   * Get recent activity feed
+   */
+  router.get("/stats/activity/recent", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit, 10) || 20;
+      const result = await statsService.getRecentActivity(limit);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/yesterday
+   * Get yesterday broadcast summary
+   */
+  router.get("/stats/yesterday", async (req, res) => {
+    try {
+      const result = await statsService.getYesterdaySummary();
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/hourly-by-platform
+   * Get hourly activity by platform
+   */
+  router.get("/stats/hourly-by-platform", async (req, res) => {
+    try {
+      const hours = parseInt(req.query.hours, 10) || 24;
+      const result = await statsService.getHourlyActivityByPlatform(hours);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ===== Viewer Statistics =====
+
+  /**
+   * GET /api/stats/viewers/history
+   * Get viewer count history
+   */
+  router.get("/stats/viewers/history", async (req, res) => {
+    try {
+      const hours = parseInt(req.query.hours, 10) || 24;
+      const platform = req.query.platform || null;
+      const result = await statsService.getViewerHistory(hours, platform);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/viewers/peak
+   * Get peak viewer count for today
+   */
+  router.get("/stats/viewers/peak", async (req, res) => {
+    try {
+      const result = await statsService.getPeakViewers();
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/dashboard
+   * Get dashboard summary (for Dashboard.jsx)
+   */
+  router.get("/stats/dashboard", async (req, res) => {
+    try {
+      const result = await statsService.getDashboardSummary();
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ===== Connection Status =====
 
   /**
