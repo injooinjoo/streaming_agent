@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  RefreshCw, Users, Clock, Gamepad2, Crown, Flame, Target, ChevronRight, Star, Zap, Award
+  RefreshCw, Users, Clock, Gamepad2, Crown, Flame, Target, ChevronRight, Star, Zap, Award, AlertTriangle
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Game categories for filtering
 const GAME_CATEGORIES = [
@@ -13,40 +16,72 @@ const GAME_CATEGORIES = [
   { id: 'talk', name: '토크/저스트채팅', icon: Users },
 ];
 
-// Mock 데이터
-const MOCK_STREAMER_INFLUENCE = [
-  { id: 1, name: '감스트', platform: 'soop', influenceScore: 95, avgViewers: 45000, adEfficiency: 4.8, donationRate: 3.2, trend: 'up', mainGame: 'league', games: ['league', 'valorant', 'talk'] },
-  { id: 2, name: '풍월량', platform: 'chzzk', influenceScore: 92, avgViewers: 38000, adEfficiency: 4.5, donationRate: 2.8, trend: 'up', mainGame: 'league', games: ['league', 'minecraft'] },
-  { id: 3, name: '우왁굳', platform: 'soop', influenceScore: 88, avgViewers: 32000, adEfficiency: 4.2, donationRate: 4.1, trend: 'stable', mainGame: 'minecraft', games: ['minecraft', 'gta', 'talk'] },
-  { id: 4, name: '침착맨', platform: 'chzzk', influenceScore: 85, avgViewers: 28000, adEfficiency: 3.9, donationRate: 2.5, trend: 'up', mainGame: 'talk', games: ['talk', 'minecraft'] },
-  { id: 5, name: '주르르', platform: 'chzzk', influenceScore: 82, avgViewers: 25000, adEfficiency: 4.1, donationRate: 3.8, trend: 'up', mainGame: 'league', games: ['league', 'valorant'] },
-  { id: 6, name: '아이리칸나', platform: 'soop', influenceScore: 78, avgViewers: 22000, adEfficiency: 3.7, donationRate: 3.5, trend: 'stable', mainGame: 'valorant', games: ['valorant', 'league'] },
-  { id: 7, name: '섭이', platform: 'chzzk', influenceScore: 75, avgViewers: 19000, adEfficiency: 3.5, donationRate: 2.9, trend: 'down', mainGame: 'gta', games: ['gta', 'talk'] },
-  { id: 8, name: '따효니', platform: 'soop', influenceScore: 72, avgViewers: 16000, adEfficiency: 3.3, donationRate: 3.1, trend: 'stable', mainGame: 'talk', games: ['talk', 'minecraft'] },
-  { id: 9, name: '금마', platform: 'chzzk', influenceScore: 68, avgViewers: 14000, adEfficiency: 3.1, donationRate: 2.7, trend: 'up', mainGame: 'league', games: ['league'] },
-  { id: 10, name: '쫀득이', platform: 'soop', influenceScore: 65, avgViewers: 12000, adEfficiency: 2.9, donationRate: 3.3, trend: 'down', mainGame: 'valorant', games: ['valorant', 'minecraft'] }
-];
-
 const AdminViewership = ({ onStreamerSelect }) => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('week');
   const [selectedGame, setSelectedGame] = useState('all');
+  const [streamerData, setStreamerData] = useState([]);
+  const [error, setError] = useState(null);
 
-  // Mock 데이터 생성
+  const { accessToken } = useAuth();
+
+  useEffect(() => {
+    fetchData();
+  }, [selectedGame, timeRange]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+    };
+
+    try {
+      const response = await fetch(`${API_BASE}/api/streamers?limit=20&sortBy=total_donations&sortOrder=desc`, { headers });
+
+      if (response.ok) {
+        const result = await response.json();
+        // Transform real data to expected format
+        const transformed = (result.streamers || []).map((s, i) => ({
+          id: s.id || i + 1,
+          name: s.username || '익명',
+          platform: 'chzzk', // Would come from actual data
+          influenceScore: Math.min(100, Math.round((s.total_donations || 0) / 10000) + 50), // Rough estimate
+          avgViewers: 0,
+          adEfficiency: 0,
+          donationRate: s.total_events > 0 ? ((s.total_donations || 0) / s.total_events * 0.01).toFixed(1) : 0,
+          trend: 'stable',
+          mainGame: '-',
+          games: [],
+          totalDonations: s.total_donations || 0,
+          totalEvents: s.total_events || 0
+        }));
+        setStreamerData(transformed);
+      } else {
+        setStreamerData([]);
+      }
+    } catch (err) {
+      console.error('Failed to fetch viewership data:', err);
+      setError('데이터를 불러오는데 실패했습니다');
+      setStreamerData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calculate derived data
   const data = useMemo(() => {
-    // 게임 필터링
-    const filteredStreamers = selectedGame === 'all'
-      ? MOCK_STREAMER_INFLUENCE
-      : MOCK_STREAMER_INFLUENCE.filter(s => s.games.includes(selectedGame));
+    const filteredStreamers = streamerData;
 
     // 광고 효율 TOP 3
     const topAdEfficiency = [...filteredStreamers]
       .sort((a, b) => b.adEfficiency - a.adEfficiency)
       .slice(0, 3);
 
-    // 요즘 대세
-    const trendingStreamers = filteredStreamers
-      .filter(s => s.trend === 'up')
+    // 요즘 대세 (highest influence)
+    const trendingStreamers = [...filteredStreamers]
       .sort((a, b) => b.influenceScore - a.influenceScore)
       .slice(0, 3);
 
@@ -61,13 +96,7 @@ const AdminViewership = ({ onStreamerSelect }) => {
       trendingStreamers,
       topDonationRate
     };
-  }, [selectedGame]);
-
-  useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, [selectedGame, timeRange]);
+  }, [streamerData]);
 
   const formatNumber = (num) => {
     if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
@@ -108,11 +137,13 @@ const AdminViewership = ({ onStreamerSelect }) => {
 
   return (
     <div className="admin-viewership">
-      {/* Mock Data Notice */}
-      <div className="mock-data-notice">
-        <span className="notice-icon">ℹ️</span>
-        <span>스트리머 데이터는 샘플 데이터입니다. 실제 API 연동 시 갱신됩니다.</span>
-      </div>
+      {/* Data Status Notice */}
+      {streamerData.length === 0 && !loading && (
+        <div className="mock-data-notice" style={{ backgroundColor: '#fef3c7', borderColor: '#f59e0b' }}>
+          <span className="notice-icon">⚠️</span>
+          <span>활동 데이터가 없습니다. 플랫폼 연결 후 데이터가 수집됩니다.</span>
+        </div>
+      )}
 
       {/* Time Range Selector */}
       <div className="admin-toolbar">

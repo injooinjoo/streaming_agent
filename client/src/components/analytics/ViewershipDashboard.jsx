@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { Activity, Clock, Users, TrendingUp, DollarSign, Heart, UserPlus, Gift, RefreshCw } from 'lucide-react';
+import { Activity, Clock, Users, TrendingUp, DollarSign, Heart, UserPlus, Gift, RefreshCw, LogIn } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import './ViewershipDashboard.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -23,20 +25,43 @@ const ViewershipDashboard = () => {
   });
   const [viewerTrend, setViewerTrend] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [authError, setAuthError] = useState(false);
+
+  const { isAuthenticated, accessToken } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isAuthenticated) {
+      fetchData();
+    } else {
+      setLoading(false);
+      setAuthError(true);
+    }
+  }, [isAuthenticated]);
 
   const fetchData = async () => {
     setLoading(true);
+    setAuthError(false);
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+    };
+
     try {
       const [platformRes, yesterdayRes, trendRes, activityRes] = await Promise.all([
-        fetch(`${API_BASE}/api/stats/platforms`),
-        fetch(`${API_BASE}/api/stats/yesterday`),
-        fetch(`${API_BASE}/api/stats/hourly-by-platform`),
-        fetch(`${API_BASE}/api/stats/activity/recent?limit=10`)
+        fetch(`${API_BASE}/api/stats/platforms`, { headers }),
+        fetch(`${API_BASE}/api/stats/yesterday`, { headers }),
+        fetch(`${API_BASE}/api/stats/hourly-by-platform`, { headers }),
+        fetch(`${API_BASE}/api/stats/activity/recent?limit=10`, { headers })
       ]);
+
+      // Check if any request requires auth
+      if ([platformRes, yesterdayRes, trendRes, activityRes].some(res => res.status === 401)) {
+        setAuthError(true);
+        setLoading(false);
+        return;
+      }
 
       const [platforms, yesterday, trend, activity] = await Promise.all([
         platformRes.ok ? platformRes.json() : { platforms: [] },
@@ -110,6 +135,43 @@ const ViewershipDashboard = () => {
         <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
           <RefreshCw className="animate-spin" size={32} />
           <span style={{ marginLeft: '12px' }}>데이터를 불러오는 중...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (authError || !isAuthenticated) {
+    return (
+      <div className="viewership-dashboard analytics-page">
+        <div className="auth-required-container" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '400px',
+          gap: '16px',
+          color: 'var(--text-muted)'
+        }}>
+          <LogIn size={48} />
+          <h2 style={{ margin: 0, color: 'var(--text-main)' }}>로그인이 필요합니다</h2>
+          <p style={{ margin: 0 }}>시장 현황을 확인하려면 로그인하세요.</p>
+          <button
+            onClick={() => navigate('/login')}
+            style={{
+              marginTop: '8px',
+              padding: '12px 24px',
+              background: 'var(--primary-color)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <LogIn size={16} /> 로그인
+          </button>
         </div>
       </div>
     );

@@ -10,18 +10,34 @@ const express = require("express");
  * @param {Object} eventService - Event service instance
  * @param {Object} statsService - Stats service instance
  * @param {Map} activeAdapters - Active platform adapters map
+ * @param {Function} authenticateToken - Auth middleware for protected routes
  * @returns {express.Router}
  */
-const createStatsRouter = (eventService, statsService, activeAdapters) => {
+const createStatsRouter = (eventService, statsService, activeAdapters, authenticateToken) => {
   const router = express.Router();
 
-  // ===== Event Statistics =====
+  // ===== Optional Auth Middleware =====
+  // Returns user if authenticated, null otherwise (for public dashboard with limited data)
+  const optionalAuth = (req, res, next) => {
+    const authHeader = req.headers["authorization"];
+    const token = authHeader && authHeader.split(" ")[1];
+
+    if (!token) {
+      req.user = null;
+      return next();
+    }
+
+    // If token provided, validate it
+    authenticateToken(req, res, next);
+  };
+
+  // ===== Event Statistics (Protected) =====
 
   /**
    * GET /api/stats/events/count
-   * Get total event count
+   * Get total event count (requires authentication)
    */
-  router.get("/stats/events/count", async (req, res) => {
+  router.get("/stats/events/count", authenticateToken, async (req, res) => {
     try {
       const total = await eventService.getCount();
       res.json({ total });
@@ -32,9 +48,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/events/by-platform
-   * Get event counts grouped by platform
+   * Get event counts grouped by platform (requires authentication)
    */
-  router.get("/stats/events/by-platform", async (req, res) => {
+  router.get("/stats/events/by-platform", authenticateToken, async (req, res) => {
     try {
       const rows = await eventService.getCountByPlatform();
       res.json(rows || []);
@@ -43,13 +59,13 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
     }
   });
 
-  // ===== Donation Statistics =====
+  // ===== Donation Statistics (Protected) =====
 
   /**
    * GET /api/stats/donations
-   * Get donation statistics grouped by platform
+   * Get donation statistics grouped by platform (requires authentication)
    */
-  router.get("/stats/donations", async (req, res) => {
+  router.get("/stats/donations", authenticateToken, async (req, res) => {
     try {
       const rows = await eventService.getDonationStats();
       res.json(rows || []);
@@ -60,9 +76,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/donations/trend
-   * Get donation trend for last 7 days
+   * Get donation trend for last 7 days (requires authentication)
    */
-  router.get("/stats/donations/trend", async (req, res) => {
+  router.get("/stats/donations/trend", authenticateToken, async (req, res) => {
     try {
       const rows = await eventService.getDonationTrend();
       res.json(rows || []);
@@ -73,9 +89,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/donations/top-donors
-   * Get top donors ranking
+   * Get top donors ranking (requires authentication)
    */
-  router.get("/stats/donations/top-donors", async (req, res) => {
+  router.get("/stats/donations/top-donors", authenticateToken, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit, 10) || 10;
       const rows = await eventService.getTopDonors(limit);
@@ -85,13 +101,13 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
     }
   });
 
-  // ===== Revenue Statistics =====
+  // ===== Revenue Statistics (Protected) =====
 
   /**
    * GET /api/stats/revenue
-   * Get revenue summary
+   * Get revenue summary (requires authentication)
    */
-  router.get("/stats/revenue", async (req, res) => {
+  router.get("/stats/revenue", authenticateToken, async (req, res) => {
     try {
       const days = parseInt(req.query.days, 10) || 30;
       const summary = await statsService.getRevenueSummary(days);
@@ -103,9 +119,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/revenue/trend
-   * Get daily revenue trend
+   * Get daily revenue trend (requires authentication)
    */
-  router.get("/stats/revenue/trend", async (req, res) => {
+  router.get("/stats/revenue/trend", authenticateToken, async (req, res) => {
     try {
       const days = parseInt(req.query.days, 10) || 30;
       const trend = await statsService.getRevenueTrend(days);
@@ -117,9 +133,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/revenue/by-platform
-   * Get revenue by platform
+   * Get revenue by platform (requires authentication)
    */
-  router.get("/stats/revenue/by-platform", async (req, res) => {
+  router.get("/stats/revenue/by-platform", authenticateToken, async (req, res) => {
     try {
       const result = await statsService.getRevenueByPlatform();
       res.json(result);
@@ -130,9 +146,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/revenue/monthly
-   * Get monthly revenue comparison
+   * Get monthly revenue comparison (requires authentication)
    */
-  router.get("/stats/revenue/monthly", async (req, res) => {
+  router.get("/stats/revenue/monthly", authenticateToken, async (req, res) => {
     try {
       const months = parseInt(req.query.months, 10) || 6;
       const result = await statsService.getMonthlyRevenue(months);
@@ -144,9 +160,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/revenue/top-streamers
-   * Get top streamers by revenue
+   * Get top streamers by revenue (requires authentication)
    */
-  router.get("/stats/revenue/top-streamers", async (req, res) => {
+  router.get("/stats/revenue/top-streamers", authenticateToken, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit, 10) || 10;
       const result = await statsService.getTopStreamersByRevenue(limit);
@@ -156,13 +172,13 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
     }
   });
 
-  // ===== Streamers =====
+  // ===== Streamers (Protected) =====
 
   /**
    * GET /api/streamers
-   * Get streamers list (based on donation data)
+   * Get streamers list (based on donation data) (requires authentication)
    */
-  router.get("/streamers", async (req, res) => {
+  router.get("/streamers", authenticateToken, async (req, res) => {
     try {
       const result = await statsService.getStreamers({
         search: req.query.search || "",
@@ -177,13 +193,13 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
     }
   });
 
-  // ===== Platform Statistics =====
+  // ===== Platform Statistics (Protected) =====
 
   /**
    * GET /api/stats/platforms
-   * Get platform comparison stats
+   * Get platform comparison stats (requires authentication)
    */
-  router.get("/stats/platforms", async (req, res) => {
+  router.get("/stats/platforms", authenticateToken, async (req, res) => {
     try {
       const result = await statsService.getPlatformStats();
       res.json(result);
@@ -192,13 +208,13 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
     }
   });
 
-  // ===== Chat/Activity Statistics =====
+  // ===== Chat/Activity Statistics (Protected) =====
 
   /**
    * GET /api/stats/chat/summary
-   * Get chat activity summary
+   * Get chat activity summary (requires authentication)
    */
-  router.get("/stats/chat/summary", async (req, res) => {
+  router.get("/stats/chat/summary", authenticateToken, async (req, res) => {
     try {
       const days = parseInt(req.query.days, 10) || 7;
       const result = await statsService.getChatActivitySummary(days);
@@ -210,9 +226,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/chat/hourly
-   * Get chat trend by hour
+   * Get chat trend by hour (requires authentication)
    */
-  router.get("/stats/chat/hourly", async (req, res) => {
+  router.get("/stats/chat/hourly", authenticateToken, async (req, res) => {
     try {
       const days = parseInt(req.query.days, 10) || 7;
       const result = await statsService.getChatTrendByHour(days);
@@ -224,9 +240,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/chat/daily
-   * Get chat trend by day of week
+   * Get chat trend by day of week (requires authentication)
    */
-  router.get("/stats/chat/daily", async (req, res) => {
+  router.get("/stats/chat/daily", authenticateToken, async (req, res) => {
     try {
       const weeks = parseInt(req.query.weeks, 10) || 4;
       const result = await statsService.getChatTrendByDayOfWeek(weeks);
@@ -238,9 +254,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/activity/timeline
-   * Get activity timeline
+   * Get activity timeline (requires authentication)
    */
-  router.get("/stats/activity/timeline", async (req, res) => {
+  router.get("/stats/activity/timeline", authenticateToken, async (req, res) => {
     try {
       const days = parseInt(req.query.days, 10) || 7;
       const result = await statsService.getActivityTimeline(days);
@@ -252,9 +268,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/activity/recent
-   * Get recent activity feed
+   * Get recent activity feed (requires authentication)
    */
-  router.get("/stats/activity/recent", async (req, res) => {
+  router.get("/stats/activity/recent", authenticateToken, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit, 10) || 20;
       const result = await statsService.getRecentActivity(limit);
@@ -266,9 +282,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/yesterday
-   * Get yesterday broadcast summary
+   * Get yesterday broadcast summary (requires authentication)
    */
-  router.get("/stats/yesterday", async (req, res) => {
+  router.get("/stats/yesterday", authenticateToken, async (req, res) => {
     try {
       const result = await statsService.getYesterdaySummary();
       res.json(result);
@@ -279,9 +295,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/hourly-by-platform
-   * Get hourly activity by platform
+   * Get hourly activity by platform (requires authentication)
    */
-  router.get("/stats/hourly-by-platform", async (req, res) => {
+  router.get("/stats/hourly-by-platform", authenticateToken, async (req, res) => {
     try {
       const hours = parseInt(req.query.hours, 10) || 24;
       const result = await statsService.getHourlyActivityByPlatform(hours);
@@ -291,13 +307,13 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
     }
   });
 
-  // ===== Viewer Statistics =====
+  // ===== Viewer Statistics (Protected) =====
 
   /**
    * GET /api/stats/viewers/history
-   * Get viewer count history
+   * Get viewer count history (requires authentication)
    */
-  router.get("/stats/viewers/history", async (req, res) => {
+  router.get("/stats/viewers/history", authenticateToken, async (req, res) => {
     try {
       const hours = parseInt(req.query.hours, 10) || 24;
       const platform = req.query.platform || null;
@@ -310,9 +326,9 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
 
   /**
    * GET /api/stats/viewers/peak
-   * Get peak viewer count for today
+   * Get peak viewer count for today (requires authentication)
    */
-  router.get("/stats/viewers/peak", async (req, res) => {
+  router.get("/stats/viewers/peak", authenticateToken, async (req, res) => {
     try {
       const result = await statsService.getPeakViewers();
       res.json(result);
@@ -324,9 +340,29 @@ const createStatsRouter = (eventService, statsService, activeAdapters) => {
   /**
    * GET /api/stats/dashboard
    * Get dashboard summary (for Dashboard.jsx)
+   * Uses optional auth - returns full data for authenticated users,
+   * or empty/demo data for unauthenticated users
    */
-  router.get("/stats/dashboard", async (req, res) => {
+  router.get("/stats/dashboard", optionalAuth, async (req, res) => {
     try {
+      // If not authenticated, return empty dashboard prompting login
+      if (!req.user) {
+        return res.json({
+          todayDonation: 0,
+          peakViewers: 0,
+          newSubs: 0,
+          insights: [
+            {
+              type: "info",
+              message: "로그인하여 실시간 데이터를 확인하세요",
+              value: null
+            }
+          ],
+          topCategories: [],
+          requiresAuth: true
+        });
+      }
+
       const result = await statsService.getDashboardSummary();
       res.json(result);
     } catch (err) {

@@ -1,86 +1,72 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Clock, Users, Radio, TrendingUp, RefreshCw, Trophy, Calendar, Gamepad2, ChevronRight } from 'lucide-react';
+import { Clock, Users, Radio, TrendingUp, RefreshCw, Trophy, Calendar, Gamepad2, ChevronRight, AlertTriangle } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import { useAuth } from '../../contexts/AuthContext';
+
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
-
-const GAMES = [
-  { id: 1, name: '메이플스토리', viewers: 150000, streamers: 520, watchTime: 420000, revenue: 850000000, growth: 12.5, color: '#6366f1' },
-  { id: 2, name: '던전앤파이터', viewers: 85000, streamers: 380, watchTime: 280000, revenue: 620000000, growth: 8.3, color: '#10b981' },
-  { id: 3, name: 'FIFA 온라인 4', viewers: 62000, streamers: 290, watchTime: 195000, revenue: 480000000, growth: 15.2, color: '#f59e0b' },
-  { id: 4, name: '마비노기', viewers: 48000, streamers: 210, watchTime: 165000, revenue: 320000000, growth: 5.8, color: '#ef4444' },
-  { id: 5, name: '카트라이더: 드리프트', viewers: 35000, streamers: 180, watchTime: 120000, revenue: 280000000, growth: 22.1, color: '#8b5cf6' },
-  { id: 6, name: '서든어택', viewers: 28000, streamers: 150, watchTime: 95000, revenue: 180000000, growth: -3.2, color: '#ec4899' },
-  { id: 7, name: '바람의나라', viewers: 22000, streamers: 120, watchTime: 85000, revenue: 120000000, growth: 2.1, color: '#14b8a6' },
-  { id: 8, name: '크레이지아케이드', viewers: 15000, streamers: 90, watchTime: 45000, revenue: 65000000, growth: 18.7, color: '#f97316' },
-];
-
-const TOP_STREAMERS_BY_GAME = {
-  '메이플스토리': [
-    { id: 11, rank: 1, name: '떡호떡', viewers: 25000, influence: 98 },
-    { id: 12, rank: 2, name: '케인', viewers: 18500, influence: 92 },
-    { id: 2, rank: 3, name: '풍월량', viewers: 15200, influence: 88 },
-    { id: 3, rank: 4, name: '우왁굳', viewers: 12800, influence: 85 },
-    { id: 1, rank: 5, name: '감스트', viewers: 9500, influence: 78 },
-  ],
-  '던전앤파이터': [
-    { id: 21, rank: 1, name: '던파BJ', viewers: 15000, influence: 95 },
-    { id: 22, rank: 2, name: '아라드', viewers: 12000, influence: 88 },
-    { id: 23, rank: 3, name: '세리아', viewers: 9800, influence: 82 },
-    { id: 24, rank: 4, name: '카인서버', viewers: 7500, influence: 75 },
-    { id: 25, rank: 5, name: '시로코', viewers: 5200, influence: 68 },
-  ],
-  'FIFA 온라인 4': [
-    { id: 1, rank: 1, name: '감스트', viewers: 22000, influence: 97 },
-    { id: 4, rank: 2, name: '침착맨', viewers: 18000, influence: 94 },
-    { id: 31, rank: 3, name: '피파온라인', viewers: 8500, influence: 78 },
-    { id: 32, rank: 4, name: '축구왕', viewers: 6200, influence: 72 },
-    { id: 33, rank: 5, name: '골키퍼', viewers: 4800, influence: 65 },
-  ],
-  '마비노기': [
-    { id: 41, rank: 1, name: '마비노기킹', viewers: 12000, influence: 92 },
-    { id: 42, rank: 2, name: '에린', viewers: 8500, influence: 85 },
-    { id: 43, rank: 3, name: '밀레시안', viewers: 6200, influence: 78 },
-    { id: 44, rank: 4, name: '던바튼', viewers: 4800, influence: 70 },
-    { id: 45, rank: 5, name: '티르나노이', viewers: 3500, influence: 62 },
-  ],
-  '카트라이더: 드리프트': [
-    { id: 51, rank: 1, name: '문호준', viewers: 9500, influence: 95 },
-    { id: 52, rank: 2, name: '카트왕', viewers: 7200, influence: 88 },
-    { id: 53, rank: 3, name: '드리프트', viewers: 5800, influence: 82 },
-    { id: 54, rank: 4, name: '배찌', viewers: 4200, influence: 75 },
-    { id: 55, rank: 5, name: '다오', viewers: 3100, influence: 68 },
-  ],
-  '서든어택': [
-    { id: 61, rank: 1, name: '서든킹', viewers: 8000, influence: 90 },
-    { id: 62, rank: 2, name: 'FPS마스터', viewers: 5500, influence: 82 },
-    { id: 63, rank: 3, name: '헤드샷', viewers: 4200, influence: 75 },
-    { id: 64, rank: 4, name: '스나이퍼', viewers: 3100, influence: 68 },
-    { id: 65, rank: 5, name: '돌격대', viewers: 2400, influence: 60 },
-  ],
-  '바람의나라': [
-    { id: 71, rank: 1, name: '바람왕', viewers: 6500, influence: 88 },
-    { id: 72, rank: 2, name: '부여성', viewers: 4800, influence: 80 },
-    { id: 73, rank: 3, name: '도사', viewers: 3500, influence: 72 },
-    { id: 74, rank: 4, name: '검사', viewers: 2800, influence: 65 },
-    { id: 75, rank: 5, name: '궁수', viewers: 2100, influence: 58 },
-  ],
-  '크레이지아케이드': [
-    { id: 81, rank: 1, name: '물풍선왕', viewers: 4500, influence: 85 },
-    { id: 82, rank: 2, name: '배찌마스터', viewers: 3200, influence: 78 },
-    { id: 83, rank: 3, name: '아케이드', viewers: 2400, influence: 70 },
-    { id: 84, rank: 4, name: '크아킹', viewers: 1800, influence: 62 },
-    { id: 85, rank: 5, name: '폭탄마', viewers: 1200, influence: 55 },
-  ],
-};
 
 const AdminGameAnalytics = ({ onStreamerSelect }) => {
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('week');
-  const [selectedGame, setSelectedGame] = useState('메이플스토리');
+  const [selectedGame, setSelectedGame] = useState(null);
+  const [gamesData, setGamesData] = useState([]);
+  const [topStreamersByGame, setTopStreamersByGame] = useState({});
+  const [error, setError] = useState(null);
+
+  const { accessToken } = useAuth();
+
+  useEffect(() => {
+    fetchData();
+  }, [timeRange]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+    };
+
+    try {
+      // Fetch unified games data
+      const gamesRes = await fetch(`${API_BASE}/api/categories/unified-games?limit=10`, { headers });
+
+      if (gamesRes.ok) {
+        const result = await gamesRes.json();
+        const transformed = (result.games || []).map((g, i) => ({
+          id: g.id,
+          name: g.name || g.name_kr || 'Unknown',
+          viewers: 0, // Would come from viewer stats
+          streamers: 0,
+          watchTime: 0,
+          revenue: 0,
+          growth: 0,
+          color: COLORS[i % COLORS.length]
+        }));
+        setGamesData(transformed);
+        if (transformed.length > 0 && !selectedGame) {
+          setSelectedGame(transformed[0].name);
+        }
+      } else {
+        setGamesData([]);
+      }
+
+      setTopStreamersByGame({});
+
+    } catch (err) {
+      console.error('Failed to fetch game analytics:', err);
+      setError('데이터를 불러오는데 실패했습니다');
+      setGamesData([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleStreamerClick = (streamerId) => {
     if (onStreamerSelect) {
@@ -88,47 +74,37 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
     }
   };
 
-  // 트렌드 데이터 생성 (7일)
+  // 트렌드 데이터 생성 - 실제 데이터 없으면 빈 배열
   const trendData = useMemo(() => {
+    if (gamesData.length === 0) return [];
     return Array.from({ length: 7 }, (_, i) => {
       const date = new Date();
       date.setDate(date.getDate() - (6 - i));
-      return {
-        date: `${date.getMonth() + 1}/${date.getDate()}`,
-        메이플스토리: 140000 + Math.floor(Math.random() * 20000),
-        던전앤파이터: 80000 + Math.floor(Math.random() * 15000),
-        'FIFA 온라인 4': 55000 + Math.floor(Math.random() * 15000),
-        마비노기: 42000 + Math.floor(Math.random() * 12000),
-      };
+      const dataPoint = { date: `${date.getMonth() + 1}/${date.getDate()}` };
+      gamesData.slice(0, 4).forEach(game => {
+        dataPoint[game.name] = 0; // Would be real viewer data
+      });
+      return dataPoint;
     });
-  }, [timeRange]);
+  }, [gamesData]);
 
-  // 시간대별 피크 데이터
+  // 시간대별 피크 데이터 - 실제 데이터 없으면 빈 배열
   const peakHoursData = useMemo(() => {
+    if (gamesData.length === 0) return [];
     return Array.from({ length: 24 }, (_, i) => ({
       hour: `${i}시`,
-      viewers: i >= 20 || i <= 2
-        ? 80000 + Math.floor(Math.random() * 40000)
-        : i >= 12 && i <= 14
-          ? 50000 + Math.floor(Math.random() * 20000)
-          : 20000 + Math.floor(Math.random() * 30000)
+      viewers: 0 // Would be real viewer data
     }));
-  }, []);
+  }, [gamesData]);
 
   // 파이 차트용 데이터
   const pieData = useMemo(() => {
-    return GAMES.map(game => ({
+    return gamesData.map(game => ({
       name: game.name,
       value: game.viewers,
       color: game.color
     }));
-  }, []);
-
-  useEffect(() => {
-    setLoading(true);
-    const timer = setTimeout(() => setLoading(false), 500);
-    return () => clearTimeout(timer);
-  }, [timeRange]);
+  }, [gamesData]);
 
   const formatNumber = (num) => {
     return new Intl.NumberFormat('ko-KR').format(num);
@@ -171,10 +147,10 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
     );
   }
 
-  const totalViewers = GAMES.reduce((sum, g) => sum + g.viewers, 0);
-  const totalStreamers = GAMES.reduce((sum, g) => sum + g.streamers, 0);
-  const totalWatchTime = GAMES.reduce((sum, g) => sum + g.watchTime, 0);
-  const totalRevenue = GAMES.reduce((sum, g) => sum + g.revenue, 0);
+  const totalViewers = gamesData.reduce((sum, g) => sum + g.viewers, 0);
+  const totalStreamers = gamesData.reduce((sum, g) => sum + g.streamers, 0);
+  const totalWatchTime = gamesData.reduce((sum, g) => sum + g.watchTime, 0);
+  const totalRevenue = gamesData.reduce((sum, g) => sum + g.revenue, 0);
 
   return (
     <div className="admin-game-analytics">
@@ -211,7 +187,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
           </div>
           <div className="revenue-card-content">
             <span className="revenue-card-label">평균 동시접속</span>
-            <span className="revenue-card-value">{formatNumber(Math.floor(totalViewers / GAMES.length))}명</span>
+            <span className="revenue-card-value">{gamesData.length > 0 ? formatNumber(Math.floor(totalViewers / gamesData.length)) : 0}명</span>
           </div>
         </div>
         <div className="revenue-card">
@@ -326,7 +302,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
               </tr>
             </thead>
             <tbody>
-              {GAMES.map((game, index) => (
+              {gamesData.map((game, index) => (
                 <tr key={game.id}>
                   <td>
                     <span className={`rank-badge rank-${index + 1}`}>
@@ -365,7 +341,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
             onChange={(e) => setSelectedGame(e.target.value)}
             className="game-select"
           >
-            {GAMES.map(game => (
+            {gamesData.map(game => (
               <option key={game.id} value={game.name}>{game.name}</option>
             ))}
           </select>
@@ -381,7 +357,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
               </tr>
             </thead>
             <tbody>
-              {TOP_STREAMERS_BY_GAME[selectedGame]?.map((streamer) => (
+              {(topStreamersByGame[selectedGame] || []).map((streamer) => (
                 <tr
                   key={streamer.rank}
                   className="clickable"
@@ -406,7 +382,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
                     <div className="influence-bar">
                       <div
                         className="influence-fill"
-                        style={{ width: `${streamer.influence}%`, backgroundColor: GAMES.find(g => g.name === selectedGame)?.color || '#6366f1' }}
+                        style={{ width: `${streamer.influence}%`, backgroundColor: gamesData.find(g => g.name === selectedGame)?.color || '#6366f1' }}
                       />
                       <span>{streamer.influence}</span>
                     </div>

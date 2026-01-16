@@ -3,7 +3,9 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { DollarSign, Gift, Users, Megaphone, Download, RefreshCw } from 'lucide-react';
+import { DollarSign, Gift, Users, Megaphone, Download, RefreshCw, LogIn } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import AnalyticsCard from './shared/AnalyticsCard';
 import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
@@ -19,24 +21,46 @@ const RevenueAnalytics = () => {
   const [platformData, setPlatformData] = useState([]);
   const [topDonors, setTopDonors] = useState([]);
   const [summary, setSummary] = useState({ totalRevenue: 0, donationRevenue: 0, donationCount: 0 });
+  const [authError, setAuthError] = useState(false);
+
+  const { isAuthenticated, accessToken } = useAuth();
+  const navigate = useNavigate();
 
   const periodDays = { day: 1, week: 7, month: 30, year: 365 };
 
   useEffect(() => {
-    fetchData();
-  }, [period]);
+    if (isAuthenticated) {
+      fetchData();
+    } else {
+      setLoading(false);
+      setAuthError(true);
+    }
+  }, [period, isAuthenticated]);
 
   const fetchData = async () => {
     setLoading(true);
+    setAuthError(false);
     const days = periodDays[period] || 7;
+
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+    };
 
     try {
       const [trendRes, platformRes, donorsRes, summaryRes] = await Promise.all([
-        fetch(`${API_BASE}/api/stats/revenue/trend?days=${days}`),
-        fetch(`${API_BASE}/api/stats/revenue/by-platform`),
-        fetch(`${API_BASE}/api/stats/donations/top-donors?limit=5`),
-        fetch(`${API_BASE}/api/stats/revenue?days=${days}`)
+        fetch(`${API_BASE}/api/stats/revenue/trend?days=${days}`, { headers }),
+        fetch(`${API_BASE}/api/stats/revenue/by-platform`, { headers }),
+        fetch(`${API_BASE}/api/stats/donations/top-donors?limit=5`, { headers }),
+        fetch(`${API_BASE}/api/stats/revenue?days=${days}`, { headers })
       ]);
+
+      // Check if any request requires auth
+      if ([trendRes, platformRes, donorsRes, summaryRes].some(res => res.status === 401)) {
+        setAuthError(true);
+        setLoading(false);
+        return;
+      }
 
       const [trend, platforms, donors, sum] = await Promise.all([
         trendRes.json(),
@@ -92,15 +116,26 @@ const RevenueAnalytics = () => {
   const dailyBreakdown = revenueData.slice(-5).map((d, i, arr) => {
     const prev = i > 0 ? arr[i-1] : null;
     const total = d.donation + d.subscription + d.ads;
-    const prevTotal = prev ? (prev.donation + prev.subscription + prev.ads) : total;
-    const change = prevTotal > 0 ? (((total - prevTotal) / prevTotal) * 100).toFixed(0) : 0;
+    const prevTotal = prev ? (prev.donation + prev.subscription + prev.ads) : 0;
+
+    // Calculate percentage change with proper edge case handling
+    let change;
+    if (prevTotal === 0 && total === 0) {
+      change = '0%';
+    } else if (prevTotal === 0) {
+      change = total > 0 ? '+100%' : '0%';
+    } else {
+      const percentChange = (((total - prevTotal) / prevTotal) * 100).toFixed(1);
+      change = percentChange >= 0 ? `+${percentChange}%` : `${percentChange}%`;
+    }
+
     return {
       date: d.date,
       donation: d.donation,
       subscription: d.subscription,
       ads: d.ads,
       total,
-      change: change >= 0 ? `+${change}%` : `${change}%`
+      change
     };
   });
 
@@ -122,6 +157,43 @@ const RevenueAnalytics = () => {
         <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
           <RefreshCw className="animate-spin" size={32} />
           <span style={{ marginLeft: '12px' }}>데이터를 불러오는 중...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (authError || !isAuthenticated) {
+    return (
+      <div className="analytics-page">
+        <div className="auth-required-container" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '400px',
+          gap: '16px',
+          color: 'var(--text-muted)'
+        }}>
+          <LogIn size={48} />
+          <h2 style={{ margin: 0, color: 'var(--text-main)' }}>로그인이 필요합니다</h2>
+          <p style={{ margin: 0 }}>수익 분석을 확인하려면 로그인하세요.</p>
+          <button
+            onClick={() => navigate('/login')}
+            style={{
+              marginTop: '8px',
+              padding: '12px 24px',
+              background: 'var(--primary-color)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            <LogIn size={16} /> 로그인
+          </button>
         </div>
       </div>
     );
