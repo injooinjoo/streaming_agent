@@ -341,3 +341,85 @@ CREATE INDEX IF NOT EXISTS idx_collection_logs_time
   ON collection_logs(started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_collection_logs_type
   ON collection_logs(job_type, started_at DESC);
+
+
+-- ========================================
+-- 11. 방송 통계 (5분 단위 집계)
+-- ========================================
+-- 시청자 비율, 채팅, 후원 통계 집계
+CREATE TABLE IF NOT EXISTS broadcast_stats_5min (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  broadcast_id INTEGER NOT NULL REFERENCES broadcasts(id),
+
+  -- 스냅샷 시각 (5분 단위 정각)
+  snapshot_at DATETIME NOT NULL,
+
+  -- 시청자 통계
+  viewer_count INTEGER DEFAULT 0,
+  subscriber_count INTEGER DEFAULT 0,
+  fan_count INTEGER DEFAULT 0,
+
+  -- 비율 (0.0 ~ 1.0)
+  subscriber_ratio REAL DEFAULT 0,
+  fan_ratio REAL DEFAULT 0,
+
+  -- 채팅 통계 (해당 5분간)
+  chat_count INTEGER DEFAULT 0,
+  unique_chatters INTEGER DEFAULT 0,
+
+  -- 후원 통계 (해당 5분간)
+  donation_count INTEGER DEFAULT 0,
+  donation_amount INTEGER DEFAULT 0,
+
+  UNIQUE(broadcast_id, snapshot_at)
+);
+
+CREATE INDEX IF NOT EXISTS idx_broadcast_stats_5min_lookup
+  ON broadcast_stats_5min(broadcast_id, snapshot_at DESC);
+
+
+-- ========================================
+-- 12. 방송 변경 이력
+-- ========================================
+-- 제목, 카테고리 등 변경 추적
+CREATE TABLE IF NOT EXISTS broadcast_changes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  broadcast_id INTEGER NOT NULL REFERENCES broadcasts(id),
+
+  -- 변경된 필드
+  field_name TEXT NOT NULL,           -- 'title', 'category', 'sub_category'
+  old_value TEXT,
+  new_value TEXT,
+
+  -- 변경 시각
+  changed_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_broadcast_changes_lookup
+  ON broadcast_changes(broadcast_id, changed_at DESC);
+
+
+-- ========================================
+-- 13. 채팅 메시지 통계
+-- ========================================
+-- 개별 메시지는 저장하지 않고 집계만 유지
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  broadcast_id INTEGER NOT NULL REFERENCES broadcasts(id),
+
+  -- 발신자
+  sender_id INTEGER REFERENCES platform_users(id),
+  sender_username TEXT NOT NULL,
+  sender_nickname TEXT,
+
+  -- 메시지 메타데이터 (내용은 저장하지 않음 - 개인정보)
+  message_length INTEGER DEFAULT 0,
+
+  -- 시각
+  sent_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_chat_messages_broadcast
+  ON chat_messages(broadcast_id, sent_at DESC);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_sender
+  ON chat_messages(sender_id, sent_at DESC);

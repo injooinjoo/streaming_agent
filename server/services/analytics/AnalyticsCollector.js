@@ -231,24 +231,57 @@ class AnalyticsCollector extends EventEmitter {
 
     try {
       const snapshotTime = this.roundToSnapshotTime(new Date());
-      const results = await this.wsManager.collectAllViewerLists();
+      const snapshotAt = snapshotTime.toISOString();
+
+      // 시청자 목록 수집
+      const viewerResults = await this.wsManager.collectAllViewerLists();
+
+      // 채팅 통계 수집 (5분간 누적된 데이터)
+      const chatResults = this.wsManager.collectAllChatStats();
 
       let totalViewers = 0;
 
-      for (const result of results) {
+      for (const result of viewerResults) {
         if (result.viewers && result.viewers.length > 0) {
+          // 시청 기록 저장
           await this.saveViewingRecords(result.broadcastId, result.viewers, snapshotTime);
           totalViewers += result.viewers.length;
+
+          // 비율 계산
+          const viewerCount = result.viewers.length;
+          const subscriberCount = result.viewers.filter((v) => v.isSub).length;
+          const fanCount = result.viewers.filter((v) => v.isFan).length;
+          const subscriberRatio = viewerCount > 0 ? subscriberCount / viewerCount : 0;
+          const fanRatio = viewerCount > 0 ? fanCount / viewerCount : 0;
+
+          // 해당 방송의 채팅 통계 찾기
+          const chatStat = chatResults.find((c) => c.broadcastId === result.broadcastId) || {
+            messageCount: 0,
+            uniqueChatters: 0,
+          };
+
+          // 5분 통계 저장
+          await this.saveBroadcastStats5min({
+            broadcastId: result.broadcastId,
+            snapshotAt,
+            viewerCount,
+            subscriberCount,
+            fanCount,
+            subscriberRatio,
+            fanRatio,
+            chatCount: chatStat.messageCount,
+            uniqueChatters: chatStat.uniqueChatters,
+          });
         }
       }
 
       this.stats.snapshots++;
       this.stats.viewersTracked = totalViewers;
 
-      console.log(`[AnalyticsCollector] Snapshot complete: ${results.length} broadcasts, ${totalViewers} viewers`);
+      console.log(`[AnalyticsCollector] Snapshot complete: ${viewerResults.length} broadcasts, ${totalViewers} viewers`);
 
       this.emit("snapshot-complete", {
-        broadcastCount: results.length,
+        broadcastCount: viewerResults.length,
         viewerCount: totalViewers,
         snapshotTime,
       });
@@ -256,6 +289,47 @@ class AnalyticsCollector extends EventEmitter {
       console.error("[AnalyticsCollector] Snapshot error:", err.message);
       this.emit("error", err);
     }
+  }
+
+  /**
+   * 5분 단위 방송 통계 저장
+   * @param {Object} stats
+   */
+  saveBroadcastStats5min(stats) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `INSERT OR REPLACE INTO broadcast_stats_5min
+         (broadcast_id, snapshot_at, viewer_count, subscriber_count, fan_count,
+          subscriber_ratio, fan_ratio, chat_count, unique_chatters)
+         SELECT
+           b.id,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?,
+           ?
+         FROM broadcasts b
+         WHERE b.platform = 'soop' AND b.broadcast_id = ?`,
+        [
+          stats.snapshotAt,
+          stats.viewerCount,
+          stats.subscriberCount,
+          stats.fanCount,
+          stats.subscriberRatio,
+          stats.fanRatio,
+          stats.chatCount,
+          stats.uniqueChatters,
+          stats.broadcastId,
+        ],
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
   }
 
   /**

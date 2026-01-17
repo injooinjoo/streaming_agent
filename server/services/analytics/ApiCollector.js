@@ -25,6 +25,9 @@ class ApiCollector extends EventEmitter {
 
     // 현재 라이브 방송 캐시 (종료 감지용)
     this.currentLiveBroadcasts = new Map();
+
+    // 방송 메타데이터 캐시 (변경 감지용)
+    this.broadcastMetaCache = new Map();
   }
 
   /**
@@ -108,6 +111,9 @@ class ApiCollector extends EventEmitter {
         // 스냅샷 저장
         await this.saveBroadcastSnapshot(broadcast);
 
+        // 변경 감지 (제목, 카테고리)
+        await this.detectBroadcastChanges(broadcastId, broadcast);
+
         newLiveBroadcasts.set(broadcastId, broadcast);
       } catch (err) {
         console.warn(`[ApiCollector] Process broadcast ${broadcastId} error:`, err.message);
@@ -116,6 +122,66 @@ class ApiCollector extends EventEmitter {
 
     // 현재 라이브 캐시 업데이트
     this.currentLiveBroadcasts = newLiveBroadcasts;
+  }
+
+  /**
+   * 방송 메타데이터 변경 감지
+   * @param {string} broadcastId
+   * @param {Object} broadcast
+   */
+  async detectBroadcastChanges(broadcastId, broadcast) {
+    const currentMeta = {
+      title: broadcast.broad_title,
+      category: broadcast.category_name,
+      subCategory: broadcast.sub_category || null,
+    };
+
+    const cachedMeta = this.broadcastMetaCache.get(broadcastId);
+
+    if (cachedMeta) {
+      // 제목 변경 감지
+      if (cachedMeta.title !== currentMeta.title) {
+        await this.saveBroadcastChange(broadcastId, "title", cachedMeta.title, currentMeta.title);
+        console.log(`[ApiCollector] Title changed: ${broadcastId} "${cachedMeta.title}" → "${currentMeta.title}"`);
+      }
+
+      // 카테고리 변경 감지
+      if (cachedMeta.category !== currentMeta.category) {
+        await this.saveBroadcastChange(broadcastId, "category", cachedMeta.category, currentMeta.category);
+        console.log(`[ApiCollector] Category changed: ${broadcastId} "${cachedMeta.category}" → "${currentMeta.category}"`);
+      }
+
+      // 서브카테고리 변경 감지
+      if (cachedMeta.subCategory !== currentMeta.subCategory) {
+        await this.saveBroadcastChange(broadcastId, "sub_category", cachedMeta.subCategory, currentMeta.subCategory);
+      }
+    }
+
+    // 캐시 업데이트
+    this.broadcastMetaCache.set(broadcastId, currentMeta);
+  }
+
+  /**
+   * 방송 변경 기록 저장
+   * @param {string} broadcastId
+   * @param {string} fieldName
+   * @param {string} oldValue
+   * @param {string} newValue
+   */
+  saveBroadcastChange(broadcastId, fieldName, oldValue, newValue) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `INSERT INTO broadcast_changes (broadcast_id, field_name, old_value, new_value)
+         SELECT b.id, ?, ?, ?
+         FROM broadcasts b
+         WHERE b.platform = 'soop' AND b.broadcast_id = ?`,
+        [fieldName, oldValue, newValue, broadcastId],
+        (err) => {
+          if (err) reject(err);
+          else resolve();
+        }
+      );
+    });
   }
 
   /**

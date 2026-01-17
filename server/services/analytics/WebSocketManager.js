@@ -255,6 +255,29 @@ class WebSocketManager extends EventEmitter {
     }
     return status;
   }
+
+  /**
+   * 모든 연결에서 채팅 통계 수집 및 리셋
+   * @returns {Array} [{ broadcastId, streamerId, messageCount, uniqueChatters }]
+   */
+  collectAllChatStats() {
+    const results = [];
+
+    for (const [broadcastId, connection] of this.connections) {
+      try {
+        const chatStats = connection.getChatStatsAndReset();
+        results.push({
+          broadcastId,
+          streamerId: connection.streamerId,
+          ...chatStats,
+        });
+      } catch (err) {
+        console.warn(`[WSManager] Get chat stats error ${broadcastId}:`, err.message);
+      }
+    }
+
+    return results;
+  }
 }
 
 /**
@@ -276,6 +299,13 @@ class SoopConnection extends EventEmitter {
     this.ws = null;
     this.pingTimer = null;
     this.viewers = new Map(); // userId -> { nickname, isFan, isSub }
+
+    // 채팅 통계 (5분 단위 리셋)
+    this.chatStats = {
+      messageCount: 0,
+      chatters: new Set(),
+      lastReset: Date.now(),
+    };
   }
 
   /**
@@ -409,6 +439,12 @@ class SoopConnection extends EventEmitter {
       return;
     }
 
+    // 채팅 메시지 (0005)
+    if (actionCode === CHAT_ACTIONS.CHAT) {
+      this.processChat(parts);
+      return;
+    }
+
     // 별풍선 (0018)
     if (actionCode === CHAT_ACTIONS.TEXT_DONATION) {
       this.processDonation(parts, "balloon");
@@ -476,6 +512,47 @@ class SoopConnection extends EventEmitter {
 
       this.viewers.set(userId, { nickname, isFan, isSub });
     }
+  }
+
+  /**
+   * 채팅 메시지 처리 (0005)
+   * @param {Array} parts
+   */
+  processChat(parts) {
+    const userId = parts[2] || "";
+    const nickname = parts[3] || "";
+    const message = parts[1] || "";
+
+    if (userId) {
+      // 채팅 통계 업데이트
+      this.chatStats.messageCount++;
+      this.chatStats.chatters.add(userId);
+
+      // 채팅 이벤트 emit
+      this.emit("chat", {
+        userId,
+        nickname,
+        messageLength: message.length,
+      });
+    }
+  }
+
+  /**
+   * 채팅 통계 조회 및 리셋
+   * @returns {Object} { messageCount, uniqueChatters }
+   */
+  getChatStatsAndReset() {
+    const stats = {
+      messageCount: this.chatStats.messageCount,
+      uniqueChatters: this.chatStats.chatters.size,
+    };
+
+    // 리셋
+    this.chatStats.messageCount = 0;
+    this.chatStats.chatters.clear();
+    this.chatStats.lastReset = Date.now();
+
+    return stats;
   }
 
   /**
