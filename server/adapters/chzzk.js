@@ -144,6 +144,10 @@ class ChzzkAdapter extends BaseAdapter {
       this.ws.on("message", (data) => {
         try {
           const message = JSON.parse(data.toString());
+
+          // 🔍 모든 WebSocket 메시지 로깅 (디버그)
+          console.log(`[chzzk] 🔍 WS message received: cmd=${message.cmd}, keys=${Object.keys(message).join(",")}`);
+
           this.handleMessage(message);
 
           // 연결 완료 시 resolve
