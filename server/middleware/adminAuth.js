@@ -13,8 +13,20 @@ if (!ADMIN_ACCESS_CODE && process.env.NODE_ENV !== "production") {
 /**
  * Middleware to authenticate admin users
  * Checks JWT validity and ensures user has admin role
+ * In development mode with ADMIN_DEV_MODE=true, authentication is bypassed
  */
 const authenticateAdmin = (req, res, next) => {
+  // Development mode bypass - for testing without authentication
+  if (process.env.ADMIN_DEV_MODE === 'true') {
+    req.user = {
+      id: 0,
+      email: "dev@streamagent.dev",
+      displayName: "개발자",
+      role: "admin"
+    };
+    return next();
+  }
+
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
 
