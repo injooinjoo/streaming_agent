@@ -1,9 +1,0 @@
-{
-  "install": "cd client && npm install && npm run build && cd ../server && npm install",
-  "start": "cd server && node index.js",
-  "watch": {
-    "restart": {
-      "include": ["server/"]
-    }
-  }
-}
