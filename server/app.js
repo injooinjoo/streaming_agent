@@ -19,6 +19,7 @@ const {
   createPlatformsRouter,
   createGameStatsRouter,
   createCategoriesRouter,
+  createAnalyticsRouter,
 } = require("./routes");
 const { createHealthRouter } = require("./routes/health");
 
@@ -137,7 +138,7 @@ const createApp = ({
   app.use("/api", adminRouter);
 
   // Stats routes (events, donations, revenue)
-  const statsRouter = createStatsRouter(eventService, statsService, activeAdapters);
+  const statsRouter = createStatsRouter(eventService, statsService, activeAdapters, authMiddleware);
   app.use("/api", statsRouter);
 
   // Platform routes (Chzzk, SOOP, events)
@@ -158,6 +159,10 @@ const createApp = ({
   // Categories routes (existing)
   const categoriesRouter = createCategoriesRouter(db, categoryService, authMiddleware);
   app.use("/api", categoriesRouter);
+
+  // Analytics routes (SOOP viewer/donation data)
+  const analyticsRouter = createAnalyticsRouter(authenticateAdmin);
+  app.use("/api", analyticsRouter);
 
   // ===== Health Check Routes =====
   const healthRouter = createHealthRouter({ db });

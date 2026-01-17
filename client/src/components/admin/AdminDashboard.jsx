@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, DollarSign, Activity, BarChart3,
   LogOut, Shield, ArrowLeft, Monitor, Gamepad2, Search, Megaphone,
-  Menu, X
+  Menu, X, Database, Radio
 } from 'lucide-react';
 import AdminOverview from './AdminOverview';
 import AdminStreamers from './AdminStreamers';
@@ -14,10 +14,12 @@ import AdminStreamerDetail from './AdminStreamerDetail';
 import AdminGameAnalytics from './AdminGameAnalytics';
 import AdminNexonDiscovery from './AdminNexonDiscovery';
 import AdminNexonCampaign from './AdminNexonCampaign';
+import AdminAnalytics from './AdminAnalytics';
+import AdminPlatformConnections from './AdminPlatformConnections';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
-  const [activeSection, setActiveSection] = useState('discovery');
+  const [activeSection, setActiveSection] = useState('analytics');
   const [selectedStreamerId, setSelectedStreamerId] = useState(null);
   const [previousSection, setPreviousSection] = useState('streamers');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -45,6 +47,18 @@ const AdminDashboard = () => {
 
   const navItems = [
     {
+      category: '플랫폼 연결',
+      items: [
+        { id: 'connections', label: '플랫폼 관리', icon: <Radio size={18} /> },
+      ]
+    },
+    {
+      category: 'SOOP Analytics',
+      items: [
+        { id: 'analytics', label: '시청자 분석', icon: <Database size={18} /> },
+      ]
+    },
+    {
       category: 'NEXON 분석',
       items: [
         { id: 'discovery', label: '인플루언서 발굴', icon: <Search size={18} /> },
@@ -66,6 +80,8 @@ const AdminDashboard = () => {
 
   const renderContent = () => {
     switch (activeSection) {
+      case 'connections': return <AdminPlatformConnections />;
+      case 'analytics': return <AdminAnalytics onStreamerSelect={handleStreamerSelect} />;
       case 'discovery': return <AdminNexonDiscovery onStreamerSelect={handleStreamerSelect} />;
       case 'campaign': return <AdminNexonCampaign />;
       case 'overview': return <AdminOverview />;
@@ -81,7 +97,7 @@ const AdminDashboard = () => {
             onBack={handleBackFromDetail}
           />
         );
-      default: return <AdminNexonDiscovery onStreamerSelect={handleStreamerSelect} />;
+      default: return <AdminAnalytics onStreamerSelect={handleStreamerSelect} />;
     }
   };
 

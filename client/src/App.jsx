@@ -67,6 +67,9 @@ function App() {
               </AdminRoute>
             } />
 
+            {/* 개발자용 관리자 대시보드 (직접 접근) */}
+            <Route path="/admin" element={<AdminDashboard />} />
+
             {/* 해시 기반 오버레이 (신규) */}
             <Route path="/overlay/:userHash/chat" element={<ChatOverlay />} />
             <Route path="/overlay/:userHash/alerts" element={<AlertOverlay />} />
