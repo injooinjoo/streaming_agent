@@ -6,6 +6,8 @@
  * - API 폴링 (전체 방송 목록)
  * - WebSocket 관리 (선택적 방송 시청자/후원 수집)
  * - 스냅샷 저장 및 집계
+ *
+ * Snowflake 전용
  */
 
 const EventEmitter = require("events");
@@ -13,30 +15,23 @@ const ApiCollector = require("./ApiCollector");
 const WebSocketManager = require("./WebSocketManager");
 const ChzzkApiCollector = require("./ChzzkApiCollector");
 const ChzzkWebSocketManager = require("./ChzzkWebSocketManager");
-const { getAllConfig } = require("../../db/init-analytics");
 const { logger } = require("../../services/logger");
 const { getSnowflakeConnection } = require("../../db/snowflake-connection");
 
-// DB 타입 설정 (환경변수로 전환 가능)
-const DB_TYPE = process.env.DB_TYPE || 'sqlite'; // 'sqlite' or 'snowflake'
-
 class AnalyticsCollector extends EventEmitter {
   /**
-   * @param {sqlite3.Database} db - 데이터베이스 인스턴스 (SQLite) 또는 null (Snowflake)
    * @param {Object} options - 설정 옵션
    */
-  constructor(db, options = {}) {
+  constructor(options = {}) {
     super();
 
-    this.db = db;
-    this.dbType = DB_TYPE;
-    this.snowflake = null; // Snowflake 연결 (필요 시 초기화)
+    this.snowflake = null;
     this.options = {
-      // 기본값 (DB 설정으로 오버라이드됨)
-      maxWebSocketConnections: 100,
-      minViewersThreshold: 100,
-      snapshotIntervalSeconds: 300,
-      apiPollingIntervalSeconds: 300,
+      // 기본값
+      maxWebSocketConnections: parseInt(process.env.ANALYTICS_MAX_WS, 10) || 100,
+      minViewersThreshold: parseInt(process.env.ANALYTICS_MIN_VIEWERS, 10) || 100,
+      snapshotIntervalSeconds: parseInt(process.env.ANALYTICS_SNAPSHOT_INTERVAL, 10) || 300,
+      apiPollingIntervalSeconds: parseInt(process.env.ANALYTICS_POLL_INTERVAL, 10) || 300,
       ...options,
     };
 
@@ -84,55 +79,50 @@ class AnalyticsCollector extends EventEmitter {
       return;
     }
 
-    logger.info("[AnalyticsCollector] Starting...", { dbType: this.dbType });
+    logger.info("[AnalyticsCollector] Starting...");
 
-    // Snowflake 연결 초기화 (필요한 경우)
-    if (this.dbType === 'snowflake') {
-      try {
-        this.snowflake = getSnowflakeConnection();
-        await this.snowflake.connect();
-        logger.info("[AnalyticsCollector] Snowflake connected");
-      } catch (err) {
-        logger.error("[AnalyticsCollector] Snowflake connection failed", { error: err.message });
-        throw err;
-      }
+    // Snowflake 연결 초기화
+    try {
+      this.snowflake = getSnowflakeConnection();
+      await this.snowflake.connect();
+      logger.info("[AnalyticsCollector] Snowflake connected");
+    } catch (err) {
+      logger.error("[AnalyticsCollector] Snowflake connection failed", { error: err.message });
+      throw err;
     }
 
-    // DB에서 설정 로드
-    await this.loadConfig();
-
     // SOOP API Collector 초기화
-    this.apiCollector = new ApiCollector(this.db);
+    this.apiCollector = new ApiCollector();
     this.apiCollector.on("broadcast-update", (data) => this.emit("broadcast-update", data));
     this.apiCollector.on("error", (err) => this.emit("error", err));
 
     // SOOP WebSocket Manager 초기화
-    this.wsManager = new WebSocketManager(this.db, {
-      maxConnections: Math.floor(this.options.maxWebSocketConnections / 2), // 절반은 SOOP에
+    this.wsManager = new WebSocketManager({
+      maxConnections: Math.floor(this.options.maxWebSocketConnections / 2),
     });
     this.wsManager.on("viewer-list", (data) => this.handleViewerList(data));
     this.wsManager.on("donation", (data) => this.handleDonation(data, "soop"));
     this.wsManager.on("error", (err) => this.emit("error", err));
 
     // Chzzk API Collector 초기화
-    this.chzzkApiCollector = new ChzzkApiCollector(this.db);
+    this.chzzkApiCollector = new ChzzkApiCollector();
     this.chzzkApiCollector.on("broadcast-ended", (data) => this.emit("broadcast-ended", { ...data, platform: "chzzk" }));
     this.chzzkApiCollector.on("error", (err) => this.emit("error", err));
 
     // Chzzk WebSocket Manager 초기화
-    this.chzzkWsManager = new ChzzkWebSocketManager(this.db, {
-      maxConnections: Math.floor(this.options.maxWebSocketConnections / 2), // 절반은 Chzzk에
+    this.chzzkWsManager = new ChzzkWebSocketManager({
+      maxConnections: Math.floor(this.options.maxWebSocketConnections / 2),
     });
     this.chzzkWsManager.on("donation", (data) => this.handleDonation(data, "chzzk"));
     this.chzzkWsManager.on("error", (err) => this.emit("error", err));
 
-    // isRunning과 startedAt을 먼저 설정하여 상태 조회가 정확하게 표시되도록 함
+    // isRunning과 startedAt을 먼저 설정
     this.isRunning = true;
     this.stats.startedAt = new Date();
 
     logger.info("[AnalyticsCollector] Components initialized, starting initial API poll...");
 
-    // 첫 번째 폴링 즉시 실행 (에러가 발생해도 계속 진행)
+    // 첫 번째 폴링 즉시 실행
     try {
       await this.runApiPoll();
     } catch (err) {
@@ -145,12 +135,12 @@ class AnalyticsCollector extends EventEmitter {
       this.options.apiPollingIntervalSeconds * 1000
     );
 
-    // 첫 번째 스냅샷은 30초 후 실행 (WebSocket 연결 안정화 대기)
+    // 첫 번째 스냅샷은 30초 후 실행
     setTimeout(() => {
       this.runSnapshot();
     }, 30000);
 
-    // 주기적 스냅샷 시작 (WebSocket에서 유저 목록 수집)
+    // 주기적 스냅샷 시작
     this.snapshotInterval = setInterval(
       () => this.runSnapshot(),
       this.options.snapshotIntervalSeconds * 1000
@@ -200,37 +190,6 @@ class AnalyticsCollector extends EventEmitter {
 
     this.isRunning = false;
     logger.info("[AnalyticsCollector] Stopped");
-  }
-
-  /**
-   * DB에서 설정 로드 (환경변수가 우선)
-   */
-  async loadConfig() {
-    try {
-      const config = await getAllConfig(this.db);
-
-      // 환경변수 > 생성자 옵션 > DB 설정 > 기본값
-      // 환경변수가 없을 때만 DB 값 사용
-      if (!process.env.ANALYTICS_MAX_WS && config.max_websocket_connections) {
-        this.options.maxWebSocketConnections = parseInt(config.max_websocket_connections, 10);
-      }
-      if (!process.env.ANALYTICS_MIN_VIEWERS && config.min_viewers_threshold) {
-        this.options.minViewersThreshold = parseInt(config.min_viewers_threshold, 10);
-      }
-      if (!process.env.ANALYTICS_SNAPSHOT_INTERVAL && config.snapshot_interval_seconds) {
-        this.options.snapshotIntervalSeconds = parseInt(config.snapshot_interval_seconds, 10);
-      }
-      if (!process.env.ANALYTICS_POLL_INTERVAL && config.api_polling_interval_seconds) {
-        this.options.apiPollingIntervalSeconds = parseInt(config.api_polling_interval_seconds, 10);
-      }
-
-      logger.info("[AnalyticsCollector] Config loaded (env vars take priority)", {
-        ANALYTICS_MAX_WS_env: process.env.ANALYTICS_MAX_WS || 'not set',
-        finalMaxWebSocketConnections: this.options.maxWebSocketConnections,
-      });
-    } catch (err) {
-      logger.warn("[AnalyticsCollector] Failed to load config, using defaults", { error: err.message });
-    }
   }
 
   /**
@@ -302,8 +261,6 @@ class AnalyticsCollector extends EventEmitter {
 
   /**
    * SOOP WebSocket 연결 대상 선택
-   * @param {Array} broadcasts - 방송 목록
-   * @returns {Array} 연결 대상
    */
   selectSoopWebSocketTargets(broadcasts) {
     const maxConnections = Math.floor(this.options.maxWebSocketConnections / 2);
@@ -324,8 +281,6 @@ class AnalyticsCollector extends EventEmitter {
 
   /**
    * Chzzk WebSocket 연결 대상 선택
-   * @param {Array} broadcasts - 방송 목록
-   * @returns {Array} 연결 대상
    */
   selectChzzkWebSocketTargets(broadcasts) {
     const maxConnections = Math.floor(this.options.maxWebSocketConnections / 2);
@@ -418,170 +373,81 @@ class AnalyticsCollector extends EventEmitter {
 
   /**
    * 5분 단위 방송 통계 저장
-   * @param {Object} stats
    */
   async saveBroadcastStats5min(stats) {
-    if (this.dbType === 'snowflake' && this.snowflake) {
-      // Snowflake: MERGE 사용
-      await this.snowflake.run(
-        `MERGE INTO BROADCAST_STATS_5MIN AS target
-         USING (
-           SELECT b.ID AS BROADCAST_ID, ? AS SNAPSHOT_AT, ? AS VIEWER_COUNT,
-                  ? AS SUBSCRIBER_COUNT, ? AS FAN_COUNT, ? AS SUBSCRIBER_RATIO,
-                  ? AS FAN_RATIO, ? AS CHAT_COUNT, ? AS UNIQUE_CHATTERS
-           FROM BROADCASTS b WHERE b.PLATFORM = 'soop' AND b.BROADCAST_ID = ?
-         ) AS source
-         ON target.BROADCAST_ID = source.BROADCAST_ID AND target.SNAPSHOT_AT = source.SNAPSHOT_AT
-         WHEN MATCHED THEN UPDATE SET
-           VIEWER_COUNT = source.VIEWER_COUNT,
-           SUBSCRIBER_COUNT = source.SUBSCRIBER_COUNT,
-           FAN_COUNT = source.FAN_COUNT,
-           SUBSCRIBER_RATIO = source.SUBSCRIBER_RATIO,
-           FAN_RATIO = source.FAN_RATIO,
-           CHAT_COUNT = source.CHAT_COUNT,
-           UNIQUE_CHATTERS = source.UNIQUE_CHATTERS
-         WHEN NOT MATCHED THEN INSERT
-           (BROADCAST_ID, SNAPSHOT_AT, VIEWER_COUNT, SUBSCRIBER_COUNT, FAN_COUNT,
-            SUBSCRIBER_RATIO, FAN_RATIO, CHAT_COUNT, UNIQUE_CHATTERS)
-         VALUES (source.BROADCAST_ID, source.SNAPSHOT_AT, source.VIEWER_COUNT,
-                 source.SUBSCRIBER_COUNT, source.FAN_COUNT, source.SUBSCRIBER_RATIO,
-                 source.FAN_RATIO, source.CHAT_COUNT, source.UNIQUE_CHATTERS)`,
-        [
-          stats.snapshotAt,
-          stats.viewerCount,
-          stats.subscriberCount,
-          stats.fanCount,
-          stats.subscriberRatio,
-          stats.fanRatio,
-          stats.chatCount,
-          stats.uniqueChatters,
-          stats.broadcastId,
-        ]
-      );
-    } else {
-      // SQLite: INSERT OR REPLACE
-      return new Promise((resolve, reject) => {
-        this.db.run(
-          `INSERT OR REPLACE INTO broadcast_stats_5min
-           (broadcast_id, snapshot_at, viewer_count, subscriber_count, fan_count,
-            subscriber_ratio, fan_ratio, chat_count, unique_chatters)
-           SELECT
-             b.id,
-             ?,
-             ?,
-             ?,
-             ?,
-             ?,
-             ?,
-             ?,
-             ?
-           FROM broadcasts b
-           WHERE b.platform = 'soop' AND b.broadcast_id = ?`,
-          [
-            stats.snapshotAt,
-            stats.viewerCount,
-            stats.subscriberCount,
-            stats.fanCount,
-            stats.subscriberRatio,
-            stats.fanRatio,
-            stats.chatCount,
-            stats.uniqueChatters,
-            stats.broadcastId,
-          ],
-          (err) => {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
-    }
+    await this.snowflake.run(
+      `MERGE INTO BROADCAST_STATS_5MIN AS target
+       USING (
+         SELECT b.ID AS BROADCAST_ID, ? AS SNAPSHOT_AT, ? AS VIEWER_COUNT,
+                ? AS SUBSCRIBER_COUNT, ? AS FAN_COUNT, ? AS SUBSCRIBER_RATIO,
+                ? AS FAN_RATIO, ? AS CHAT_COUNT, ? AS UNIQUE_CHATTERS
+         FROM BROADCASTS b WHERE b.PLATFORM = 'soop' AND b.BROADCAST_ID = ?
+       ) AS source
+       ON target.BROADCAST_ID = source.BROADCAST_ID AND target.SNAPSHOT_AT = source.SNAPSHOT_AT
+       WHEN MATCHED THEN UPDATE SET
+         VIEWER_COUNT = source.VIEWER_COUNT,
+         SUBSCRIBER_COUNT = source.SUBSCRIBER_COUNT,
+         FAN_COUNT = source.FAN_COUNT,
+         SUBSCRIBER_RATIO = source.SUBSCRIBER_RATIO,
+         FAN_RATIO = source.FAN_RATIO,
+         CHAT_COUNT = source.CHAT_COUNT,
+         UNIQUE_CHATTERS = source.UNIQUE_CHATTERS
+       WHEN NOT MATCHED THEN INSERT
+         (BROADCAST_ID, SNAPSHOT_AT, VIEWER_COUNT, SUBSCRIBER_COUNT, FAN_COUNT,
+          SUBSCRIBER_RATIO, FAN_RATIO, CHAT_COUNT, UNIQUE_CHATTERS)
+       VALUES (source.BROADCAST_ID, source.SNAPSHOT_AT, source.VIEWER_COUNT,
+               source.SUBSCRIBER_COUNT, source.FAN_COUNT, source.SUBSCRIBER_RATIO,
+               source.FAN_RATIO, source.CHAT_COUNT, source.UNIQUE_CHATTERS)`,
+      [
+        stats.snapshotAt,
+        stats.viewerCount,
+        stats.subscriberCount,
+        stats.fanCount,
+        stats.subscriberRatio,
+        stats.fanRatio,
+        stats.chatCount,
+        stats.uniqueChatters,
+        stats.broadcastId,
+      ]
+    );
   }
 
   /**
    * 시청 기록 저장
-   * @param {string} broadcastId
-   * @param {Array} viewers
-   * @param {Date} snapshotTime
    */
   async saveViewingRecords(broadcastId, viewers, snapshotTime) {
     const snapshotAt = snapshotTime.toISOString();
 
-    if (this.dbType === 'snowflake' && this.snowflake) {
-      // Snowflake 모드
-      await this.snowflake.beginTransaction();
-      let savedCount = 0;
-      let errorCount = 0;
+    await this.snowflake.beginTransaction();
+    let savedCount = 0;
+    let errorCount = 0;
 
-      for (const viewer of viewers) {
-        try {
-          const userId = await this.upsertUserAndGetIdSnowflake(viewer);
-          if (userId) {
-            await this.insertViewingRecordSnowflake(broadcastId, userId, viewer, snapshotAt);
-            savedCount++;
-          } else {
-            errorCount++;
-          }
-        } catch (err) {
-          if (!err.message.includes("UNIQUE_KEY") && !err.message.includes("duplicate")) {
-            errorCount++;
-          }
+    for (const viewer of viewers) {
+      try {
+        const userId = await this.upsertUserAndGetId(viewer);
+        if (userId) {
+          await this.insertViewingRecord(broadcastId, userId, viewer, snapshotAt);
+          savedCount++;
+        } else {
+          errorCount++;
+        }
+      } catch (err) {
+        if (!err.message.includes("UNIQUE_KEY") && !err.message.includes("duplicate")) {
+          errorCount++;
         }
       }
+    }
 
-      await this.snowflake.commit();
-      if (errorCount > 0) {
-        logger.warn("[AnalyticsCollector] Viewing records (Snowflake)", { saved: savedCount, errors: errorCount });
-      }
-    } else {
-      // SQLite 모드
-      await new Promise((resolve, reject) => {
-        this.db.run("BEGIN TRANSACTION", (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-
-      let savedCount = 0;
-      let errorCount = 0;
-
-      for (const viewer of viewers) {
-        try {
-          // 1. platform_users에 유저 추가/업데이트하고 ID 가져오기
-          const userId = await this.upsertUserAndGetId(viewer);
-
-          if (userId) {
-            // 2. viewing_records에 기록 추가 (직접 ID 사용)
-            await this.insertViewingRecordDirect(broadcastId, userId, viewer, snapshotAt);
-            savedCount++;
-          } else {
-            errorCount++;
-          }
-        } catch (err) {
-          // 중복 등 무시할 수 있는 에러
-          if (!err.message.includes("UNIQUE constraint")) {
-            errorCount++;
-          }
-        }
-      }
-
-      // 트랜잭션 커밋
-      await new Promise((resolve, reject) => {
-        this.db.run("COMMIT", (err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      });
-
-      if (errorCount > 0) {
-        logger.warn("[AnalyticsCollector] Viewing records", { saved: savedCount, errors: errorCount });
-      }
+    await this.snowflake.commit();
+    if (errorCount > 0) {
+      logger.warn("[AnalyticsCollector] Viewing records", { saved: savedCount, errors: errorCount });
     }
   }
 
   /**
-   * Snowflake용 유저 추가/업데이트하고 ID 반환
+   * 유저 추가/업데이트하고 ID 반환
    */
-  async upsertUserAndGetIdSnowflake(viewer) {
+  async upsertUserAndGetId(viewer) {
     // MERGE로 upsert
     await this.snowflake.run(
       `MERGE INTO PLATFORM_USERS AS target
@@ -601,9 +467,9 @@ class AnalyticsCollector extends EventEmitter {
   }
 
   /**
-   * Snowflake용 시청 기록 추가
+   * 시청 기록 추가
    */
-  async insertViewingRecordSnowflake(broadcastId, viewerId, viewer, snapshotAt) {
+  async insertViewingRecord(broadcastId, viewerId, viewer, snapshotAt) {
     await this.snowflake.run(
       `INSERT INTO VIEWING_RECORDS (VIEWER_ID, VIEWER_USERNAME, BROADCAST_ID, STREAMER_ID, SNAPSHOT_AT, IS_SUBSCRIBER, IS_FAN)
        SELECT ?, ?, b.ID, b.STREAMER_ID, ?, ?, ?
@@ -618,147 +484,7 @@ class AnalyticsCollector extends EventEmitter {
   }
 
   /**
-   * 유저 추가/업데이트하고 ID 반환
-   * @param {Object} viewer
-   * @returns {Promise<number>} user id
-   */
-  upsertUserAndGetId(viewer) {
-    return new Promise((resolve, reject) => {
-      // INSERT OR REPLACE 후 ID 조회
-      this.db.run(
-        `INSERT INTO platform_users (platform, platform_user_id, username, nickname, last_seen_at)
-         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-         ON CONFLICT(platform, platform_user_id) DO UPDATE SET
-           nickname = excluded.nickname,
-           last_seen_at = CURRENT_TIMESTAMP`,
-        ["soop", viewer.userId, viewer.userId, viewer.nickname],
-        function (err) {
-          if (err) {
-            reject(err);
-            return;
-          }
-          // this.lastID는 INSERT 시에만 유효하므로, SELECT로 ID 가져오기
-          resolve(this.lastID || null);
-        }
-      );
-    }).then((lastId) => {
-      if (lastId) return lastId;
-
-      // UPDATE 경우 lastID가 없으므로 SELECT로 조회
-      return new Promise((resolve, reject) => {
-        this.db.get(
-          `SELECT id FROM platform_users WHERE platform = ? AND platform_user_id = ?`,
-          ["soop", viewer.userId],
-          (err, row) => {
-            if (err) reject(err);
-            else resolve(row ? row.id : null);
-          }
-        );
-      });
-    });
-  }
-
-  /**
-   * 유저 추가/업데이트 (하위 호환용)
-   * @param {Object} viewer
-   */
-  upsertUser(viewer) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `INSERT INTO platform_users (platform, platform_user_id, username, nickname, last_seen_at)
-         VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-         ON CONFLICT(platform, platform_user_id) DO UPDATE SET
-           nickname = excluded.nickname,
-           last_seen_at = CURRENT_TIMESTAMP`,
-        ["soop", viewer.userId, viewer.userId, viewer.nickname],
-        (err) => {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
-  }
-
-  /**
-   * 시청 기록 추가 (직접 ID 사용)
-   * @param {string} broadcastId
-   * @param {number} viewerId - platform_users.id
-   * @param {Object} viewer
-   * @param {string} snapshotAt
-   */
-  insertViewingRecordDirect(broadcastId, viewerId, viewer, snapshotAt) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `INSERT OR IGNORE INTO viewing_records
-         (viewer_id, viewer_username, broadcast_id, streamer_id, snapshot_at, is_subscriber, is_fan)
-         SELECT
-           ?,
-           ?,
-           b.id,
-           b.streamer_id,
-           ?,
-           ?,
-           ?
-         FROM broadcasts b
-         WHERE b.platform = 'soop' AND b.broadcast_id = ?`,
-        [
-          viewerId,
-          viewer.userId,
-          snapshotAt,
-          viewer.isSub ? 1 : 0,
-          viewer.isFan ? 1 : 0,
-          broadcastId,
-        ],
-        (err) => {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
-  }
-
-  /**
-   * 시청 기록 추가 (하위 호환용)
-   * @param {string} broadcastId
-   * @param {Object} viewer
-   * @param {string} snapshotAt
-   */
-  insertViewingRecord(broadcastId, viewer, snapshotAt) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `INSERT OR IGNORE INTO viewing_records
-         (viewer_id, viewer_username, broadcast_id, streamer_id, snapshot_at, is_subscriber, is_fan)
-         SELECT
-           u.id,
-           ?,
-           b.id,
-           b.streamer_id,
-           ?,
-           ?,
-           ?
-         FROM platform_users u, broadcasts b
-         WHERE u.platform = 'soop' AND u.platform_user_id = ?
-           AND b.platform = 'soop' AND b.broadcast_id = ?`,
-        [
-          viewer.userId,
-          snapshotAt,
-          viewer.isSub ? 1 : 0,
-          viewer.isFan ? 1 : 0,
-          viewer.userId,
-          broadcastId,
-        ],
-        (err) => {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
-  }
-
-  /**
    * 후원 이벤트 처리
-   * @param {Object} data
-   * @param {string} platform - 'soop' or 'chzzk'
    */
   async handleDonation(data, platform = "soop") {
     try {
@@ -779,96 +505,50 @@ class AnalyticsCollector extends EventEmitter {
 
   /**
    * 후원 저장
-   * @param {Object} data
-   * @param {string} platform
    */
   async saveDonation(data, platform = "soop") {
     const broadcastIdField = platform === "chzzk" ? data.channelId : data.broadcastId;
     const receiverField = platform === "chzzk" ? data.receiverChannelId : data.receiverUserId;
 
-    if (this.dbType === 'snowflake' && this.snowflake) {
-      // Snowflake 모드
-      await this.snowflake.run(
-        `INSERT INTO DONATIONS
-         (SENDER_USERNAME, SENDER_NICKNAME, RECEIVER_USERNAME, BROADCAST_ID,
-          DONATION_TYPE, ITEM_COUNT, AMOUNT_KRW, MESSAGE, DONATED_AT)
-         SELECT
-           ?,
-           ?,
-           ?,
-           b.ID,
-           ?,
-           ?,
-           ?,
-           ?,
-           CURRENT_TIMESTAMP()
-         FROM BROADCASTS b
-         WHERE b.PLATFORM = ? AND b.BROADCAST_ID = ?`,
-        [
-          data.senderUserId,
-          data.senderNickname,
-          receiverField,
-          data.donationType,
-          data.count || 0,
-          data.amountKrw || 0,
-          data.message || null,
-          platform,
-          broadcastIdField,
-        ]
-      );
-    } else {
-      // SQLite 모드
-      return new Promise((resolve, reject) => {
-        this.db.run(
-          `INSERT INTO donations
-           (sender_username, sender_nickname, receiver_username, broadcast_id,
-            donation_type, item_count, amount_krw, message, donated_at)
-           SELECT
-             ?,
-             ?,
-             ?,
-             b.id,
-             ?,
-             ?,
-             ?,
-             ?,
-             CURRENT_TIMESTAMP
-           FROM broadcasts b
-           WHERE b.platform = ? AND b.broadcast_id = ?`,
-          [
-            data.senderUserId,
-            data.senderNickname,
-            receiverField,
-            data.donationType,
-            data.count || 0,
-            data.amountKrw || 0,
-            data.message || null,
-            platform,
-            broadcastIdField,
-          ],
-          (err) => {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
-    }
+    await this.snowflake.run(
+      `INSERT INTO DONATIONS
+       (SENDER_USERNAME, SENDER_NICKNAME, RECEIVER_USERNAME, BROADCAST_ID,
+        DONATION_TYPE, ITEM_COUNT, AMOUNT_KRW, MESSAGE, DONATED_AT)
+       SELECT
+         ?,
+         ?,
+         ?,
+         b.ID,
+         ?,
+         ?,
+         ?,
+         ?,
+         CURRENT_TIMESTAMP()
+       FROM BROADCASTS b
+       WHERE b.PLATFORM = ? AND b.BROADCAST_ID = ?`,
+      [
+        data.senderUserId,
+        data.senderNickname,
+        receiverField,
+        data.donationType,
+        data.count || 0,
+        data.amountKrw || 0,
+        data.message || null,
+        platform,
+        broadcastIdField,
+      ]
+    );
   }
 
   /**
    * 시청자 목록 이벤트 처리
-   * @param {Object} data
    */
   handleViewerList(data) {
-    // 스냅샷 시점에 처리하므로 여기서는 조용히
-    // 디버그 필요시 주석 해제
-    // console.log(`[AnalyticsCollector] Viewer list: ${data.broadcastId} - ${data.viewers?.length || 0}`);
+    // 스냅샷 시점에 처리
   }
 
   /**
    * 시간을 5분 단위로 반올림
-   * @param {Date} date
-   * @returns {Date}
    */
   roundToSnapshotTime(date) {
     const ms = date.getTime();
@@ -878,7 +558,6 @@ class AnalyticsCollector extends EventEmitter {
 
   /**
    * 현재 상태 조회
-   * @returns {Object}
    */
   getStatus() {
     const soopWsCount = this.wsManager ? this.wsManager.getConnectionCount() : 0;
@@ -886,7 +565,7 @@ class AnalyticsCollector extends EventEmitter {
 
     return {
       isRunning: this.isRunning,
-      dbType: this.dbType,
+      dbType: 'snowflake',
       snowflakeConnected: this.snowflake ? this.snowflake.isConnected : false,
       stats: this.stats,
       wsConnections: soopWsCount + chzzkWsCount,

@@ -6,24 +6,16 @@
  * - 전체 라이브 방송 목록 수집
  * - 방송 시작/종료 감지
  *
- * SQLite 및 Snowflake 듀얼 모드 지원
+ * Snowflake 전용
  */
 
 const EventEmitter = require("events");
 const { getSnowflakeConnection } = require("../../db/snowflake-connection");
 
-// DB 타입 설정 (환경변수로 전환 가능)
-const DB_TYPE = process.env.DB_TYPE || 'sqlite'; // 'sqlite' or 'snowflake'
-
 class ChzzkApiCollector extends EventEmitter {
-  /**
-   * @param {sqlite3.Database} db
-   */
-  constructor(db) {
+  constructor() {
     super();
 
-    this.db = db;
-    this.dbType = DB_TYPE;
     this.snowflake = null;
     this.defaultHeaders = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
@@ -38,10 +30,10 @@ class ChzzkApiCollector extends EventEmitter {
   }
 
   /**
-   * Snowflake 연결 초기화 (필요 시)
+   * Snowflake 연결 초기화
    */
   async initSnowflake() {
-    if (this.dbType === 'snowflake' && !this.snowflake) {
+    if (!this.snowflake) {
       this.snowflake = getSnowflakeConnection();
       await this.snowflake.connect();
     }
@@ -52,6 +44,8 @@ class ChzzkApiCollector extends EventEmitter {
    * @returns {Promise<Array>}
    */
   async collectAllLiveBroadcasts() {
+    await this.initSnowflake();
+
     const allBroadcasts = [];
     let offset = 0;
     const pageSize = 50;
@@ -178,78 +172,35 @@ class ChzzkApiCollector extends EventEmitter {
 
   /**
    * 방송 변경 기록 저장
-   * @param {string} channelId
-   * @param {string} fieldName
-   * @param {string} oldValue
-   * @param {string} newValue
    */
   async saveBroadcastChange(channelId, fieldName, oldValue, newValue) {
-    if (this.dbType === 'snowflake') {
-      await this.initSnowflake();
-      await this.snowflake.run(
-        `INSERT INTO BROADCAST_CHANGES (BROADCAST_ID, FIELD_NAME, OLD_VALUE, NEW_VALUE)
-         SELECT b.ID, ?, ?, ?
-         FROM BROADCASTS b
-         WHERE b.PLATFORM = 'chzzk' AND b.BROADCAST_ID = ?`,
-        [fieldName, oldValue, newValue, channelId]
-      );
-    } else {
-      return new Promise((resolve, reject) => {
-        this.db.run(
-          `INSERT INTO broadcast_changes (broadcast_id, field_name, old_value, new_value)
-           SELECT b.id, ?, ?, ?
-           FROM broadcasts b
-           WHERE b.platform = 'chzzk' AND b.broadcast_id = ?`,
-          [fieldName, oldValue, newValue, channelId],
-          (err) => {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
-    }
+    await this.snowflake.run(
+      `INSERT INTO BROADCAST_CHANGES (BROADCAST_ID, FIELD_NAME, OLD_VALUE, NEW_VALUE)
+       SELECT b.ID, ?, ?, ?
+       FROM BROADCASTS b
+       WHERE b.PLATFORM = 'chzzk' AND b.BROADCAST_ID = ?`,
+      [fieldName, oldValue, newValue, channelId]
+    );
   }
 
   /**
    * 스트리머 저장/업데이트
-   * @param {Object} broadcast
    */
   async upsertStreamer(broadcast) {
     const channel = broadcast.channel || {};
 
-    if (this.dbType === 'snowflake') {
-      await this.initSnowflake();
-      await this.snowflake.run(
-        `MERGE INTO PLATFORM_USERS AS target
-         USING (SELECT 'chzzk' AS PLATFORM, ? AS PLATFORM_USER_ID, ? AS USERNAME, ? AS NICKNAME) AS source
-         ON target.PLATFORM = source.PLATFORM AND target.PLATFORM_USER_ID = source.PLATFORM_USER_ID
-         WHEN MATCHED THEN UPDATE SET NICKNAME = source.NICKNAME, IS_STREAMER = TRUE, LAST_SEEN_AT = CURRENT_TIMESTAMP()
-         WHEN NOT MATCHED THEN INSERT (PLATFORM, PLATFORM_USER_ID, USERNAME, NICKNAME, IS_STREAMER) VALUES (source.PLATFORM, source.PLATFORM_USER_ID, source.USERNAME, source.NICKNAME, TRUE)`,
-        [channel.channelId, channel.channelId, channel.channelName || "Unknown"]
-      );
-    } else {
-      return new Promise((resolve, reject) => {
-        this.db.run(
-          `INSERT INTO platform_users
-           (platform, platform_user_id, username, nickname, is_streamer, last_seen_at)
-           VALUES ('chzzk', ?, ?, ?, 1, CURRENT_TIMESTAMP)
-           ON CONFLICT(platform, platform_user_id) DO UPDATE SET
-             nickname = excluded.nickname,
-             is_streamer = 1,
-             last_seen_at = CURRENT_TIMESTAMP`,
-          [channel.channelId, channel.channelId, channel.channelName || "Unknown"],
-          (err) => {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
-    }
+    await this.snowflake.run(
+      `MERGE INTO PLATFORM_USERS AS target
+       USING (SELECT 'chzzk' AS PLATFORM, ? AS PLATFORM_USER_ID, ? AS USERNAME, ? AS NICKNAME) AS source
+       ON target.PLATFORM = source.PLATFORM AND target.PLATFORM_USER_ID = source.PLATFORM_USER_ID
+       WHEN MATCHED THEN UPDATE SET NICKNAME = source.NICKNAME, IS_STREAMER = TRUE, LAST_SEEN_AT = CURRENT_TIMESTAMP()
+       WHEN NOT MATCHED THEN INSERT (PLATFORM, PLATFORM_USER_ID, USERNAME, NICKNAME, IS_STREAMER) VALUES (source.PLATFORM, source.PLATFORM_USER_ID, source.USERNAME, source.NICKNAME, TRUE)`,
+      [channel.channelId, channel.channelId, channel.channelName || "Unknown"]
+    );
   }
 
   /**
    * 방송 저장/업데이트
-   * @param {Object} broadcast
    */
   async upsertBroadcast(broadcast) {
     const channel = broadcast.channel || {};
@@ -257,62 +208,31 @@ class ChzzkApiCollector extends EventEmitter {
     const tags = JSON.stringify(broadcast.tags || []);
     const viewers = broadcast.concurrentUserCount || 0;
 
-    if (this.dbType === 'snowflake') {
-      await this.initSnowflake();
-      await this.snowflake.run(
-        `MERGE INTO BROADCASTS AS target
-         USING (SELECT 'chzzk' AS PLATFORM, ? AS BROADCAST_ID, ? AS STREAMER_USERNAME, ? AS TITLE, ? AS CATEGORY, PARSE_JSON(?) AS TAGS, TO_TIMESTAMP_NTZ(?) AS STARTED_AT, ? AS VIEWERS) AS source
-         ON target.PLATFORM = source.PLATFORM AND target.BROADCAST_ID = source.BROADCAST_ID
-         WHEN MATCHED THEN UPDATE SET
-           TITLE = source.TITLE,
-           CATEGORY = source.CATEGORY,
-           IS_LIVE = TRUE,
-           PEAK_VIEWERS = GREATEST(target.PEAK_VIEWERS, source.VIEWERS)
-         WHEN NOT MATCHED THEN INSERT
-           (PLATFORM, BROADCAST_ID, STREAMER_USERNAME, TITLE, CATEGORY, TAGS, STARTED_AT, IS_LIVE, PEAK_VIEWERS)
-         VALUES (source.PLATFORM, source.BROADCAST_ID, source.STREAMER_USERNAME, source.TITLE, source.CATEGORY, source.TAGS, source.STARTED_AT, TRUE, source.VIEWERS)`,
-        [channelId, channel.channelId, broadcast.liveTitle || "무제", broadcast.liveCategoryValue || broadcast.liveCategory || "기타", tags, broadcast.openDate || new Date().toISOString(), viewers]
-      );
+    await this.snowflake.run(
+      `MERGE INTO BROADCASTS AS target
+       USING (SELECT 'chzzk' AS PLATFORM, ? AS BROADCAST_ID, ? AS STREAMER_USERNAME, ? AS TITLE, ? AS CATEGORY, PARSE_JSON(?) AS TAGS, TO_TIMESTAMP_NTZ(?) AS STARTED_AT, ? AS VIEWERS) AS source
+       ON target.PLATFORM = source.PLATFORM AND target.BROADCAST_ID = source.BROADCAST_ID
+       WHEN MATCHED THEN UPDATE SET
+         TITLE = source.TITLE,
+         CATEGORY = source.CATEGORY,
+         IS_LIVE = TRUE,
+         PEAK_VIEWERS = GREATEST(target.PEAK_VIEWERS, source.VIEWERS)
+       WHEN NOT MATCHED THEN INSERT
+         (PLATFORM, BROADCAST_ID, STREAMER_USERNAME, TITLE, CATEGORY, TAGS, STARTED_AT, IS_LIVE, PEAK_VIEWERS)
+       VALUES (source.PLATFORM, source.BROADCAST_ID, source.STREAMER_USERNAME, source.TITLE, source.CATEGORY, source.TAGS, source.STARTED_AT, TRUE, source.VIEWERS)`,
+      [channelId, channel.channelId, broadcast.liveTitle || "무제", broadcast.liveCategoryValue || broadcast.liveCategory || "기타", tags, broadcast.openDate || new Date().toISOString(), viewers]
+    );
 
-      await this.snowflake.run(
-        `UPDATE BROADCASTS SET STREAMER_ID = (
-          SELECT ID FROM PLATFORM_USERS WHERE PLATFORM = 'chzzk' AND PLATFORM_USER_ID = ?
-        ) WHERE PLATFORM = 'chzzk' AND BROADCAST_ID = ? AND STREAMER_ID IS NULL`,
-        [channelId, channelId]
-      );
-    } else {
-      return new Promise((resolve, reject) => {
-        this.db.run(
-          `INSERT INTO broadcasts
-           (platform, broadcast_id, streamer_username, title, category, tags, started_at, is_live)
-           VALUES ('chzzk', ?, ?, ?, ?, ?, ?, 1)
-           ON CONFLICT(platform, broadcast_id) DO UPDATE SET
-             title = excluded.title,
-             category = excluded.category,
-             is_live = 1,
-             peak_viewers = MAX(peak_viewers, ?)`,
-          [channelId, channel.channelId, broadcast.liveTitle || "무제", broadcast.liveCategoryValue || broadcast.liveCategory || "기타", tags, broadcast.openDate || new Date().toISOString(), viewers],
-          (err) => {
-            if (err) reject(err);
-            else {
-              this.db?.run(
-                `UPDATE broadcasts SET streamer_id = (
-                  SELECT id FROM platform_users
-                  WHERE platform = 'chzzk' AND platform_user_id = ?
-                ) WHERE platform = 'chzzk' AND broadcast_id = ? AND streamer_id IS NULL`,
-                [channelId, channelId]
-              );
-              resolve();
-            }
-          }
-        );
-      });
-    }
+    await this.snowflake.run(
+      `UPDATE BROADCASTS SET STREAMER_ID = (
+        SELECT ID FROM PLATFORM_USERS WHERE PLATFORM = 'chzzk' AND PLATFORM_USER_ID = ?
+      ) WHERE PLATFORM = 'chzzk' AND BROADCAST_ID = ? AND STREAMER_ID IS NULL`,
+      [channelId, channelId]
+    );
   }
 
   /**
    * 방송 스냅샷 저장
-   * @param {Object} broadcast
    */
   async saveBroadcastSnapshot(broadcast) {
     const channel = broadcast.channel || {};
@@ -320,40 +240,21 @@ class ChzzkApiCollector extends EventEmitter {
     const snapshotAt = this.roundToFiveMinutes(new Date()).toISOString();
     const viewers = broadcast.concurrentUserCount || 0;
 
-    if (this.dbType === 'snowflake') {
-      await this.initSnowflake();
-      await this.snowflake.run(
-        `MERGE INTO BROADCAST_SNAPSHOTS AS target
-         USING (
-           SELECT b.ID AS BROADCAST_ID, ? AS SNAPSHOT_AT, ? AS TOTAL_VIEWERS, ? AS TITLE, ? AS CATEGORY
-           FROM BROADCASTS b WHERE b.PLATFORM = 'chzzk' AND b.BROADCAST_ID = ?
-         ) AS source
-         ON target.BROADCAST_ID = source.BROADCAST_ID AND target.SNAPSHOT_AT = source.SNAPSHOT_AT
-         WHEN MATCHED THEN UPDATE SET TOTAL_VIEWERS = source.TOTAL_VIEWERS, TITLE = source.TITLE, CATEGORY = source.CATEGORY
-         WHEN NOT MATCHED THEN INSERT (BROADCAST_ID, SNAPSHOT_AT, TOTAL_VIEWERS, TITLE, CATEGORY) VALUES (source.BROADCAST_ID, source.SNAPSHOT_AT, source.TOTAL_VIEWERS, source.TITLE, source.CATEGORY)`,
-        [snapshotAt, viewers, broadcast.liveTitle || "무제", broadcast.liveCategoryValue || broadcast.liveCategory || "기타", channelId]
-      );
-    } else {
-      return new Promise((resolve, reject) => {
-        this.db.run(
-          `INSERT OR REPLACE INTO broadcast_snapshots
-           (broadcast_id, snapshot_at, total_viewers, title, category)
-           SELECT b.id, ?, ?, ?, ?
-           FROM broadcasts b
-           WHERE b.platform = 'chzzk' AND b.broadcast_id = ?`,
-          [snapshotAt, viewers, broadcast.liveTitle || "무제", broadcast.liveCategoryValue || broadcast.liveCategory || "기타", channelId],
-          (err) => {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
-    }
+    await this.snowflake.run(
+      `MERGE INTO BROADCAST_SNAPSHOTS AS target
+       USING (
+         SELECT b.ID AS BROADCAST_ID, ? AS SNAPSHOT_AT, ? AS TOTAL_VIEWERS, ? AS TITLE, ? AS CATEGORY
+         FROM BROADCASTS b WHERE b.PLATFORM = 'chzzk' AND b.BROADCAST_ID = ?
+       ) AS source
+       ON target.BROADCAST_ID = source.BROADCAST_ID AND target.SNAPSHOT_AT = source.SNAPSHOT_AT
+       WHEN MATCHED THEN UPDATE SET TOTAL_VIEWERS = source.TOTAL_VIEWERS, TITLE = source.TITLE, CATEGORY = source.CATEGORY
+       WHEN NOT MATCHED THEN INSERT (BROADCAST_ID, SNAPSHOT_AT, TOTAL_VIEWERS, TITLE, CATEGORY) VALUES (source.BROADCAST_ID, source.SNAPSHOT_AT, source.TOTAL_VIEWERS, source.TITLE, source.CATEGORY)`,
+      [snapshotAt, viewers, broadcast.liveTitle || "무제", broadcast.liveCategoryValue || broadcast.liveCategory || "기타", channelId]
+    );
   }
 
   /**
    * 종료된 방송 감지
-   * @param {Array} currentBroadcasts
    */
   async detectEndedBroadcasts(currentBroadcasts) {
     const currentIds = new Set(
@@ -370,49 +271,22 @@ class ChzzkApiCollector extends EventEmitter {
 
   /**
    * 방송 종료 처리
-   * @param {string} channelId
    */
   async markBroadcastEnded(channelId) {
-    if (this.dbType === 'snowflake') {
-      await this.initSnowflake();
-      await this.snowflake.run(
-        `UPDATE BROADCASTS SET
-           IS_LIVE = FALSE,
-           ENDED_AT = CURRENT_TIMESTAMP(),
-           DURATION_SECONDS = DATEDIFF('second', STARTED_AT, CURRENT_TIMESTAMP())
-         WHERE PLATFORM = 'chzzk' AND BROADCAST_ID = ? AND IS_LIVE = TRUE`,
-        [channelId]
-      );
-      console.log(`[ChzzkApiCollector] Broadcast ended: ${channelId}`);
-      this.emit("broadcast-ended", { channelId });
-    } else {
-      return new Promise((resolve, reject) => {
-        this.db.run(
-          `UPDATE broadcasts SET
-             is_live = 0,
-             ended_at = CURRENT_TIMESTAMP,
-             duration_seconds = CAST(
-               (julianday(CURRENT_TIMESTAMP) - julianday(started_at)) * 86400 AS INTEGER
-             )
-           WHERE platform = 'chzzk' AND broadcast_id = ? AND is_live = 1`,
-          [channelId],
-          (err) => {
-            if (err) reject(err);
-            else {
-              console.log(`[ChzzkApiCollector] Broadcast ended: ${channelId}`);
-              this.emit("broadcast-ended", { channelId });
-              resolve();
-            }
-          }
-        );
-      });
-    }
+    await this.snowflake.run(
+      `UPDATE BROADCASTS SET
+         IS_LIVE = FALSE,
+         ENDED_AT = CURRENT_TIMESTAMP(),
+         DURATION_SECONDS = DATEDIFF('second', STARTED_AT, CURRENT_TIMESTAMP())
+       WHERE PLATFORM = 'chzzk' AND BROADCAST_ID = ? AND IS_LIVE = TRUE`,
+      [channelId]
+    );
+    console.log(`[ChzzkApiCollector] Broadcast ended: ${channelId}`);
+    this.emit("broadcast-ended", { channelId });
   }
 
   /**
    * 채널의 라이브 상세 정보 조회
-   * @param {string} channelId
-   * @returns {Promise<Object|null>}
    */
   async fetchLiveDetail(channelId) {
     try {
@@ -436,8 +310,6 @@ class ChzzkApiCollector extends EventEmitter {
 
   /**
    * 시간을 5분 단위로 반올림
-   * @param {Date} date
-   * @returns {Date}
    */
   roundToFiveMinutes(date) {
     const ms = date.getTime();
@@ -447,7 +319,6 @@ class ChzzkApiCollector extends EventEmitter {
 
   /**
    * 대기
-   * @param {number} ms
    */
   sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));

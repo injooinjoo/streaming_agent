@@ -6,25 +6,17 @@
  * - 전체 라이브 방송 목록 수집
  * - 방송 시작/종료 감지
  *
- * SQLite 및 Snowflake 듀얼 모드 지원
+ * Snowflake 전용
  */
 
 const EventEmitter = require("events");
 const { getSnowflakeConnection } = require("../../db/snowflake-connection");
 
-// DB 타입 설정 (환경변수로 전환 가능)
-const DB_TYPE = process.env.DB_TYPE || 'sqlite'; // 'sqlite' or 'snowflake'
-
 class ApiCollector extends EventEmitter {
-  /**
-   * @param {sqlite3.Database} db
-   */
-  constructor(db) {
+  constructor() {
     super();
 
-    this.db = db;
-    this.dbType = DB_TYPE;
-    this.snowflake = null; // Snowflake 연결 (필요 시 초기화)
+    this.snowflake = null;
     this.defaultHeaders = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
       "Content-Type": "application/x-www-form-urlencoded",
@@ -39,10 +31,10 @@ class ApiCollector extends EventEmitter {
   }
 
   /**
-   * Snowflake 연결 초기화 (필요 시)
+   * Snowflake 연결 초기화
    */
   async initSnowflake() {
-    if (this.dbType === 'snowflake' && !this.snowflake) {
+    if (!this.snowflake) {
       this.snowflake = getSnowflakeConnection();
       await this.snowflake.connect();
     }
@@ -53,6 +45,8 @@ class ApiCollector extends EventEmitter {
    * @returns {Promise<Array>}
    */
   async collectAllLiveBroadcasts() {
+    await this.initSnowflake();
+
     const allBroadcasts = [];
     let page = 1;
     const maxPages = 20; // 안전 장치
@@ -87,8 +81,6 @@ class ApiCollector extends EventEmitter {
 
   /**
    * 방송 목록 페이지 조회
-   * @param {number} page
-   * @returns {Promise<Array>}
    */
   async fetchBroadcastPage(page) {
     const response = await fetch(
@@ -110,10 +102,8 @@ class ApiCollector extends EventEmitter {
 
   /**
    * 수집된 방송 처리 (DB 저장)
-   * @param {Array} broadcasts
    */
   async processBroadcasts(broadcasts) {
-    const now = new Date();
     const newLiveBroadcasts = new Map();
 
     for (const broadcast of broadcasts) {
@@ -144,8 +134,6 @@ class ApiCollector extends EventEmitter {
 
   /**
    * 방송 메타데이터 변경 감지
-   * @param {string} broadcastId
-   * @param {Object} broadcast
    */
   async detectBroadcastChanges(broadcastId, broadcast) {
     const currentMeta = {
@@ -181,142 +169,65 @@ class ApiCollector extends EventEmitter {
 
   /**
    * 방송 변경 기록 저장
-   * @param {string} broadcastId
-   * @param {string} fieldName
-   * @param {string} oldValue
-   * @param {string} newValue
    */
   async saveBroadcastChange(broadcastId, fieldName, oldValue, newValue) {
-    if (this.dbType === 'snowflake') {
-      await this.initSnowflake();
-      await this.snowflake.run(
-        `INSERT INTO BROADCAST_CHANGES (BROADCAST_ID, FIELD_NAME, OLD_VALUE, NEW_VALUE)
-         SELECT b.ID, ?, ?, ?
-         FROM BROADCASTS b
-         WHERE b.PLATFORM = 'soop' AND b.BROADCAST_ID = ?`,
-        [fieldName, oldValue, newValue, broadcastId]
-      );
-    } else {
-      return new Promise((resolve, reject) => {
-        this.db.run(
-          `INSERT INTO broadcast_changes (broadcast_id, field_name, old_value, new_value)
-           SELECT b.id, ?, ?, ?
-           FROM broadcasts b
-           WHERE b.platform = 'soop' AND b.broadcast_id = ?`,
-          [fieldName, oldValue, newValue, broadcastId],
-          (err) => {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
-    }
+    await this.snowflake.run(
+      `INSERT INTO BROADCAST_CHANGES (BROADCAST_ID, FIELD_NAME, OLD_VALUE, NEW_VALUE)
+       SELECT b.ID, ?, ?, ?
+       FROM BROADCASTS b
+       WHERE b.PLATFORM = 'soop' AND b.BROADCAST_ID = ?`,
+      [fieldName, oldValue, newValue, broadcastId]
+    );
   }
 
   /**
    * 스트리머 저장/업데이트
-   * @param {Object} broadcast
    */
   async upsertStreamer(broadcast) {
-    if (this.dbType === 'snowflake') {
-      await this.initSnowflake();
-      await this.snowflake.run(
-        `MERGE INTO PLATFORM_USERS AS target
-         USING (SELECT 'soop' AS PLATFORM, ? AS PLATFORM_USER_ID, ? AS USERNAME, ? AS NICKNAME) AS source
-         ON target.PLATFORM = source.PLATFORM AND target.PLATFORM_USER_ID = source.PLATFORM_USER_ID
-         WHEN MATCHED THEN UPDATE SET NICKNAME = source.NICKNAME, IS_STREAMER = TRUE, LAST_SEEN_AT = CURRENT_TIMESTAMP()
-         WHEN NOT MATCHED THEN INSERT (PLATFORM, PLATFORM_USER_ID, USERNAME, NICKNAME, IS_STREAMER) VALUES (source.PLATFORM, source.PLATFORM_USER_ID, source.USERNAME, source.NICKNAME, TRUE)`,
-        [broadcast.user_id, broadcast.user_id, broadcast.user_nick]
-      );
-    } else {
-      return new Promise((resolve, reject) => {
-        this.db.run(
-          `INSERT INTO platform_users
-           (platform, platform_user_id, username, nickname, is_streamer, last_seen_at)
-           VALUES ('soop', ?, ?, ?, 1, CURRENT_TIMESTAMP)
-           ON CONFLICT(platform, platform_user_id) DO UPDATE SET
-             nickname = excluded.nickname,
-             is_streamer = 1,
-             last_seen_at = CURRENT_TIMESTAMP`,
-          [broadcast.user_id, broadcast.user_id, broadcast.user_nick],
-          (err) => {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
-    }
+    await this.snowflake.run(
+      `MERGE INTO PLATFORM_USERS AS target
+       USING (SELECT 'soop' AS PLATFORM, ? AS PLATFORM_USER_ID, ? AS USERNAME, ? AS NICKNAME) AS source
+       ON target.PLATFORM = source.PLATFORM AND target.PLATFORM_USER_ID = source.PLATFORM_USER_ID
+       WHEN MATCHED THEN UPDATE SET NICKNAME = source.NICKNAME, IS_STREAMER = TRUE, LAST_SEEN_AT = CURRENT_TIMESTAMP()
+       WHEN NOT MATCHED THEN INSERT (PLATFORM, PLATFORM_USER_ID, USERNAME, NICKNAME, IS_STREAMER) VALUES (source.PLATFORM, source.PLATFORM_USER_ID, source.USERNAME, source.NICKNAME, TRUE)`,
+      [broadcast.user_id, broadcast.user_id, broadcast.user_nick]
+    );
   }
 
   /**
    * 방송 저장/업데이트
-   * @param {Object} broadcast
    */
   async upsertBroadcast(broadcast) {
     const broadcastId = broadcast.broad_no || broadcast.bno;
     const tags = JSON.stringify(broadcast.hash_tags || []);
     const viewers = parseInt(broadcast.total_view_cnt, 10) || 0;
 
-    if (this.dbType === 'snowflake') {
-      await this.initSnowflake();
-      // Snowflake MERGE
-      await this.snowflake.run(
-        `MERGE INTO BROADCASTS AS target
-         USING (SELECT 'soop' AS PLATFORM, ? AS BROADCAST_ID, ? AS STREAMER_USERNAME, ? AS TITLE, ? AS CATEGORY, ? AS SUB_CATEGORY, PARSE_JSON(?) AS TAGS, TO_TIMESTAMP_NTZ(?) AS STARTED_AT, ? AS VIEWERS) AS source
-         ON target.PLATFORM = source.PLATFORM AND target.BROADCAST_ID = source.BROADCAST_ID
-         WHEN MATCHED THEN UPDATE SET
-           TITLE = source.TITLE,
-           CATEGORY = source.CATEGORY,
-           IS_LIVE = TRUE,
-           PEAK_VIEWERS = GREATEST(target.PEAK_VIEWERS, source.VIEWERS)
-         WHEN NOT MATCHED THEN INSERT
-           (PLATFORM, BROADCAST_ID, STREAMER_USERNAME, TITLE, CATEGORY, SUB_CATEGORY, TAGS, STARTED_AT, IS_LIVE, PEAK_VIEWERS)
-         VALUES (source.PLATFORM, source.BROADCAST_ID, source.STREAMER_USERNAME, source.TITLE, source.CATEGORY, source.SUB_CATEGORY, source.TAGS, source.STARTED_AT, TRUE, source.VIEWERS)`,
-        [broadcastId, broadcast.user_id, broadcast.broad_title, broadcast.category_name, broadcast.sub_category || null, tags, broadcast.broad_start, viewers]
-      );
+    await this.snowflake.run(
+      `MERGE INTO BROADCASTS AS target
+       USING (SELECT 'soop' AS PLATFORM, ? AS BROADCAST_ID, ? AS STREAMER_USERNAME, ? AS TITLE, ? AS CATEGORY, ? AS SUB_CATEGORY, PARSE_JSON(?) AS TAGS, TO_TIMESTAMP_NTZ(?) AS STARTED_AT, ? AS VIEWERS) AS source
+       ON target.PLATFORM = source.PLATFORM AND target.BROADCAST_ID = source.BROADCAST_ID
+       WHEN MATCHED THEN UPDATE SET
+         TITLE = source.TITLE,
+         CATEGORY = source.CATEGORY,
+         IS_LIVE = TRUE,
+         PEAK_VIEWERS = GREATEST(target.PEAK_VIEWERS, source.VIEWERS)
+       WHEN NOT MATCHED THEN INSERT
+         (PLATFORM, BROADCAST_ID, STREAMER_USERNAME, TITLE, CATEGORY, SUB_CATEGORY, TAGS, STARTED_AT, IS_LIVE, PEAK_VIEWERS)
+       VALUES (source.PLATFORM, source.BROADCAST_ID, source.STREAMER_USERNAME, source.TITLE, source.CATEGORY, source.SUB_CATEGORY, source.TAGS, source.STARTED_AT, TRUE, source.VIEWERS)`,
+      [broadcastId, broadcast.user_id, broadcast.broad_title, broadcast.category_name, broadcast.sub_category || null, tags, broadcast.broad_start, viewers]
+    );
 
-      // streamer_id 업데이트
-      await this.snowflake.run(
-        `UPDATE BROADCASTS SET STREAMER_ID = (
-          SELECT ID FROM PLATFORM_USERS WHERE PLATFORM = 'soop' AND PLATFORM_USER_ID = ?
-        ) WHERE PLATFORM = 'soop' AND BROADCAST_ID = ? AND STREAMER_ID IS NULL`,
-        [broadcast.user_id, broadcastId]
-      );
-    } else {
-      // SQLite
-      return new Promise((resolve, reject) => {
-        this.db.run(
-          `INSERT INTO broadcasts
-           (platform, broadcast_id, streamer_username, title, category, sub_category, tags, started_at, is_live)
-           VALUES ('soop', ?, ?, ?, ?, ?, ?, ?, 1)
-           ON CONFLICT(platform, broadcast_id) DO UPDATE SET
-             title = excluded.title,
-             category = excluded.category,
-             is_live = 1,
-             peak_viewers = MAX(peak_viewers, ?)`,
-          [broadcastId, broadcast.user_id, broadcast.broad_title, broadcast.category_name, broadcast.sub_category || null, tags, broadcast.broad_start, viewers],
-          (err) => {
-            if (err) reject(err);
-            else {
-              // streamer_id 업데이트 (서브쿼리)
-              this.db?.run(
-                `UPDATE broadcasts SET streamer_id = (
-                  SELECT id FROM platform_users
-                  WHERE platform = 'soop' AND platform_user_id = ?
-                ) WHERE platform = 'soop' AND broadcast_id = ? AND streamer_id IS NULL`,
-                [broadcast.user_id, broadcastId]
-              );
-              resolve();
-            }
-          }
-        );
-      });
-    }
+    // streamer_id 업데이트
+    await this.snowflake.run(
+      `UPDATE BROADCASTS SET STREAMER_ID = (
+        SELECT ID FROM PLATFORM_USERS WHERE PLATFORM = 'soop' AND PLATFORM_USER_ID = ?
+      ) WHERE PLATFORM = 'soop' AND BROADCAST_ID = ? AND STREAMER_ID IS NULL`,
+      [broadcast.user_id, broadcastId]
+    );
   }
 
   /**
    * 방송 스냅샷 저장
-   * @param {Object} broadcast
    */
   async saveBroadcastSnapshot(broadcast) {
     const broadcastId = broadcast.broad_no || broadcast.bno;
@@ -325,40 +236,21 @@ class ApiCollector extends EventEmitter {
     const pcViewers = parseInt(broadcast.pc_view_cnt, 10) || 0;
     const mobileViewers = parseInt(broadcast.mobile_view_cnt, 10) || 0;
 
-    if (this.dbType === 'snowflake') {
-      await this.initSnowflake();
-      await this.snowflake.run(
-        `MERGE INTO BROADCAST_SNAPSHOTS AS target
-         USING (
-           SELECT b.ID AS BROADCAST_ID, ? AS SNAPSHOT_AT, ? AS TOTAL_VIEWERS, ? AS PC_VIEWERS, ? AS MOBILE_VIEWERS, ? AS TITLE, ? AS CATEGORY
-           FROM BROADCASTS b WHERE b.PLATFORM = 'soop' AND b.BROADCAST_ID = ?
-         ) AS source
-         ON target.BROADCAST_ID = source.BROADCAST_ID AND target.SNAPSHOT_AT = source.SNAPSHOT_AT
-         WHEN MATCHED THEN UPDATE SET TOTAL_VIEWERS = source.TOTAL_VIEWERS, PC_VIEWERS = source.PC_VIEWERS, MOBILE_VIEWERS = source.MOBILE_VIEWERS, TITLE = source.TITLE, CATEGORY = source.CATEGORY
-         WHEN NOT MATCHED THEN INSERT (BROADCAST_ID, SNAPSHOT_AT, TOTAL_VIEWERS, PC_VIEWERS, MOBILE_VIEWERS, TITLE, CATEGORY) VALUES (source.BROADCAST_ID, source.SNAPSHOT_AT, source.TOTAL_VIEWERS, source.PC_VIEWERS, source.MOBILE_VIEWERS, source.TITLE, source.CATEGORY)`,
-        [snapshotAt, totalViewers, pcViewers, mobileViewers, broadcast.broad_title, broadcast.category_name, broadcastId]
-      );
-    } else {
-      return new Promise((resolve, reject) => {
-        this.db.run(
-          `INSERT OR REPLACE INTO broadcast_snapshots
-           (broadcast_id, snapshot_at, total_viewers, pc_viewers, mobile_viewers, title, category)
-           SELECT b.id, ?, ?, ?, ?, ?, ?
-           FROM broadcasts b
-           WHERE b.platform = 'soop' AND b.broadcast_id = ?`,
-          [snapshotAt, totalViewers, pcViewers, mobileViewers, broadcast.broad_title, broadcast.category_name, broadcastId],
-          (err) => {
-            if (err) reject(err);
-            else resolve();
-          }
-        );
-      });
-    }
+    await this.snowflake.run(
+      `MERGE INTO BROADCAST_SNAPSHOTS AS target
+       USING (
+         SELECT b.ID AS BROADCAST_ID, ? AS SNAPSHOT_AT, ? AS TOTAL_VIEWERS, ? AS PC_VIEWERS, ? AS MOBILE_VIEWERS, ? AS TITLE, ? AS CATEGORY
+         FROM BROADCASTS b WHERE b.PLATFORM = 'soop' AND b.BROADCAST_ID = ?
+       ) AS source
+       ON target.BROADCAST_ID = source.BROADCAST_ID AND target.SNAPSHOT_AT = source.SNAPSHOT_AT
+       WHEN MATCHED THEN UPDATE SET TOTAL_VIEWERS = source.TOTAL_VIEWERS, PC_VIEWERS = source.PC_VIEWERS, MOBILE_VIEWERS = source.MOBILE_VIEWERS, TITLE = source.TITLE, CATEGORY = source.CATEGORY
+       WHEN NOT MATCHED THEN INSERT (BROADCAST_ID, SNAPSHOT_AT, TOTAL_VIEWERS, PC_VIEWERS, MOBILE_VIEWERS, TITLE, CATEGORY) VALUES (source.BROADCAST_ID, source.SNAPSHOT_AT, source.TOTAL_VIEWERS, source.PC_VIEWERS, source.MOBILE_VIEWERS, source.TITLE, source.CATEGORY)`,
+      [snapshotAt, totalViewers, pcViewers, mobileViewers, broadcast.broad_title, broadcast.category_name, broadcastId]
+    );
   }
 
   /**
    * 종료된 방송 감지
-   * @param {Array} currentBroadcasts
    */
   async detectEndedBroadcasts(currentBroadcasts) {
     const currentIds = new Set(
@@ -375,49 +267,22 @@ class ApiCollector extends EventEmitter {
 
   /**
    * 방송 종료 처리
-   * @param {string} broadcastId
    */
   async markBroadcastEnded(broadcastId) {
-    if (this.dbType === 'snowflake') {
-      await this.initSnowflake();
-      await this.snowflake.run(
-        `UPDATE BROADCASTS SET
-           IS_LIVE = FALSE,
-           ENDED_AT = CURRENT_TIMESTAMP(),
-           DURATION_SECONDS = DATEDIFF('SECOND', STARTED_AT, CURRENT_TIMESTAMP())
-         WHERE PLATFORM = 'soop' AND BROADCAST_ID = ? AND IS_LIVE = TRUE`,
-        [broadcastId]
-      );
-      console.log(`[ApiCollector] Broadcast ended: ${broadcastId}`);
-      this.emit("broadcast-ended", { broadcastId });
-    } else {
-      return new Promise((resolve, reject) => {
-        this.db.run(
-          `UPDATE broadcasts SET
-             is_live = 0,
-             ended_at = CURRENT_TIMESTAMP,
-             duration_seconds = CAST(
-               (julianday(CURRENT_TIMESTAMP) - julianday(started_at)) * 86400 AS INTEGER
-             )
-           WHERE platform = 'soop' AND broadcast_id = ? AND is_live = 1`,
-          [broadcastId],
-          (err) => {
-            if (err) reject(err);
-            else {
-              console.log(`[ApiCollector] Broadcast ended: ${broadcastId}`);
-              this.emit("broadcast-ended", { broadcastId });
-              resolve();
-            }
-          }
-        );
-      });
-    }
+    await this.snowflake.run(
+      `UPDATE BROADCASTS SET
+         IS_LIVE = FALSE,
+         ENDED_AT = CURRENT_TIMESTAMP(),
+         DURATION_SECONDS = DATEDIFF('SECOND', STARTED_AT, CURRENT_TIMESTAMP())
+       WHERE PLATFORM = 'soop' AND BROADCAST_ID = ? AND IS_LIVE = TRUE`,
+      [broadcastId]
+    );
+    console.log(`[ApiCollector] Broadcast ended: ${broadcastId}`);
+    this.emit("broadcast-ended", { broadcastId });
   }
 
   /**
    * 특정 스트리머의 방송 정보 조회
-   * @param {string} streamerId - 스트리머 ID (username)
-   * @returns {Promise<Object|null>}
    */
   async fetchStreamerBroadcast(streamerId) {
     try {
@@ -452,8 +317,6 @@ class ApiCollector extends EventEmitter {
 
   /**
    * 시간을 5분 단위로 반올림
-   * @param {Date} date
-   * @returns {Date}
    */
   roundToFiveMinutes(date) {
     const ms = date.getTime();
@@ -463,7 +326,6 @@ class ApiCollector extends EventEmitter {
 
   /**
    * 대기
-   * @param {number} ms
    */
   sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
