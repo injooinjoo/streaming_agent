@@ -366,13 +366,14 @@ class SoopAdapter extends BaseAdapter {
     }
 
     // 이모티콘 (액션 코드 0109)
-    if (actionCode === CHAT_ACTIONS.EMOTICON) {
-      // 이모티콘 이벤트는 무시 (추후 구현 가능)
+    if (actionCode === CHAT_ACTIONS.EMOTICON && parts.length >= 3) {
+      this.processEmoticon(parts);
       return;
     }
 
     // 입장 정보 (액션 코드 0012)
-    if (actionCode === CHAT_ACTIONS.ENTER_INFO) {
+    if (actionCode === CHAT_ACTIONS.ENTER_INFO && parts.length >= 3) {
+      this.processEntryInfo(parts);
       return;
     }
 
@@ -605,6 +606,92 @@ class SoopAdapter extends BaseAdapter {
       console.log(`[soop] ⭐ 구독: ${nickname}님이 ${months}개월 구독 (${tier})`);
     } catch (error) {
       console.error(`[soop] Subscribe processing error:`, error.message);
+    }
+  }
+
+  /**
+   * 이모티콘 처리 (EMOTICON - 0109)
+   */
+  processEmoticon(parts) {
+    try {
+      // 형식: message|userId|nickname|emoticonId|...
+      const userId = parts[1] || "";
+      const nickname = parts[2] || "";
+      const emoticonId = parts[3] || "";
+      const emoticonUrl = parts[4] || "";
+
+      const event = {
+        id: uuidv4(),
+        type: "emoticon",
+        platform: "soop",
+        sender: {
+          id: userId,
+          nickname: nickname || userId,
+          profileImage: userId ? `https://profile.img.sooplive.co.kr/LOGO/${userId.substring(0, 2)}/${userId}/${userId}.jpg` : null,
+          role: "regular",
+        },
+        content: {
+          emoticonId: emoticonId,
+          emoticonUrl: emoticonUrl,
+        },
+        metadata: {
+          timestamp: new Date().toISOString(),
+          channelId: this.bjId,
+          broadNo: this.broadNo,
+          chatNo: this.chatNo,
+          rawData: parts,
+        },
+      };
+
+      this.emitEvent(event);
+      console.log(`[soop] 😀 이모티콘: ${nickname}님이 이모티콘 전송 (${emoticonId})`);
+    } catch (error) {
+      console.error(`[soop] Emoticon processing error:`, error.message);
+    }
+  }
+
+  /**
+   * 입장 정보 처리 (ENTER_INFO - 0012)
+   */
+  processEntryInfo(parts) {
+    try {
+      // 형식: userId|nickname|grade|...
+      const userId = parts[1] || "";
+      const nickname = parts[2] || "";
+      const gradeCode = parseInt(parts[3], 10) || 0;
+
+      // 빈 userId 또는 시스템 메시지는 무시
+      if (!userId || userId === "system") {
+        return;
+      }
+
+      const event = {
+        id: uuidv4(),
+        type: "entry",
+        platform: "soop",
+        sender: {
+          id: userId,
+          nickname: nickname || userId,
+          profileImage: userId ? `https://profile.img.sooplive.co.kr/LOGO/${userId.substring(0, 2)}/${userId}/${userId}.jpg` : null,
+          role: GRADE_CODES[gradeCode] || "regular",
+        },
+        content: {
+          message: `${nickname || userId}님이 입장했습니다.`,
+          grade: GRADE_CODES[gradeCode] || "regular",
+        },
+        metadata: {
+          timestamp: new Date().toISOString(),
+          channelId: this.bjId,
+          broadNo: this.broadNo,
+          chatNo: this.chatNo,
+          rawData: parts,
+        },
+      };
+
+      this.emitEvent(event);
+      console.log(`[soop] 🚪 입장: ${nickname}님 (${GRADE_CODES[gradeCode] || "regular"})`);
+    } catch (error) {
+      console.error(`[soop] Entry info processing error:`, error.message);
     }
   }
 

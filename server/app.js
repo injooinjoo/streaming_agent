@@ -19,6 +19,7 @@ const {
   createPlatformsRouter,
   createGameStatsRouter,
   createCategoriesRouter,
+  createAnalyticsRouter,
 } = require("./routes");
 const { createHealthRouter } = require("./routes/health");
 
@@ -56,6 +57,7 @@ const { logger, api: apiLogger } = require("./services/logger");
  * @param {Object} dependencies.normalizer - Event normalizer
  * @param {Object} dependencies.riotApi - Riot API client
  * @param {Object} dependencies.categoryService - Category service instance
+ * @param {Object} dependencies.snowflakeService - Snowflake sync service (optional)
  * @returns {express.Application}
  */
 const createApp = ({
@@ -67,6 +69,7 @@ const createApp = ({
   normalizer,
   riotApi,
   categoryService,
+  snowflakeService = null,
 }) => {
   const app = express();
 
@@ -137,7 +140,7 @@ const createApp = ({
   app.use("/api", adminRouter);
 
   // Stats routes (events, donations, revenue)
-  const statsRouter = createStatsRouter(eventService, statsService, activeAdapters);
+  const statsRouter = createStatsRouter(eventService, statsService, activeAdapters, authenticateToken);
   app.use("/api", statsRouter);
 
   // Platform routes (Chzzk, SOOP, events)
@@ -147,7 +150,8 @@ const createApp = ({
     activeAdapters,
     ChzzkAdapter,
     SoopAdapter,
-    normalizer
+    normalizer,
+    snowflakeService
   );
   app.use("/api", platformsRouter);
 
@@ -158,6 +162,12 @@ const createApp = ({
   // Categories routes (existing)
   const categoriesRouter = createCategoriesRouter(db, categoryService, authMiddleware);
   app.use("/api", categoriesRouter);
+
+  // Analytics routes (Snowflake-powered)
+  if (snowflakeService) {
+    const analyticsRouter = createAnalyticsRouter(snowflakeService, authMiddleware);
+    app.use("/api", analyticsRouter);
+  }
 
   // ===== Health Check Routes =====
   const healthRouter = createHealthRouter({ db });

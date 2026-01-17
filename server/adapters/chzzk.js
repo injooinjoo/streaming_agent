@@ -325,6 +325,97 @@ class ChzzkAdapter extends BaseAdapter {
   }
 
   /**
+   * 뱃지 정보 파싱 (활동 뱃지, 구독 뱃지 등)
+   */
+  parseBadges(profile) {
+    const badges = [];
+
+    // 활동 뱃지 파싱 (streamingProperty.activityBadges)
+    if (profile.activityBadges && Array.isArray(profile.activityBadges)) {
+      for (const badge of profile.activityBadges) {
+        badges.push({
+          type: "activity",
+          badgeId: badge.badgeId || badge.imageUrl,
+          badgeName: badge.badgeName || "활동 뱃지",
+          imageUrl: badge.imageUrl || null,
+          activated: badge.activated || true,
+        });
+      }
+    }
+
+    // 구독 뱃지 (streamingProperty.subscription)
+    if (profile.streamingProperty?.subscription) {
+      const sub = profile.streamingProperty.subscription;
+      badges.push({
+        type: "subscription",
+        badgeId: `subscription_${sub.tier || "default"}`,
+        badgeName: sub.tierName || "구독자",
+        tier: sub.tier || 0,
+        tierName: sub.tierName || "기본",
+        months: sub.accumulativeMonth || 1,
+        imageUrl: sub.badgeImageUrl || null,
+      });
+    }
+
+    // 팬 뱃지 (streamingProperty.following)
+    if (profile.streamingProperty?.following) {
+      const following = profile.streamingProperty.following;
+      if (following.followDate) {
+        // 팔로우 기간 계산 (일수)
+        const followDate = new Date(following.followDate);
+        const now = new Date();
+        const followDays = Math.floor((now - followDate) / (1000 * 60 * 60 * 24));
+
+        badges.push({
+          type: "fan",
+          badgeId: `fan_${followDays}`,
+          badgeName: `${followDays}일 팔로워`,
+          followDays: followDays,
+          followDate: following.followDate,
+        });
+      }
+    }
+
+    // 매니저 뱃지
+    if (profile.userRoleCode === "streaming_chat_manager" || profile.userRoleCode === "streaming_channel_manager") {
+      badges.push({
+        type: "manager",
+        badgeId: "manager",
+        badgeName: "매니저",
+      });
+    }
+
+    // 스트리머 뱃지
+    if (profile.userRoleCode === "streamer") {
+      badges.push({
+        type: "streamer",
+        badgeId: "streamer",
+        badgeName: "스트리머",
+      });
+    }
+
+    return badges;
+  }
+
+  /**
+   * 사용자 티어 결정 (뱃지 기반)
+   */
+  determineUserTier(badges) {
+    // 우선순위: streamer > manager > subscription > fan > regular
+    const hasStreamer = badges.some(b => b.type === "streamer");
+    const hasManager = badges.some(b => b.type === "manager");
+    const subscription = badges.find(b => b.type === "subscription");
+    const fan = badges.find(b => b.type === "fan");
+
+    if (hasStreamer) return "streamer";
+    if (hasManager) return "manager";
+    if (subscription) return `subscriber_tier${subscription.tier || 1}`;
+    if (fan && fan.followDays >= 365) return "vip"; // 1년 이상 팔로워
+    if (fan && fan.followDays >= 90) return "fan"; // 3개월 이상 팔로워
+    return "regular";
+  }
+
+  /**
    * 채팅 메시지 처리
    */
   processChat(messages) {
@@ -337,6 +428,10 @@ class ChzzkAdapter extends BaseAdapter {
         const profile = msg.profile ? JSON.parse(msg.profile) : {};
         const extras = msg.extras ? JSON.parse(msg.extras) : {};
 
+        // 뱃지 정보 상세 파싱
+        const badges = this.parseBadges(profile);
+        const userTier = this.determineUserTier(badges);
+
         const event = {
           id: uuidv4(),
           type: "chat",
@@ -346,7 +441,10 @@ class ChzzkAdapter extends BaseAdapter {
             nickname: profile.nickname || "익명",
             profileImage: profile.profileImageUrl || null,
             role: this.mapRole(profile.userRoleCode),
-            badges: profile.activityBadges || [],
+            tier: userTier,
+            badges: badges,
+            // 구독 정보 추가
+            subscription: profile.streamingProperty?.subscription || null,
           },
           content: {
             message: msg.msg || "",
@@ -379,6 +477,10 @@ class ChzzkAdapter extends BaseAdapter {
         const profile = msg.profile ? JSON.parse(msg.profile) : {};
         const extras = msg.extras ? JSON.parse(msg.extras) : {};
 
+        // 뱃지 정보 상세 파싱
+        const badges = this.parseBadges(profile);
+        const userTier = this.determineUserTier(badges);
+
         const event = {
           id: uuidv4(),
           type: "donation",
@@ -388,6 +490,9 @@ class ChzzkAdapter extends BaseAdapter {
             nickname: extras.nickname || profile.nickname || "익명",
             profileImage: profile.profileImageUrl || null,
             role: this.mapRole(profile.userRoleCode),
+            tier: userTier,
+            badges: badges,
+            subscription: profile.streamingProperty?.subscription || null,
           },
           content: {
             message: extras.msg || msg.msg || "",
@@ -424,6 +529,18 @@ class ChzzkAdapter extends BaseAdapter {
         const profile = msg.profile ? JSON.parse(msg.profile) : {};
         const extras = msg.extras ? JSON.parse(msg.extras) : {};
 
+        // 뱃지 정보 상세 파싱
+        const badges = this.parseBadges(profile);
+
+        // 구독 상세 정보
+        const subscriptionInfo = {
+          tier: extras.tier || 1,
+          tierName: extras.tierName || "기본",
+          months: extras.month || extras.accumulativeMonth || 1,
+          isGift: extras.isGiftSubscription || false,
+          giftCount: extras.giftCount || 0,
+        };
+
         const event = {
           id: uuidv4(),
           type: "subscribe",
@@ -432,11 +549,16 @@ class ChzzkAdapter extends BaseAdapter {
             id: profile.userIdHash || "unknown",
             nickname: profile.nickname || "익명",
             profileImage: profile.profileImageUrl || null,
+            role: this.mapRole(profile.userRoleCode),
+            badges: badges,
           },
           content: {
             message: extras.msg || msg.msg || "",
-            tier: extras.tierName || "기본",
-            months: extras.month || 1,
+            tier: subscriptionInfo.tierName,
+            tierLevel: subscriptionInfo.tier,
+            months: subscriptionInfo.months,
+            isGift: subscriptionInfo.isGift,
+            giftCount: subscriptionInfo.giftCount,
           },
           metadata: {
             timestamp: new Date(msg.msgTime || Date.now()).toISOString(),
@@ -447,6 +569,7 @@ class ChzzkAdapter extends BaseAdapter {
         };
 
         this.emitEvent(event);
+        console.log(`[chzzk] ⭐ 구독: ${profile.nickname}님이 ${subscriptionInfo.months}개월 구독 (${subscriptionInfo.tierName})`);
       } catch (error) {
         console.error(`[chzzk] Subscription processing error:`, error.message);
       }

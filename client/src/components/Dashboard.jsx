@@ -33,6 +33,7 @@ import ViewerAnalytics from './analytics/ViewerAnalytics';
 import ContentAnalytics from './analytics/ContentAnalytics';
 import AdAnalytics from './analytics/AdAnalytics';
 import ViewershipDashboard from './analytics/ViewershipDashboard';
+import SnowflakeAnalytics from './analytics/SnowflakeAnalytics';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -112,7 +113,8 @@ const Dashboard = () => {
       items: [
         { id: 'analytics-revenue', label: '수익 분석', icon: <DollarSign size={18} /> },
         { id: 'analytics-viewers', label: '시청자 분석', icon: <Users size={18} /> },
-        { id: 'analytics-content', label: '콘텐츠 분석', icon: <PieChart size={18} /> }
+        { id: 'analytics-content', label: '콘텐츠 분석', icon: <PieChart size={18} /> },
+        { id: 'analytics-snowflake', label: 'Snowflake 분석', icon: <Activity size={18} /> }
       ]
     },
     {
@@ -662,6 +664,7 @@ const Dashboard = () => {
       'analytics-viewers': ViewerAnalytics,
       'analytics-content': ContentAnalytics,
       'analytics-ads': AdAnalytics,
+      'analytics-snowflake': SnowflakeAnalytics,
       'viewership': ViewershipDashboard,
     }[activeTab];
 

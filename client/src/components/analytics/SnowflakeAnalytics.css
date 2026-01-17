@@ -1,0 +1,559 @@
+/* Snowflake Analytics Dashboard Styles */
+
+.snowflake-analytics {
+  padding: 0;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Loading Container */
+.snowflake-analytics .loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  gap: 16px;
+  color: var(--text-muted);
+}
+
+.snowflake-analytics .loading-container svg.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Header Section */
+.snowflake-analytics .analytics-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.snowflake-analytics .header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.snowflake-analytics .header-left h1 {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.snowflake-analytics .connection-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.snowflake-analytics .connection-status.connected {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.snowflake-analytics .connection-status.disconnected {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.snowflake-analytics .header-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.snowflake-analytics .platform-select,
+.snowflake-analytics .date-select {
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  color: var(--text-main);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.snowflake-analytics .platform-select:hover,
+.snowflake-analytics .date-select:hover {
+  border-color: var(--primary);
+}
+
+.snowflake-analytics .platform-select:focus,
+.snowflake-analytics .date-select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.snowflake-analytics .refresh-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--primary);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.snowflake-analytics .refresh-btn:hover {
+  background: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+/* Summary Cards */
+.snowflake-analytics .summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.snowflake-analytics .summary-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 24px;
+  display: flex;
+  gap: 16px;
+  transition: all 0.2s ease;
+}
+
+.snowflake-analytics .summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.snowflake-analytics .summary-card .card-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.snowflake-analytics .summary-card.donations .card-icon {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.1));
+  color: #ef4444;
+}
+
+.snowflake-analytics .summary-card.donors .card-icon {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1));
+  color: #3b82f6;
+}
+
+.snowflake-analytics .summary-card.messages .card-icon {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.1));
+  color: #10b981;
+}
+
+.snowflake-analytics .summary-card.engagement .card-icon {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(245, 158, 11, 0.1));
+  color: #f59e0b;
+}
+
+.snowflake-analytics .card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.snowflake-analytics .card-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.snowflake-analytics .card-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-main);
+  line-height: 1.2;
+}
+
+.snowflake-analytics .card-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 6px;
+}
+
+/* Charts Grid */
+.snowflake-analytics .charts-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.snowflake-analytics .chart-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.snowflake-analytics .chart-card.wide {
+  grid-column: span 2;
+}
+
+.snowflake-analytics .chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.snowflake-analytics .chart-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+}
+
+/* Top Donors List */
+.snowflake-analytics .top-donors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.snowflake-analytics .donor-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  background: var(--bg-hover);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+}
+
+.snowflake-analytics .donor-item:hover {
+  background: var(--bg-input);
+  transform: translateX(4px);
+}
+
+.snowflake-analytics .donor-rank {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  background: var(--bg-input);
+  color: var(--text-muted);
+}
+
+.snowflake-analytics .donor-item:nth-child(1) .donor-rank {
+  background: linear-gradient(135deg, #ffd700, #ffb700);
+  color: #1a1a1a;
+}
+
+.snowflake-analytics .donor-item:nth-child(2) .donor-rank {
+  background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+  color: #1a1a1a;
+}
+
+.snowflake-analytics .donor-item:nth-child(3) .donor-rank {
+  background: linear-gradient(135deg, #cd7f32, #b87333);
+  color: white;
+}
+
+.snowflake-analytics .donor-platform {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.snowflake-analytics .donor-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.snowflake-analytics .donor-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.snowflake-analytics .donor-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.snowflake-analytics .donor-amount {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ef4444;
+  white-space: nowrap;
+}
+
+/* Recent Events Section */
+.snowflake-analytics .recent-events-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.snowflake-analytics .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.snowflake-analytics .section-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.snowflake-analytics .events-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.snowflake-analytics .event-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: all 0.2s ease;
+}
+
+.snowflake-analytics .event-item:last-child {
+  border-bottom: none;
+}
+
+.snowflake-analytics .event-item:hover {
+  background: var(--bg-hover);
+}
+
+.snowflake-analytics .event-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.snowflake-analytics .event-item.donation .event-icon {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+.snowflake-analytics .event-item.subscribe .event-icon {
+  background: rgba(245, 158, 11, 0.1);
+  color: #f59e0b;
+}
+
+.snowflake-analytics .event-item.follow .event-icon {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+
+.snowflake-analytics .event-item.chat .event-icon {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.snowflake-analytics .event-platform {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.snowflake-analytics .event-content {
+  flex-shrink: 0;
+  min-width: 100px;
+}
+
+.snowflake-analytics .event-user {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.snowflake-analytics .event-type {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.snowflake-analytics .event-message {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.snowflake-analytics .event-amount {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ef4444;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.snowflake-analytics .event-time {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* No Data State */
+.snowflake-analytics .no-data {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* Recharts Custom Styling */
+.snowflake-analytics .recharts-cartesian-grid-horizontal line,
+.snowflake-analytics .recharts-cartesian-grid-vertical line {
+  stroke: var(--border-subtle);
+}
+
+.snowflake-analytics .recharts-text {
+  fill: var(--text-muted);
+}
+
+.snowflake-analytics .recharts-legend-item-text {
+  color: var(--text-main) !important;
+}
+
+/* Scrollbar styling */
+.snowflake-analytics .top-donors-list::-webkit-scrollbar,
+.snowflake-analytics .events-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.snowflake-analytics .top-donors-list::-webkit-scrollbar-track,
+.snowflake-analytics .events-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.snowflake-analytics .top-donors-list::-webkit-scrollbar-thumb,
+.snowflake-analytics .events-list::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 3px;
+}
+
+.snowflake-analytics .top-donors-list::-webkit-scrollbar-thumb:hover,
+.snowflake-analytics .events-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .snowflake-analytics .summary-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .snowflake-analytics .charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .snowflake-analytics .chart-card.wide {
+    grid-column: span 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .snowflake-analytics .analytics-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .snowflake-analytics .header-controls {
+    width: 100%;
+  }
+
+  .snowflake-analytics .platform-select,
+  .snowflake-analytics .date-select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .snowflake-analytics .summary-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .snowflake-analytics .card-value {
+    font-size: 24px;
+  }
+
+  .snowflake-analytics .event-item {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .snowflake-analytics .event-message {
+    width: 100%;
+    order: 10;
+  }
+
+  .snowflake-analytics .event-amount {
+    margin-left: auto;
+  }
+}

@@ -30,6 +30,9 @@ const CategoryService = require("./services/categoryService");
 // Redis Service
 const { getRedisService } = require("./services/redisService");
 
+// Snowflake Service
+const { getSnowflakeService } = require("./services/snowflakeService");
+
 // Logger
 const { logger, db: dbLogger, socket: socketLogger } = require("./services/logger");
 
@@ -59,6 +62,21 @@ const main = async () => {
       logger.info("Redis connected");
     } else {
       logger.info("Redis not configured, using in-memory fallback");
+    }
+
+    // Initialize Snowflake connection (optional)
+    let snowflakeService = null;
+    if (process.env.SNOWFLAKE_ENABLED === 'true' && process.env.SNOWFLAKE_ACCOUNT) {
+      try {
+        snowflakeService = getSnowflakeService();
+        await snowflakeService.connect();
+        logger.info("Snowflake connected");
+      } catch (err) {
+        logger.error("Snowflake connection failed", { error: err.message });
+        logger.info("Continuing without Snowflake sync");
+      }
+    } else {
+      logger.info("Snowflake not configured, data sync disabled");
     }
 
     // Initialize database tables
@@ -93,6 +111,7 @@ const main = async () => {
       normalizer,
       riotApi,
       categoryService,
+      snowflakeService,
     });
 
     // Replace placeholder app with configured app
@@ -140,6 +159,16 @@ const shutdown = async () => {
     await redisService.disconnect();
   } catch (err) {
     logger.error("Error closing Redis", { error: err.message });
+  }
+
+  // Close Snowflake connection
+  try {
+    if (process.env.SNOWFLAKE_ENABLED === 'true') {
+      const snowflakeService = getSnowflakeService();
+      await snowflakeService.disconnect();
+    }
+  } catch (err) {
+    logger.error("Error closing Snowflake", { error: err.message });
   }
 
   // Close database connection

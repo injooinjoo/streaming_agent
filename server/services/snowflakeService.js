@@ -498,7 +498,10 @@ class SnowflakeService {
    * Update user chat stats (count only, no content)
    */
   async updateChatStats(platform, userId, username, nickname) {
+    console.log(`[Snowflake] updateChatStats called: platform=${platform}, userId=${userId}, connected=${this.isConnected}`);
+
     if (!this.isConnected || !userId) {
+      console.log(`[Snowflake] updateChatStats skipped: connected=${this.isConnected}, userId=${userId}`);
       return;
     }
 
@@ -525,6 +528,7 @@ class SnowflakeService {
         username, nickname, now, now,        // WHEN MATCHED
         platform, userId, username, nickname, now, now  // WHEN NOT MATCHED
       ]);
+      console.log(`[Snowflake] updateChatStats SUCCESS: ${platform}/${userId}`);
     } catch (error) {
       console.error('[Snowflake] updateChatStats error:', error.message);
     }

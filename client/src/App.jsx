@@ -19,6 +19,7 @@ import RegisterPage from './components/auth/RegisterPage';
 import ProtectedRoute, { AdminRoute, AdvertiserRoute } from './components/auth/ProtectedRoute';
 import AdvertiserDashboard from './components/advertiser/AdvertiserDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
+import SnowflakeAnalytics from './components/analytics/SnowflakeAnalytics';
 import './App.css';
 
 function App() {
@@ -64,6 +65,13 @@ function App() {
             <Route path="/admin-dashboard" element={
               <AdminRoute>
                 <AdminDashboard />
+              </AdminRoute>
+            } />
+
+            {/* Snowflake Analytics 대시보드 (관리자 권한 필요) */}
+            <Route path="/analytics" element={
+              <AdminRoute>
+                <SnowflakeAnalytics />
               </AdminRoute>
             } />
 

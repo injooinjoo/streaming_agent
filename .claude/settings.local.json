@@ -21,7 +21,20 @@
       "Bash(fly deploy:*)",
       "Bash(fly status:*)",
       "Bash(wc:*)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(claude mcp list:*)",
+      "Bash(npx -y @anthropic/snowflake-mcp-server --help)",
+      "Bash(claude mcp remove:*)",
+      "Bash(pip3 show:*)",
+      "Bash(pip3 install:*)",
+      "Bash(python3:*)",
+      "Bash(pkill:*)",
+      "Bash(curl:*)",
+      "Bash(ssh root@158.247.204.45 \"ls -la && pwd\")",
+      "Bash(ssh root@158.247.204.45 'cd ~/streaming-agent/server && node -e \"\"\nconst snowflake = require\\(\\\\\"\"snowflake-sdk\\\\\"\"\\);\nrequire\\(\\\\\"\"dotenv\\\\\"\"\\).config\\(\\);\n\nconst connection = snowflake.createConnection\\({\n  account: process.env.SNOWFLAKE_ACCOUNT,\n  username: process.env.SNOWFLAKE_USER,\n  password: process.env.SNOWFLAKE_PASSWORD,\n  database: process.env.SNOWFLAKE_DATABASE,\n  warehouse: process.env.SNOWFLAKE_WAREHOUSE,\n  schema: process.env.SNOWFLAKE_SCHEMA,\n  role: process.env.SNOWFLAKE_ROLE\n}\\);\n\nconnection.connect\\(\\(err, conn\\) => {\n  if \\(err\\) {\n    console.error\\(\\\\\"\"Connection error:\\\\\"\", err.message\\);\n    process.exit\\(1\\);\n  }\n  console.log\\(\\\\\"\"Connected to Snowflake\\\\\"\"\\);\n\n  const sql = \\\\`\nCREATE TABLE IF NOT EXISTS USER_CHAT_STATS \\(\n    ID NUMBER AUTOINCREMENT PRIMARY KEY,\n    PLATFORM VARCHAR\\(20\\) NOT NULL,\n    USER_ID VARCHAR\\(100\\) NOT NULL,\n    USERNAME VARCHAR\\(100\\),\n    NICKNAME VARCHAR\\(100\\),\n    BROADCAST_ID NUMBER,\n    CHAT_COUNT NUMBER DEFAULT 0,\n    FIRST_CHAT_AT TIMESTAMP_NTZ,\n    LAST_CHAT_AT TIMESTAMP_NTZ,\n    CREATED_AT TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP\\(\\),\n    UPDATED_AT TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP\\(\\),\n    UNIQUE \\(PLATFORM, USER_ID\\)\n\\)\\\\`;\n\n  conn.execute\\({\n    sqlText: sql,\n    complete: \\(err2, stmt2, rows2\\) => {\n      if \\(err2\\) {\n        console.error\\(\\\\\"\"Create table error:\\\\\"\", err2.message\\);\n      } else {\n        console.log\\(\\\\\"\"Table USER_CHAT_STATS created/verified\\\\\"\"\\);\n      }\n      conn.destroy\\(\\);\n    }\n  }\\);\n}\\);\n\"\" 2>&1 | grep -v \"\"level.*INFO\"\"')",
+      "Bash(sshpass -p 'Gd_4s$aJ*a4kX}v]' ssh -o StrictHostKeyChecking=no root@158.247.204.45 'cd ~/streaming-agent/server && node -e \"\"\nconst snowflake = require\\(\\\\\"\"snowflake-sdk\\\\\"\"\\);\nrequire\\(\\\\\"\"dotenv\\\\\"\"\\).config\\(\\);\n\nconst connection = snowflake.createConnection\\({\n  account: process.env.SNOWFLAKE_ACCOUNT,\n  username: process.env.SNOWFLAKE_USER,\n  password: process.env.SNOWFLAKE_PASSWORD,\n  database: process.env.SNOWFLAKE_DATABASE,\n  warehouse: process.env.SNOWFLAKE_WAREHOUSE,\n  schema: process.env.SNOWFLAKE_SCHEMA,\n  role: process.env.SNOWFLAKE_ROLE\n}\\);\n\nconnection.connect\\(\\(err, conn\\) => {\n  if \\(err\\) {\n    console.error\\(\\\\\"\"Connection error:\\\\\"\", err.message\\);\n    process.exit\\(1\\);\n  }\n  console.log\\(\\\\\"\"Connected to Snowflake\\\\\"\"\\);\n\n  const sql = \\\\`CREATE TABLE IF NOT EXISTS USER_CHAT_STATS \\(\n    ID NUMBER AUTOINCREMENT PRIMARY KEY,\n    PLATFORM VARCHAR\\(20\\) NOT NULL,\n    USER_ID VARCHAR\\(100\\) NOT NULL,\n    USERNAME VARCHAR\\(100\\),\n    NICKNAME VARCHAR\\(100\\),\n    BROADCAST_ID NUMBER,\n    CHAT_COUNT NUMBER DEFAULT 0,\n    FIRST_CHAT_AT TIMESTAMP_NTZ,\n    LAST_CHAT_AT TIMESTAMP_NTZ,\n    CREATED_AT TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP\\(\\),\n    UPDATED_AT TIMESTAMP_NTZ DEFAULT CURRENT_TIMESTAMP\\(\\),\n    UNIQUE \\(PLATFORM, USER_ID\\)\n\\)\\\\`;\n\n  conn.execute\\({\n    sqlText: sql,\n    complete: \\(err2, stmt2, rows2\\) => {\n      if \\(err2\\) {\n        console.error\\(\\\\\"\"Create table error:\\\\\"\", err2.message\\);\n      } else {\n        console.log\\(\\\\\"\"Table USER_CHAT_STATS created/verified\\\\\"\"\\);\n      }\n      conn.destroy\\(\\);\n    }\n  }\\);\n}\\);\n\"\"')",
+      "Bash(sshpass:*)",
+      "Bash(ssh root@158.247.204.45 \"cd /root/streaming_agent && pm2 logs server --lines 50 --nostream\")"
     ]
   }
 }
