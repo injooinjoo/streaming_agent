@@ -209,6 +209,11 @@ class ChzzkAdapter extends BaseAdapter {
   handleMessage(message) {
     const cmd = message.cmd;
 
+    // 디버그: 모든 메시지 타입 로깅
+    if (cmd >= 90000) {
+      console.log(`[chzzk] 📨 Received message cmd: ${cmd}, bdy length: ${message.bdy?.length || 0}`);
+    }
+
     switch (cmd) {
       case MESSAGE_TYPES.PING:
         this.sendPong();
@@ -220,6 +225,7 @@ class ChzzkAdapter extends BaseAdapter {
 
       case MESSAGE_TYPES.CHAT:
       case MESSAGE_TYPES.RECENT_CHAT:
+        console.log(`[chzzk] 💬 Processing chat messages: ${message.bdy?.length || 1} messages`);
         this.processChat(message.bdy);
         break;
 
@@ -458,6 +464,7 @@ class ChzzkAdapter extends BaseAdapter {
         };
 
         this.emitEvent(event);
+        console.log(`[chzzk] 💬 Chat emitted: ${profile.nickname || "익명"} (${profile.userIdHash?.substring(0, 8) || "unknown"})`);
       } catch (error) {
         console.error(`[chzzk] Chat processing error:`, error.message);
       }
