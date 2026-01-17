@@ -30,6 +30,10 @@ const CategoryService = require("./services/categoryService");
 // Redis Service
 const { getRedisService } = require("./services/redisService");
 
+// Analytics Collector
+const { initializeAnalyticsDatabase } = require("./db/init-analytics");
+const AnalyticsCollector = require("./services/analytics/AnalyticsCollector");
+
 // Logger
 const { logger, db: dbLogger, socket: socketLogger } = require("./services/logger");
 
@@ -42,6 +46,9 @@ const db = new sqlite3.Database(dbPath);
 
 // ===== Platform Adapters =====
 const activeAdapters = new Map();
+
+// ===== Analytics Collector =====
+let analyticsCollector = null;
 
 // Riot Games API instance
 const riotApi = new RiotAdapter({
@@ -83,6 +90,39 @@ const main = async () => {
       logger.error("Category service initialization error", { error: err.message, stack: err.stack });
     });
 
+    // Initialize Analytics Database
+    await initializeAnalyticsDatabase(db).catch((err) => {
+      logger.error("Analytics database initialization error", { error: err.message, stack: err.stack });
+    });
+    logger.info("Analytics database initialized");
+
+    // Auto-start Analytics Collector if enabled
+    if (process.env.ANALYTICS_AUTO_START === 'true') {
+      analyticsCollector = new AnalyticsCollector(db, {
+        maxWebSocketConnections: parseInt(process.env.ANALYTICS_MAX_WS || '100', 10),
+        minViewersThreshold: parseInt(process.env.ANALYTICS_MIN_VIEWERS || '100', 10),
+        snapshotIntervalSeconds: parseInt(process.env.ANALYTICS_SNAPSHOT_INTERVAL || '300', 10),
+        apiPollingIntervalSeconds: parseInt(process.env.ANALYTICS_POLL_INTERVAL || '300', 10),
+      });
+
+      analyticsCollector.on('error', (err) => {
+        logger.error('Analytics Collector error', { error: err.message, stack: err.stack });
+      });
+
+      analyticsCollector.on('api-poll-complete', (data) => {
+        logger.info('Analytics API poll complete', data);
+      });
+
+      analyticsCollector.on('snapshot-complete', (data) => {
+        logger.info('Analytics snapshot complete', data);
+      });
+
+      await analyticsCollector.start();
+      logger.info('Analytics Collector started automatically');
+    } else {
+      logger.info('Analytics Collector not auto-started (set ANALYTICS_AUTO_START=true to enable)');
+    }
+
     // Create Express app with all dependencies
     const app = createApp({
       db,
@@ -106,6 +146,7 @@ const main = async () => {
     module.exports.server = server;
     module.exports.db = db;
     module.exports.activeAdapters = activeAdapters;
+    module.exports.analyticsCollector = analyticsCollector;
 
     // Start server
     server.listen(PORT, () => {
@@ -123,6 +164,16 @@ const main = async () => {
 // ===== Graceful Shutdown =====
 const shutdown = async () => {
   logger.info("Shutting down gracefully...");
+
+  // Stop Analytics Collector
+  if (analyticsCollector && analyticsCollector.isRunning) {
+    try {
+      await analyticsCollector.stop();
+      logger.info("Analytics Collector stopped");
+    } catch (err) {
+      logger.error("Error stopping Analytics Collector", { error: err.message });
+    }
+  }
 
   // Disconnect all platform adapters
   for (const [key, adapter] of activeAdapters.entries()) {

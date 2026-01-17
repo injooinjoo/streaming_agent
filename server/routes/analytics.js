@@ -2,12 +2,23 @@
  * Analytics API Routes
  *
  * SOOP 시청자/후원 데이터 조회 API
+ * + 수집기 상태 모니터링 및 제어 API
  */
 
 const express = require("express");
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 const { AnalyticsQuery } = require("../services/analytics");
+
+// Analytics Collector를 index.js에서 동적으로 가져오기
+const getAnalyticsCollector = () => {
+  try {
+    const main = require("../index");
+    return main.analyticsCollector;
+  } catch (err) {
+    return null;
+  }
+};
 
 /**
  * Create Analytics Router
@@ -352,6 +363,145 @@ const createAnalyticsRouter = (authenticateAdmin) => {
       res.json(summary);
     } catch (err) {
       console.error("[Analytics API] Daily summary error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ========================================
+  // 수집기 상태 모니터링 및 제어 API
+  // ========================================
+
+  /**
+   * GET /api/analytics/collector/status
+   * 수집기 현재 상태 조회
+   */
+  router.get("/analytics/collector/status", authenticateAdmin, async (req, res) => {
+    try {
+      const collector = getAnalyticsCollector();
+
+      if (!collector) {
+        return res.json({
+          enabled: false,
+          isRunning: false,
+          message: "Analytics Collector is not initialized",
+          config: {
+            autoStart: process.env.ANALYTICS_AUTO_START === "true",
+            maxWebSocketConnections: parseInt(process.env.ANALYTICS_MAX_WS || "100", 10),
+            minViewersThreshold: parseInt(process.env.ANALYTICS_MIN_VIEWERS || "100", 10),
+            snapshotIntervalSeconds: parseInt(process.env.ANALYTICS_SNAPSHOT_INTERVAL || "300", 10),
+            apiPollingIntervalSeconds: parseInt(process.env.ANALYTICS_POLL_INTERVAL || "300", 10),
+          },
+        });
+      }
+
+      const status = collector.getStatus();
+
+      res.json({
+        enabled: true,
+        ...status,
+        uptime: status.isRunning && status.stats.startedAt
+          ? Math.floor((Date.now() - new Date(status.stats.startedAt).getTime()) / 1000)
+          : 0,
+      });
+    } catch (err) {
+      console.error("[Analytics API] Collector status error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/analytics/collector/start
+   * 수집기 시작 (수동)
+   */
+  router.post("/analytics/collector/start", authenticateAdmin, async (req, res) => {
+    try {
+      const collector = getAnalyticsCollector();
+
+      if (!collector) {
+        return res.status(400).json({
+          error: "Analytics Collector is not initialized. Set ANALYTICS_AUTO_START=true and restart server.",
+        });
+      }
+
+      if (collector.isRunning) {
+        return res.json({
+          success: true,
+          message: "Collector is already running",
+          status: collector.getStatus(),
+        });
+      }
+
+      await collector.start();
+
+      res.json({
+        success: true,
+        message: "Collector started successfully",
+        status: collector.getStatus(),
+      });
+    } catch (err) {
+      console.error("[Analytics API] Collector start error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/analytics/collector/stop
+   * 수집기 정지
+   */
+  router.post("/analytics/collector/stop", authenticateAdmin, async (req, res) => {
+    try {
+      const collector = getAnalyticsCollector();
+
+      if (!collector) {
+        return res.status(400).json({
+          error: "Analytics Collector is not initialized",
+        });
+      }
+
+      if (!collector.isRunning) {
+        return res.json({
+          success: true,
+          message: "Collector is already stopped",
+          status: collector.getStatus(),
+        });
+      }
+
+      await collector.stop();
+
+      res.json({
+        success: true,
+        message: "Collector stopped successfully",
+        status: collector.getStatus(),
+      });
+    } catch (err) {
+      console.error("[Analytics API] Collector stop error:", err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/analytics/collector/connections
+   * 현재 WebSocket 연결 목록
+   */
+  router.get("/analytics/collector/connections", authenticateAdmin, async (req, res) => {
+    try {
+      const collector = getAnalyticsCollector();
+
+      if (!collector || !collector.wsManager) {
+        return res.json({
+          connections: [],
+          count: 0,
+        });
+      }
+
+      const connections = collector.wsManager.getConnectionStatus();
+
+      res.json({
+        connections: connections || [],
+        count: connections ? connections.length : 0,
+      });
+    } catch (err) {
+      console.error("[Analytics API] Collector connections error:", err);
       res.status(500).json({ error: err.message });
     }
   });
