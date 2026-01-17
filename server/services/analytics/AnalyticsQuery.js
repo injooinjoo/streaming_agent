@@ -7,14 +7,33 @@
  * - 겹시청자 분석
  * - 후원 랭킹
  * - 채팅 추이
+ *
+ * SQLite 및 Snowflake 듀얼 모드 지원
  */
+
+const { getSnowflakeConnection } = require("../../db/snowflake-connection");
+
+// DB 타입 설정 (환경변수로 전환 가능)
+const DB_TYPE = process.env.DB_TYPE || 'sqlite'; // 'sqlite' or 'snowflake'
 
 class AnalyticsQuery {
   /**
-   * @param {sqlite3.Database} db
+   * @param {sqlite3.Database} db - SQLite 인스턴스 (또는 null)
    */
   constructor(db) {
     this.db = db;
+    this.dbType = DB_TYPE;
+    this.snowflake = null;
+  }
+
+  /**
+   * Snowflake 연결 초기화 (필요 시)
+   */
+  async initSnowflake() {
+    if (this.dbType === 'snowflake' && !this.snowflake) {
+      this.snowflake = getSnowflakeConnection();
+      await this.snowflake.connect();
+    }
   }
 
   /**
@@ -400,12 +419,43 @@ class AnalyticsQuery {
   // ============================================
 
   /**
+   * SQL 쿼리 변환 (SQLite → Snowflake)
+   * @param {string} sql - SQLite 쿼리
+   * @returns {string} - Snowflake 호환 쿼리
+   */
+  convertSql(sql) {
+    if (this.dbType !== 'snowflake') return sql;
+
+    // SQLite → Snowflake 변환
+    return sql
+      // 테이블명 대문자로
+      .replace(/\bplatform_users\b/gi, 'PLATFORM_USERS')
+      .replace(/\bbroadcasts\b/gi, 'BROADCASTS')
+      .replace(/\bviewing_records\b/gi, 'VIEWING_RECORDS')
+      .replace(/\bdonations\b/gi, 'DONATIONS')
+      .replace(/\bbroadcast_stats_5min\b/gi, 'BROADCAST_STATS_5MIN')
+      .replace(/\bbroadcast_changes\b/gi, 'BROADCAST_CHANGES')
+      .replace(/\bchat_messages\b/gi, 'CHAT_MESSAGES')
+      .replace(/\bdaily_stats\b/gi, 'DAILY_STATS')
+      // SQLite DATE() → Snowflake DATE()
+      .replace(/\bDATE\s*\(([^)]+)\)/gi, 'DATE($1)')
+      // GROUP_CONCAT → LISTAGG
+      .replace(/GROUP_CONCAT\s*\(\s*DISTINCT\s+([^)]+)\)/gi, "LISTAGG(DISTINCT $1, ',')")
+      .replace(/GROUP_CONCAT\s*\(([^)]+)\)/gi, "LISTAGG($1, ',')");
+  }
+
+  /**
    * 단일 행 조회
    * @param {string} sql
    * @param {Array} params
    * @returns {Promise<Object|null>}
    */
-  query(sql, params = []) {
+  async query(sql, params = []) {
+    if (this.dbType === 'snowflake') {
+      await this.initSnowflake();
+      return this.snowflake.get(this.convertSql(sql), params);
+    }
+
     return new Promise((resolve, reject) => {
       this.db.get(sql, params, (err, row) => {
         if (err) reject(err);
@@ -420,13 +470,26 @@ class AnalyticsQuery {
    * @param {Array} params
    * @returns {Promise<Array>}
    */
-  queryAll(sql, params = []) {
+  async queryAll(sql, params = []) {
+    if (this.dbType === 'snowflake') {
+      await this.initSnowflake();
+      return this.snowflake.all(this.convertSql(sql), params);
+    }
+
     return new Promise((resolve, reject) => {
       this.db.all(sql, params, (err, rows) => {
         if (err) reject(err);
         else resolve(rows || []);
       });
     });
+  }
+
+  /**
+   * 현재 DB 타입 조회
+   * @returns {string}
+   */
+  getDbType() {
+    return this.dbType;
   }
 }
 

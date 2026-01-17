@@ -1,7 +1,7 @@
 /**
- * API Collector
+ * Chzzk API Collector
  *
- * SOOP API를 통해 방송 목록 및 메타데이터 수집
+ * 치지직 API를 통해 방송 목록 및 메타데이터 수집
  * - 5분 주기 폴링
  * - 전체 라이브 방송 목록 수집
  * - 방송 시작/종료 감지
@@ -15,7 +15,7 @@ const { getSnowflakeConnection } = require("../../db/snowflake-connection");
 // DB 타입 설정 (환경변수로 전환 가능)
 const DB_TYPE = process.env.DB_TYPE || 'sqlite'; // 'sqlite' or 'snowflake'
 
-class ApiCollector extends EventEmitter {
+class ChzzkApiCollector extends EventEmitter {
   /**
    * @param {sqlite3.Database} db
    */
@@ -24,11 +24,10 @@ class ApiCollector extends EventEmitter {
 
     this.db = db;
     this.dbType = DB_TYPE;
-    this.snowflake = null; // Snowflake 연결 (필요 시 초기화)
+    this.snowflake = null;
     this.defaultHeaders = {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-      "Content-Type": "application/x-www-form-urlencoded",
-      Referer: "https://play.sooplive.co.kr/",
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      "Accept": "application/json",
     };
 
     // 현재 라이브 방송 캐시 (종료 감지용)
@@ -54,24 +53,25 @@ class ApiCollector extends EventEmitter {
    */
   async collectAllLiveBroadcasts() {
     const allBroadcasts = [];
-    let page = 1;
-    const maxPages = 20; // 안전 장치
+    let offset = 0;
+    const pageSize = 50;
+    const maxPages = 40; // 최대 2000개 방송
 
-    while (page <= maxPages) {
+    for (let page = 0; page < maxPages; page++) {
       try {
-        const broadcasts = await this.fetchBroadcastPage(page);
+        const broadcasts = await this.fetchBroadcastPage(pageSize, offset);
 
         if (!broadcasts || broadcasts.length === 0) {
           break;
         }
 
         allBroadcasts.push(...broadcasts);
-        page++;
+        offset += pageSize;
 
-        // 너무 빠른 요청 방지
+        // 100ms 대기 (rate limiting)
         await this.sleep(100);
       } catch (err) {
-        console.error(`[ApiCollector] Page ${page} fetch error:`, err.message);
+        console.error(`[ChzzkApiCollector] Page ${page + 1} fetch error:`, err.message);
         break;
       }
     }
@@ -87,17 +87,14 @@ class ApiCollector extends EventEmitter {
 
   /**
    * 방송 목록 페이지 조회
-   * @param {number} page
+   * @param {number} size - 페이지 크기
+   * @param {number} offset - 오프셋
    * @returns {Promise<Array>}
    */
-  async fetchBroadcastPage(page) {
+  async fetchBroadcastPage(size = 50, offset = 0) {
     const response = await fetch(
-      "https://live.sooplive.co.kr/api/main_broad_list_api.php",
-      {
-        method: "POST",
-        headers: this.defaultHeaders,
-        body: `selectType=action&selectValue=all&orderType=view_cnt&pageNo=${page}&lang=ko_KR`,
-      }
+      `https://api.chzzk.naver.com/service/v1/home/lives?size=${size}&offset=${offset}`,
+      { headers: this.defaultHeaders }
     );
 
     if (!response.ok) {
@@ -105,7 +102,13 @@ class ApiCollector extends EventEmitter {
     }
 
     const data = await response.json();
-    return data.broad || [];
+
+    // API 응답: data.content.streamingLiveList
+    if (!data || !data.content || !data.content.streamingLiveList) {
+      return [];
+    }
+
+    return data.content.streamingLiveList;
   }
 
   /**
@@ -113,11 +116,11 @@ class ApiCollector extends EventEmitter {
    * @param {Array} broadcasts
    */
   async processBroadcasts(broadcasts) {
-    const now = new Date();
     const newLiveBroadcasts = new Map();
 
     for (const broadcast of broadcasts) {
-      const broadcastId = broadcast.broad_no || broadcast.bno;
+      const channelId = broadcast.channel?.channelId;
+      if (!channelId) continue;
 
       try {
         // 스트리머 저장/업데이트
@@ -130,11 +133,11 @@ class ApiCollector extends EventEmitter {
         await this.saveBroadcastSnapshot(broadcast);
 
         // 변경 감지 (제목, 카테고리)
-        await this.detectBroadcastChanges(broadcastId, broadcast);
+        await this.detectBroadcastChanges(channelId, broadcast);
 
-        newLiveBroadcasts.set(broadcastId, broadcast);
+        newLiveBroadcasts.set(channelId, broadcast);
       } catch (err) {
-        console.warn(`[ApiCollector] Process broadcast ${broadcastId} error:`, err.message);
+        console.warn(`[ChzzkApiCollector] Process broadcast ${channelId} error:`, err.message);
       }
     }
 
@@ -144,57 +147,51 @@ class ApiCollector extends EventEmitter {
 
   /**
    * 방송 메타데이터 변경 감지
-   * @param {string} broadcastId
+   * @param {string} channelId
    * @param {Object} broadcast
    */
-  async detectBroadcastChanges(broadcastId, broadcast) {
+  async detectBroadcastChanges(channelId, broadcast) {
     const currentMeta = {
-      title: broadcast.broad_title,
-      category: broadcast.category_name,
-      subCategory: broadcast.sub_category || null,
+      title: broadcast.liveTitle,
+      category: broadcast.liveCategoryValue || broadcast.liveCategory,
     };
 
-    const cachedMeta = this.broadcastMetaCache.get(broadcastId);
+    const cachedMeta = this.broadcastMetaCache.get(channelId);
 
     if (cachedMeta) {
       // 제목 변경 감지
       if (cachedMeta.title !== currentMeta.title) {
-        await this.saveBroadcastChange(broadcastId, "title", cachedMeta.title, currentMeta.title);
-        console.log(`[ApiCollector] Title changed: ${broadcastId} "${cachedMeta.title}" → "${currentMeta.title}"`);
+        await this.saveBroadcastChange(channelId, "title", cachedMeta.title, currentMeta.title);
+        console.log(`[ChzzkApiCollector] Title changed: ${channelId}`);
       }
 
       // 카테고리 변경 감지
       if (cachedMeta.category !== currentMeta.category) {
-        await this.saveBroadcastChange(broadcastId, "category", cachedMeta.category, currentMeta.category);
-        console.log(`[ApiCollector] Category changed: ${broadcastId} "${cachedMeta.category}" → "${currentMeta.category}"`);
-      }
-
-      // 서브카테고리 변경 감지
-      if (cachedMeta.subCategory !== currentMeta.subCategory) {
-        await this.saveBroadcastChange(broadcastId, "sub_category", cachedMeta.subCategory, currentMeta.subCategory);
+        await this.saveBroadcastChange(channelId, "category", cachedMeta.category, currentMeta.category);
+        console.log(`[ChzzkApiCollector] Category changed: ${channelId}`);
       }
     }
 
     // 캐시 업데이트
-    this.broadcastMetaCache.set(broadcastId, currentMeta);
+    this.broadcastMetaCache.set(channelId, currentMeta);
   }
 
   /**
    * 방송 변경 기록 저장
-   * @param {string} broadcastId
+   * @param {string} channelId
    * @param {string} fieldName
    * @param {string} oldValue
    * @param {string} newValue
    */
-  async saveBroadcastChange(broadcastId, fieldName, oldValue, newValue) {
+  async saveBroadcastChange(channelId, fieldName, oldValue, newValue) {
     if (this.dbType === 'snowflake') {
       await this.initSnowflake();
       await this.snowflake.run(
         `INSERT INTO BROADCAST_CHANGES (BROADCAST_ID, FIELD_NAME, OLD_VALUE, NEW_VALUE)
          SELECT b.ID, ?, ?, ?
          FROM BROADCASTS b
-         WHERE b.PLATFORM = 'soop' AND b.BROADCAST_ID = ?`,
-        [fieldName, oldValue, newValue, broadcastId]
+         WHERE b.PLATFORM = 'chzzk' AND b.BROADCAST_ID = ?`,
+        [fieldName, oldValue, newValue, channelId]
       );
     } else {
       return new Promise((resolve, reject) => {
@@ -202,8 +199,8 @@ class ApiCollector extends EventEmitter {
           `INSERT INTO broadcast_changes (broadcast_id, field_name, old_value, new_value)
            SELECT b.id, ?, ?, ?
            FROM broadcasts b
-           WHERE b.platform = 'soop' AND b.broadcast_id = ?`,
-          [fieldName, oldValue, newValue, broadcastId],
+           WHERE b.platform = 'chzzk' AND b.broadcast_id = ?`,
+          [fieldName, oldValue, newValue, channelId],
           (err) => {
             if (err) reject(err);
             else resolve();
@@ -218,27 +215,29 @@ class ApiCollector extends EventEmitter {
    * @param {Object} broadcast
    */
   async upsertStreamer(broadcast) {
+    const channel = broadcast.channel || {};
+
     if (this.dbType === 'snowflake') {
       await this.initSnowflake();
       await this.snowflake.run(
         `MERGE INTO PLATFORM_USERS AS target
-         USING (SELECT 'soop' AS PLATFORM, ? AS PLATFORM_USER_ID, ? AS USERNAME, ? AS NICKNAME) AS source
+         USING (SELECT 'chzzk' AS PLATFORM, ? AS PLATFORM_USER_ID, ? AS USERNAME, ? AS NICKNAME) AS source
          ON target.PLATFORM = source.PLATFORM AND target.PLATFORM_USER_ID = source.PLATFORM_USER_ID
          WHEN MATCHED THEN UPDATE SET NICKNAME = source.NICKNAME, IS_STREAMER = TRUE, LAST_SEEN_AT = CURRENT_TIMESTAMP()
          WHEN NOT MATCHED THEN INSERT (PLATFORM, PLATFORM_USER_ID, USERNAME, NICKNAME, IS_STREAMER) VALUES (source.PLATFORM, source.PLATFORM_USER_ID, source.USERNAME, source.NICKNAME, TRUE)`,
-        [broadcast.user_id, broadcast.user_id, broadcast.user_nick]
+        [channel.channelId, channel.channelId, channel.channelName || "Unknown"]
       );
     } else {
       return new Promise((resolve, reject) => {
         this.db.run(
           `INSERT INTO platform_users
            (platform, platform_user_id, username, nickname, is_streamer, last_seen_at)
-           VALUES ('soop', ?, ?, ?, 1, CURRENT_TIMESTAMP)
+           VALUES ('chzzk', ?, ?, ?, 1, CURRENT_TIMESTAMP)
            ON CONFLICT(platform, platform_user_id) DO UPDATE SET
              nickname = excluded.nickname,
              is_streamer = 1,
              last_seen_at = CURRENT_TIMESTAMP`,
-          [broadcast.user_id, broadcast.user_id, broadcast.user_nick],
+          [channel.channelId, channel.channelId, channel.channelName || "Unknown"],
           (err) => {
             if (err) reject(err);
             else resolve();
@@ -253,16 +252,16 @@ class ApiCollector extends EventEmitter {
    * @param {Object} broadcast
    */
   async upsertBroadcast(broadcast) {
-    const broadcastId = broadcast.broad_no || broadcast.bno;
-    const tags = JSON.stringify(broadcast.hash_tags || []);
-    const viewers = parseInt(broadcast.total_view_cnt, 10) || 0;
+    const channel = broadcast.channel || {};
+    const channelId = channel.channelId;
+    const tags = JSON.stringify(broadcast.tags || []);
+    const viewers = broadcast.concurrentUserCount || 0;
 
     if (this.dbType === 'snowflake') {
       await this.initSnowflake();
-      // Snowflake MERGE
       await this.snowflake.run(
         `MERGE INTO BROADCASTS AS target
-         USING (SELECT 'soop' AS PLATFORM, ? AS BROADCAST_ID, ? AS STREAMER_USERNAME, ? AS TITLE, ? AS CATEGORY, ? AS SUB_CATEGORY, PARSE_JSON(?) AS TAGS, TO_TIMESTAMP_NTZ(?) AS STARTED_AT, ? AS VIEWERS) AS source
+         USING (SELECT 'chzzk' AS PLATFORM, ? AS BROADCAST_ID, ? AS STREAMER_USERNAME, ? AS TITLE, ? AS CATEGORY, PARSE_JSON(?) AS TAGS, TO_TIMESTAMP_NTZ(?) AS STARTED_AT, ? AS VIEWERS) AS source
          ON target.PLATFORM = source.PLATFORM AND target.BROADCAST_ID = source.BROADCAST_ID
          WHEN MATCHED THEN UPDATE SET
            TITLE = source.TITLE,
@@ -270,41 +269,38 @@ class ApiCollector extends EventEmitter {
            IS_LIVE = TRUE,
            PEAK_VIEWERS = GREATEST(target.PEAK_VIEWERS, source.VIEWERS)
          WHEN NOT MATCHED THEN INSERT
-           (PLATFORM, BROADCAST_ID, STREAMER_USERNAME, TITLE, CATEGORY, SUB_CATEGORY, TAGS, STARTED_AT, IS_LIVE, PEAK_VIEWERS)
-         VALUES (source.PLATFORM, source.BROADCAST_ID, source.STREAMER_USERNAME, source.TITLE, source.CATEGORY, source.SUB_CATEGORY, source.TAGS, source.STARTED_AT, TRUE, source.VIEWERS)`,
-        [broadcastId, broadcast.user_id, broadcast.broad_title, broadcast.category_name, broadcast.sub_category || null, tags, broadcast.broad_start, viewers]
+           (PLATFORM, BROADCAST_ID, STREAMER_USERNAME, TITLE, CATEGORY, TAGS, STARTED_AT, IS_LIVE, PEAK_VIEWERS)
+         VALUES (source.PLATFORM, source.BROADCAST_ID, source.STREAMER_USERNAME, source.TITLE, source.CATEGORY, source.TAGS, source.STARTED_AT, TRUE, source.VIEWERS)`,
+        [channelId, channel.channelId, broadcast.liveTitle || "무제", broadcast.liveCategoryValue || broadcast.liveCategory || "기타", tags, broadcast.openDate || new Date().toISOString(), viewers]
       );
 
-      // streamer_id 업데이트
       await this.snowflake.run(
         `UPDATE BROADCASTS SET STREAMER_ID = (
-          SELECT ID FROM PLATFORM_USERS WHERE PLATFORM = 'soop' AND PLATFORM_USER_ID = ?
-        ) WHERE PLATFORM = 'soop' AND BROADCAST_ID = ? AND STREAMER_ID IS NULL`,
-        [broadcast.user_id, broadcastId]
+          SELECT ID FROM PLATFORM_USERS WHERE PLATFORM = 'chzzk' AND PLATFORM_USER_ID = ?
+        ) WHERE PLATFORM = 'chzzk' AND BROADCAST_ID = ? AND STREAMER_ID IS NULL`,
+        [channelId, channelId]
       );
     } else {
-      // SQLite
       return new Promise((resolve, reject) => {
         this.db.run(
           `INSERT INTO broadcasts
-           (platform, broadcast_id, streamer_username, title, category, sub_category, tags, started_at, is_live)
-           VALUES ('soop', ?, ?, ?, ?, ?, ?, ?, 1)
+           (platform, broadcast_id, streamer_username, title, category, tags, started_at, is_live)
+           VALUES ('chzzk', ?, ?, ?, ?, ?, ?, 1)
            ON CONFLICT(platform, broadcast_id) DO UPDATE SET
              title = excluded.title,
              category = excluded.category,
              is_live = 1,
              peak_viewers = MAX(peak_viewers, ?)`,
-          [broadcastId, broadcast.user_id, broadcast.broad_title, broadcast.category_name, broadcast.sub_category || null, tags, broadcast.broad_start, viewers],
+          [channelId, channel.channelId, broadcast.liveTitle || "무제", broadcast.liveCategoryValue || broadcast.liveCategory || "기타", tags, broadcast.openDate || new Date().toISOString(), viewers],
           (err) => {
             if (err) reject(err);
             else {
-              // streamer_id 업데이트 (서브쿼리)
               this.db?.run(
                 `UPDATE broadcasts SET streamer_id = (
                   SELECT id FROM platform_users
-                  WHERE platform = 'soop' AND platform_user_id = ?
-                ) WHERE platform = 'soop' AND broadcast_id = ? AND streamer_id IS NULL`,
-                [broadcast.user_id, broadcastId]
+                  WHERE platform = 'chzzk' AND platform_user_id = ?
+                ) WHERE platform = 'chzzk' AND broadcast_id = ? AND streamer_id IS NULL`,
+                [channelId, channelId]
               );
               resolve();
             }
@@ -319,34 +315,33 @@ class ApiCollector extends EventEmitter {
    * @param {Object} broadcast
    */
   async saveBroadcastSnapshot(broadcast) {
-    const broadcastId = broadcast.broad_no || broadcast.bno;
+    const channel = broadcast.channel || {};
+    const channelId = channel.channelId;
     const snapshotAt = this.roundToFiveMinutes(new Date()).toISOString();
-    const totalViewers = parseInt(broadcast.total_view_cnt, 10) || 0;
-    const pcViewers = parseInt(broadcast.pc_view_cnt, 10) || 0;
-    const mobileViewers = parseInt(broadcast.mobile_view_cnt, 10) || 0;
+    const viewers = broadcast.concurrentUserCount || 0;
 
     if (this.dbType === 'snowflake') {
       await this.initSnowflake();
       await this.snowflake.run(
         `MERGE INTO BROADCAST_SNAPSHOTS AS target
          USING (
-           SELECT b.ID AS BROADCAST_ID, ? AS SNAPSHOT_AT, ? AS TOTAL_VIEWERS, ? AS PC_VIEWERS, ? AS MOBILE_VIEWERS, ? AS TITLE, ? AS CATEGORY
-           FROM BROADCASTS b WHERE b.PLATFORM = 'soop' AND b.BROADCAST_ID = ?
+           SELECT b.ID AS BROADCAST_ID, ? AS SNAPSHOT_AT, ? AS TOTAL_VIEWERS, ? AS TITLE, ? AS CATEGORY
+           FROM BROADCASTS b WHERE b.PLATFORM = 'chzzk' AND b.BROADCAST_ID = ?
          ) AS source
          ON target.BROADCAST_ID = source.BROADCAST_ID AND target.SNAPSHOT_AT = source.SNAPSHOT_AT
-         WHEN MATCHED THEN UPDATE SET TOTAL_VIEWERS = source.TOTAL_VIEWERS, PC_VIEWERS = source.PC_VIEWERS, MOBILE_VIEWERS = source.MOBILE_VIEWERS, TITLE = source.TITLE, CATEGORY = source.CATEGORY
-         WHEN NOT MATCHED THEN INSERT (BROADCAST_ID, SNAPSHOT_AT, TOTAL_VIEWERS, PC_VIEWERS, MOBILE_VIEWERS, TITLE, CATEGORY) VALUES (source.BROADCAST_ID, source.SNAPSHOT_AT, source.TOTAL_VIEWERS, source.PC_VIEWERS, source.MOBILE_VIEWERS, source.TITLE, source.CATEGORY)`,
-        [snapshotAt, totalViewers, pcViewers, mobileViewers, broadcast.broad_title, broadcast.category_name, broadcastId]
+         WHEN MATCHED THEN UPDATE SET TOTAL_VIEWERS = source.TOTAL_VIEWERS, TITLE = source.TITLE, CATEGORY = source.CATEGORY
+         WHEN NOT MATCHED THEN INSERT (BROADCAST_ID, SNAPSHOT_AT, TOTAL_VIEWERS, TITLE, CATEGORY) VALUES (source.BROADCAST_ID, source.SNAPSHOT_AT, source.TOTAL_VIEWERS, source.TITLE, source.CATEGORY)`,
+        [snapshotAt, viewers, broadcast.liveTitle || "무제", broadcast.liveCategoryValue || broadcast.liveCategory || "기타", channelId]
       );
     } else {
       return new Promise((resolve, reject) => {
         this.db.run(
           `INSERT OR REPLACE INTO broadcast_snapshots
-           (broadcast_id, snapshot_at, total_viewers, pc_viewers, mobile_viewers, title, category)
-           SELECT b.id, ?, ?, ?, ?, ?, ?
+           (broadcast_id, snapshot_at, total_viewers, title, category)
+           SELECT b.id, ?, ?, ?, ?
            FROM broadcasts b
-           WHERE b.platform = 'soop' AND b.broadcast_id = ?`,
-          [snapshotAt, totalViewers, pcViewers, mobileViewers, broadcast.broad_title, broadcast.category_name, broadcastId],
+           WHERE b.platform = 'chzzk' AND b.broadcast_id = ?`,
+          [snapshotAt, viewers, broadcast.liveTitle || "무제", broadcast.liveCategoryValue || broadcast.liveCategory || "기타", channelId],
           (err) => {
             if (err) reject(err);
             else resolve();
@@ -362,34 +357,34 @@ class ApiCollector extends EventEmitter {
    */
   async detectEndedBroadcasts(currentBroadcasts) {
     const currentIds = new Set(
-      currentBroadcasts.map((b) => b.broad_no || b.bno)
+      currentBroadcasts.map((b) => b.channel?.channelId).filter(Boolean)
     );
 
     // 이전에 라이브였지만 지금 없는 방송 = 종료
-    for (const [broadcastId] of this.currentLiveBroadcasts) {
-      if (!currentIds.has(broadcastId)) {
-        await this.markBroadcastEnded(broadcastId);
+    for (const [channelId] of this.currentLiveBroadcasts) {
+      if (!currentIds.has(channelId)) {
+        await this.markBroadcastEnded(channelId);
       }
     }
   }
 
   /**
    * 방송 종료 처리
-   * @param {string} broadcastId
+   * @param {string} channelId
    */
-  async markBroadcastEnded(broadcastId) {
+  async markBroadcastEnded(channelId) {
     if (this.dbType === 'snowflake') {
       await this.initSnowflake();
       await this.snowflake.run(
         `UPDATE BROADCASTS SET
            IS_LIVE = FALSE,
            ENDED_AT = CURRENT_TIMESTAMP(),
-           DURATION_SECONDS = DATEDIFF('SECOND', STARTED_AT, CURRENT_TIMESTAMP())
-         WHERE PLATFORM = 'soop' AND BROADCAST_ID = ? AND IS_LIVE = TRUE`,
-        [broadcastId]
+           DURATION_SECONDS = DATEDIFF('second', STARTED_AT, CURRENT_TIMESTAMP())
+         WHERE PLATFORM = 'chzzk' AND BROADCAST_ID = ? AND IS_LIVE = TRUE`,
+        [channelId]
       );
-      console.log(`[ApiCollector] Broadcast ended: ${broadcastId}`);
-      this.emit("broadcast-ended", { broadcastId });
+      console.log(`[ChzzkApiCollector] Broadcast ended: ${channelId}`);
+      this.emit("broadcast-ended", { channelId });
     } else {
       return new Promise((resolve, reject) => {
         this.db.run(
@@ -399,13 +394,13 @@ class ApiCollector extends EventEmitter {
              duration_seconds = CAST(
                (julianday(CURRENT_TIMESTAMP) - julianday(started_at)) * 86400 AS INTEGER
              )
-           WHERE platform = 'soop' AND broadcast_id = ? AND is_live = 1`,
-          [broadcastId],
+           WHERE platform = 'chzzk' AND broadcast_id = ? AND is_live = 1`,
+          [channelId],
           (err) => {
             if (err) reject(err);
             else {
-              console.log(`[ApiCollector] Broadcast ended: ${broadcastId}`);
-              this.emit("broadcast-ended", { broadcastId });
+              console.log(`[ChzzkApiCollector] Broadcast ended: ${channelId}`);
+              this.emit("broadcast-ended", { channelId });
               resolve();
             }
           }
@@ -415,37 +410,26 @@ class ApiCollector extends EventEmitter {
   }
 
   /**
-   * 특정 스트리머의 방송 정보 조회
-   * @param {string} streamerId - 스트리머 ID (username)
+   * 채널의 라이브 상세 정보 조회
+   * @param {string} channelId
    * @returns {Promise<Object|null>}
    */
-  async fetchStreamerBroadcast(streamerId) {
+  async fetchLiveDetail(channelId) {
     try {
       const response = await fetch(
-        `https://live.sooplive.co.kr/afreeca/player_live_api.php?bjid=${streamerId}`,
-        {
-          method: "POST",
-          headers: this.defaultHeaders,
-          body: `bid=${streamerId}&type=live&player_type=html5&stream_type=common&quality=original&mode=landing`,
-        }
+        `https://api.chzzk.naver.com/service/v3/channels/${channelId}/live-detail`,
+        { headers: this.defaultHeaders }
       );
 
       const data = await response.json();
 
-      if (data.CHANNEL?.RESULT !== 1) {
+      if (data.code !== 200 || !data.content) {
         return null;
       }
 
-      return {
-        broadcastId: data.CHANNEL.BNO,
-        chatNo: data.CHANNEL.CHATNO,
-        chatDomain: data.CHANNEL.CHDOMAIN,
-        chatPort: parseInt(data.CHANNEL.CHPT, 10) || 8584,
-        title: data.CHANNEL.TITLE,
-        category: data.CHANNEL.CATE,
-      };
+      return data.content;
     } catch (err) {
-      console.error(`[ApiCollector] Fetch streamer ${streamerId} error:`, err.message);
+      console.error(`[ChzzkApiCollector] Fetch live detail error:`, err.message);
       return null;
     }
   }
@@ -470,4 +454,4 @@ class ApiCollector extends EventEmitter {
   }
 }
 
-module.exports = ApiCollector;
+module.exports = ChzzkApiCollector;

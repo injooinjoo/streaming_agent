@@ -97,7 +97,9 @@ const main = async () => {
     logger.info("Analytics database initialized");
 
     // Auto-start Analytics Collector if enabled
-    if (process.env.ANALYTICS_AUTO_START === 'true') {
+    // Analytics collector will be started after server listen
+    const shouldStartAnalytics = process.env.ANALYTICS_AUTO_START === 'true';
+    if (shouldStartAnalytics) {
       analyticsCollector = new AnalyticsCollector(db, {
         maxWebSocketConnections: parseInt(process.env.ANALYTICS_MAX_WS || '100', 10),
         minViewersThreshold: parseInt(process.env.ANALYTICS_MIN_VIEWERS || '100', 10),
@@ -116,9 +118,6 @@ const main = async () => {
       analyticsCollector.on('snapshot-complete', (data) => {
         logger.info('Analytics snapshot complete', data);
       });
-
-      await analyticsCollector.start();
-      logger.info('Analytics Collector started automatically');
     } else {
       logger.info('Analytics Collector not auto-started (set ANALYTICS_AUTO_START=true to enable)');
     }
@@ -154,6 +153,20 @@ const main = async () => {
         port: PORT,
         environment: process.env.NODE_ENV || "development",
       });
+
+      // Start analytics collector after server is listening (non-blocking for health checks)
+      if (shouldStartAnalytics && analyticsCollector) {
+        // Use setImmediate to ensure server is fully ready
+        setImmediate(async () => {
+          try {
+            logger.info('Starting Analytics Collector...');
+            await analyticsCollector.start();
+            logger.info('Analytics Collector started automatically');
+          } catch (err) {
+            logger.error('Failed to start Analytics Collector', { error: err.message, stack: err.stack });
+          }
+        });
+      }
     });
   } catch (error) {
     logger.fatal("Failed to initialize server", { error: error.message, stack: error.stack });

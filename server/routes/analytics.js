@@ -28,8 +28,8 @@ const getAnalyticsCollector = () => {
 const createAnalyticsRouter = (authenticateAdmin) => {
   const router = express.Router();
 
-  // Analytics DB 연결 (별도 파일)
-  const analyticsDbPath = path.join(__dirname, "../../data/analytics.db");
+  // Analytics DB 연결 (메인 DB 공유)
+  const analyticsDbPath = path.join(__dirname, "../weflab_clone.db");
   let analyticsDb = null;
   let queryService = null;
 
