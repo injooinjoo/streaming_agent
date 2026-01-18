@@ -61,5 +61,35 @@ module.exports = {
       merge_logs: true,
       vizion: false,
     },
+
+    // Backup Scheduler
+    {
+      name: "backup-scheduler",
+      script: "server/scripts/backup-to-gcs.js",
+      args: "--scheduler",
+      instances: 1,
+      exec_mode: "fork",
+      watch: false,
+
+      // Environment
+      env: {
+        NODE_ENV: "production",
+      },
+
+      // Logging
+      error_file: "./logs/backup-err.log",
+      out_file: "./logs/backup-out.log",
+      time: true,
+      log_date_format: "YYYY-MM-DD HH:mm:ss Z",
+
+      // Restart behavior
+      autorestart: true,
+      restart_delay: 60000, // 1 minute delay on restart
+      max_restarts: 5,
+
+      // Process metadata
+      merge_logs: true,
+      vizion: false,
+    },
   ],
 };
