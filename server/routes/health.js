@@ -9,7 +9,6 @@
 const express = require("express");
 const { logger } = require("../services/logger");
 const { getRedisService } = require("../services/redisService");
-const { getSnowflakeService } = require("../services/snowflakeService");
 
 /**
  * Create health check router
@@ -133,10 +132,6 @@ const createHealthRouter = ({ db }) => {
 
     // Redis check (future)
     checks.redis = await checkRedis();
-
-    // Snowflake check
-    const snowflake = getSnowflakeService();
-    checks.snowflake = snowflake.getStats();
 
     // Memory usage
     const memory = getMemoryUsage();

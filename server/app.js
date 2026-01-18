@@ -137,13 +137,14 @@ const createApp = ({
   const statsRouter = createStatsRouter(eventService, statsService, activeAdapters, authMiddleware);
   app.use("/api", statsRouter);
 
-  // Platform routes (Chzzk, SOOP, events) - Snowflake only, no SQLite
+  // Platform routes (Chzzk, SOOP, events) - SQLite storage
   const platformsRouter = createPlatformsRouter(
     io,
     activeAdapters,
     ChzzkAdapter,
     SoopAdapter,
-    normalizer
+    normalizer,
+    db
   );
   app.use("/api", platformsRouter);
 

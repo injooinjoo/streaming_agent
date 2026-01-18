@@ -2,142 +2,16 @@
  * Platform Routes
  * Chzzk and SOOP platform connection management
  *
- * Snowflake-only data storage (no SQLite dependency)
+ * SQLite-only data storage (Snowflake removed)
  *
  * Collects:
  * - Events (chat, donation, subscribe, viewer-update)
- * - Broadcast info (title, category, viewer count) - continuously polled
+ * - Broadcast info (title, category, viewer count)
  * - Streamer info (nickname, profile)
- * - Categories (from both platforms)
  */
 
 const express = require("express");
-const { getSnowflakeService } = require("../services/snowflakeService");
 const { getDiscoveryService } = require("../services/liveDiscoveryService");
-
-// Broadcast polling intervals (per connection)
-const broadcastPollingIntervals = new Map();
-// Broadcaster person IDs (per connection) for polling
-const broadcasterPersonIds = new Map();
-
-/**
- * Helper: Save broadcaster to Snowflake PERSONS table
- * Returns the person ID for use in BROADCASTS
- */
-async function saveBroadcasterToSnowflake(platform, channelId, streamerInfo) {
-  const snowflake = getSnowflakeService();
-
-  // Ensure Snowflake is connected
-  if (!snowflake.isConnected && snowflake.isConfigured()) {
-    try {
-      await snowflake.connect();
-    } catch (err) {
-      console.error(`[snowflake] Connect failed for broadcaster save:`, err.message);
-      return null;
-    }
-  }
-
-  const person = {
-    platform,
-    platformUserId: streamerInfo.streamerId || streamerInfo.bjId || channelId,
-    nickname: streamerInfo.nickname || streamerInfo.bjNickname || null,
-    profileImageUrl: streamerInfo.profileImageUrl || null,
-    // Broadcaster-specific fields
-    channelId: channelId,
-    channelDescription: streamerInfo.description || null,
-    followerCount: streamerInfo.followerCount || null,
-    subscriberCount: streamerInfo.subscriberCount || null,
-  };
-
-  return await snowflake.upsertPerson(person);
-}
-
-/**
- * Helper: Save broadcast info to Snowflake
- */
-async function saveBroadcastToSnowflake(platform, channelId, broadcastInfo, broadcasterPersonId = null) {
-  const snowflake = getSnowflakeService();
-
-  // Ensure Snowflake is connected
-  if (!snowflake.isConnected && snowflake.isConfigured()) {
-    try {
-      await snowflake.connect();
-    } catch (err) {
-      console.error(`[snowflake] Connect failed for broadcast save:`, err.message);
-      return;
-    }
-  }
-
-  const broadcast = {
-    platform,
-    channelId,
-    broadcastId: broadcastInfo.broadcastId || broadcastInfo.broadNo || null,
-    broadcasterPersonId,
-    title: broadcastInfo.title || null,
-    categoryId: broadcastInfo.categoryId || broadcastInfo.category || null,
-    categoryName: broadcastInfo.categoryName || broadcastInfo.categoryValue || null,
-    thumbnailUrl: broadcastInfo.thumbnailUrl || broadcastInfo.thumbnail || null,
-    viewerCount: broadcastInfo.viewerCount || broadcastInfo.viewers || 0,
-    isLive: true,
-    startedAt: broadcastInfo.startedAt || null,
-  };
-
-  await snowflake.addBroadcast(broadcast);
-}
-
-/**
- * Helper: Process event actor (chat user/donor)
- * Updates PERSONS and VIEWER_ENGAGEMENT tables
- */
-async function processEventActor(platform, channelId, event, broadcasterPersonId = null) {
-  const snowflake = getSnowflakeService();
-
-  if (!event.sender?.id) return null;
-
-  // Ensure Snowflake is connected
-  if (!snowflake.isConnected && snowflake.isConfigured()) {
-    try {
-      await snowflake.connect();
-    } catch (err) {
-      console.error(`[snowflake] Connect failed for actor processing:`, err.message);
-      return null;
-    }
-  }
-
-  // 1. Upsert actor as PERSON (without channelId - not a broadcaster context)
-  const actorPerson = {
-    platform,
-    platformUserId: event.sender.id,
-    nickname: event.sender.nickname || null,
-    profileImageUrl: event.sender.profileImage || null,
-    // No channelId - this is viewer context
-  };
-
-  const actorPersonId = await snowflake.upsertPerson(actorPerson);
-
-  // 2. Update actor's stats in PERSONS (total counts)
-  const isDonation = event.type === "donation";
-  const amount = isDonation ? (event.content?.amount || 0) : 0;
-
-  await snowflake.updatePersonStats(actorPersonId, {
-    chatIncrement: event.type === "chat" ? 1 : 0,
-    donationIncrement: isDonation ? 1 : 0,
-    amountIncrement: amount,
-  });
-
-  // 3. Update VIEWER_ENGAGEMENT (per-channel stats)
-  await snowflake.upsertViewerEngagement({
-    personId: actorPersonId,
-    platform,
-    channelId,
-    broadcasterPersonId,
-    chatIncrement: event.type === "chat" ? 1 : 0,
-    donationIncrement: isDonation ? 1 : 0,
-    amountIncrement: amount,
-  });
-
-  return actorPersonId;
-}
 
 /**
  * Create platforms router
@@ -146,92 +20,17 @@ async function processEventActor(platform, channelId, event, broadcasterPersonId
  * @param {Function} ChzzkAdapter - Chzzk adapter class
  * @param {Function} SoopAdapter - SOOP adapter class
  * @param {Object} normalizer - Event normalizer
+ * @param {Object} db - SQLite database instance
  * @returns {express.Router}
- *
- * NOTE: SQLite dependency removed - all data goes to Snowflake only
  */
-const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, normalizer) => {
+const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, normalizer, db) => {
   const router = express.Router();
 
-  // Broadcast polling interval (60 seconds)
-  const BROADCAST_POLL_INTERVAL = 60000;
-
-  /**
-   * Start continuous broadcast polling for a connection
-   */
-  function startBroadcastPolling(adapterKey, platform, channelId, adapter, broadcasterPersonId = null) {
-    // Stop existing polling if any
-    stopBroadcastPolling(adapterKey);
-
-    // Store broadcaster person ID for this connection
-    if (broadcasterPersonId) {
-      broadcasterPersonIds.set(adapterKey, broadcasterPersonId);
-    }
-
-    const pollFn = async () => {
-      try {
-        if (!adapter.isConnected) {
-          stopBroadcastPolling(adapterKey);
-          return;
-        }
-
-        const personId = broadcasterPersonIds.get(adapterKey);
-
-        if (platform === "chzzk") {
-          const liveDetail = await adapter.getLiveDetail();
-          if (liveDetail) {
-            await saveBroadcastToSnowflake("chzzk", channelId, {
-              broadcastId: liveDetail.liveId,
-              title: liveDetail.liveTitle,
-              categoryId: liveDetail.liveCategory,
-              categoryName: liveDetail.liveCategoryValue,
-              thumbnailUrl: liveDetail.liveImageUrl,
-              viewerCount: liveDetail.concurrentUserCount,
-              startedAt: liveDetail.openDate,
-            }, personId);
-          }
-        } else if (platform === "soop") {
-          const broadcastStatus = await adapter.getBroadcastStatus();
-          if (broadcastStatus) {
-            await saveBroadcastToSnowflake("soop", channelId, {
-              broadcastId: broadcastStatus.broadNo,
-              title: broadcastStatus.title,
-              categoryId: broadcastStatus.category,
-              categoryName: broadcastStatus.category,
-              thumbnailUrl: broadcastStatus.thumbnail,
-              viewerCount: broadcastStatus.viewers,
-            }, personId);
-          }
-        }
-      } catch (err) {
-        console.error(`[${platform}] Broadcast polling error:`, err.message);
-      }
-    };
-
-    // Start polling
-    const intervalId = setInterval(pollFn, BROADCAST_POLL_INTERVAL);
-    broadcastPollingIntervals.set(adapterKey, intervalId);
-    console.log(`[${platform}] Started broadcast polling for ${channelId}`);
-  }
-
-  /**
-   * Stop broadcast polling for a connection
-   */
-  function stopBroadcastPolling(adapterKey) {
-    const intervalId = broadcastPollingIntervals.get(adapterKey);
-    if (intervalId) {
-      clearInterval(intervalId);
-      broadcastPollingIntervals.delete(adapterKey);
-    }
-    // Clean up broadcaster person ID
-    broadcasterPersonIds.delete(adapterKey);
-  }
-
-  // ===== Events API (Snowflake-only) =====
+  // ===== Events API (SQLite) =====
 
   /**
    * POST /api/events
-   * Create new event (saves to Snowflake only)
+   * Create new event (saves to SQLite)
    */
   router.post("/events", (req, res) => {
     const event = {
@@ -254,12 +53,16 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
 
     const overlayHash = req.body.overlayHash;
 
-    // Save to Snowflake
-    const snowflake = getSnowflakeService();
-    snowflake.addEvent(event);
+    // Save to SQLite
+    const legacyEvent = normalizer.toEventsFormat(event);
+    if (db) {
+      db.run(
+        `INSERT INTO events (id, type, platform, sender, message, amount, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [event.id, event.type, event.platform, event.sender.nickname, event.content.message, event.content.amount, event.metadata.timestamp]
+      );
+    }
 
     // Emit to overlays
-    const legacyEvent = normalizer.toEventsFormat(event);
     if (overlayHash) {
       io.to(`overlay:${overlayHash}`).emit("new-event", legacyEvent);
     } else {
@@ -271,27 +74,27 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
 
   /**
    * GET /api/events
-   * Get historical events from Snowflake
+   * Get historical events from SQLite
    */
   router.get("/events", async (req, res) => {
     try {
-      const snowflake = getSnowflakeService();
-      if (!snowflake.isConnected) {
+      if (!db) {
         return res.json([]);
       }
 
-      const sql = `
-        SELECT id, event_type as type, platform, sender_nickname as sender,
-               sender_id, message, amount, event_timestamp as timestamp
-        FROM ${snowflake.config.database}.${snowflake.config.schema}.EVENTS
-        ORDER BY event_timestamp DESC
-        LIMIT 50
-      `;
-
-      const rows = await snowflake.executeWithRetry(sql);
-      res.json(rows || []);
+      db.all(
+        `SELECT id, type, platform, sender, message, amount, timestamp FROM events ORDER BY timestamp DESC LIMIT 50`,
+        [],
+        (err, rows) => {
+          if (err) {
+            console.error("[events] SQLite query error:", err.message);
+            return res.json([]);
+          }
+          res.json(rows || []);
+        }
+      );
     } catch (err) {
-      console.error("[events] Snowflake query error:", err.message);
+      console.error("[events] Query error:", err.message);
       res.json([]);
     }
   });
@@ -324,25 +127,25 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
     try {
       const adapter = new ChzzkAdapter({ channelId });
 
-      // Track broadcaster person ID for this connection
-      let broadcasterPersonId = null;
-
       adapter.on("event", async (event) => {
         const legacyEvent = normalizer.toEventsFormat(event);
 
-        // === Snowflake: Process actor and update PERSONS/VIEWER_ENGAGEMENT ===
-        if (["chat", "donation"].includes(event.type) && event.sender?.id) {
-          const actorPersonId = await processEventActor("chzzk", channelId, event, broadcasterPersonId);
-
-          // Attach person IDs to event for Snowflake storage
-          event._actorPersonId = actorPersonId;
-          event._targetPersonId = broadcasterPersonId;
-          event._targetChannelId = channelId;
+        // Save to SQLite
+        if (db && event.type) {
+          db.run(
+            `INSERT INTO events (id, type, platform, sender, sender_id, message, amount, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              event.id || require("uuid").v4(),
+              event.type,
+              "chzzk",
+              event.sender?.nickname || "unknown",
+              event.sender?.id || null,
+              event.content?.message || "",
+              event.content?.amount || 0,
+              event.metadata?.timestamp || new Date().toISOString(),
+            ]
+          );
         }
-
-        // === Snowflake: Send all events ===
-        const snowflake = getSnowflakeService();
-        snowflake.addEvent(event);
 
         // Emit to overlays
         if (userHash) {
@@ -368,43 +171,6 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
 
       await adapter.connect();
       activeAdapters.set(adapterKey, adapter);
-
-      // === Snowflake: Save broadcaster and broadcast info ===
-      try {
-        const channelInfo = await adapter.getChannelInfo();
-        const liveDetail = await adapter.getLiveDetail();
-
-        if (channelInfo) {
-          // Save broadcaster to PERSONS table
-          broadcasterPersonId = await saveBroadcasterToSnowflake("chzzk", channelId, {
-            streamerId: channelInfo.channelId,
-            nickname: channelInfo.channelName,
-            profileImageUrl: channelInfo.channelImageUrl,
-            followerCount: channelInfo.followerCount,
-            description: channelInfo.channelDescription,
-          });
-        }
-
-        if (liveDetail) {
-          // Save initial broadcast info with broadcaster person ID
-          await saveBroadcastToSnowflake("chzzk", channelId, {
-            broadcastId: liveDetail.liveId,
-            title: liveDetail.liveTitle,
-            categoryId: liveDetail.liveCategory,
-            categoryName: liveDetail.liveCategoryValue,
-            thumbnailUrl: liveDetail.liveImageUrl,
-            viewerCount: liveDetail.concurrentUserCount,
-            startedAt: liveDetail.openDate,
-          }, broadcasterPersonId);
-        }
-
-        // Start continuous broadcast polling with broadcaster person ID
-        startBroadcastPolling(adapterKey, "chzzk", channelId, adapter, broadcasterPersonId);
-
-        console.log(`[chzzk] Saved broadcaster (person_id=${broadcasterPersonId}) & broadcast info to Snowflake`);
-      } catch (sfError) {
-        console.error(`[chzzk] Snowflake info save error:`, sfError.message);
-      }
 
       res.json({
         success: true,
@@ -437,9 +203,6 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
     if (!adapter) {
       return res.status(404).json({ error: "No active connection found" });
     }
-
-    // Stop broadcast polling
-    stopBroadcastPolling(adapterKey);
 
     adapter.disconnect();
     activeAdapters.delete(adapterKey);
@@ -534,25 +297,25 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
     try {
       const adapter = new SoopAdapter({ channelId: bjId });
 
-      // Track broadcaster person ID for this connection
-      let broadcasterPersonId = null;
-
       adapter.on("event", async (event) => {
         const legacyEvent = normalizer.toEventsFormat(event);
 
-        // === Snowflake: Process actor and update PERSONS/VIEWER_ENGAGEMENT ===
-        if (["chat", "donation"].includes(event.type) && event.sender?.id) {
-          const actorPersonId = await processEventActor("soop", bjId, event, broadcasterPersonId);
-
-          // Attach person IDs to event for Snowflake storage
-          event._actorPersonId = actorPersonId;
-          event._targetPersonId = broadcasterPersonId;
-          event._targetChannelId = bjId;
+        // Save to SQLite
+        if (db && event.type) {
+          db.run(
+            `INSERT INTO events (id, type, platform, sender, sender_id, message, amount, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [
+              event.id || require("uuid").v4(),
+              event.type,
+              "soop",
+              event.sender?.nickname || "unknown",
+              event.sender?.id || null,
+              event.content?.message || "",
+              event.content?.amount || 0,
+              event.metadata?.timestamp || new Date().toISOString(),
+            ]
+          );
         }
-
-        // === Snowflake: Send all events ===
-        const snowflake = getSnowflakeService();
-        snowflake.addEvent(event);
 
         // Emit to overlays
         if (userHash) {
@@ -579,37 +342,6 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
 
       await adapter.connect();
       activeAdapters.set(adapterKey, adapter);
-
-      // === Snowflake: Save broadcaster and broadcast info ===
-      try {
-        const broadcastStatus = await adapter.getBroadcastStatus();
-
-        if (broadcastStatus) {
-          // Save broadcaster to PERSONS table
-          broadcasterPersonId = await saveBroadcasterToSnowflake("soop", bjId, {
-            streamerId: broadcastStatus.bjId,
-            nickname: broadcastStatus.bjNickname,
-            profileImageUrl: `https://profile.img.sooplive.co.kr/LOGO/${bjId.substring(0, 2)}/${bjId}/${bjId}.jpg`,
-          });
-
-          // Save initial broadcast info with broadcaster person ID
-          await saveBroadcastToSnowflake("soop", bjId, {
-            broadcastId: broadcastStatus.broadNo,
-            title: broadcastStatus.title,
-            categoryId: broadcastStatus.category,
-            categoryName: broadcastStatus.category,
-            thumbnailUrl: broadcastStatus.thumbnail,
-            viewerCount: broadcastStatus.viewers,
-          }, broadcasterPersonId);
-        }
-
-        // Start continuous broadcast polling with broadcaster person ID
-        startBroadcastPolling(adapterKey, "soop", bjId, adapter, broadcasterPersonId);
-
-        console.log(`[soop] Saved broadcaster (person_id=${broadcasterPersonId}) & broadcast info to Snowflake`);
-      } catch (sfError) {
-        console.error(`[soop] Snowflake info save error:`, sfError.message);
-      }
 
       res.json({
         success: true,
@@ -642,9 +374,6 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
     if (!adapter) {
       return res.status(404).json({ error: "No active connection found" });
     }
-
-    // Stop broadcast polling
-    stopBroadcastPolling(adapterKey);
 
     adapter.disconnect();
     activeAdapters.delete(adapterKey);
@@ -711,16 +440,12 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
 
   /**
    * GET /api/categories/soop
-   * Get SOOP categories and save to Snowflake
+   * Get SOOP categories
    */
   router.get("/categories/soop", async (req, res) => {
     try {
       console.log(`[soop] Fetching categories...`);
       const categories = await SoopAdapter.getAllCategories();
-
-      // Save to Snowflake
-      const snowflake = getSnowflakeService();
-      await snowflake.addCategories("soop", categories);
 
       res.json({
         success: true,
@@ -738,16 +463,12 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
 
   /**
    * GET /api/categories/chzzk
-   * Get Chzzk categories and save to Snowflake
+   * Get Chzzk categories
    */
   router.get("/categories/chzzk", async (req, res) => {
     try {
       console.log(`[chzzk] Fetching categories...`);
       const categories = await ChzzkAdapter.getAllCategories();
-
-      // Save to Snowflake
-      const snowflake = getSnowflakeService();
-      await snowflake.addCategories("chzzk", categories);
 
       res.json({
         success: true,
@@ -763,79 +484,33 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
     }
   });
 
-  /**
-   * POST /api/categories/sync
-   * Sync all categories from all platforms to Snowflake
-   */
-  router.post("/categories/sync", async (req, res) => {
-    try {
-      console.log(`[categories] Starting full category sync...`);
-
-      // Fetch from both platforms in parallel
-      const [soopCategories, chzzkCategories] = await Promise.all([
-        SoopAdapter.getAllCategories(),
-        ChzzkAdapter.getAllCategories(),
-      ]);
-
-      // Save to Snowflake
-      const snowflake = getSnowflakeService();
-      await Promise.all([
-        snowflake.addCategories("soop", soopCategories),
-        snowflake.addCategories("chzzk", chzzkCategories),
-      ]);
-
-      console.log(`[categories] Sync complete: SOOP=${soopCategories.length}, Chzzk=${chzzkCategories.length}`);
-
-      res.json({
-        success: true,
-        soop: { count: soopCategories.length },
-        chzzk: { count: chzzkCategories.length },
-        total: soopCategories.length + chzzkCategories.length,
-      });
-    } catch (error) {
-      console.error(`[categories] Sync error:`, error.message);
-      res.status(500).json({
-        error: "Failed to sync categories",
-        message: error.message,
-      });
-    }
-  });
-
-  // ===== Discovery API (자동 방송 발견 및 연결) =====
+  // ===== Discovery API =====
 
   /**
    * POST /api/discovery/start
    * Start the live discovery service
-   * Query params:
-   * - maxConnectionsPerPlatform: 플랫폼별 최대 연결 수 (기본: 500, SOOP 500 + Chzzk 500 = 1000)
-   * - discoveryInterval: 발견 주기 (ms, 기본: 300000 = 5분)
    */
   router.post("/discovery/start", async (req, res) => {
     try {
-      // Debug: Check dependencies
-      console.log(`[discovery] Dependencies check: io=${!!io}, SoopAdapter=${!!SoopAdapter}, ChzzkAdapter=${!!ChzzkAdapter}, normalizer=${!!normalizer}`);
-
       const discovery = getDiscoveryService();
 
-      // 설정 업데이트 (플랫폼별 연결 수)
       const body = req.body || {};
       const maxConnectionsPerPlatform = parseInt(body.maxConnectionsPerPlatform || body.maxConnections, 10) || 500;
       const discoveryInterval = parseInt(body.discoveryInterval, 10) || 5 * 60 * 1000;
 
       discovery.updateConfig({ maxConnectionsPerPlatform, discoveryInterval });
 
-      // 의존성 주입
       discovery.setDependencies({
         io,
         SoopAdapter,
         ChzzkAdapter,
         normalizer,
+        db,
       });
 
-      // 서비스 시작
       const status = await discovery.start();
 
-      console.log(`[discovery] Service started with ${maxConnectionsPerPlatform} connections per platform (total: ${maxConnectionsPerPlatform * 2})`);
+      console.log(`[discovery] Service started with ${maxConnectionsPerPlatform} connections per platform`);
 
       res.json({
         success: true,
@@ -844,7 +519,6 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
       });
     } catch (error) {
       console.error(`[discovery] Start error:`, error.message);
-      console.error(`[discovery] Stack:`, error.stack);
       res.status(500).json({
         error: "Failed to start discovery service",
         message: error.message,
@@ -897,83 +571,13 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
   });
 
   /**
-   * PATCH /api/discovery/config
-   * Update discovery service configuration
-   * Body params:
-   * - maxConnectionsPerPlatform: 플랫폼별 최대 연결 수
-   * - discoveryInterval: 발견 주기 (ms)
-   */
-  router.patch("/discovery/config", async (req, res) => {
-    try {
-      const discovery = getDiscoveryService();
-      const { maxConnectionsPerPlatform, maxConnections, discoveryInterval } = req.body;
-
-      const config = {};
-      // 새 파라미터 우선, 하위호환을 위해 maxConnections도 지원
-      if (maxConnectionsPerPlatform !== undefined) {
-        config.maxConnectionsPerPlatform = parseInt(maxConnectionsPerPlatform, 10);
-      } else if (maxConnections !== undefined) {
-        config.maxConnectionsPerPlatform = parseInt(maxConnections, 10);
-      }
-      if (discoveryInterval !== undefined) {
-        config.discoveryInterval = parseInt(discoveryInterval, 10);
-      }
-
-      const status = discovery.updateConfig(config);
-
-      res.json({
-        success: true,
-        message: "Configuration updated",
-        status,
-      });
-    } catch (error) {
-      console.error(`[discovery] Config update error:`, error.message);
-      res.status(500).json({
-        error: "Failed to update config",
-        message: error.message,
-      });
-    }
-  });
-
-  /**
-   * POST /api/discovery/discover
-   * Manually trigger a discovery cycle
-   */
-  router.post("/discovery/discover", async (req, res) => {
-    try {
-      const discovery = getDiscoveryService();
-
-      if (!discovery.isRunning) {
-        return res.status(400).json({
-          error: "Discovery service not running",
-          message: "Start the service first with POST /api/discovery/start",
-        });
-      }
-
-      await discovery.discover();
-
-      res.json({
-        success: true,
-        message: "Discovery cycle completed",
-        status: discovery.getStatus(),
-      });
-    } catch (error) {
-      console.error(`[discovery] Manual discover error:`, error.message);
-      res.status(500).json({
-        error: "Failed to run discovery",
-        message: error.message,
-      });
-    }
-  });
-
-  /**
    * GET /api/broadcasts/live
-   * Get all live broadcasts from both platforms (without connecting)
+   * Get all live broadcasts from both platforms
    */
   router.get("/broadcasts/live", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit, 10) || 100;
-      const platform = req.query.platform; // soop, chzzk, or all
+      const platform = req.query.platform;
 
       let soopBroadcasts = [];
       let chzzkBroadcasts = [];
@@ -985,7 +589,6 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
         chzzkBroadcasts = await ChzzkAdapter.getAllLiveBroadcasts(limit);
       }
 
-      // 통합 및 정렬
       const allBroadcasts = [...soopBroadcasts, ...chzzkBroadcasts];
       allBroadcasts.sort((a, b) => b.viewerCount - a.viewerCount);
 

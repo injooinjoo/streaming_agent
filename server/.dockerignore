@@ -1,0 +1,39 @@
+# Dependencies
+node_modules
+npm-debug.log
+
+# Environment files (will be mounted as volume)
+.env
+.env.*
+!.env.example
+
+# Database files
+*.db
+*.sqlite
+data/
+
+# IDE
+.vscode
+.idea
+
+# Logs
+*.log
+logs/
+
+# Git
+.git
+.gitignore
+
+# Tests
+__tests__
+*.test.js
+coverage/
+
+# Build artifacts
+dist/
+build/
+
+# Misc
+*.md
+*.txt
+!package*.json
