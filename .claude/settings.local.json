@@ -88,7 +88,9 @@
       "Bash(__NEW_LINE_66f8227ca8b2889c__ curl -s http://localhost:3001/api/discovery/status)",
       "Bash(__NEW_LINE_eed78cecf26a4368__ echo \"\")",
       "Bash(exit 0)",
-      "Bash(sshpass -p 'Gd_4s$aJ*a4kX}v]' ssh -o StrictHostKeyChecking=no root@158.247.204.45 'pm2 stop all && pm2 list')"
+      "Bash(sshpass -p 'Gd_4s$aJ*a4kX}v]' ssh -o StrictHostKeyChecking=no root@158.247.204.45 'pm2 stop all && pm2 list')",
+      "Bash(ssh:*)",
+      "Bash(sshpass -p:*)"
     ]
   }
 }

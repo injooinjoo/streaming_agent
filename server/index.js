@@ -37,7 +37,7 @@ const { logger, db: dbLogger, socket: socketLogger } = require("./services/logge
 const PORT = process.env.PORT || 3001;
 
 // ===== Database Setup =====
-const dbPath = path.resolve(__dirname, "weflab_clone.db");
+const dbPath = path.resolve(__dirname, "data", "database.sqlite");
 const db = new sqlite3.Database(dbPath);
 
 // ===== Platform Adapters =====

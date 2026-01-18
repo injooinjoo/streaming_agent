@@ -8,9 +8,9 @@ services:
       - "3001:3001"
     volumes:
       - ./data:/app/data          # SQLite database persistence
-      - ./.env:/app/.env:ro       # Environment variables (read-only)
+    env_file:
+      - .env
     environment:
-      - NODE_ENV=production
       - TZ=Asia/Seoul
     restart: unless-stopped
     logging:
