@@ -129,12 +129,13 @@ class CategoryCrawler {
           },
         });
 
-        if (!data || !Array.isArray(data.data)) {
-          categoryLogger.debug("SOOP: No more data or invalid response");
+        // API 응답: { result: 1, data: { is_more: true, list: [...] } }
+        if (!data || !data.data || !Array.isArray(data.data.list)) {
+          categoryLogger.debug("SOOP: No more data or invalid response", { data });
           break;
         }
 
-        const items = data.data;
+        const items = data.data.list;
         if (items.length === 0) {
           hasMore = false;
           break;
@@ -143,23 +144,20 @@ class CategoryCrawler {
         for (const item of items) {
           categories.push({
             platform: "soop",
-            platformCategoryId: String(item.cate_no || item.id),
-            platformCategoryName: item.cate_name || item.name,
+            platformCategoryId: String(item.category_no || item.cate_no || item.id),
+            platformCategoryName: item.category_name || item.cate_name || item.name,
             categoryType: item.cate_type || "GAME",
             thumbnailUrl: item.cate_img || item.thumbnail || null,
-            viewerCount: parseInt(item.total_view_cnt, 10) || 0,
-            streamerCount: parseInt(item.total_broad_cnt, 10) || 0,
+            viewerCount: parseInt(item.view_cnt || item.total_view_cnt, 10) || 0,
+            streamerCount: parseInt(item.broad_cnt || item.total_broad_cnt, 10) || 0,
           });
         }
 
         categoryLogger.debug("SOOP page fetched", { page: pageNo, count: items.length });
 
-        // 다음 페이지
-        if (items.length < listCnt) {
-          hasMore = false;
-        } else {
-          pageNo++;
-        }
+        // 다음 페이지 확인 (is_more 플래그 사용)
+        hasMore = data.data.is_more === true;
+        pageNo++;
       } catch (error) {
         categoryLogger.error("SOOP page failed", { page: pageNo, error: error.message });
         hasMore = false;
@@ -189,13 +187,18 @@ class CategoryCrawler {
         const url = `https://api.chzzk.naver.com/service/v1/home/lives?size=${pageSize}&offset=${offset}`;
         const data = await this.fetchWithRetry("chzzk", url);
 
-        if (!data || !data.content || !data.content.data) {
-          categoryLogger.debug("Chzzk: No more data");
+        // API 응답: { code: 200, content: { streamingLiveList: [...] } }
+        if (!data || !data.content) {
+          categoryLogger.debug("Chzzk: No content in response");
           break;
         }
 
-        const lives = data.content.data;
-        if (lives.length === 0) break;
+        // streamingLiveList 또는 data 필드 확인 (API 버전에 따라 다를 수 있음)
+        const lives = data.content.streamingLiveList || data.content.data || [];
+        if (!Array.isArray(lives) || lives.length === 0) {
+          categoryLogger.debug("Chzzk: No more live data", { page: page + 1 });
+          break;
+        }
 
         for (const live of lives) {
           if (live.liveCategory && live.liveCategoryValue) {
@@ -207,7 +210,7 @@ class CategoryCrawler {
                 platformCategoryId: categoryId,
                 platformCategoryName: live.liveCategoryValue,
                 categoryType: live.categoryType || "GAME",
-                thumbnailUrl: live.liveThumbnailImageUrl || null,
+                thumbnailUrl: live.liveImageUrl || live.liveThumbnailImageUrl || null,
                 viewerCount: 0,
                 streamerCount: 0,
               });
@@ -220,7 +223,7 @@ class CategoryCrawler {
           }
         }
 
-        categoryLogger.debug("Chzzk page fetched", { page: page + 1, uniqueCategories: categoryMap.size });
+        categoryLogger.debug("Chzzk page fetched", { page: page + 1, livesCount: lives.length, uniqueCategories: categoryMap.size });
       } catch (error) {
         categoryLogger.error("Chzzk page failed", { page: page + 1, error: error.message });
         break;
