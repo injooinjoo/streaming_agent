@@ -566,6 +566,105 @@ class ChzzkAdapter extends BaseAdapter {
 
     return Array.from(categoryMap.values());
   }
+
+  /**
+   * Chzzk 라이브 방송 목록 조회 (커서 기반 페이지네이션)
+   * @param {number} size - 조회할 방송 수 (기본: 50)
+   * @param {Object} cursor - 커서 정보 { concurrentUserCount, liveId }
+   * @returns {Promise<{broadcasts: Array, nextCursor: Object|null}>}
+   */
+  static async getLiveBroadcastsWithCursor(size = 50, cursor = null) {
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    };
+
+    try {
+      // 커서가 있으면 URL에 추가
+      let url = `https://api.chzzk.naver.com/service/v1/lives?size=${size}&sortType=POPULAR`;
+      if (cursor) {
+        url += `&concurrentUserCount=${cursor.concurrentUserCount}&liveId=${cursor.liveId}`;
+      }
+
+      const response = await fetch(url, { headers });
+      const data = await response.json();
+
+      let liveList = [];
+      let nextCursor = null;
+
+      if (data?.content?.data) {
+        liveList = data.content.data;
+      }
+
+      // 다음 페이지 커서 추출
+      if (data?.content?.page?.next) {
+        nextCursor = {
+          concurrentUserCount: data.content.page.next.concurrentUserCount,
+          liveId: data.content.page.next.liveId,
+        };
+      }
+
+      const broadcasts = liveList.map((live) => ({
+        channelId: live.channel?.channelId || live.channelId,
+        streamerId: live.channel?.channelId || live.channelId,
+        nickname: live.channel?.channelName || "Unknown",
+        title: live.liveTitle || "",
+        categoryId: live.liveCategory || null,
+        categoryName: live.liveCategoryValue || null,
+        viewerCount: live.concurrentUserCount || 0,
+        thumbnailUrl: live.liveImageUrl || null,
+        liveId: live.liveId,
+        profileImageUrl: live.channel?.channelImageUrl || null,
+        openDate: live.openDate,
+        isLive: true,
+        platform: "chzzk",
+      }));
+
+      return { broadcasts, nextCursor };
+    } catch (error) {
+      console.error("[chzzk] getLiveBroadcastsWithCursor error:", error.message);
+      return { broadcasts: [], nextCursor: null };
+    }
+  }
+
+  /**
+   * 모든 Chzzk 라이브 방송 조회 (커서 기반 페이지네이션)
+   * @param {number} maxBroadcasts - 최대 방송 수 (기본: 1000)
+   * @returns {Promise<Array>} 전체 라이브 방송 목록 (시청자순 정렬)
+   */
+  static async getAllLiveBroadcasts(maxBroadcasts = 1000) {
+    const allBroadcasts = [];
+    const pageSize = 50;
+    const maxPages = Math.ceil(maxBroadcasts / pageSize);
+    let cursor = null;
+    let pageNum = 0;
+
+    while (pageNum < maxPages) {
+      const { broadcasts, nextCursor } = await ChzzkAdapter.getLiveBroadcastsWithCursor(pageSize, cursor);
+
+      if (broadcasts.length === 0) {
+        break;
+      }
+
+      allBroadcasts.push(...broadcasts);
+      pageNum++;
+
+      // 다음 페이지 커서가 없거나 최대 수 도달 시 종료
+      if (!nextCursor || allBroadcasts.length >= maxBroadcasts) {
+        break;
+      }
+
+      cursor = nextCursor;
+
+      // Rate limiting: 200ms delay between requests
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+
+    // 시청자순 정렬 (API가 이미 정렬되어 있지만 확실히 하기 위해)
+    allBroadcasts.sort((a, b) => b.viewerCount - a.viewerCount);
+
+    console.log(`[chzzk] Fetched ${allBroadcasts.length} live broadcasts in ${pageNum} pages`);
+    return allBroadcasts.slice(0, maxBroadcasts);
+  }
 }
 
 module.exports = ChzzkAdapter;

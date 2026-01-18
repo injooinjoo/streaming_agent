@@ -869,19 +869,20 @@ class SoopAdapter extends BaseAdapter {
         `https://sch.sooplive.co.kr/api.php?m=categoryList&nPageNo=${pageNo}&nListCnt=${listCnt}`,
         { headers }
       );
-      const data = await response.json();
+      const result = await response.json();
 
-      if (!data || !Array.isArray(data.data)) {
+      // API 응답 구조: { result: 1, data: { is_more: bool, list: [...] } }
+      if (!result || result.result !== 1 || !result.data?.list) {
         return [];
       }
 
-      return data.data.map((item) => ({
-        categoryId: String(item.cate_no || item.id),
-        categoryName: item.cate_name || item.name,
-        categoryType: item.cate_type || "GAME",
-        thumbnailUrl: item.cate_img || item.thumbnail || null,
-        viewerCount: parseInt(item.total_view_cnt, 10) || 0,
-        streamerCount: parseInt(item.total_broad_cnt, 10) || 0,
+      return result.data.list.map((item) => ({
+        categoryId: String(item.category_no || item.cate_no),
+        categoryName: item.category_name || item.cate_name,
+        categoryType: "GAME",
+        thumbnailUrl: item.cate_img || null,
+        viewerCount: parseInt(item.view_cnt, 10) || 0,
+        streamerCount: 0,
       }));
     } catch (error) {
       console.error("[soop] getCategoryList error:", error.message);
@@ -898,8 +899,9 @@ class SoopAdapter extends BaseAdapter {
     let pageNo = 1;
     const listCnt = 100;
     let hasMore = true;
+    const maxPages = 10; // 안전 제한
 
-    while (hasMore) {
+    while (hasMore && pageNo <= maxPages) {
       const categories = await SoopAdapter.getCategoryList(pageNo, listCnt);
 
       if (categories.length === 0) {
@@ -910,13 +912,93 @@ class SoopAdapter extends BaseAdapter {
           hasMore = false;
         } else {
           pageNo++;
-          // Rate limiting: 500ms delay between requests
-          await new Promise((resolve) => setTimeout(resolve, 500));
+          // Rate limiting: 300ms delay between requests
+          await new Promise((resolve) => setTimeout(resolve, 300));
         }
       }
     }
 
+    console.log(`[soop] Fetched ${allCategories.length} categories in ${pageNo} pages`);
     return allCategories;
+  }
+
+  /**
+   * SOOP 라이브 방송 목록 조회
+   * @param {number} pageNo - 페이지 번호 (기본: 1)
+   * @param {number} listCnt - 페이지당 결과 수 (기본: 60)
+   * @param {string} orderType - 정렬 기준 (기본: "view_cnt" 시청자순)
+   * @returns {Promise<Array>} 라이브 방송 목록
+   */
+  static async getLiveBroadcasts(pageNo = 1, listCnt = 60, orderType = "view_cnt") {
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+      "Origin": "https://www.sooplive.co.kr",
+      "Referer": "https://www.sooplive.co.kr/",
+    };
+
+    try {
+      // SOOP 라이브 방송 목록 API
+      const response = await fetch(
+        `https://live.sooplive.co.kr/api/main_broad_list_api.php?selectType=action&selectValue=all&orderType=${orderType}&pageNo=${pageNo}&lang=ko`,
+        { headers }
+      );
+      const result = await response.json();
+
+      if (!result || !result.broad) {
+        return [];
+      }
+
+      return result.broad.map((item) => ({
+        channelId: item.user_id,
+        streamerId: item.user_id,
+        nickname: item.user_nick,
+        title: item.broad_title,
+        categoryId: item.broad_cate_no || null,
+        categoryName: item.category_name || item.cate_name || null,
+        viewerCount: parseInt(item.total_view_cnt, 10) || 0,
+        thumbnailUrl: item.broad_thumb || `https://liveimg.sooplive.co.kr/m/${item.broad_no}`,
+        broadNo: item.broad_no,
+        profileImageUrl: `https://profile.img.sooplive.co.kr/LOGO/${item.user_id.substring(0, 2)}/${item.user_id}/${item.user_id}.jpg`,
+        isLive: true,
+        platform: "soop",
+      }));
+    } catch (error) {
+      console.error("[soop] getLiveBroadcasts error:", error.message);
+      return [];
+    }
+  }
+
+  /**
+   * 모든 SOOP 라이브 방송 조회 (페이지네이션 자동 처리)
+   * @param {number} maxBroadcasts - 최대 방송 수 (기본: 1000)
+   * @returns {Promise<Array>} 전체 라이브 방송 목록 (시청자순 정렬)
+   */
+  static async getAllLiveBroadcasts(maxBroadcasts = 1000) {
+    const allBroadcasts = [];
+    let pageNo = 1;
+    const listCnt = 60;
+    const maxPages = Math.ceil(maxBroadcasts / listCnt);
+
+    while (pageNo <= maxPages) {
+      const broadcasts = await SoopAdapter.getLiveBroadcasts(pageNo, listCnt);
+
+      if (broadcasts.length === 0) {
+        break;
+      }
+
+      allBroadcasts.push(...broadcasts);
+
+      if (broadcasts.length < listCnt || allBroadcasts.length >= maxBroadcasts) {
+        break;
+      }
+
+      pageNo++;
+      // Rate limiting: 300ms delay between requests
+      await new Promise((resolve) => setTimeout(resolve, 300));
+    }
+
+    console.log(`[soop] Fetched ${allBroadcasts.length} live broadcasts in ${pageNo} pages`);
+    return allBroadcasts.slice(0, maxBroadcasts);
   }
 }
 

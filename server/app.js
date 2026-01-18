@@ -108,10 +108,7 @@ const createApp = ({
   // Apply standard rate limiter to all other API endpoints
   app.use("/api", standardLimiter);
 
-  // Production static file serving
-  if (process.env.NODE_ENV === "production") {
-    app.use(express.static(path.join(__dirname, "../client/dist")));
-  }
+  // Frontend disabled - data collection only mode
 
   // ===== Mount Routes =====
 
@@ -136,13 +133,12 @@ const createApp = ({
   const adminRouter = createAdminRouter(db, authenticateAdmin, developerLogin);
   app.use("/api", adminRouter);
 
-  // Stats routes (events, donations, revenue)
-  const statsRouter = createStatsRouter(eventService, statsService, activeAdapters);
+  // Stats routes (events, donations, revenue) - now with authentication
+  const statsRouter = createStatsRouter(eventService, statsService, activeAdapters, authMiddleware);
   app.use("/api", statsRouter);
 
-  // Platform routes (Chzzk, SOOP, events)
+  // Platform routes (Chzzk, SOOP, events) - Snowflake only, no SQLite
   const platformsRouter = createPlatformsRouter(
-    db,
     io,
     activeAdapters,
     ChzzkAdapter,
@@ -163,12 +159,7 @@ const createApp = ({
   const healthRouter = createHealthRouter({ db });
   app.use("/", healthRouter);
 
-  // ===== SPA Fallback (Production) =====
-  if (process.env.NODE_ENV === "production") {
-    app.get("/{*path}", (req, res) => {
-      res.sendFile(path.join(__dirname, "../client/dist/index.html"));
-    });
-  }
+  // SPA Fallback disabled - API only mode
 
   // ===== Error Handler =====
   app.use((err, req, res, next) => {

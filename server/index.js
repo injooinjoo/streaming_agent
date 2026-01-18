@@ -30,6 +30,9 @@ const CategoryService = require("./services/categoryService");
 // Redis Service
 const { getRedisService } = require("./services/redisService");
 
+// Snowflake Service
+const { initSnowflakeService, getSnowflakeService } = require("./services/snowflakeService");
+
 // Logger
 const { logger, db: dbLogger, socket: socketLogger } = require("./services/logger");
 
@@ -59,6 +62,17 @@ const main = async () => {
       logger.info("Redis connected");
     } else {
       logger.info("Redis not configured, using in-memory fallback");
+    }
+
+    // Initialize Snowflake connection (optional - data collection continues without it)
+    const snowflakeService = await initSnowflakeService();
+    const snowflakeStats = snowflakeService.getStats();
+    if (snowflakeStats.isConnected) {
+      logger.info("Snowflake connected", snowflakeStats);
+    } else if (snowflakeStats.isConfigured) {
+      logger.warn("Snowflake configured but not connected");
+    } else {
+      logger.info("Snowflake not configured - running without data warehouse");
     }
 
     // Initialize database tables
@@ -140,6 +154,15 @@ const shutdown = async () => {
     await redisService.disconnect();
   } catch (err) {
     logger.error("Error closing Redis", { error: err.message });
+  }
+
+  // Close Snowflake connection (flush remaining events)
+  try {
+    const snowflakeService = getSnowflakeService();
+    await snowflakeService.disconnect();
+    logger.info("Snowflake disconnected");
+  } catch (err) {
+    logger.error("Error closing Snowflake", { error: err.message });
   }
 
   // Close database connection
