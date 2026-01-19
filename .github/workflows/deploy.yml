@@ -1,5 +1,5 @@
 # Deployment Workflow
-# Deploys to Render on push to main
+# Deploys to Vultr VPS on push to main
 
 name: Deploy
 
@@ -8,27 +8,54 @@ on:
     branches: [main]
   workflow_dispatch: # Allow manual trigger
 
+env:
+  SERVER_HOST: 158.247.204.45
+  SERVER_USER: root
+  DEPLOY_PATH: /root/streaming_agent
+
 jobs:
   deploy:
-    name: Deploy to Render
+    name: Deploy to Vultr
     runs-on: ubuntu-latest
-    # Only deploy if CI passes
-    # needs: ci  # Uncomment when CI workflow is stable
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Deploy to Render
-        env:
-          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+      - name: Setup SSH
         run: |
-          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
-            curl -X POST "$RENDER_DEPLOY_HOOK_URL"
-            echo "Deployment triggered successfully"
-          else
-            echo "RENDER_DEPLOY_HOOK_URL not configured, skipping deployment"
-          fi
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VULTR_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SERVER_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Server
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_HOST }} << 'ENDSSH'
+            set -e
+
+            echo "📦 Pulling latest code..."
+            cd ${{ env.DEPLOY_PATH }}
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "📥 Installing server dependencies..."
+            cd server
+            npm ci --omit=dev
+            cd ..
+
+            echo "🔄 Restarting application..."
+            pm2 restart streaming-agent --update-env || pm2 start ecosystem.config.js --env production
+
+            echo "✅ Deployment completed!"
+            pm2 status
+          ENDSSH
+
+      - name: Health Check
+        run: |
+          echo "Waiting for server to start..."
+          sleep 10
+          curl -f http://${{ env.SERVER_HOST }}:3001/health || echo "Health check endpoint not responding"
 
   notify:
     name: Notify Deployment
@@ -40,7 +67,8 @@ jobs:
       - name: Deployment Status
         run: |
           if [ "${{ needs.deploy.result }}" == "success" ]; then
-            echo "✅ Deployment to Render triggered successfully"
+            echo "✅ Deployment to Vultr completed successfully"
+            echo "🌐 Server: http://${{ env.SERVER_HOST }}:3001"
           else
-            echo "❌ Deployment failed or was skipped"
+            echo "❌ Deployment failed"
           fi
