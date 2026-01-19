@@ -111,7 +111,14 @@
       "Bash(git -C /Users/jacobmac/Desktop/Dev/streaming_agent status server/app.js)",
       "Bash(git -C /Users/jacobmac/Desktop/Dev/streaming_agent status server/index.js server/routes/monitor.js)",
       "Bash(git -C /Users/jacobmac/Desktop/Dev/streaming_agent status:*)",
-      "Bash(git -C /Users/jacobmac/Desktop/Dev/streaming_agent add client/)"
+      "Bash(git -C /Users/jacobmac/Desktop/Dev/streaming_agent add client/)",
+      "Bash(fly machines restart:*)",
+      "Bash(fly sftp get:*)",
+      "Bash(gh run list:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh workflow run:*)",
+      "Bash(pm2 logs:*)",
+      "mcp__render__list_services"
     ]
   }
 }

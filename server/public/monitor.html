@@ -788,11 +788,13 @@
       flex: 1;
     }
 
+    .modal-stats,
     .modal-stats-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 16px;
-      margin-bottom: 24px;
+      padding: 0 24px;
+      margin-bottom: 0;
     }
 
     .modal-stat-card {
@@ -974,8 +976,10 @@
     }
 
     @media (max-width: 768px) {
+      .modal-stats,
       .modal-stats-grid {
         grid-template-columns: repeat(2, 1fr);
+        padding: 0 16px;
       }
 
       .modal-container {
@@ -1408,6 +1412,9 @@
           <!-- Profile content loaded dynamically -->
         </div>
         <button class="modal-close-btn" onclick="closePersonModal()">&times;</button>
+      </div>
+      <div id="personModalStats" class="modal-stats">
+        <!-- Stats cards loaded dynamically -->
       </div>
       <div id="personModalBody" class="modal-body">
         <!-- Modal body content loaded dynamically -->
@@ -2221,12 +2228,8 @@
         eventsHtml = '<div class="modal-empty">최근 이벤트가 없습니다.</div>';
       }
 
-      // Update body content
+      // Update body content (tabs and content only - stats are in separate element)
       document.getElementById('personModalBody').innerHTML = `
-        <div id="personModalStats" class="modal-stats-grid">
-          ${document.getElementById('personModalStats')?.innerHTML || ''}
-        </div>
-
         <div class="modal-tabs">
           <button class="modal-tab-btn active" data-modal-tab="activity">${tabLabel}</button>
           <button class="modal-tab-btn" data-modal-tab="events">최근 이벤트</button>
@@ -2237,26 +2240,6 @@
         </div>
         <div id="modalTabEvents" class="modal-tab-content">
           ${eventsHtml}
-        </div>
-      `;
-
-      // Re-render stats
-      document.getElementById('personModalBody').querySelector('.modal-stats-grid').innerHTML = `
-        <div class="modal-stat-card">
-          <h4>총 채팅</h4>
-          <div class="value">${formatNumber(stats.total_chat_count)}</div>
-        </div>
-        <div class="modal-stat-card">
-          <h4>총 후원</h4>
-          <div class="value">${formatNumber(stats.total_donation_count)}회</div>
-        </div>
-        <div class="modal-stat-card">
-          <h4>후원 금액</h4>
-          <div class="value">${formatCurrency(stats.total_donation_amount)}</div>
-        </div>
-        <div class="modal-stat-card">
-          <h4>최초 발견</h4>
-          <div class="value">${formatRelativeTime(person.first_seen_at)}</div>
         </div>
       `;
 
