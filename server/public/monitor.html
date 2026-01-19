@@ -300,6 +300,26 @@
       font-variant-numeric: tabular-nums;
     }
 
+    .category-thumb {
+      width: 60px;
+      height: 40px;
+      object-fit: cover;
+      border-radius: 4px;
+      background: var(--bg-secondary);
+    }
+
+    .no-thumb {
+      display: inline-block;
+      width: 60px;
+      height: 40px;
+      line-height: 40px;
+      text-align: center;
+      background: var(--bg-secondary);
+      border-radius: 4px;
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
     /* Pagination */
     .pagination {
       display: flex;
@@ -907,6 +927,7 @@
           <table>
             <thead>
               <tr>
+                <th>썸네일</th>
                 <th>플랫폼</th>
                 <th>카테고리명</th>
                 <th>타입</th>
@@ -1310,6 +1331,7 @@
         } else {
           tbody.innerHTML = data.map(c => `
             <tr>
+              <td>${c.thumbnail_url ? `<img src="${c.thumbnail_url.replace('{type}', '480')}" class="category-thumb" alt="${c.category_name}" onerror="this.style.display='none'">` : '<span class="no-thumb">-</span>'}</td>
               <td>${getPlatformBadge(c.platform)}</td>
               <td>${c.category_name || '-'}</td>
               <td>${c.category_type || '-'}</td>
