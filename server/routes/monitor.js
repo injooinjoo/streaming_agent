@@ -263,12 +263,30 @@ const createMonitorRouter = (db) => {
 
   /**
    * GET /api/monitor/stats
-   * Returns summary statistics
+   * Returns summary statistics including platform breakdown and Nexon games
    */
   router.get("/monitor/stats", async (req, res) => {
     try {
+      // Nexon game category IDs
+      const nexonCategoryIds = [
+        // SOOP
+        '00040005', // 서든어택
+        '00040070', // FC 온라인
+        '00040032', // 메이플스토리
+        '00040158', // 메이플스토리 월드
+        '00360113', // 마비노기 모바일
+        '00360055', // 카트라이더 러쉬플러스
+        '00040004', // 던전앤파이터
+        '00040065', // 바람의나라
+        // Chzzk (need to find IDs)
+        'MapleStory', 'Dungeon_Fighter_Online', 'FC_Online', 'Sudden_Attack',
+        'KartRider', 'Mabinogi', 'The_First_Descendant', 'V4'
+      ];
+      const nexonPlaceholders = nexonCategoryIds.map(() => '?').join(',');
+
       // Execute all stats queries in parallel
       const [
+        // Overall stats
         liveBroadcasts,
         totalViewers,
         totalPersons,
@@ -277,6 +295,11 @@ const createMonitorRouter = (db) => {
         engagementCount,
         eventCount,
         segmentCount,
+        // Platform breakdown
+        soopStats,
+        chzzkStats,
+        // Nexon games stats
+        nexonStats,
       ] = await Promise.all([
         // Live broadcasts count
         dbGet(`SELECT COUNT(*) as count FROM broadcasts WHERE is_live = 1`),
@@ -294,6 +317,28 @@ const createMonitorRouter = (db) => {
         dbGet(`SELECT COUNT(*) as count FROM events`),
         // Total broadcast segments
         dbGet(`SELECT COUNT(*) as count FROM broadcast_segments`),
+        // SOOP stats
+        dbGet(`SELECT
+          COUNT(*) as broadcasts,
+          COALESCE(SUM(current_viewer_count), 0) as viewers
+          FROM broadcasts WHERE is_live = 1 AND platform = 'soop'`),
+        // Chzzk stats
+        dbGet(`SELECT
+          COUNT(*) as broadcasts,
+          COALESCE(SUM(current_viewer_count), 0) as viewers
+          FROM broadcasts WHERE is_live = 1 AND platform = 'chzzk'`),
+        // Nexon games stats (join with latest segment to get category)
+        dbGet(`SELECT
+          COUNT(*) as broadcasts,
+          COALESCE(SUM(b.current_viewer_count), 0) as viewers
+          FROM broadcasts b
+          INNER JOIN (
+            SELECT broadcast_id, category_id,
+            ROW_NUMBER() OVER (PARTITION BY broadcast_id ORDER BY segment_started_at DESC) as rn
+            FROM broadcast_segments
+          ) seg ON b.id = seg.broadcast_id AND seg.rn = 1
+          WHERE b.is_live = 1 AND seg.category_id IN (${nexonPlaceholders})`,
+          nexonCategoryIds),
       ]);
 
       res.json({
@@ -305,6 +350,22 @@ const createMonitorRouter = (db) => {
         engagementCount: engagementCount?.count || 0,
         eventCount: eventCount?.count || 0,
         segmentCount: segmentCount?.count || 0,
+        // Platform breakdown
+        platforms: {
+          soop: {
+            broadcasts: soopStats?.broadcasts || 0,
+            viewers: soopStats?.viewers || 0,
+          },
+          chzzk: {
+            broadcasts: chzzkStats?.broadcasts || 0,
+            viewers: chzzkStats?.viewers || 0,
+          },
+        },
+        // Nexon games
+        nexon: {
+          broadcasts: nexonStats?.broadcasts || 0,
+          viewers: nexonStats?.viewers || 0,
+        },
       });
     } catch (error) {
       apiLogger.error("Monitor stats error", { error: error.message });

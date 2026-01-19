@@ -129,6 +129,35 @@
       font-weight: 700;
     }
 
+    .stat-content .stat-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .stat-card[title] {
+      cursor: help;
+      position: relative;
+    }
+
+    .stat-card[title]:hover::after {
+      content: attr(title);
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      white-space: nowrap;
+      z-index: 100;
+      max-width: 300px;
+      white-space: normal;
+      text-align: center;
+    }
+
     /* Tabs */
     .tabs {
       display: flex;
@@ -666,58 +695,84 @@
       </div>
     </header>
 
-    <!-- Stats Cards -->
+    <!-- Stats Cards - Platform Breakdown -->
     <div class="stats-grid">
-      <div class="stat-card">
+      <div class="stat-card" title="현재 라이브 중인 방송 수 (SOOP + Chzzk)">
         <div class="stat-icon red">📺</div>
         <div class="stat-content">
-          <h3>라이브 방송</h3>
+          <h3>전체 라이브</h3>
           <div class="value" id="statLiveBroadcasts">-</div>
+          <div class="stat-sub" id="statTotalViewers">-</div>
         </div>
       </div>
-      <div class="stat-card">
-        <div class="stat-icon blue">👥</div>
+      <div class="stat-card soop" title="SOOP 플랫폼 라이브 방송 수와 시청자 합계">
+        <div class="stat-icon" style="background: rgba(26, 75, 204, 0.2);">
+          <img src="/assets/logos/soop.png" alt="SOOP" style="width:28px;height:28px;">
+        </div>
         <div class="stat-content">
-          <h3>총 시청자</h3>
-          <div class="value" id="statTotalViewers">-</div>
+          <h3>SOOP</h3>
+          <div class="value" id="statSoopBroadcasts">-</div>
+          <div class="stat-sub" id="statSoopViewers">-</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card chzzk" title="Chzzk 플랫폼 라이브 방송 수와 시청자 합계">
+        <div class="stat-icon" style="background: rgba(0, 214, 126, 0.2);">
+          <img src="/assets/logos/chzzk.png" alt="Chzzk" style="width:28px;height:28px;">
+        </div>
+        <div class="stat-content">
+          <h3>Chzzk</h3>
+          <div class="value" id="statChzzkBroadcasts">-</div>
+          <div class="stat-sub" id="statChzzkViewers">-</div>
+        </div>
+      </div>
+      <div class="stat-card nexon" title="넥슨 게임 방송 (메이플, 던파, FC온라인, 서든어택, 카트, 마비노기 등)">
+        <div class="stat-icon" style="background: rgba(255, 165, 2, 0.2);">🎮</div>
+        <div class="stat-content">
+          <h3>넥슨 게임</h3>
+          <div class="value" id="statNexonBroadcasts">-</div>
+          <div class="stat-sub" id="statNexonViewers">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats Cards - Details -->
+    <div class="stats-grid" style="margin-top: 15px;">
+      <div class="stat-card" title="DB에 등록된 스트리머 + 시청자 수">
         <div class="stat-icon green">👤</div>
         <div class="stat-content">
           <h3>등록 인원</h3>
           <div class="value" id="statTotalPersons">-</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" title="수집된 후원 이벤트의 총 금액 (채팅 연결 시 수집)">
         <div class="stat-icon yellow">💰</div>
         <div class="stat-content">
           <h3>총 후원액</h3>
           <div class="value" id="statTotalDonations">-</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" title="채팅/후원/구독/팔로우 등 수집된 이벤트 수">
         <div class="stat-icon purple">📊</div>
         <div class="stat-content">
           <h3>이벤트</h3>
           <div class="value" id="statEventCount">-</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" title="방송 중 카테고리(게임) 변경 구간 기록 수">
         <div class="stat-icon cyan">🎬</div>
         <div class="stat-content">
           <h3>세그먼트</h3>
           <div class="value" id="statSegmentCount">-</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" title="5분마다 기록하는 시청자 수 스냅샷 개수">
         <div class="stat-icon purple">📈</div>
         <div class="stat-content">
           <h3>스냅샷</h3>
           <div class="value" id="statSnapshotCount">-</div>
         </div>
       </div>
-      <div class="stat-card">
+      <div class="stat-card" title="특정 시청자가 특정 채널에 참여한 통계 수">
         <div class="stat-icon cyan">🤝</div>
         <div class="stat-content">
           <h3>참여 기록</h3>
@@ -1131,8 +1186,23 @@
         const res = await fetch(`${API_BASE}/stats`);
         const data = await res.json();
 
-        document.getElementById('statLiveBroadcasts').textContent = formatNumber(data.liveBroadcasts);
-        document.getElementById('statTotalViewers').textContent = formatNumber(data.totalViewers);
+        // Total stats
+        document.getElementById('statLiveBroadcasts').textContent = `${formatNumber(data.liveBroadcasts)}개`;
+        document.getElementById('statTotalViewers').textContent = `👥 ${formatNumber(data.totalViewers)}명`;
+
+        // SOOP stats
+        document.getElementById('statSoopBroadcasts').textContent = `${formatNumber(data.platforms?.soop?.broadcasts || 0)}개`;
+        document.getElementById('statSoopViewers').textContent = `👥 ${formatNumber(data.platforms?.soop?.viewers || 0)}명`;
+
+        // Chzzk stats
+        document.getElementById('statChzzkBroadcasts').textContent = `${formatNumber(data.platforms?.chzzk?.broadcasts || 0)}개`;
+        document.getElementById('statChzzkViewers').textContent = `👥 ${formatNumber(data.platforms?.chzzk?.viewers || 0)}명`;
+
+        // Nexon stats
+        document.getElementById('statNexonBroadcasts').textContent = `${formatNumber(data.nexon?.broadcasts || 0)}개`;
+        document.getElementById('statNexonViewers').textContent = `👥 ${formatNumber(data.nexon?.viewers || 0)}명`;
+
+        // Other stats
         document.getElementById('statTotalPersons').textContent = formatNumber(data.totalPersons);
         document.getElementById('statTotalDonations').textContent = formatCurrency(data.totalDonations);
         document.getElementById('statEventCount').textContent = formatNumber(data.eventCount);
