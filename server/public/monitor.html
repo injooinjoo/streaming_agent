@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Streaming Data Monitor</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <style>
     :root {
       --bg-primary: #0f0f23;
@@ -684,6 +685,123 @@
       }
     }
 
+    /* Chart Styles */
+    .charts-section {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .chart-card.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .chart-card h3 {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 200px;
+    }
+
+    .chart-container.tall {
+      height: 300px;
+    }
+
+    /* Nexon Platform Cards */
+    .nexon-platform-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-top: 16px;
+    }
+
+    .nexon-platform-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .nexon-platform-card h4 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .nexon-platform-card .platform-stats {
+      display: flex;
+      gap: 20px;
+      margin-bottom: 12px;
+    }
+
+    .nexon-platform-card .stat-item {
+      text-align: center;
+    }
+
+    .nexon-platform-card .stat-item .value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .nexon-platform-card .stat-item .label {
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .nexon-game-list {
+      max-height: 150px;
+      overflow-y: auto;
+    }
+
+    .nexon-game-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 12px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .nexon-game-item:last-child {
+      border-bottom: none;
+    }
+
+    .nexon-game-item .game-name {
+      color: var(--text-primary);
+    }
+
+    .nexon-game-item .game-stats {
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 768px) {
+      .charts-section {
+        grid-template-columns: 1fr;
+      }
+
+      .nexon-platform-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
     /* Person Modal Styles */
     .modal-overlay {
       display: none;
@@ -1088,6 +1206,72 @@
         <div class="stat-content">
           <h3>참여 기록</h3>
           <div class="value" id="statEngagementCount">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts Section -->
+    <div class="charts-section">
+      <!-- 시청자 추이 그래프 -->
+      <div class="chart-card">
+        <h3>📈 시청자 추이 (24시간)</h3>
+        <div class="chart-container">
+          <canvas id="viewersChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 이벤트 추이 그래프 -->
+      <div class="chart-card">
+        <h3>💬 이벤트 추이 (24시간)</h3>
+        <div class="chart-container">
+          <canvas id="eventsChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 넥슨 플랫폼별 분류 -->
+      <div class="chart-card full-width">
+        <h3>🎮 넥슨 게임 플랫폼별 현황</h3>
+        <div id="nexonPlatformBreakdown">
+          <div class="nexon-platform-grid">
+            <div class="nexon-platform-card">
+              <h4>
+                <img src="/assets/logos/soop.png" alt="SOOP" style="width:20px;height:20px;">
+                SOOP
+              </h4>
+              <div class="platform-stats">
+                <div class="stat-item">
+                  <div class="value" id="nexonSoopBroadcasts">-</div>
+                  <div class="label">방송</div>
+                </div>
+                <div class="stat-item">
+                  <div class="value" id="nexonSoopViewers">-</div>
+                  <div class="label">시청자</div>
+                </div>
+              </div>
+              <div class="nexon-game-list" id="nexonSoopGames">
+                <div class="loading-text">로딩 중...</div>
+              </div>
+            </div>
+            <div class="nexon-platform-card">
+              <h4>
+                <img src="/assets/logos/chzzk.png" alt="Chzzk" style="width:20px;height:20px;">
+                Chzzk
+              </h4>
+              <div class="platform-stats">
+                <div class="stat-item">
+                  <div class="value" id="nexonChzzkBroadcasts">-</div>
+                  <div class="label">방송</div>
+                </div>
+                <div class="stat-item">
+                  <div class="value" id="nexonChzzkViewers">-</div>
+                  <div class="label">시청자</div>
+                </div>
+              </div>
+              <div class="nexon-game-list" id="nexonChzzkGames">
+                <div class="loading-text">로딩 중...</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1546,6 +1730,201 @@
       }
     }
 
+    // Chart instances
+    let viewersChart = null;
+    let eventsChart = null;
+
+    // Chart default options
+    const chartDefaultOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            color: '#a0a0a0',
+            font: { size: 11 },
+            padding: 10,
+            usePointStyle: true
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#a0a0a0', font: { size: 10 } }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,0.05)' },
+          ticks: { color: '#a0a0a0', font: { size: 10 } }
+        }
+      }
+    };
+
+    // Load and render time series charts
+    async function loadTimeseries() {
+      try {
+        const res = await fetch(`${API_BASE}/stats/timeseries?hours=24`);
+        const data = await res.json();
+
+        // Process viewer data by platform
+        const hourLabels = [...new Set(data.viewers.map(v => v.hour))].sort();
+        const shortLabels = hourLabels.map(h => {
+          const date = new Date(h);
+          return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+        });
+
+        // Aggregate viewers by hour and platform
+        const soopViewers = hourLabels.map(hour => {
+          const match = data.viewers.find(v => v.hour === hour && v.platform === 'soop');
+          return match ? match.total_viewers : 0;
+        });
+        const chzzkViewers = hourLabels.map(hour => {
+          const match = data.viewers.find(v => v.hour === hour && v.platform === 'chzzk');
+          return match ? match.total_viewers : 0;
+        });
+
+        // Destroy existing chart if exists
+        if (viewersChart) viewersChart.destroy();
+
+        // Create viewers chart
+        const viewersCtx = document.getElementById('viewersChart').getContext('2d');
+        viewersChart = new Chart(viewersCtx, {
+          type: 'line',
+          data: {
+            labels: shortLabels,
+            datasets: [
+              {
+                label: 'SOOP',
+                data: soopViewers,
+                borderColor: 'rgba(26, 75, 204, 1)',
+                backgroundColor: 'rgba(26, 75, 204, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 2
+              },
+              {
+                label: 'Chzzk',
+                data: chzzkViewers,
+                borderColor: 'rgba(0, 214, 126, 1)',
+                backgroundColor: 'rgba(0, 214, 126, 0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 2
+              }
+            ]
+          },
+          options: chartDefaultOptions
+        });
+
+        // Process events data
+        const eventHours = [...new Set(data.events.map(e => e.hour))].sort();
+        const eventLabels = eventHours.map(h => {
+          const date = new Date(h);
+          return date.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false });
+        });
+
+        const chatCounts = eventHours.map(hour => {
+          const match = data.events.find(e => e.hour === hour && e.event_type === 'chat');
+          return match ? match.count : 0;
+        });
+        const donationCounts = eventHours.map(hour => {
+          const match = data.events.find(e => e.hour === hour && e.event_type === 'donation');
+          return match ? match.count : 0;
+        });
+
+        // Destroy existing chart if exists
+        if (eventsChart) eventsChart.destroy();
+
+        // Create events chart
+        const eventsCtx = document.getElementById('eventsChart').getContext('2d');
+        eventsChart = new Chart(eventsCtx, {
+          type: 'bar',
+          data: {
+            labels: eventLabels,
+            datasets: [
+              {
+                label: '채팅',
+                data: chatCounts,
+                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                borderRadius: 4
+              },
+              {
+                label: '후원',
+                data: donationCounts,
+                backgroundColor: 'rgba(255, 165, 2, 0.7)',
+                borderRadius: 4
+              }
+            ]
+          },
+          options: {
+            ...chartDefaultOptions,
+            scales: {
+              ...chartDefaultOptions.scales,
+              x: {
+                ...chartDefaultOptions.scales.x,
+                stacked: false
+              },
+              y: {
+                ...chartDefaultOptions.scales.y,
+                stacked: false
+              }
+            }
+          }
+        });
+
+      } catch (error) {
+        console.error('Failed to load timeseries:', error);
+      }
+    }
+
+    // Load Nexon platform breakdown
+    async function loadNexonBreakdown() {
+      try {
+        const res = await fetch(`${API_BASE}/stats/nexon`);
+        const data = await res.json();
+
+        // Update SOOP stats
+        document.getElementById('nexonSoopBroadcasts').textContent = formatNumber(data.platforms.soop.total.broadcasts);
+        document.getElementById('nexonSoopViewers').textContent = formatNumber(data.platforms.soop.total.viewers);
+
+        // Update SOOP games list
+        const soopGamesEl = document.getElementById('nexonSoopGames');
+        if (data.platforms.soop.games.length > 0) {
+          soopGamesEl.innerHTML = data.platforms.soop.games.map(g => `
+            <div class="nexon-game-item">
+              <span class="game-name">${g.category_name || g.category_id}</span>
+              <span class="game-stats">${g.broadcast_count}방송 · ${formatNumber(g.total_viewers)}명</span>
+            </div>
+          `).join('');
+        } else {
+          soopGamesEl.innerHTML = '<div class="empty-text" style="color: var(--text-secondary); font-size: 12px;">진행 중인 방송 없음</div>';
+        }
+
+        // Update Chzzk stats
+        document.getElementById('nexonChzzkBroadcasts').textContent = formatNumber(data.platforms.chzzk.total.broadcasts);
+        document.getElementById('nexonChzzkViewers').textContent = formatNumber(data.platforms.chzzk.total.viewers);
+
+        // Update Chzzk games list
+        const chzzkGamesEl = document.getElementById('nexonChzzkGames');
+        if (data.platforms.chzzk.games.length > 0) {
+          chzzkGamesEl.innerHTML = data.platforms.chzzk.games.map(g => `
+            <div class="nexon-game-item">
+              <span class="game-name">${g.category_name || g.category_id}</span>
+              <span class="game-stats">${g.broadcast_count}방송 · ${formatNumber(g.total_viewers)}명</span>
+            </div>
+          `).join('');
+        } else {
+          chzzkGamesEl.innerHTML = '<div class="empty-text" style="color: var(--text-secondary); font-size: 12px;">진행 중인 방송 없음</div>';
+        }
+
+      } catch (error) {
+        console.error('Failed to load nexon breakdown:', error);
+        document.getElementById('nexonSoopGames').innerHTML = '<div class="error-text" style="color: var(--accent-red);">로드 실패</div>';
+        document.getElementById('nexonChzzkGames').innerHTML = '<div class="error-text" style="color: var(--accent-red);">로드 실패</div>';
+      }
+    }
+
     // Fetch broadcasts
     async function loadBroadcasts(page = 1) {
       const tbody = document.getElementById('broadcastsBody');
@@ -1970,6 +2349,8 @@
 
       await Promise.all([
         loadStats(),
+        loadTimeseries(),
+        loadNexonBreakdown(),
         loadBroadcasts(currentPages.broadcasts),
         loadPersons(currentPages.persons),
         loadEngagement(currentPages.engagement)

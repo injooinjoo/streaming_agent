@@ -374,6 +374,157 @@ const createMonitorRouter = (db) => {
   });
 
   /**
+   * GET /api/monitor/stats/timeseries
+   * Returns time series data for charts (hourly data for last 24 hours)
+   */
+  router.get("/monitor/stats/timeseries", async (req, res) => {
+    try {
+      const hours = Math.min(168, Math.max(1, parseInt(req.query.hours) || 24));
+
+      // Get viewer snapshots aggregated by hour
+      const viewerTimeseries = await dbAll(`
+        SELECT
+          strftime('%Y-%m-%d %H:00:00', snapshot_at) as hour,
+          platform,
+          SUM(viewer_count) as total_viewers,
+          COUNT(DISTINCT channel_id) as broadcast_count
+        FROM viewer_snapshots
+        WHERE snapshot_at >= datetime('now', '-${hours} hours')
+        GROUP BY hour, platform
+        ORDER BY hour ASC
+      `);
+
+      // Get events aggregated by hour
+      const eventTimeseries = await dbAll(`
+        SELECT
+          strftime('%Y-%m-%d %H:00:00', event_timestamp) as hour,
+          event_type,
+          COUNT(*) as count,
+          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as total_amount
+        FROM events
+        WHERE event_timestamp >= datetime('now', '-${hours} hours')
+        GROUP BY hour, event_type
+        ORDER BY hour ASC
+      `);
+
+      // Get broadcast activity by hour
+      const broadcastTimeseries = await dbAll(`
+        SELECT
+          strftime('%Y-%m-%d %H:00:00', updated_at) as hour,
+          platform,
+          COUNT(*) as active_broadcasts,
+          COALESCE(SUM(current_viewer_count), 0) as total_viewers,
+          COALESCE(AVG(current_viewer_count), 0) as avg_viewers
+        FROM broadcasts
+        WHERE updated_at >= datetime('now', '-${hours} hours')
+        GROUP BY hour, platform
+        ORDER BY hour ASC
+      `);
+
+      res.json({
+        hours,
+        viewers: viewerTimeseries,
+        events: eventTimeseries,
+        broadcasts: broadcastTimeseries
+      });
+    } catch (error) {
+      apiLogger.error("Monitor timeseries error", { error: error.message });
+      res.status(500).json({ error: "Failed to fetch timeseries data" });
+    }
+  });
+
+  /**
+   * GET /api/monitor/stats/nexon
+   * Returns detailed Nexon game statistics by platform
+   */
+  router.get("/monitor/stats/nexon", async (req, res) => {
+    try {
+      // Nexon game category IDs by platform
+      const nexonCategories = {
+        soop: [
+          '00040005', '00040070', '00040032', '00040158',
+          '00360113', '00360055', '00040004', '00040065'
+        ],
+        chzzk: [
+          'MapleStory', 'Dungeon_Fighter_Online', 'FC_Online', 'Sudden_Attack',
+          'KartRider', 'Mabinogi', 'The_First_Descendant', 'V4'
+        ]
+      };
+
+      // Get SOOP Nexon broadcasts
+      const soopPlaceholders = nexonCategories.soop.map(() => '?').join(',');
+      const soopNexon = await dbAll(`
+        SELECT
+          seg.category_id,
+          c.category_name,
+          COUNT(*) as broadcast_count,
+          COALESCE(SUM(b.current_viewer_count), 0) as total_viewers
+        FROM broadcasts b
+        INNER JOIN (
+          SELECT broadcast_id, category_id,
+          ROW_NUMBER() OVER (PARTITION BY broadcast_id ORDER BY segment_started_at DESC) as rn
+          FROM broadcast_segments
+        ) seg ON b.id = seg.broadcast_id AND seg.rn = 1
+        LEFT JOIN categories c ON seg.category_id = c.category_id AND b.platform = c.platform
+        WHERE b.is_live = 1 AND b.platform = 'soop' AND seg.category_id IN (${soopPlaceholders})
+        GROUP BY seg.category_id
+        ORDER BY total_viewers DESC
+      `, nexonCategories.soop);
+
+      // Get Chzzk Nexon broadcasts
+      const chzzkPlaceholders = nexonCategories.chzzk.map(() => '?').join(',');
+      const chzzkNexon = await dbAll(`
+        SELECT
+          seg.category_id,
+          c.category_name,
+          COUNT(*) as broadcast_count,
+          COALESCE(SUM(b.current_viewer_count), 0) as total_viewers
+        FROM broadcasts b
+        INNER JOIN (
+          SELECT broadcast_id, category_id,
+          ROW_NUMBER() OVER (PARTITION BY broadcast_id ORDER BY segment_started_at DESC) as rn
+          FROM broadcast_segments
+        ) seg ON b.id = seg.broadcast_id AND seg.rn = 1
+        LEFT JOIN categories c ON seg.category_id = c.category_id AND b.platform = c.platform
+        WHERE b.is_live = 1 AND b.platform = 'chzzk' AND seg.category_id IN (${chzzkPlaceholders})
+        GROUP BY seg.category_id
+        ORDER BY total_viewers DESC
+      `, nexonCategories.chzzk);
+
+      // Aggregate totals
+      const soopTotal = soopNexon.reduce((acc, g) => ({
+        broadcasts: acc.broadcasts + g.broadcast_count,
+        viewers: acc.viewers + g.total_viewers
+      }), { broadcasts: 0, viewers: 0 });
+
+      const chzzkTotal = chzzkNexon.reduce((acc, g) => ({
+        broadcasts: acc.broadcasts + g.broadcast_count,
+        viewers: acc.viewers + g.total_viewers
+      }), { broadcasts: 0, viewers: 0 });
+
+      res.json({
+        platforms: {
+          soop: {
+            total: soopTotal,
+            games: soopNexon
+          },
+          chzzk: {
+            total: chzzkTotal,
+            games: chzzkNexon
+          }
+        },
+        total: {
+          broadcasts: soopTotal.broadcasts + chzzkTotal.broadcasts,
+          viewers: soopTotal.viewers + chzzkTotal.viewers
+        }
+      });
+    } catch (error) {
+      apiLogger.error("Monitor nexon stats error", { error: error.message });
+      res.status(500).json({ error: "Failed to fetch nexon stats" });
+    }
+  });
+
+  /**
    * GET /api/monitor/broadcasts
    * Returns paginated broadcast list with category from latest segment and stats from events
    * Query params: page (default 1), limit (default 50), live_only (default false)
