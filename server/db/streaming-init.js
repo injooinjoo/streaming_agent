@@ -58,11 +58,25 @@ const initializeStreamingDatabase = (db) => {
         platform_category_name TEXT NOT NULL,
         category_type TEXT,
         thumbnail_url TEXT,
+        viewer_count INTEGER DEFAULT 0,
+        streamer_count INTEGER DEFAULT 0,
         is_active INTEGER DEFAULT 1,
         first_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(platform, platform_category_id)
       )`);
+
+      // Migration: Add viewer_count and streamer_count columns if missing
+      db.run(`ALTER TABLE platform_categories ADD COLUMN viewer_count INTEGER DEFAULT 0`, (err) => {
+        if (err && !err.message.includes("duplicate column")) {
+          dbLogger.warn("Could not add viewer_count column:", err.message);
+        }
+      });
+      db.run(`ALTER TABLE platform_categories ADD COLUMN streamer_count INTEGER DEFAULT 0`, (err) => {
+        if (err && !err.message.includes("duplicate column")) {
+          dbLogger.warn("Could not add streamer_count column:", err.message);
+        }
+      });
 
       // ===== Unified Games Table =====
       // Cross-platform game catalog
@@ -103,6 +117,22 @@ const initializeStreamingDatabase = (db) => {
           dbLogger.warn("Could not add platform_category_name column:", err.message);
         }
       });
+
+      // ===== Category Stats Table =====
+      // Time-series data for category viewer/streamer counts
+
+      db.run(`CREATE TABLE IF NOT EXISTS category_stats (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform TEXT NOT NULL,
+        platform_category_id TEXT NOT NULL,
+        viewer_count INTEGER DEFAULT 0,
+        streamer_count INTEGER DEFAULT 0,
+        recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
+
+      // Category stats indexes
+      db.run(`CREATE INDEX IF NOT EXISTS idx_category_stats_platform ON category_stats(platform, platform_category_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_category_stats_recorded ON category_stats(recorded_at)`);
 
       // ===== Persons Table =====
       // Unified identity for streamers and viewers across platforms
