@@ -1,12 +1,13 @@
 /**
- * Database Initialization
- * Creates all required tables for the application
+ * Overlay Database Initialization
+ * Creates tables for the overlay system (settings, users, ads, marketplace)
+ * Streaming data tables are now in streaming-init.js
  */
 
 const { db: dbLogger } = require("../services/logger");
 
 /**
- * Initialize database tables
+ * Initialize overlay database tables
  * @param {sqlite3.Database} db - Database instance
  * @returns {Promise<void>}
  */
@@ -14,25 +15,6 @@ const initializeDatabase = (db) => {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
       // ===== Core Tables =====
-
-      db.run(`CREATE TABLE IF NOT EXISTS events (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        type TEXT,
-        sender TEXT,
-        sender_id TEXT,
-        amount INTEGER,
-        message TEXT,
-        platform TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`);
-
-      // Add sender_id column for existing databases (SQLite safe migration)
-      db.run(`ALTER TABLE events ADD COLUMN sender_id TEXT`, (err) => {
-        // Ignore error if column already exists
-        if (err && !err.message.includes("duplicate column")) {
-          dbLogger.warn("Could not add sender_id column:", err.message);
-        }
-      });
 
       db.run(`CREATE TABLE IF NOT EXISTS settings (
         key TEXT PRIMARY KEY,
@@ -260,85 +242,7 @@ const initializeDatabase = (db) => {
         UNIQUE(design_id, user_id)
       )`);
 
-      // ===== Category/Game Catalog Tables =====
-
-      db.run(`CREATE TABLE IF NOT EXISTS platform_categories (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        platform TEXT NOT NULL CHECK(platform IN ('soop', 'chzzk', 'twitch', 'youtube')),
-        platform_category_id TEXT NOT NULL,
-        platform_category_name TEXT NOT NULL,
-        category_type TEXT,
-        thumbnail_url TEXT,
-        viewer_count INTEGER DEFAULT 0,
-        streamer_count INTEGER DEFAULT 0,
-        is_active INTEGER DEFAULT 1,
-        first_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        last_seen_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(platform, platform_category_id)
-      )`);
-
-      db.run(`CREATE TABLE IF NOT EXISTS unified_games (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL,
-        name_kr TEXT,
-        genre TEXT,
-        genre_kr TEXT,
-        developer TEXT,
-        release_date TEXT,
-        description TEXT,
-        image_url TEXT,
-        is_verified INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`);
-
-      db.run(`CREATE TABLE IF NOT EXISTS category_game_mappings (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        unified_game_id INTEGER REFERENCES unified_games(id) ON DELETE CASCADE,
-        platform TEXT NOT NULL,
-        platform_category_id TEXT NOT NULL,
-        confidence REAL DEFAULT 1.0,
-        is_manual INTEGER DEFAULT 0,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        UNIQUE(platform, platform_category_id)
-      )`);
-
-      db.run(`CREATE TABLE IF NOT EXISTS category_stats (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        platform TEXT NOT NULL,
-        platform_category_id TEXT NOT NULL,
-        recorded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        viewer_count INTEGER DEFAULT 0,
-        streamer_count INTEGER DEFAULT 0
-      )`);
-
-      // ===== Indexes =====
-
-      // ===== Viewer Stats Table (for viewer-update events) =====
-
-      db.run(`CREATE TABLE IF NOT EXISTS viewer_stats (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        platform TEXT NOT NULL,
-        channel_id TEXT NOT NULL,
-        viewer_count INTEGER DEFAULT 0,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-      )`);
-
-      db.run(`CREATE INDEX IF NOT EXISTS idx_viewer_stats_channel ON viewer_stats(platform, channel_id)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_viewer_stats_timestamp ON viewer_stats(timestamp)`);
-
-      // ===== Indexes =====
-
-      db.run(`CREATE INDEX IF NOT EXISTS idx_platform_categories_platform ON platform_categories(platform)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_platform_categories_active ON platform_categories(is_active)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_category_stats_recorded ON category_stats(recorded_at)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_category_stats_platform ON category_stats(platform, platform_category_id)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_mappings_game ON category_game_mappings(unified_game_id)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_events_platform ON events(platform)`);
-      db.run(`CREATE INDEX IF NOT EXISTS idx_events_type ON events(type)`);
-
-      dbLogger.info("All database tables initialized");
+      dbLogger.info("Overlay database tables initialized");
       resolve();
     });
   });
