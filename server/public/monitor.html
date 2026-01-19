@@ -269,6 +269,26 @@
       color: var(--accent-cyan);
     }
 
+    .type-badge.chat {
+      background: rgba(55, 66, 250, 0.15);
+      color: var(--accent-blue);
+    }
+
+    .type-badge.donation {
+      background: rgba(255, 165, 2, 0.15);
+      color: var(--accent-yellow);
+    }
+
+    .type-badge.subscribe {
+      background: rgba(155, 89, 182, 0.15);
+      color: var(--accent-purple);
+    }
+
+    .type-badge.follow {
+      background: rgba(46, 213, 115, 0.15);
+      color: var(--accent-green);
+    }
+
     .text-truncate {
       max-width: 250px;
       white-space: nowrap;
@@ -678,6 +698,10 @@
       <button class="tab-btn active" data-tab="broadcasts">방송 목록</button>
       <button class="tab-btn" data-tab="persons">인원 목록</button>
       <button class="tab-btn" data-tab="engagement">참여 기록</button>
+      <button class="tab-btn" data-tab="events">이벤트</button>
+      <button class="tab-btn" data-tab="segments">세그먼트</button>
+      <button class="tab-btn" data-tab="categories">카테고리</button>
+      <button class="tab-btn" data-tab="snapshots">스냅샷</button>
       <button class="tab-btn" data-tab="schema">DB 스키마</button>
     </div>
 
@@ -793,6 +817,148 @@
       </div>
     </div>
 
+    <!-- Events Tab -->
+    <div id="events" class="tab-content">
+      <div class="table-container">
+        <div class="table-header">
+          <span class="table-title">이벤트 목록</span>
+          <div class="filter-group">
+            <select id="eventFilter" onchange="loadEvents(1)">
+              <option value="all">전체</option>
+              <option value="chat">채팅</option>
+              <option value="donation">후원</option>
+              <option value="subscribe">구독</option>
+              <option value="follow">팔로우</option>
+            </select>
+          </div>
+        </div>
+        <div id="eventsTableWrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>플랫폼</th>
+                <th>타입</th>
+                <th>닉네임</th>
+                <th>메시지</th>
+                <th>금액</th>
+                <th>채널</th>
+                <th>시간</th>
+              </tr>
+            </thead>
+            <tbody id="eventsBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span class="pagination-info" id="eventsPagination">-</span>
+          <div class="pagination-buttons">
+            <button class="page-btn" id="eventsPrev" onclick="loadEvents(currentPages.events - 1)">이전</button>
+            <button class="page-btn" id="eventsNext" onclick="loadEvents(currentPages.events + 1)">다음</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Segments Tab -->
+    <div id="segments" class="tab-content">
+      <div class="table-container">
+        <div class="table-header">
+          <span class="table-title">방송 세그먼트</span>
+        </div>
+        <div id="segmentsTableWrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>플랫폼</th>
+                <th>방송자</th>
+                <th>카테고리</th>
+                <th>최고 시청자</th>
+                <th>평균 시청자</th>
+                <th>시작</th>
+                <th>종료</th>
+              </tr>
+            </thead>
+            <tbody id="segmentsBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span class="pagination-info" id="segmentsPagination">-</span>
+          <div class="pagination-buttons">
+            <button class="page-btn" id="segmentsPrev" onclick="loadSegments(currentPages.segments - 1)">이전</button>
+            <button class="page-btn" id="segmentsNext" onclick="loadSegments(currentPages.segments + 1)">다음</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Categories Tab -->
+    <div id="categories" class="tab-content">
+      <div class="table-container">
+        <div class="table-header">
+          <span class="table-title">카테고리 목록</span>
+          <div class="filter-group">
+            <select id="categoryFilter" onchange="loadCategories(1)">
+              <option value="all">전체</option>
+              <option value="soop">SOOP</option>
+              <option value="chzzk">Chzzk</option>
+            </select>
+          </div>
+        </div>
+        <div id="categoriesTableWrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>플랫폼</th>
+                <th>카테고리 ID</th>
+                <th>카테고리명</th>
+                <th>타입</th>
+                <th>등록일</th>
+                <th>수정일</th>
+              </tr>
+            </thead>
+            <tbody id="categoriesBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span class="pagination-info" id="categoriesPagination">-</span>
+          <div class="pagination-buttons">
+            <button class="page-btn" id="categoriesPrev" onclick="loadCategories(currentPages.categories - 1)">이전</button>
+            <button class="page-btn" id="categoriesNext" onclick="loadCategories(currentPages.categories + 1)">다음</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Snapshots Tab -->
+    <div id="snapshots" class="tab-content">
+      <div class="table-container">
+        <div class="table-header">
+          <span class="table-title">시청자 스냅샷</span>
+        </div>
+        <div id="snapshotsTableWrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>플랫폼</th>
+                <th>방송자</th>
+                <th>방송 제목</th>
+                <th>시청자 수</th>
+                <th>분당 채팅</th>
+                <th>스냅샷 시간</th>
+              </tr>
+            </thead>
+            <tbody id="snapshotsBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span class="pagination-info" id="snapshotsPagination">-</span>
+          <div class="pagination-buttons">
+            <button class="page-btn" id="snapshotsPrev" onclick="loadSnapshots(currentPages.snapshots - 1)">이전</button>
+            <button class="page-btn" id="snapshotsNext" onclick="loadSnapshots(currentPages.snapshots + 1)">다음</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Schema Tab -->
     <div id="schema" class="tab-content">
       <div id="schemaLoading" class="loading">스키마 로딩 중...</div>
@@ -843,13 +1009,21 @@
     let currentPages = {
       broadcasts: 1,
       persons: 1,
-      engagement: 1
+      engagement: 1,
+      events: 1,
+      segments: 1,
+      categories: 1,
+      snapshots: 1
     };
 
     let totalPages = {
       broadcasts: 1,
       persons: 1,
-      engagement: 1
+      engagement: 1,
+      events: 1,
+      segments: 1,
+      categories: 1,
+      snapshots: 1
     };
 
     // Format numbers with locale
@@ -1047,6 +1221,146 @@
       }
     }
 
+    // Fetch events
+    async function loadEvents(page = 1) {
+      const tbody = document.getElementById('eventsBody');
+      const filter = document.getElementById('eventFilter').value;
+      showLoading(tbody);
+
+      try {
+        const res = await fetch(`${API_BASE}/events?page=${page}&limit=${PAGE_SIZE}&type=${filter}`);
+        const { data, pagination } = await res.json();
+
+        currentPages.events = pagination.page;
+        totalPages.events = pagination.totalPages;
+
+        if (data.length === 0) {
+          showEmpty(tbody);
+        } else {
+          tbody.innerHTML = data.map(e => `
+            <tr>
+              <td>${getPlatformBadge(e.platform)}</td>
+              <td><span class="type-badge ${e.event_type}">${e.event_type}</span></td>
+              <td>${e.actor_nickname || '-'}</td>
+              <td class="text-truncate" title="${e.message || ''}">${e.message || '-'}</td>
+              <td class="number">${e.amount ? formatCurrency(e.amount) : '-'}</td>
+              <td>${e.target_channel_id || '-'}</td>
+              <td>${formatDate(e.event_timestamp)}</td>
+            </tr>
+          `).join('');
+        }
+
+        updatePagination('events', pagination);
+      } catch (error) {
+        console.error('Failed to load events:', error);
+        showEmpty(tbody, '데이터를 불러올 수 없습니다');
+      }
+    }
+
+    // Fetch segments
+    async function loadSegments(page = 1) {
+      const tbody = document.getElementById('segmentsBody');
+      showLoading(tbody);
+
+      try {
+        const res = await fetch(`${API_BASE}/segments?page=${page}&limit=${PAGE_SIZE}`);
+        const { data, pagination } = await res.json();
+
+        currentPages.segments = pagination.page;
+        totalPages.segments = pagination.totalPages;
+
+        if (data.length === 0) {
+          showEmpty(tbody);
+        } else {
+          tbody.innerHTML = data.map(s => `
+            <tr>
+              <td>${getPlatformBadge(s.platform)}</td>
+              <td>${s.broadcaster_nickname || '-'}</td>
+              <td>${s.category_name || '-'}</td>
+              <td class="number">${formatNumber(s.peak_viewer_count)}</td>
+              <td class="number">${formatNumber(s.avg_viewer_count)}</td>
+              <td>${formatDate(s.segment_started_at)}</td>
+              <td>${formatDate(s.segment_ended_at)}</td>
+            </tr>
+          `).join('');
+        }
+
+        updatePagination('segments', pagination);
+      } catch (error) {
+        console.error('Failed to load segments:', error);
+        showEmpty(tbody, '데이터를 불러올 수 없습니다');
+      }
+    }
+
+    // Fetch categories
+    async function loadCategories(page = 1) {
+      const tbody = document.getElementById('categoriesBody');
+      const filter = document.getElementById('categoryFilter').value;
+      showLoading(tbody);
+
+      try {
+        const res = await fetch(`${API_BASE}/categories?page=${page}&limit=${PAGE_SIZE}&platform=${filter}`);
+        const { data, pagination } = await res.json();
+
+        currentPages.categories = pagination.page;
+        totalPages.categories = pagination.totalPages;
+
+        if (data.length === 0) {
+          showEmpty(tbody);
+        } else {
+          tbody.innerHTML = data.map(c => `
+            <tr>
+              <td>${getPlatformBadge(c.platform)}</td>
+              <td>${c.category_id || '-'}</td>
+              <td>${c.category_name || '-'}</td>
+              <td>${c.category_type || '-'}</td>
+              <td>${formatDate(c.recorded_at)}</td>
+              <td>${formatDate(c.updated_at)}</td>
+            </tr>
+          `).join('');
+        }
+
+        updatePagination('categories', pagination);
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+        showEmpty(tbody, '데이터를 불러올 수 없습니다');
+      }
+    }
+
+    // Fetch snapshots
+    async function loadSnapshots(page = 1) {
+      const tbody = document.getElementById('snapshotsBody');
+      showLoading(tbody);
+
+      try {
+        const res = await fetch(`${API_BASE}/snapshots?page=${page}&limit=${PAGE_SIZE}`);
+        const { data, pagination } = await res.json();
+
+        currentPages.snapshots = pagination.page;
+        totalPages.snapshots = pagination.totalPages;
+
+        if (data.length === 0) {
+          showEmpty(tbody);
+        } else {
+          tbody.innerHTML = data.map(s => `
+            <tr>
+              <td>${getPlatformBadge(s.platform)}</td>
+              <td>${s.broadcaster_nickname || '-'}</td>
+              <td class="text-truncate" title="${s.broadcast_title || ''}">${s.broadcast_title || '-'}</td>
+              <td class="number">${formatNumber(s.viewer_count)}</td>
+              <td class="number">${formatNumber(s.chat_rate_per_minute)}</td>
+              <td>${formatDate(s.snapshot_at)}</td>
+            </tr>
+          `).join('');
+        }
+
+        updatePagination('snapshots', pagination);
+      } catch (error) {
+        console.error('Failed to load snapshots:', error);
+        showEmpty(tbody, '데이터를 불러올 수 없습니다');
+      }
+    }
+
     // Update pagination UI
     function updatePagination(type, pagination) {
       const info = document.getElementById(`${type}Pagination`);
@@ -1164,6 +1478,9 @@
       }
     }
 
+    // Track loaded tabs
+    const loadedTabs = { broadcasts: true, persons: true, engagement: true };
+
     // Tab switching
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -1175,9 +1492,17 @@
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.getElementById(btn.dataset.tab).classList.add('active');
 
-        // Load schema when schema tab is clicked
-        if (btn.dataset.tab === 'schema') {
-          loadSchema();
+        // Load data for tab if not already loaded
+        const tab = btn.dataset.tab;
+        if (!loadedTabs[tab]) {
+          switch(tab) {
+            case 'events': loadEvents(1); break;
+            case 'segments': loadSegments(1); break;
+            case 'categories': loadCategories(1); break;
+            case 'snapshots': loadSnapshots(1); break;
+            case 'schema': loadSchema(); break;
+          }
+          loadedTabs[tab] = true;
         }
       });
     });

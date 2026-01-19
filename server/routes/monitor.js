@@ -733,6 +733,128 @@ const createMonitorRouter = (db) => {
     }
   });
 
+  /**
+   * GET /api/monitor/categories
+   * Returns paginated categories list
+   * Query params: page (default 1), limit (default 50), platform (optional)
+   */
+  router.get("/monitor/categories", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+      const offset = (page - 1) * limit;
+      const platform = req.query.platform;
+
+      let whereClause = "";
+      let params = [limit, offset];
+      if (platform && platform !== "all") {
+        whereClause = "WHERE platform = ?";
+        params = [platform, limit, offset];
+      }
+
+      // Get total count
+      const countSql = platform && platform !== "all"
+        ? `SELECT COUNT(*) as total FROM categories WHERE platform = ?`
+        : `SELECT COUNT(*) as total FROM categories`;
+      const countResult = await dbGet(countSql, platform && platform !== "all" ? [platform] : []);
+      const total = countResult?.total || 0;
+
+      // Get categories
+      const categories = await dbAll(
+        `SELECT
+          id,
+          platform,
+          category_id,
+          category_name,
+          category_type,
+          thumbnail_url,
+          recorded_at,
+          updated_at
+        FROM categories
+        ${whereClause}
+        ORDER BY category_name ASC
+        LIMIT ? OFFSET ?`,
+        params
+      );
+
+      res.json({
+        data: categories,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      apiLogger.error("Monitor categories error", { error: error.message });
+      res.status(500).json({ error: "Failed to fetch categories" });
+    }
+  });
+
+  /**
+   * GET /api/monitor/snapshots
+   * Returns paginated viewer snapshots
+   * Query params: page (default 1), limit (default 50), broadcast_id (optional)
+   */
+  router.get("/monitor/snapshots", async (req, res) => {
+    try {
+      const page = Math.max(1, parseInt(req.query.page) || 1);
+      const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+      const offset = (page - 1) * limit;
+      const broadcastId = req.query.broadcast_id;
+
+      let whereClause = "";
+      let params = [limit, offset];
+      if (broadcastId) {
+        whereClause = "WHERE vs.broadcast_id = ?";
+        params = [broadcastId, limit, offset];
+      }
+
+      // Get total count
+      const countSql = broadcastId
+        ? `SELECT COUNT(*) as total FROM viewer_snapshots WHERE broadcast_id = ?`
+        : `SELECT COUNT(*) as total FROM viewer_snapshots`;
+      const countResult = await dbGet(countSql, broadcastId ? [broadcastId] : []);
+      const total = countResult?.total || 0;
+
+      // Get snapshots with broadcast info
+      const snapshots = await dbAll(
+        `SELECT
+          vs.id,
+          vs.platform,
+          vs.channel_id,
+          vs.broadcast_id,
+          vs.viewer_count,
+          vs.chat_rate_per_minute,
+          vs.snapshot_at,
+          vs.ingested_at,
+          b.title as broadcast_title,
+          p.nickname as broadcaster_nickname
+        FROM viewer_snapshots vs
+        LEFT JOIN broadcasts b ON vs.broadcast_id = b.id
+        LEFT JOIN persons p ON b.broadcaster_person_id = p.id
+        ${whereClause}
+        ORDER BY vs.snapshot_at DESC
+        LIMIT ? OFFSET ?`,
+        params
+      );
+
+      res.json({
+        data: snapshots,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    } catch (error) {
+      apiLogger.error("Monitor snapshots error", { error: error.message });
+      res.status(500).json({ error: "Failed to fetch snapshots" });
+    }
+  });
+
   return router;
 };
 
