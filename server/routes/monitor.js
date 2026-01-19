@@ -297,8 +297,12 @@ const createMonitorRouter = (streamingDb, overlayDb) => {
         for (const table of tables) {
           // Get column info using PRAGMA
           const columns = await dbAllFn(`PRAGMA table_info("${table.name}")`);
+          // Get row count for the table
+          const countResult = await dbAllFn(`SELECT COUNT(*) as count FROM "${table.name}"`);
+          const rowCount = countResult[0]?.count || 0;
           schema.push({
             name: table.name,
+            rowCount,
             columns: columns.map((col) => ({
               name: col.name,
               type: col.type,
