@@ -400,6 +400,7 @@ const createMonitorRouter = (db) => {
           b.platform,
           b.channel_id,
           b.broadcast_id,
+          b.broadcaster_person_id,
           p.nickname as broadcaster_nickname,
           b.title,
           seg.category_name,
@@ -527,8 +528,138 @@ const createMonitorRouter = (db) => {
   });
 
   /**
+   * GET /api/monitor/persons/:id
+   * Returns detailed information about a specific person
+   * Includes stats, broadcasts (if broadcaster), engagement (if viewer), and recent events
+   */
+  router.get("/monitor/persons/:id", async (req, res) => {
+    try {
+      const personId = parseInt(req.params.id);
+      if (isNaN(personId)) {
+        return res.status(400).json({ error: "Invalid person ID" });
+      }
+
+      // Get person basic info
+      const person = await dbGet(
+        `SELECT
+          id, platform, platform_user_id, nickname, profile_image_url,
+          channel_id, channel_description, follower_count, subscriber_count,
+          total_broadcast_minutes, last_broadcast_at, first_seen_at, last_seen_at
+        FROM persons WHERE id = ?`,
+        [personId]
+      );
+
+      if (!person) {
+        return res.status(404).json({ error: "Person not found" });
+      }
+
+      // Get stats from events table
+      const stats = await dbGet(
+        `SELECT
+          COALESCE(SUM(CASE WHEN event_type = 'chat' THEN 1 ELSE 0 END), 0) as total_chat_count,
+          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN 1 ELSE 0 END), 0) as total_donation_count,
+          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as total_donation_amount
+        FROM events WHERE actor_person_id = ?`,
+        [personId]
+      );
+
+      const isBroadcaster = !!person.channel_id;
+      let broadcasts = [];
+      let topViewers = [];
+      let engagementByChannel = [];
+
+      if (isBroadcaster) {
+        // Get recent broadcasts (last 10)
+        broadcasts = await dbAll(
+          `SELECT
+            b.id, b.title, b.started_at, b.ended_at, b.duration_minutes,
+            b.peak_viewer_count, b.avg_viewer_count, b.is_live,
+            seg.category_name
+          FROM broadcasts b
+          LEFT JOIN (
+            SELECT broadcast_id, category_name
+            FROM broadcast_segments
+            WHERE id IN (
+              SELECT MAX(id) FROM broadcast_segments GROUP BY broadcast_id
+            )
+          ) seg ON seg.broadcast_id = b.id
+          WHERE b.broadcaster_person_id = ?
+          ORDER BY b.started_at DESC
+          LIMIT 10`,
+          [personId]
+        );
+
+        // Get top viewers for this broadcaster (based on engagement)
+        topViewers = await dbAll(
+          `SELECT
+            p.id as person_id,
+            p.nickname,
+            p.profile_image_url,
+            ve.chat_count,
+            ve.donation_count,
+            ve.total_donation_amount as donation_amount,
+            ve.last_seen_at
+          FROM viewer_engagement ve
+          JOIN persons p ON ve.person_id = p.id
+          WHERE ve.broadcaster_person_id = ?
+          ORDER BY ve.total_donation_amount DESC, ve.chat_count DESC
+          LIMIT 10`,
+          [personId]
+        );
+      } else {
+        // Get engagement by channel for this viewer
+        engagementByChannel = await dbAll(
+          `SELECT
+            bp.id as broadcaster_id,
+            bp.nickname as broadcaster_nickname,
+            bp.profile_image_url as broadcaster_profile_image,
+            bp.platform,
+            ve.chat_count,
+            ve.donation_count,
+            ve.total_donation_amount as donation_amount,
+            ve.first_seen_at,
+            ve.last_seen_at
+          FROM viewer_engagement ve
+          JOIN persons bp ON ve.broadcaster_person_id = bp.id
+          WHERE ve.person_id = ?
+          ORDER BY ve.total_donation_amount DESC, ve.chat_count DESC
+          LIMIT 20`,
+          [personId]
+        );
+      }
+
+      // Get recent events (last 20)
+      const recentEvents = await dbAll(
+        `SELECT
+          e.id, e.event_type, e.message, e.amount, e.currency, e.donation_type,
+          e.event_timestamp, e.actor_role,
+          tp.nickname as target_nickname
+        FROM events e
+        LEFT JOIN persons tp ON e.target_person_id = tp.id
+        WHERE e.actor_person_id = ?
+        ORDER BY e.event_timestamp DESC
+        LIMIT 20`,
+        [personId]
+      );
+
+      res.json({
+        person,
+        stats: stats || { total_chat_count: 0, total_donation_count: 0, total_donation_amount: 0 },
+        isBroadcaster,
+        broadcasts,
+        topViewers,
+        engagementByChannel,
+        recentEvents
+      });
+    } catch (error) {
+      apiLogger.error("Monitor person detail error", { error: error.message });
+      res.status(500).json({ error: "Failed to fetch person details" });
+    }
+  });
+
+  /**
    * GET /api/monitor/engagement
-   * Returns paginated viewer engagement records
+   * Returns paginated viewer engagement records aggregated by viewer + broadcaster
    * Query params: page (default 1), limit (default 50)
    */
   router.get("/monitor/engagement", async (req, res) => {
@@ -537,34 +668,35 @@ const createMonitorRouter = (db) => {
       const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
       const offset = (page - 1) * limit;
 
-      // Get total count
+      // Get total count of unique viewer-broadcaster pairs
       const countResult = await dbGet(
-        `SELECT COUNT(*) as total FROM viewer_engagement`
+        `SELECT COUNT(*) as total FROM (
+          SELECT DISTINCT person_id, broadcaster_person_id FROM viewer_engagement
+        )`
       );
       const total = countResult?.total || 0;
 
-      // Get engagement records with joined person and category data
+      // Get engagement records aggregated by viewer + broadcaster
       const engagement = await dbAll(
         `SELECT
-          ve.id,
           ve.platform,
-          ve.channel_id,
-          ve.category_id,
-          c.category_name,
-          ve.chat_count,
-          ve.donation_count,
-          ve.total_donation_amount as donation_amount,
-          ve.first_seen_at,
-          ve.last_seen_at,
+          ve.person_id as viewer_person_id,
           vp.nickname as viewer_nickname,
-          vp.platform_user_id as viewer_user_id,
+          ve.broadcaster_person_id,
           bp.nickname as broadcaster_nickname,
-          bp.channel_id as broadcaster_channel_id
+          SUM(ve.chat_count) as chat_count,
+          SUM(ve.donation_count) as donation_count,
+          SUM(ve.total_donation_amount) as donation_amount,
+          MIN(ve.first_seen_at) as first_seen_at,
+          MAX(ve.last_seen_at) as last_seen_at,
+          COUNT(DISTINCT ve.category_id) as category_count,
+          GROUP_CONCAT(DISTINCT c.category_name) as categories
         FROM viewer_engagement ve
         LEFT JOIN persons vp ON ve.person_id = vp.id
         LEFT JOIN persons bp ON ve.broadcaster_person_id = bp.id
         LEFT JOIN categories c ON ve.category_id = c.category_id AND ve.platform = c.platform
-        ORDER BY ve.last_seen_at DESC, ve.total_donation_amount DESC
+        GROUP BY ve.person_id, ve.broadcaster_person_id
+        ORDER BY MAX(ve.last_seen_at) DESC, SUM(ve.total_donation_amount) DESC
         LIMIT ? OFFSET ?`,
         [limit, offset]
       );
