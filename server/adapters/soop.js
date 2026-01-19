@@ -301,18 +301,21 @@ class SoopAdapter extends BaseAdapter {
 
     // 별풍선 후원 처리 (액션 코드 0018)
     if (actionCode === CHAT_ACTIONS.TEXT_DONATION && parts.length >= 4) {
+      console.log(`[soop:debug] TEXT_DONATION raw parts (${parts.length}):`, JSON.stringify(parts.slice(0, 10)));
       this.processTextDonation(parts);
       return;
     }
 
     // 애드벌룬 후원 처리 (액션 코드 0087)
     if (actionCode === CHAT_ACTIONS.AD_BALLOON && parts.length >= 4) {
+      console.log(`[soop:debug] AD_BALLOON raw parts (${parts.length}):`, JSON.stringify(parts.slice(0, 10)));
       this.processAdBalloonDonation(parts);
       return;
     }
 
     // 영상풍선 후원 처리 (액션 코드 0105)
     if (actionCode === CHAT_ACTIONS.VIDEO_DONATION && parts.length >= 4) {
+      console.log(`[soop:debug] VIDEO_DONATION raw parts (${parts.length}):`, JSON.stringify(parts.slice(0, 10)));
       this.processVideoDonation(parts);
       return;
     }

@@ -968,18 +968,26 @@ class BroadcastCrawler {
    * @param {ViewerEngagementService} viewerEngagementService
    */
   async trackPersonAndEngagement(event, broadcasterChannelId, broadcastInfo, viewerEngagementService) {
-    if (!this.personService || !event.sender?.id || event.sender.id === "system") return;
+    const hasSenderId = event.sender?.id && event.sender.id !== "system" && event.sender.id !== "unknown";
+    const isDonation = event.type === "donation";
+
+    // Skip non-donation events without valid sender.id
+    if (!hasSenderId && !isDonation) return;
 
     try {
-      // 1. Upsert person (viewer)
-      const personId = await this.personService.upsertPerson({
-        platform: event.platform,
-        platformUserId: event.sender.id,
-        nickname: event.sender.nickname,
-        profileImageUrl: event.sender.profileImage || event.sender.profileImageUrl,
-      });
+      let personId = null;
 
-      // 2. Insert event into events table
+      // 1. Upsert person (viewer) - only if valid sender.id exists
+      if (hasSenderId && this.personService) {
+        personId = await this.personService.upsertPerson({
+          platform: event.platform,
+          platformUserId: event.sender.id,
+          nickname: event.sender.nickname,
+          profileImageUrl: event.sender.profileImage || event.sender.profileImageUrl,
+        });
+      }
+
+      // 2. Insert event into events table (donations always stored, even anonymous)
       if (this.eventService && broadcasterChannelId) {
         await this.eventService.createFromNormalized(event, {
           actorPersonId: personId,
@@ -987,10 +995,20 @@ class BroadcastCrawler {
           targetChannelId: broadcasterChannelId,
           broadcastId: broadcastInfo.broadcastDbId || null,
         });
+
+        // Log donation events for debugging
+        if (isDonation) {
+          broadcastLogger.info("[auto] Donation stored", {
+            platform: event.platform,
+            amount: event.content?.amount,
+            senderId: event.sender?.id || "anonymous",
+            nickname: event.sender?.nickname,
+          });
+        }
       }
 
-      // 3. Record viewer engagement (aggregated stats per channel+category)
-      if (viewerEngagementService && broadcasterChannelId) {
+      // 3. Record viewer engagement (only if personId exists)
+      if (personId && viewerEngagementService && broadcasterChannelId) {
         await viewerEngagementService.recordEngagement({
           personId,
           broadcasterPersonId: broadcastInfo.broadcasterPersonId || null,
@@ -1002,7 +1020,7 @@ class BroadcastCrawler {
         });
       }
     } catch (error) {
-      broadcastLogger.error("[auto] Track error:", { error: error.message });
+      broadcastLogger.error("[auto] Track error:", { error: error.message, eventType: event.type });
     }
   }
 

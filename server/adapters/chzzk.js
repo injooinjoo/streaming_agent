@@ -224,6 +224,7 @@ class ChzzkAdapter extends BaseAdapter {
         break;
 
       case MESSAGE_TYPES.DONATION:
+        console.log(`[chzzk:debug] DONATION received, bdy items: ${Array.isArray(message.bdy) ? message.bdy.length : 1}`);
         this.processDonation(message.bdy);
         break;
 
