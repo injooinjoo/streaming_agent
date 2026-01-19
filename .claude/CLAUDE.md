@@ -165,3 +165,64 @@ npm run server
 | SOOP | `/assets/logos/soop.png` |
 | Chzzk | `/assets/logos/chzzk.png` |
 | YouTube | `/assets/logos/youtube.png` |
+
+---
+
+## Auto-Activation Rules (자동 활성화 규칙)
+
+### Agent 자동 활성화
+
+프롬프트 패턴에 따라 적절한 Agent가 **즉시 활성화**됨:
+
+| 트리거 키워드 | Agent Type | 설명 |
+|--------------|------------|------|
+| "어디", "찾아", "구조", "이해", "파악" | `Task(Explore)` | 코드베이스 탐색 및 이해 |
+| "계획", "설계", "어떻게 구현", "방법" | `Task(Plan)` | 구현 전략 수립 |
+| "실행", "빌드", "테스트", "npm", "node" | `Task(Bash)` | 명령어 실행 |
+| 3단계 이상 복잡한 작업 | `Task(general-purpose)` | 멀티스텝 작업 처리 |
+
+### Skill 자동 활성화
+
+다음 패턴 감지 시 해당 Skill이 **적극적으로 호출**됨:
+
+| 패턴 | Skill | 신뢰도 | 트리거 예시 |
+|------|-------|--------|------------|
+| 커밋, 저장, 완료, push | `/git` | 95% | "코드 커밋해줘", "변경사항 저장" |
+| 테스트, 검증, 확인 | `/test` | 90% | "테스트 실행해줘", "동작 확인" |
+| 빌드, 배포, 실행 | `/build` | 90% | "빌드해줘", "서버 실행" |
+| 분석, 리뷰, 검토 | `/analyze` | 85% | "코드 분석해줘", "리뷰해줘" |
+| 개선, 리팩토링, 최적화 | `/improve` | 85% | "성능 개선해줘", "코드 정리" |
+| 구현, 만들어, 추가 | `/implement` | 90% | "기능 구현해줘", "컴포넌트 만들어" |
+| 문서화, 설명 | `/document` | 80% | "문서 작성해줘", "README 업데이트" |
+
+### MCP 서버 자동 활성화
+
+프로젝트 컨텍스트에 따른 MCP 서버 자동 활성화:
+
+| 서버 | 자동 활성화 조건 |
+|------|-----------------|
+| **Context7** | React, Express, Socket.io, SQLite import 감지 시 |
+| **Sequential** | 복잡한 디버깅, 아키텍처 분석, `--think` 플래그 시 |
+| **Magic** | React 컴포넌트 생성, UI 작업, CSS 스타일링 시 |
+| **Playwright** | E2E 테스트, 브라우저 자동화, 오버레이 테스트 시 |
+
+### 프로젝트 특화 트리거
+
+streaming_agent 프로젝트 전용 자동 활성화:
+
+| 키워드 | 활성화 |
+|--------|--------|
+| "오버레이", "Overlay" | Magic + Context7 (React 컴포넌트) |
+| "Socket", "실시간", "브로드캐스트" | Sequential (이벤트 흐름 분석) |
+| "설정", "Settings" | Explore (기존 패턴 확인) + Magic |
+| "API", "라우트", "엔드포인트" | Context7 (Express 패턴) |
+| "인증", "JWT", "로그인" | Security persona + Sequential |
+| "테마", "스타일", "CSS" | Magic (UI 생성) |
+| "데이터베이스", "SQLite", "테이블" | Context7 + Sequential |
+
+### 적극적 활성화 원칙
+
+1. **패턴 감지 → 즉시 실행**: 수동 명령 대기 없이 적절한 도구 자동 선택
+2. **복합 활성화**: 필요 시 여러 Agent/Skill/MCP 동시 활성화
+3. **컨텍스트 우선**: 프로젝트 특성(React+Express+Socket.io) 고려
+4. **한국어 트리거**: 한국어 프롬프트에도 동일하게 적용

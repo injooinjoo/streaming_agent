@@ -90,7 +90,28 @@
       "Bash(exit 0)",
       "Bash(sshpass -p 'Gd_4s$aJ*a4kX}v]' ssh -o StrictHostKeyChecking=no root@158.247.204.45 'pm2 stop all && pm2 list')",
       "Bash(ssh:*)",
-      "Bash(sshpass -p:*)"
+      "Bash(sshpass -p:*)",
+      "Bash(ssh-keygen:*)",
+      "Bash(brew install:*)",
+      "Bash(ping:*)",
+      "Bash(nc:*)",
+      "Bash(pip3 show:*)",
+      "Bash(pip3 install:*)",
+      "Bash(timeout 3 sqlite_web:*)",
+      "Bash(sqlite_web:*)",
+      "Bash(find:*)",
+      "Bash(git -C /Users/jacobmac/Desktop/Dev/streaming_agent log --oneline --all)",
+      "Bash(git -C /Users/jacobmac/Desktop/Dev/streaming_agent show f704df8 --stat)",
+      "Bash(chmod:*)",
+      "Bash(do curl -s \"https://api.chzzk.naver.com/service/v1/home/lives?size=100&offset=$offset\" -H 'User-Agent: Mozilla/5.0')",
+      "Bash(jq:*)",
+      "Bash(fly machine restart:*)",
+      "Bash(fly ssh console:*)",
+      "Bash(git -C /Users/jacobmac/Desktop/Dev/streaming_agent status server/public/)",
+      "Bash(git -C /Users/jacobmac/Desktop/Dev/streaming_agent status server/app.js)",
+      "Bash(git -C /Users/jacobmac/Desktop/Dev/streaming_agent status server/index.js server/routes/monitor.js)",
+      "Bash(git -C /Users/jacobmac/Desktop/Dev/streaming_agent status:*)",
+      "Bash(git -C /Users/jacobmac/Desktop/Dev/streaming_agent add client/)"
     ]
   }
 }
