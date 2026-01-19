@@ -506,6 +506,83 @@
       font-weight: 600;
     }
 
+    /* Enhanced Schema Display */
+    .table-card-description {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-left: auto;
+      margin-right: 12px;
+    }
+
+    .column-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .column-table th {
+      background: var(--bg-primary);
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .column-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: top;
+    }
+
+    .column-table tr:last-child td {
+      border-bottom: none;
+    }
+
+    .column-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .column-table .col-name {
+      font-weight: 600;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .column-table .col-type {
+      color: var(--accent-cyan);
+      font-family: monospace;
+    }
+
+    .column-table .col-desc {
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    .unique-constraints {
+      padding: 10px 12px;
+      background: var(--bg-primary);
+      border-top: 1px solid var(--border-color);
+      font-size: 11px;
+    }
+
+    .unique-constraints-title {
+      font-weight: 600;
+      color: var(--accent-yellow);
+      margin-bottom: 4px;
+    }
+
+    .unique-constraint-item {
+      color: var(--text-secondary);
+      font-family: monospace;
+      margin-top: 2px;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .stats-grid {
@@ -568,6 +645,20 @@
       </div>
       <div class="stat-card">
         <div class="stat-icon purple">📊</div>
+        <div class="stat-content">
+          <h3>이벤트</h3>
+          <div class="value" id="statEventCount">-</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon cyan">🎬</div>
+        <div class="stat-content">
+          <h3>세그먼트</h3>
+          <div class="value" id="statSegmentCount">-</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">📈</div>
         <div class="stat-content">
           <h3>스냅샷</h3>
           <div class="value" id="statSnapshotCount">-</div>
@@ -683,8 +774,8 @@
                 <th>시청자</th>
                 <th>방송자</th>
                 <th>카테고리</th>
-                <th>시청시간</th>
                 <th>채팅수</th>
+                <th>후원횟수</th>
                 <th>후원액</th>
                 <th>마지막 참여</th>
               </tr>
@@ -706,24 +797,35 @@
     <div id="schema" class="tab-content">
       <div id="schemaLoading" class="loading">스키마 로딩 중...</div>
       <div id="schemaContent" style="display: none;">
-        <!-- Streaming DB Section -->
+        <!-- Unified DB Header -->
         <div class="schema-section">
           <div class="schema-section-header">
             <div>
-              <div class="schema-section-title">📊 Streaming DB</div>
-              <div class="schema-section-subtitle" id="streamingDbInfo">streaming_data.db</div>
+              <div class="schema-section-title">🗄️ Unified Database</div>
+              <div class="schema-section-subtitle" id="unifiedDbInfo">unified.db - 통합 데이터베이스</div>
+            </div>
+            <span class="schema-badge" id="unifiedTableCount">-</span>
+          </div>
+        </div>
+
+        <!-- Streaming Tables Section -->
+        <div class="schema-section">
+          <div class="schema-section-header">
+            <div>
+              <div class="schema-section-title">📊 스트리밍 테이블</div>
+              <div class="schema-section-subtitle" id="streamingDbInfo">이벤트, 시청자, 방송, 카테고리</div>
             </div>
             <span class="schema-badge" id="streamingTableCount">-</span>
           </div>
           <div class="schema-grid" id="streamingSchemaGrid"></div>
         </div>
 
-        <!-- Overlay DB Section -->
+        <!-- Overlay Tables Section -->
         <div class="schema-section">
           <div class="schema-section-header">
             <div>
-              <div class="schema-section-title">⚙️ Overlay DB</div>
-              <div class="schema-section-subtitle" id="overlayDbInfo">weflab_clone.db</div>
+              <div class="schema-section-title">⚙️ 오버레이 테이블</div>
+              <div class="schema-section-subtitle" id="overlayDbInfo">사용자, 설정, 광고, 마켓</div>
             </div>
             <span class="schema-badge" id="overlayTableCount">-</span>
           </div>
@@ -825,6 +927,8 @@
         document.getElementById('statTotalViewers').textContent = formatNumber(data.totalViewers);
         document.getElementById('statTotalPersons').textContent = formatNumber(data.totalPersons);
         document.getElementById('statTotalDonations').textContent = formatCurrency(data.totalDonations);
+        document.getElementById('statEventCount').textContent = formatNumber(data.eventCount);
+        document.getElementById('statSegmentCount').textContent = formatNumber(data.segmentCount);
         document.getElementById('statSnapshotCount').textContent = formatNumber(data.snapshotCount);
         document.getElementById('statEngagementCount').textContent = formatNumber(data.engagementCount);
       } catch (error) {
@@ -928,8 +1032,8 @@
               <td>${e.viewer_nickname || '-'}</td>
               <td>${e.broadcaster_nickname || '-'}</td>
               <td>${e.category_name || '-'}</td>
-              <td class="number">${formatMinutes(e.watch_minutes)}</td>
               <td class="number">${formatNumber(e.chat_count)}</td>
+              <td class="number">${formatNumber(e.donation_count)}</td>
               <td class="number">${formatCurrency(e.donation_amount)}</td>
               <td>${formatDate(e.last_seen_at)}</td>
             </tr>
@@ -960,35 +1064,55 @@
     // Schema state
     let schemaLoaded = false;
 
-    // Generate table card HTML
+    // Generate table card HTML with enhanced schema info
     const generateTableCard = (table) => {
+      // Build column rows for the table format
       const columnsHtml = table.columns.map(col => `
-        <li class="column-item">
-          <span class="column-name">
-            ${col.name}
-            ${col.primaryKey ? '<span class="pk-badge">PK</span>' : ''}
-          </span>
-          <span class="column-meta">
-            ${col.notNull ? '<span class="not-null-badge">NOT NULL</span>' : ''}
-            <span class="column-type">${col.type || 'ANY'}</span>
-          </span>
-        </li>
+        <tr>
+          <td>
+            <span class="col-name">
+              ${col.name}
+              ${col.primaryKey ? '<span class="pk-badge">PK</span>' : ''}
+            </span>
+          </td>
+          <td class="col-type">${col.type || 'ANY'}</td>
+          <td class="col-desc">${col.description || ''}</td>
+        </tr>
       `).join('');
+
+      // Build UNIQUE constraints section if any
+      const uniqueHtml = (table.uniqueConstraints && table.uniqueConstraints.length > 0) ? `
+        <div class="unique-constraints">
+          <div class="unique-constraints-title">UNIQUE</div>
+          ${table.uniqueConstraints.map(uc => `<div class="unique-constraint-item">${uc}</div>`).join('')}
+        </div>
+      ` : '';
 
       return `
         <div class="table-card" onclick="this.classList.toggle('expanded')">
           <div class="table-card-header">
             <span class="table-card-name">
-              <span class="icon">📋</span>
+              <span class="icon">${table.icon || '📋'}</span>
               ${table.name}
               <span class="table-card-count">${formatNumber(table.rowCount)} rows</span>
             </span>
+            <span class="table-card-description">${table.description || ''}</span>
             <span class="table-card-expand">▼</span>
           </div>
           <div class="table-card-body">
-            <ul class="column-list">
-              ${columnsHtml}
-            </ul>
+            <table class="column-table">
+              <thead>
+                <tr>
+                  <th style="width: 30%;">컬럼명</th>
+                  <th style="width: 15%;">타입</th>
+                  <th style="width: 55%;">설명</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${columnsHtml}
+              </tbody>
+            </table>
+            ${uniqueHtml}
           </div>
         </div>
       `;
@@ -1005,25 +1129,31 @@
         const res = await fetch(`${API_BASE}/schema`);
         const data = await res.json();
 
-        // Update Streaming DB info
+        // Update Unified DB info
+        document.getElementById('unifiedDbInfo').textContent =
+          `${data.unifiedDb.name} - ${data.unifiedDb.description}`;
+        document.getElementById('unifiedTableCount').textContent =
+          `${data.unifiedDb.tableCount} 테이블`;
+
+        // Update Streaming tables info
         document.getElementById('streamingDbInfo').textContent =
-          `${data.streamingDb.name} - ${data.streamingDb.description}`;
+          data.categorization.streaming.description;
         document.getElementById('streamingTableCount').textContent =
-          `${data.streamingDb.tableCount} 테이블`;
+          `${data.categorization.streaming.tableCount} 테이블`;
 
-        // Render Streaming DB tables
+        // Render Streaming tables
         document.getElementById('streamingSchemaGrid').innerHTML =
-          data.streamingDb.tables.map(generateTableCard).join('');
+          data.categorization.streaming.tables.map(generateTableCard).join('');
 
-        // Update Overlay DB info
+        // Update Overlay tables info
         document.getElementById('overlayDbInfo').textContent =
-          `${data.overlayDb.name} - ${data.overlayDb.description}`;
+          data.categorization.overlay.description;
         document.getElementById('overlayTableCount').textContent =
-          `${data.overlayDb.tableCount} 테이블`;
+          `${data.categorization.overlay.tableCount} 테이블`;
 
-        // Render Overlay DB tables
+        // Render Overlay tables
         document.getElementById('overlaySchemaGrid').innerHTML =
-          data.overlayDb.tables.map(generateTableCard).join('');
+          data.categorization.overlay.tables.map(generateTableCard).join('');
 
         loading.style.display = 'none';
         content.style.display = 'block';

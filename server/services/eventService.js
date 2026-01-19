@@ -1,7 +1,14 @@
 /**
  * Event Service
  * Business logic for event management (chat, donations, etc.)
+ *
+ * Uses new unified events schema:
+ * - UUID primary key for high-volume handling
+ * - Actor/target person relationships
+ * - Broadcast context linking
  */
+
+const { v4: uuidv4 } = require("uuid");
 
 /**
  * Create Event Service
@@ -48,36 +55,108 @@ const createEventService = (db, io) => {
 
   return {
     /**
-     * Create new event
+     * Create new event (new unified schema)
      * @param {Object} eventData - Event data
      * @param {string} overlayHash - Optional overlay hash for targeted broadcast
      * @returns {Promise<Object>}
      */
-    async create({ type, sender, amount, message, platform }, overlayHash = null) {
-      const event = {
-        type: type || "chat",
-        sender: sender || "Anonymous",
-        amount: amount || 0,
-        message: message || "",
-        platform: platform || "manual",
-        timestamp: new Date().toISOString(),
-      };
+    async create(eventData, overlayHash = null) {
+      const {
+        eventType = "chat",
+        platform = "manual",
+        actorPersonId = null,
+        actorNickname = "Anonymous",
+        actorRole = null,
+        targetPersonId = null,
+        targetChannelId,
+        broadcastId = null,
+        message = "",
+        amount = null,
+        originalAmount = null,
+        currency = null,
+        donationType = null,
+        eventTimestamp = new Date().toISOString(),
+      } = eventData;
 
-      const result = await dbRun(
-        `INSERT INTO events (type, sender, amount, message, platform) VALUES (?, ?, ?, ?, ?)`,
-        [event.type, event.sender, event.amount, event.message, event.platform]
+      const id = uuidv4();
+
+      await dbRun(
+        `INSERT INTO events (
+          id, event_type, platform,
+          actor_person_id, actor_nickname, actor_role,
+          target_person_id, target_channel_id, broadcast_id,
+          message, amount, original_amount, currency, donation_type,
+          event_timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id, eventType, platform,
+          actorPersonId, actorNickname, actorRole,
+          targetPersonId, targetChannelId, broadcastId,
+          message, amount, originalAmount, currency, donationType,
+          eventTimestamp,
+        ]
       );
 
-      const savedEvent = { ...event, id: result.lastID };
+      const savedEvent = {
+        id,
+        eventType,
+        platform,
+        actorPersonId,
+        actorNickname,
+        actorRole,
+        targetChannelId,
+        broadcastId,
+        message,
+        amount,
+        currency,
+        donationType,
+        eventTimestamp,
+      };
 
-      // Broadcast to overlays
+      // Broadcast to overlays (legacy format for compatibility)
+      const legacyEvent = {
+        id,
+        type: eventType,
+        sender: actorNickname,
+        sender_id: actorPersonId,
+        amount: amount || 0,
+        message,
+        platform,
+        timestamp: eventTimestamp,
+      };
+
       if (overlayHash) {
-        io.to(`overlay:${overlayHash}`).emit("new-event", savedEvent);
+        io.to(`overlay:${overlayHash}`).emit("new-event", legacyEvent);
       } else {
-        io.emit("new-event", savedEvent);
+        io.emit("new-event", legacyEvent);
       }
 
       return savedEvent;
+    },
+
+    /**
+     * Create event from normalized event (from adapters)
+     * @param {Object} normalizedEvent - Normalized event from normalizer
+     * @param {Object} context - Additional context (broadcastId, targetChannelId, etc.)
+     * @returns {Promise<Object>}
+     */
+    async createFromNormalized(normalizedEvent, context = {}) {
+      return this.create({
+        eventType: normalizedEvent.type,
+        platform: normalizedEvent.platform,
+        actorPersonId: context.actorPersonId || null,
+        actorNickname: normalizedEvent.sender?.nickname || "Anonymous",
+        actorRole: normalizedEvent.sender?.role || null,
+        targetPersonId: context.targetPersonId || null,
+        targetChannelId: context.targetChannelId || normalizedEvent.metadata?.channelId,
+        broadcastId: context.broadcastId || null,
+        message: normalizedEvent.content?.message || "",
+        amount: normalizedEvent.content?.amount || null,
+        originalAmount: normalizedEvent.content?.originalAmount || null,
+        currency: normalizedEvent.content?.currency || null,
+        donationType: normalizedEvent.content?.donationType || null,
+        eventTimestamp: normalizedEvent.metadata?.timestamp || new Date().toISOString(),
+      });
     },
 
     /**
@@ -87,7 +166,7 @@ const createEventService = (db, io) => {
      */
     async getRecent(limit = 50) {
       return dbAll(
-        `SELECT * FROM events ORDER BY timestamp DESC LIMIT ?`,
+        `SELECT * FROM events ORDER BY event_timestamp DESC LIMIT ?`,
         [limit]
       );
     },
@@ -100,7 +179,7 @@ const createEventService = (db, io) => {
      */
     async getByPlatform(platform, limit = 50) {
       return dbAll(
-        `SELECT * FROM events WHERE platform = ? ORDER BY timestamp DESC LIMIT ?`,
+        `SELECT * FROM events WHERE platform = ? ORDER BY event_timestamp DESC LIMIT ?`,
         [platform, limit]
       );
     },
@@ -113,7 +192,7 @@ const createEventService = (db, io) => {
      */
     async getByType(type, limit = 50) {
       return dbAll(
-        `SELECT * FROM events WHERE type = ? ORDER BY timestamp DESC LIMIT ?`,
+        `SELECT * FROM events WHERE event_type = ? ORDER BY event_timestamp DESC LIMIT ?`,
         [type, limit]
       );
     },
@@ -149,7 +228,7 @@ const createEventService = (db, io) => {
           SUM(amount) as total,
           AVG(amount) as average
         FROM events
-        WHERE type = 'donation'
+        WHERE event_type = 'donation'
         GROUP BY platform`
       );
     },
@@ -161,13 +240,13 @@ const createEventService = (db, io) => {
     async getDonationTrend() {
       return dbAll(
         `SELECT
-          DATE(timestamp) as date,
+          DATE(event_timestamp) as date,
           COUNT(*) as count,
           SUM(amount) as total
         FROM events
-        WHERE type = 'donation'
-          AND timestamp >= datetime('now', '-7 days')
-        GROUP BY DATE(timestamp)
+        WHERE event_type = 'donation'
+          AND event_timestamp >= datetime('now', '-7 days')
+        GROUP BY DATE(event_timestamp)
         ORDER BY date`
       );
     },
@@ -181,19 +260,20 @@ const createEventService = (db, io) => {
       // Get top donors with their most frequent platform
       return dbAll(
         `SELECT
-          sender,
+          actor_nickname as sender,
+          actor_person_id,
           COUNT(*) as count,
           SUM(amount) as total,
           (
             SELECT platform FROM events e2
-            WHERE e2.sender = events.sender AND e2.type = 'donation'
+            WHERE e2.actor_person_id = events.actor_person_id AND e2.event_type = 'donation'
             GROUP BY platform
             ORDER BY COUNT(*) DESC
             LIMIT 1
           ) as platform
         FROM events
-        WHERE type = 'donation'
-        GROUP BY sender
+        WHERE event_type = 'donation' AND actor_person_id IS NOT NULL
+        GROUP BY actor_person_id
         ORDER BY total DESC
         LIMIT ?`,
         [limit]
@@ -211,15 +291,15 @@ const createEventService = (db, io) => {
       if (type) {
         return dbAll(
           `SELECT * FROM events
-           WHERE timestamp >= ? AND timestamp <= ? AND type = ?
-           ORDER BY timestamp DESC`,
+           WHERE event_timestamp >= ? AND event_timestamp <= ? AND event_type = ?
+           ORDER BY event_timestamp DESC`,
           [startDate, endDate, type]
         );
       }
       return dbAll(
         `SELECT * FROM events
-         WHERE timestamp >= ? AND timestamp <= ?
-         ORDER BY timestamp DESC`,
+         WHERE event_timestamp >= ? AND event_timestamp <= ?
+         ORDER BY event_timestamp DESC`,
         [startDate, endDate]
       );
     },
@@ -231,9 +311,35 @@ const createEventService = (db, io) => {
      */
     async deleteOldEvents(daysOld = 90) {
       const result = await dbRun(
-        `DELETE FROM events WHERE timestamp < datetime('now', '-${daysOld} days')`
+        `DELETE FROM events WHERE event_timestamp < datetime('now', '-${daysOld} days')`
       );
       return result.changes;
+    },
+
+    /**
+     * Get events by channel
+     * @param {string} channelId - Target channel ID
+     * @param {number} limit - Max events
+     * @returns {Promise<Array>}
+     */
+    async getByChannel(channelId, limit = 50) {
+      return dbAll(
+        `SELECT * FROM events WHERE target_channel_id = ? ORDER BY event_timestamp DESC LIMIT ?`,
+        [channelId, limit]
+      );
+    },
+
+    /**
+     * Get events by broadcast
+     * @param {number} broadcastId - Broadcast ID
+     * @param {number} limit - Max events
+     * @returns {Promise<Array>}
+     */
+    async getByBroadcast(broadcastId, limit = 100) {
+      return dbAll(
+        `SELECT * FROM events WHERE broadcast_id = ? ORDER BY event_timestamp DESC LIMIT ?`,
+        [broadcastId, limit]
+      );
     },
   };
 };

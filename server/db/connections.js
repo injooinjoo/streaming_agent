@@ -1,122 +1,181 @@
 /**
  * Database Connections Manager
- * Manages connections to both overlay and streaming databases
+ * Unified database connection for streaming and overlay systems
+ *
+ * Migration from split DB:
+ * - weflab_clone.db + streaming_data.db → unified.db
  */
 
 const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
-const { initializeDatabase } = require("./init");
-const { initializeStreamingDatabase } = require("./streaming-init");
+const { initializeUnifiedDatabase } = require("./unified-init");
 const { db: dbLogger } = require("../services/logger");
 
 // Database file paths
-const OVERLAY_DB_PATH = path.resolve(__dirname, "../weflab_clone.db");
-const STREAMING_DB_PATH = path.resolve(__dirname, "../streaming_data.db");
+const UNIFIED_DB_PATH = path.resolve(__dirname, "../unified.db");
 
-// Database instances
-let overlayDb = null;
-let streamingDb = null;
+// Legacy paths (for migration reference)
+const LEGACY_OVERLAY_DB_PATH = path.resolve(__dirname, "../weflab_clone.db");
+const LEGACY_STREAMING_DB_PATH = path.resolve(__dirname, "../streaming_data.db");
+
+// Database instance
+let db = null;
 
 /**
- * Initialize both databases
+ * Initialize unified database
+ * @returns {Promise<sqlite3.Database>}
+ */
+const initializeDatabase = async () => {
+  dbLogger.info("Initializing unified database...");
+
+  return new Promise((resolve, reject) => {
+    db = new sqlite3.Database(UNIFIED_DB_PATH, async (err) => {
+      if (err) {
+        dbLogger.error("Failed to connect to unified database", { error: err.message });
+        reject(err);
+        return;
+      }
+
+      dbLogger.info("Connected to unified database", { path: UNIFIED_DB_PATH });
+
+      try {
+        await initializeUnifiedDatabase(db);
+        dbLogger.info("Unified database initialized successfully");
+        resolve(db);
+      } catch (initErr) {
+        dbLogger.error("Failed to initialize unified database tables", { error: initErr.message });
+        reject(initErr);
+      }
+    });
+  });
+};
+
+/**
+ * Close database connection
+ * @returns {Promise<void>}
+ */
+const closeDatabase = () => {
+  return new Promise((resolve, reject) => {
+    if (db) {
+      db.close((err) => {
+        if (err) {
+          dbLogger.error("Error closing database", { error: err.message });
+          reject(err);
+        } else {
+          dbLogger.info("Database connection closed");
+          db = null;
+          resolve();
+        }
+      });
+    } else {
+      resolve();
+    }
+  });
+};
+
+/**
+ * Get database instance
+ * @returns {sqlite3.Database|null}
+ */
+const getDb = () => db;
+
+/**
+ * Get overlay database instance (backward compatibility alias)
+ * @deprecated Use getDb() instead
+ * @returns {sqlite3.Database|null}
+ */
+const getOverlayDb = () => db;
+
+/**
+ * Get streaming database instance (backward compatibility alias)
+ * @deprecated Use getDb() instead
+ * @returns {sqlite3.Database|null}
+ */
+const getStreamingDb = () => db;
+
+/**
+ * Initialize both databases (backward compatibility)
+ * @deprecated Use initializeDatabase() instead
  * @returns {Promise<{overlayDb: sqlite3.Database, streamingDb: sqlite3.Database}>}
  */
 const initializeDatabases = async () => {
-  dbLogger.info("Initializing databases...");
-
-  // Create overlay database connection
-  overlayDb = new sqlite3.Database(OVERLAY_DB_PATH, (err) => {
-    if (err) {
-      dbLogger.error("Failed to connect to overlay database", { error: err.message });
-      throw err;
-    }
-    dbLogger.info("Connected to overlay database", { path: OVERLAY_DB_PATH });
-  });
-
-  // Create streaming database connection
-  streamingDb = new sqlite3.Database(STREAMING_DB_PATH, (err) => {
-    if (err) {
-      dbLogger.error("Failed to connect to streaming database", { error: err.message });
-      throw err;
-    }
-    dbLogger.info("Connected to streaming database", { path: STREAMING_DB_PATH });
-  });
-
-  // Initialize tables in both databases
-  await Promise.all([
-    initializeDatabase(overlayDb),
-    initializeStreamingDatabase(streamingDb),
-  ]);
-
-  dbLogger.info("Both databases initialized successfully");
-
-  return { overlayDb, streamingDb };
+  const database = await initializeDatabase();
+  return { overlayDb: database, streamingDb: database };
 };
 
 /**
- * Close both database connections
+ * Close both databases (backward compatibility)
+ * @deprecated Use closeDatabase() instead
  * @returns {Promise<void>}
  */
-const closeDatabases = () => {
+const closeDatabases = closeDatabase;
+
+/**
+ * Run database query with promise wrapper
+ * @param {string} sql - SQL query
+ * @param {Array} params - Query parameters
+ * @returns {Promise<any>}
+ */
+const runQuery = (sql, params = []) => {
   return new Promise((resolve, reject) => {
-    let closed = 0;
-    const total = 2;
-
-    const checkComplete = () => {
-      closed++;
-      if (closed === total) {
-        dbLogger.info("All database connections closed");
-        resolve();
-      }
-    };
-
-    if (overlayDb) {
-      overlayDb.close((err) => {
-        if (err) {
-          dbLogger.error("Error closing overlay database", { error: err.message });
-        } else {
-          dbLogger.info("Overlay database connection closed");
-        }
-        overlayDb = null;
-        checkComplete();
-      });
-    } else {
-      checkComplete();
-    }
-
-    if (streamingDb) {
-      streamingDb.close((err) => {
-        if (err) {
-          dbLogger.error("Error closing streaming database", { error: err.message });
-        } else {
-          dbLogger.info("Streaming database connection closed");
-        }
-        streamingDb = null;
-        checkComplete();
-      });
-    } else {
-      checkComplete();
-    }
+    db.run(sql, params, function (err) {
+      if (err) reject(err);
+      else resolve({ lastID: this.lastID, changes: this.changes });
+    });
   });
 };
 
 /**
- * Get overlay database instance
- * @returns {sqlite3.Database|null}
+ * Get single row from database
+ * @param {string} sql - SQL query
+ * @param {Array} params - Query parameters
+ * @returns {Promise<any>}
  */
-const getOverlayDb = () => overlayDb;
+const getOne = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
 
 /**
- * Get streaming database instance
- * @returns {sqlite3.Database|null}
+ * Get all rows from database
+ * @param {string} sql - SQL query
+ * @param {Array} params - Query parameters
+ * @returns {Promise<Array>}
  */
-const getStreamingDb = () => streamingDb;
+const getAll = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows || []);
+    });
+  });
+};
 
 module.exports = {
+  // New unified API
+  initializeDatabase,
+  closeDatabase,
+  getDb,
+  runQuery,
+  getOne,
+  getAll,
+
+  // Backward compatibility
   initializeDatabases,
   closeDatabases,
   getOverlayDb,
   getStreamingDb,
-  OVERLAY_DB_PATH,
-  STREAMING_DB_PATH,
+
+  // Paths
+  UNIFIED_DB_PATH,
+  LEGACY_OVERLAY_DB_PATH,
+  LEGACY_STREAMING_DB_PATH,
+
+  // Legacy path aliases
+  OVERLAY_DB_PATH: LEGACY_OVERLAY_DB_PATH,
+  STREAMING_DB_PATH: LEGACY_STREAMING_DB_PATH,
 };

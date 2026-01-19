@@ -1,7 +1,8 @@
 /**
  * PersonService - 스트리머/시청자 통합 ID 관리 서비스
  *
- * persons 테이블에 대한 CRUD 및 통계 업데이트를 담당합니다.
+ * persons 테이블에 대한 CRUD를 담당합니다.
+ * NOTE: 채팅/후원 통계는 persons 테이블에 저장하지 않고 EVENTS에서 집계합니다.
  */
 
 const { db: dbLogger } = require("./logger");
@@ -195,58 +196,6 @@ class PersonService {
   }
 
   /**
-   * 채팅 통계 증가
-   * @param {number} personId - Person ID
-   * @returns {Promise<void>}
-   */
-  async incrementChatCount(personId) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `UPDATE persons
-         SET total_chat_count = total_chat_count + 1,
-             last_seen_at = CURRENT_TIMESTAMP,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [personId],
-        (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
-        }
-      );
-    });
-  }
-
-  /**
-   * 후원 통계 증가
-   * @param {number} personId - Person ID
-   * @param {number} amount - 후원 금액
-   * @returns {Promise<void>}
-   */
-  async incrementDonation(personId, amount) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `UPDATE persons
-         SET total_donation_count = total_donation_count + 1,
-             total_donation_amount = total_donation_amount + ?,
-             last_seen_at = CURRENT_TIMESTAMP,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [amount, personId],
-        (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
-        }
-      );
-    });
-  }
-
-  /**
    * 방송 시간 업데이트
    * @param {number} personId - Person ID
    * @param {number} minutes - 추가 방송 시간 (분)
@@ -270,6 +219,61 @@ class PersonService {
         }
       );
     });
+  }
+
+  /**
+   * Person의 채팅/후원 통계 조회 (EVENTS 테이블에서 집계)
+   * @param {number} personId - Person ID
+   * @returns {Promise<Object>}
+   */
+  async getPersonStats(personId) {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        `SELECT
+           COUNT(*) FILTER (WHERE event_type = 'chat') as total_chat_count,
+           COUNT(*) FILTER (WHERE event_type = 'donation') as total_donation_count,
+           COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as total_donation_amount
+         FROM events
+         WHERE actor_person_id = ?`,
+        [personId],
+        (err, row) => {
+          if (err) {
+            // SQLite doesn't support FILTER, use CASE WHEN instead
+            this.db.get(
+              `SELECT
+                 SUM(CASE WHEN event_type = 'chat' THEN 1 ELSE 0 END) as total_chat_count,
+                 SUM(CASE WHEN event_type = 'donation' THEN 1 ELSE 0 END) as total_donation_count,
+                 COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as total_donation_amount
+               FROM events
+               WHERE actor_person_id = ?`,
+              [personId],
+              (err2, row2) => {
+                if (err2) {
+                  reject(err2);
+                } else {
+                  resolve(row2 || { total_chat_count: 0, total_donation_count: 0, total_donation_amount: 0 });
+                }
+              }
+            );
+          } else {
+            resolve(row || { total_chat_count: 0, total_donation_count: 0, total_donation_amount: 0 });
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Person과 통계 함께 조회
+   * @param {number} personId - Person ID
+   * @returns {Promise<Object|null>}
+   */
+  async findByIdWithStats(personId) {
+    const person = await this.findById(personId);
+    if (!person) return null;
+
+    const stats = await this.getPersonStats(personId);
+    return { ...person, ...stats };
   }
 
   /**
@@ -320,6 +324,103 @@ class PersonService {
             resolve(rows || []);
           }
         }
+      );
+    });
+  }
+
+  /**
+   * 상위 후원자 조회 (EVENTS 기반)
+   * @param {string} targetChannelId - 방송자 채널 ID
+   * @param {number} limit - 조회 개수
+   * @returns {Promise<Array>}
+   */
+  async getTopDonators(targetChannelId, limit = 10) {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT
+           p.id, p.nickname, p.platform, p.profile_image_url,
+           COUNT(*) as donation_count,
+           SUM(e.amount) as total_amount
+         FROM events e
+         JOIN persons p ON e.actor_person_id = p.id
+         WHERE e.event_type = 'donation' AND e.target_channel_id = ?
+         GROUP BY e.actor_person_id
+         ORDER BY total_amount DESC
+         LIMIT ?`,
+        [targetChannelId, limit],
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows || []);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * 활성 채터 조회 (EVENTS 기반)
+   * @param {string} targetChannelId - 방송자 채널 ID
+   * @param {number} limit - 조회 개수
+   * @returns {Promise<Array>}
+   */
+  async getTopChatters(targetChannelId, limit = 10) {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT
+           p.id, p.nickname, p.platform, p.profile_image_url,
+           COUNT(*) as chat_count
+         FROM events e
+         JOIN persons p ON e.actor_person_id = p.id
+         WHERE e.event_type = 'chat' AND e.target_channel_id = ?
+         GROUP BY e.actor_person_id
+         ORDER BY chat_count DESC
+         LIMIT ?`,
+        [targetChannelId, limit],
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows || []);
+          }
+        }
+      );
+    });
+  }
+
+  // ===== Backward Compatibility Methods =====
+  // NOTE: These methods are deprecated and will be removed in future versions.
+  // Chat/donation stats are now tracked via EVENTS table, not in persons table.
+
+  /**
+   * @deprecated Use eventService.recordEvent() instead
+   * Kept for backward compatibility - does nothing now
+   */
+  async incrementChatCount(personId) {
+    dbLogger.debug("incrementChatCount is deprecated - stats now tracked via EVENTS");
+    // Update last_seen_at only
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `UPDATE persons SET last_seen_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [personId],
+        (err) => (err ? reject(err) : resolve())
+      );
+    });
+  }
+
+  /**
+   * @deprecated Use eventService.recordEvent() instead
+   * Kept for backward compatibility - does nothing now
+   */
+  async incrementDonation(personId, amount) {
+    dbLogger.debug("incrementDonation is deprecated - stats now tracked via EVENTS");
+    // Update last_seen_at only
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `UPDATE persons SET last_seen_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
+        [personId],
+        (err) => (err ? reject(err) : resolve())
       );
     });
   }

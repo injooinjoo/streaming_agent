@@ -3,6 +3,9 @@
  *
  * SOOP과 Chzzk 플랫폼에서 라이브 방송 목록을 수집하고,
  * 방송 시작/종료를 감지하여 broadcasts 테이블에 기록합니다.
+ *
+ * NOTE: 카테고리 정보는 broadcast_segments 테이블에서 관리됩니다.
+ * 카테고리 변경 시 새 세그먼트가 생성됩니다.
  */
 
 const { broadcast: broadcastLogger } = require("./logger");
@@ -44,10 +47,14 @@ class BroadcastCrawler {
     this.activeAdapters = options.activeAdapters || new Map();
     this.normalizer = options.normalizer || null;
     this.ViewerEngagementService = options.ViewerEngagementService || null;
+    this.eventService = options.eventService || null; // EventService for storing events
 
     // Auto-connection settings
     this.maxAutoConnections = 50; // 플랫폼당 최대 자동 연결 수
     this.autoConnectedChannels = new Set(); // 자동 연결된 채널 추적
+
+    // Track current category per broadcast for segment management
+    this.broadcastCategories = new Map(); // Map<broadcastDbId, categoryId>
   }
 
   /**
@@ -255,50 +262,46 @@ class BroadcastCrawler {
   }
 
   /**
-   * 방송 세션 upsert
-   * NOTE: UNIQUE는 (platform, channel_id, broadcast_id, category_id)
-   * 카테고리 변경 시 새 레코드 생성됨
+   * 방송 세션 upsert (카테고리 정보는 세그먼트로 분리)
    * @param {Object} broadcast - 방송 데이터
    * @param {number} broadcasterPersonId - 방송자 Person ID
    * @returns {Promise<number>} - Broadcast ID
    */
   async upsertBroadcast(broadcast, broadcasterPersonId) {
     return new Promise((resolve, reject) => {
-      // 기존 방송 조회 (category_id 포함 - UNIQUE 키)
+      // 기존 방송 조회 (UNIQUE: platform, channel_id, broadcast_id)
       this.db.get(
-        `SELECT id, peak_viewer_count, viewer_sum, viewer_snapshot_count
+        `SELECT id, peak_viewer_count, viewer_sum, snapshot_count
          FROM broadcasts
-         WHERE platform = ? AND channel_id = ? AND broadcast_id = ? AND category_id = ?`,
-        [broadcast.platform, broadcast.channelId, broadcast.broadcastId, broadcast.categoryId],
-        (err, row) => {
+         WHERE platform = ? AND channel_id = ? AND broadcast_id = ?`,
+        [broadcast.platform, broadcast.channelId, broadcast.broadcastId],
+        async (err, row) => {
           if (err) {
             reject(err);
             return;
           }
 
           if (row) {
-            // 기존 방송 업데이트 (같은 카테고리)
+            // 기존 방송 업데이트
             const newPeak = Math.max(row.peak_viewer_count, broadcast.viewerCount);
             const newSum = row.viewer_sum + broadcast.viewerCount;
-            const newCount = row.viewer_snapshot_count + 1;
+            const newCount = row.snapshot_count + 1;
             const newAvg = Math.round(newSum / newCount);
 
             this.db.run(
               `UPDATE broadcasts
                SET title = ?,
-                   broadcaster_nickname = ?,
                    thumbnail_url = ?,
                    current_viewer_count = ?,
                    peak_viewer_count = ?,
                    avg_viewer_count = ?,
                    viewer_sum = ?,
-                   viewer_snapshot_count = ?,
+                   snapshot_count = ?,
                    is_live = 1,
                    updated_at = CURRENT_TIMESTAMP
                WHERE id = ?`,
               [
                 broadcast.title,
-                broadcast.nickname,
                 broadcast.thumbnailUrl,
                 broadcast.viewerCount,
                 newPeak,
@@ -307,35 +310,35 @@ class BroadcastCrawler {
                 newCount,
                 row.id,
               ],
-              (updateErr) => {
+              async (updateErr) => {
                 if (updateErr) {
                   reject(updateErr);
                 } else {
+                  // 카테고리 변경 확인 및 세그먼트 관리
+                  await this.handleCategoryChange(row.id, broadcast);
                   // Insert viewer snapshot
-                  this.insertViewerSnapshot(row.id, broadcast);
+                  const segmentId = await this.getCurrentSegmentId(row.id);
+                  this.insertViewerSnapshot(row.id, broadcast, segmentId);
                   resolve(row.id);
                 }
               }
             );
           } else {
-            // 새 방송 생성 (새 카테고리이거나 완전히 새 방송)
-            const self = this; // Store reference for callback
+            // 새 방송 생성
+            const self = this;
             this.db.run(
               `INSERT INTO broadcasts (
-                platform, channel_id, broadcast_id, broadcaster_person_id, broadcaster_nickname,
-                title, category_id, category_name, thumbnail_url,
+                platform, channel_id, broadcast_id, broadcaster_person_id,
+                title, thumbnail_url,
                 current_viewer_count, peak_viewer_count, avg_viewer_count,
-                viewer_sum, viewer_snapshot_count, is_live, started_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
+                viewer_sum, snapshot_count, is_live, started_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
               [
                 broadcast.platform,
                 broadcast.channelId,
                 broadcast.broadcastId,
                 broadcasterPersonId,
-                broadcast.nickname,
                 broadcast.title,
-                broadcast.categoryId,
-                broadcast.categoryName,
                 broadcast.thumbnailUrl,
                 broadcast.viewerCount,
                 broadcast.viewerCount, // peak = current initially
@@ -344,7 +347,7 @@ class BroadcastCrawler {
                 1, // snapshot count = 1
                 broadcast.startedAt || new Date().toISOString(),
               ],
-              function (insertErr) {
+              async function (insertErr) {
                 if (insertErr) {
                   reject(insertErr);
                 } else {
@@ -356,10 +359,143 @@ class BroadcastCrawler {
                     title: broadcast.title?.substring(0, 30),
                     viewers: broadcast.viewerCount,
                   });
-                  // Insert first viewer snapshot for new broadcast
-                  self.insertViewerSnapshot(broadcastDbId, broadcast);
+
+                  // 첫 번째 세그먼트 생성
+                  const segmentId = await self.createSegment(broadcastDbId, broadcast);
+
+                  // Insert first viewer snapshot
+                  self.insertViewerSnapshot(broadcastDbId, broadcast, segmentId);
                   resolve(broadcastDbId);
                 }
+              }
+            );
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * 세그먼트 생성
+   * @param {number} broadcastDbId - broadcasts 테이블 ID
+   * @param {Object} broadcast - 방송 데이터
+   * @returns {Promise<number>} - Segment ID
+   */
+  async createSegment(broadcastDbId, broadcast) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        `INSERT INTO broadcast_segments (
+          broadcast_id, platform, channel_id,
+          category_id, category_name,
+          segment_started_at, peak_viewer_count, avg_viewer_count
+        ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)`,
+        [
+          broadcastDbId,
+          broadcast.platform,
+          broadcast.channelId,
+          broadcast.categoryId,
+          broadcast.categoryName,
+          broadcast.viewerCount,
+          broadcast.viewerCount,
+        ],
+        function (err) {
+          if (err) {
+            broadcastLogger.error("Segment create error", { error: err.message });
+            reject(err);
+          } else {
+            const segmentId = this.lastID;
+            broadcastLogger.debug("New segment created", {
+              broadcastId: broadcastDbId,
+              segmentId,
+              category: broadcast.categoryName,
+            });
+            resolve(segmentId);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * 현재 활성 세그먼트 ID 조회
+   * @param {number} broadcastDbId - broadcasts 테이블 ID
+   * @returns {Promise<number|null>}
+   */
+  async getCurrentSegmentId(broadcastDbId) {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        `SELECT id FROM broadcast_segments
+         WHERE broadcast_id = ? AND segment_ended_at IS NULL
+         ORDER BY segment_started_at DESC LIMIT 1`,
+        [broadcastDbId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row ? row.id : null);
+        }
+      );
+    });
+  }
+
+  /**
+   * 카테고리 변경 감지 및 세그먼트 관리
+   * @param {number} broadcastDbId - broadcasts 테이블 ID
+   * @param {Object} broadcast - 방송 데이터
+   */
+  async handleCategoryChange(broadcastDbId, broadcast) {
+    return new Promise((resolve, reject) => {
+      // 현재 활성 세그먼트 조회
+      this.db.get(
+        `SELECT id, category_id, peak_viewer_count FROM broadcast_segments
+         WHERE broadcast_id = ? AND segment_ended_at IS NULL
+         ORDER BY segment_started_at DESC LIMIT 1`,
+        [broadcastDbId],
+        async (err, currentSegment) => {
+          if (err) {
+            reject(err);
+            return;
+          }
+
+          // 세그먼트가 없으면 생성
+          if (!currentSegment) {
+            await this.createSegment(broadcastDbId, broadcast);
+            resolve();
+            return;
+          }
+
+          // 카테고리가 변경되었는지 확인
+          const categoryChanged = currentSegment.category_id !== broadcast.categoryId;
+
+          if (categoryChanged) {
+            broadcastLogger.info("Category changed, creating new segment", {
+              broadcastId: broadcastDbId,
+              from: currentSegment.category_id,
+              to: broadcast.categoryId,
+            });
+
+            // 이전 세그먼트 종료
+            this.db.run(
+              `UPDATE broadcast_segments SET segment_ended_at = CURRENT_TIMESTAMP WHERE id = ?`,
+              [currentSegment.id],
+              async (updateErr) => {
+                if (updateErr) {
+                  broadcastLogger.error("Segment end error", { error: updateErr.message });
+                }
+                // 새 세그먼트 생성
+                await this.createSegment(broadcastDbId, broadcast);
+                resolve();
+              }
+            );
+          } else {
+            // 카테고리 동일 - 세그먼트 통계만 업데이트
+            const newPeak = Math.max(currentSegment.peak_viewer_count, broadcast.viewerCount);
+            this.db.run(
+              `UPDATE broadcast_segments SET peak_viewer_count = ? WHERE id = ?`,
+              [newPeak, currentSegment.id],
+              (updateErr) => {
+                if (updateErr) {
+                  broadcastLogger.error("Segment update error", { error: updateErr.message });
+                }
+                resolve();
               }
             );
           }
@@ -372,12 +508,13 @@ class BroadcastCrawler {
    * 시청자 스냅샷 저장
    * @param {number} broadcastDbId - broadcasts 테이블 ID
    * @param {Object} broadcast - 방송 데이터
+   * @param {number|null} segmentId - 세그먼트 ID
    */
-  insertViewerSnapshot(broadcastDbId, broadcast) {
+  insertViewerSnapshot(broadcastDbId, broadcast, segmentId = null) {
     this.db.run(
-      `INSERT INTO viewer_snapshots (platform, channel_id, broadcast_id, viewer_count, snapshot_at)
-       VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      [broadcast.platform, broadcast.channelId, broadcastDbId, broadcast.viewerCount],
+      `INSERT INTO viewer_snapshots (platform, channel_id, broadcast_id, segment_id, viewer_count, snapshot_at)
+       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
+      [broadcast.platform, broadcast.channelId, broadcastDbId, segmentId, broadcast.viewerCount],
       (err) => {
         if (err) {
           broadcastLogger.error("Viewer snapshot insert error", { error: err.message });
@@ -388,16 +525,15 @@ class BroadcastCrawler {
 
   /**
    * 종료된 방송 감지 및 업데이트
-   * NOTE: 카테고리 변경 시 이전 카테고리 레코드도 종료 처리됨
    * @param {string} platform - 플랫폼
-   * @param {Set<string>} currentBroadcastKeys - 현재 라이브 방송 키 세트 (broadcast_id:category_id)
+   * @param {Set<string>} currentBroadcastIds - 현재 라이브 방송 ID 세트
    * @returns {Promise<number>} - 종료 처리된 방송 수
    */
-  async detectEndedBroadcasts(platform, currentBroadcastKeys) {
+  async detectEndedBroadcasts(platform, currentBroadcastIds) {
     return new Promise((resolve, reject) => {
       // 현재 라이브인 방송 중 목록에 없는 것 찾기
       this.db.all(
-        `SELECT id, broadcast_id, category_id, channel_id, started_at
+        `SELECT id, broadcast_id, channel_id, started_at
          FROM broadcasts
          WHERE platform = ? AND is_live = 1`,
         [platform],
@@ -410,17 +546,14 @@ class BroadcastCrawler {
           let endedCount = 0;
 
           for (const row of rows) {
-            // broadcast_id:category_id 복합 키로 확인
-            const key = `${row.broadcast_id}:${row.category_id || 'null'}`;
-            if (!currentBroadcastKeys.has(key)) {
-              // 방송 종료 처리 (또는 카테고리 변경됨)
+            if (!currentBroadcastIds.has(row.broadcast_id)) {
+              // 방송 종료 처리
               await this.markBroadcastEnded(row.id, row.started_at);
               endedCount++;
 
-              broadcastLogger.info("Broadcast ended/category changed", {
+              broadcastLogger.info("Broadcast ended", {
                 platform,
                 broadcastId: row.broadcast_id,
-                categoryId: row.category_id,
                 channelId: row.channel_id,
               });
             }
@@ -448,6 +581,7 @@ class BroadcastCrawler {
       const endDate = new Date(endedAt);
       const durationMinutes = Math.round((endDate - startDate) / (1000 * 60));
 
+      // 방송 종료
       this.db.run(
         `UPDATE broadcasts
          SET is_live = 0,
@@ -462,16 +596,29 @@ class BroadcastCrawler {
             return;
           }
 
-          // 방송자의 총 방송 시간 업데이트
-          const broadcast = await this.getBroadcastById(broadcastId);
-          if (broadcast && broadcast.broadcaster_person_id) {
-            await this.personService.addBroadcastMinutes(
-              broadcast.broadcaster_person_id,
-              durationMinutes
-            );
-          }
+          // 열린 세그먼트 종료
+          this.db.run(
+            `UPDATE broadcast_segments
+             SET segment_ended_at = ?
+             WHERE broadcast_id = ? AND segment_ended_at IS NULL`,
+            [endedAt, broadcastId],
+            async (segErr) => {
+              if (segErr) {
+                broadcastLogger.error("Segment end error", { error: segErr.message });
+              }
 
-          resolve();
+              // 방송자의 총 방송 시간 업데이트
+              const broadcast = await this.getBroadcastById(broadcastId);
+              if (broadcast && broadcast.broadcaster_person_id) {
+                await this.personService.addBroadcastMinutes(
+                  broadcast.broadcaster_person_id,
+                  durationMinutes
+                );
+              }
+
+              resolve();
+            }
+          );
         }
       );
     });
@@ -492,6 +639,26 @@ class BroadcastCrawler {
   }
 
   /**
+   * 방송의 현재 카테고리 조회 (최신 세그먼트에서)
+   * @param {number} broadcastId - broadcasts 테이블 ID
+   * @returns {Promise<Object|null>}
+   */
+  async getBroadcastCurrentCategory(broadcastId) {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        `SELECT category_id, category_name FROM broadcast_segments
+         WHERE broadcast_id = ?
+         ORDER BY segment_started_at DESC LIMIT 1`,
+        [broadcastId],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row || null);
+        }
+      );
+    });
+  }
+
+  /**
    * 모든 플랫폼 크롤링 실행
    * @returns {Promise<Object>} - 크롤링 결과
    */
@@ -499,22 +666,21 @@ class BroadcastCrawler {
     broadcastLogger.info("Starting broadcast crawl...");
 
     const results = {
-      soop: { live: 0, ended: 0 },
-      chzzk: { live: 0, ended: 0 },
+      soop: { live: 0, ended: 0, segments: 0 },
+      chzzk: { live: 0, ended: 0, segments: 0 },
     };
 
     // SOOP 크롤링
     let soopBroadcasts = [];
     try {
       soopBroadcasts = await this.fetchSoopLiveBroadcasts();
-      const soopBroadcastKeys = new Set(); // broadcast_id:category_id 복합 키
+      const soopBroadcastIds = new Set();
 
       for (const broadcast of soopBroadcasts) {
         try {
           const personId = await this.upsertBroadcaster(broadcast);
           await this.upsertBroadcast(broadcast, personId);
-          // 복합 키: broadcast_id:category_id
-          soopBroadcastKeys.add(`${broadcast.broadcastId}:${broadcast.categoryId || 'null'}`);
+          soopBroadcastIds.add(broadcast.broadcastId);
         } catch (error) {
           broadcastLogger.error("SOOP broadcast upsert error", {
             channelId: broadcast.channelId,
@@ -524,7 +690,7 @@ class BroadcastCrawler {
       }
 
       results.soop.live = soopBroadcasts.length;
-      results.soop.ended = await this.detectEndedBroadcasts("soop", soopBroadcastKeys);
+      results.soop.ended = await this.detectEndedBroadcasts("soop", soopBroadcastIds);
 
       // 상위 50개 방송에 자동 WebSocket 연결
       await this.autoConnectTopBroadcasts(soopBroadcasts, "soop");
@@ -536,14 +702,13 @@ class BroadcastCrawler {
     let chzzkBroadcasts = [];
     try {
       chzzkBroadcasts = await this.fetchChzzkLiveBroadcasts();
-      const chzzkBroadcastKeys = new Set(); // broadcast_id:category_id 복합 키
+      const chzzkBroadcastIds = new Set();
 
       for (const broadcast of chzzkBroadcasts) {
         try {
           const personId = await this.upsertBroadcaster(broadcast);
           await this.upsertBroadcast(broadcast, personId);
-          // 복합 키: broadcast_id:category_id
-          chzzkBroadcastKeys.add(`${broadcast.broadcastId}:${broadcast.categoryId || 'null'}`);
+          chzzkBroadcastIds.add(broadcast.broadcastId);
         } catch (error) {
           broadcastLogger.error("Chzzk broadcast upsert error", {
             channelId: broadcast.channelId,
@@ -553,7 +718,7 @@ class BroadcastCrawler {
       }
 
       results.chzzk.live = chzzkBroadcasts.length;
-      results.chzzk.ended = await this.detectEndedBroadcasts("chzzk", chzzkBroadcastKeys);
+      results.chzzk.ended = await this.detectEndedBroadcasts("chzzk", chzzkBroadcastIds);
 
       // 상위 50개 방송에 자동 WebSocket 연결
       await this.autoConnectTopBroadcasts(chzzkBroadcasts, "chzzk");
@@ -725,12 +890,21 @@ class BroadcastCrawler {
       ? new this.ViewerEngagementService(this.db)
       : null;
 
+    // Look up broadcast DB record to get IDs for event storage
+    const broadcastDbRecord = await this.getBroadcastByApiId(
+      platform,
+      broadcast.channelId,
+      broadcast.broadcastId
+    );
+
     // 이벤트 핸들러 설정
     adapter.on("event", async (event) => {
-      // Person 및 Engagement 추적
+      // Person 및 Engagement 추적 + Events 테이블 저장
       await this.trackPersonAndEngagement(event, broadcast.channelId, {
         categoryId: broadcast.categoryId,
         categoryName: broadcast.categoryName,
+        broadcastDbId: broadcastDbRecord?.id || null,
+        broadcasterPersonId: broadcastDbRecord?.broadcaster_person_id || null,
       }, viewerEngagementService);
 
       // Socket.io로 브로드캐스트 (auto 연결은 특정 room 없이)
@@ -762,10 +936,35 @@ class BroadcastCrawler {
   }
 
   /**
-   * Person 및 Engagement 추적
-   * @param {Object} event
+   * API broadcast ID로 DB 레코드 조회
+   * @param {string} platform
+   * @param {string} channelId
+   * @param {string} broadcastId
+   * @returns {Promise<Object|null>}
+   */
+  async getBroadcastByApiId(platform, channelId, broadcastId) {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        `SELECT id, broadcaster_person_id FROM broadcasts
+         WHERE platform = ? AND channel_id = ? AND broadcast_id = ?`,
+        [platform, channelId, broadcastId],
+        (err, row) => {
+          if (err) {
+            broadcastLogger.error("getBroadcastByApiId error", { error: err.message });
+            resolve(null);
+          } else {
+            resolve(row || null);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * Person 및 Engagement 추적 + Events 테이블 저장
+   * @param {Object} event - Normalized event
    * @param {string} broadcasterChannelId
-   * @param {Object} broadcastInfo
+   * @param {Object} broadcastInfo - { categoryId, categoryName, broadcastDbId, broadcasterPersonId }
    * @param {ViewerEngagementService} viewerEngagementService
    */
   async trackPersonAndEngagement(event, broadcasterChannelId, broadcastInfo, viewerEngagementService) {
@@ -780,21 +979,24 @@ class BroadcastCrawler {
         profileImageUrl: event.sender.profileImage || event.sender.profileImageUrl,
       });
 
-      // 2. Update person statistics (what this person SPENT)
-      if (event.type === "chat") {
-        await this.personService.incrementChatCount(personId);
-      } else if (event.type === "donation" && event.content?.amount) {
-        await this.personService.incrementDonation(personId, event.content.amount);
+      // 2. Insert event into events table
+      if (this.eventService && broadcasterChannelId) {
+        await this.eventService.createFromNormalized(event, {
+          actorPersonId: personId,
+          targetPersonId: broadcastInfo.broadcasterPersonId || null,
+          targetChannelId: broadcasterChannelId,
+          broadcastId: broadcastInfo.broadcastDbId || null,
+        });
       }
 
-      // 3. Record viewer engagement
+      // 3. Record viewer engagement (aggregated stats per channel+category)
       if (viewerEngagementService && broadcasterChannelId) {
         await viewerEngagementService.recordEngagement({
-          viewerPersonId: personId,
-          broadcasterChannelId,
+          personId,
+          broadcasterPersonId: broadcastInfo.broadcasterPersonId || null,
+          channelId: broadcasterChannelId,
           platform: event.platform,
           categoryId: broadcastInfo.categoryId || null,
-          categoryName: broadcastInfo.categoryName || null,
           eventType: event.type,
           donationAmount: event.content?.amount || 0,
         });

@@ -2,9 +2,12 @@
  * Express Application Setup
  * Configures middleware and mounts all route modules
  *
- * Uses two separate databases:
- * - overlayDb: Settings, users, ads, marketplace
- * - streamingDb: Events, viewer stats, categories
+ * Uses unified database (unified.db):
+ * - Settings, users, ads, marketplace (formerly weflab_clone.db)
+ * - Events, viewer stats, categories (formerly streaming_data.db)
+ *
+ * Note: overlayDb and streamingDb parameters are kept for backward compatibility
+ * but now point to the same unified database instance.
  */
 
 const express = require("express");
@@ -179,7 +182,8 @@ const createApp = ({
   app.use("/", healthRouter);
 
   // ===== Monitor Routes (public, no auth) =====
-  const monitorRouter = createMonitorRouter(streamingDb, overlayDb);
+  // Pass unified db (overlayDb and streamingDb are now the same)
+  const monitorRouter = createMonitorRouter(overlayDb);
   app.use("/api", monitorRouter);
 
   // ===== SPA Fallback =====

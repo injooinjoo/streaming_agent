@@ -1,10 +1,10 @@
 /**
  * Streaming Agent Server
- * Main entry point - initializes databases, Socket.io, and Express app
+ * Main entry point - initializes database, Socket.io, and Express app
  *
- * Uses two separate databases:
- * - overlayDb (weflab_clone.db): Settings, users, ads, marketplace
- * - streamingDb (streaming_data.db): Events, viewer stats, categories
+ * Uses unified database (unified.db):
+ * - Settings, users, ads, marketplace (formerly weflab_clone.db)
+ * - Events, viewer stats, categories (formerly streaming_data.db)
  */
 
 const http = require("http");
@@ -18,7 +18,7 @@ validateEnv(process.env.NODE_ENV === "production"); // Only exit in production
 
 // Application modules
 const { createApp } = require("./app");
-const { initializeDatabases, closeDatabases } = require("./db/connections");
+const { initializeDatabase, closeDatabase, getDb } = require("./db/connections");
 const { setupSocketHandlers } = require("./socket/handlers");
 
 // Platform Adapters
@@ -52,9 +52,8 @@ const riotApi = new RiotAdapter({
   region: "kr",
 });
 
-// Database references (set during initialization)
-let overlayDb = null;
-let streamingDb = null;
+// Database reference (set during initialization)
+let db = null;
 
 // ===== Main Initialization =====
 const main = async () => {
@@ -68,11 +67,9 @@ const main = async () => {
       logger.info("Redis not configured, using in-memory fallback");
     }
 
-    // Initialize both databases
-    const databases = await initializeDatabases();
-    overlayDb = databases.overlayDb;
-    streamingDb = databases.streamingDb;
-    dbLogger.info("Both databases ready");
+    // Initialize unified database
+    db = await initializeDatabase();
+    dbLogger.info("Unified database ready");
 
     // Create HTTP server (app will be attached after initialization)
     const express = require("express");
@@ -86,27 +83,32 @@ const main = async () => {
       },
     });
 
-    // Initialize Category Service with streamingDb
-    const categoryService = new CategoryService(streamingDb, io);
+    // Initialize Category Service with unified db
+    const categoryService = new CategoryService(db, io);
     await categoryService.initialize().catch((err) => {
       logger.error("Category service initialization error", { error: err.message, stack: err.stack });
     });
 
-    // Initialize Broadcast Crawler Service with streamingDb and auto-connection options
-    const broadcastCrawler = new BroadcastCrawler(streamingDb, io, {
+    // Initialize Event Service for storing chat/donation events
+    const { createEventService } = require("./services/eventService");
+    const eventService = createEventService(db, io);
+
+    // Initialize Broadcast Crawler Service with unified db and auto-connection options
+    const broadcastCrawler = new BroadcastCrawler(db, io, {
       ChzzkAdapter,
       SoopAdapter,
       activeAdapters,
       normalizer,
       ViewerEngagementService,
+      eventService, // Pass eventService for storing events
     });
     broadcastCrawler.startScheduledCrawl();
     logger.info("Broadcast crawler started (5 min interval, auto-connect top 50)");
 
-    // Create Express app with all dependencies
+    // Create Express app with unified db (passed as both overlayDb and streamingDb for backward compatibility)
     const app = createApp({
-      overlayDb,
-      streamingDb,
+      overlayDb: db,
+      streamingDb: db,
       io,
       activeAdapters,
       ChzzkAdapter,
@@ -125,8 +127,7 @@ const main = async () => {
 
     // Store server reference for graceful shutdown
     module.exports.server = server;
-    module.exports.overlayDb = overlayDb;
-    module.exports.streamingDb = streamingDb;
+    module.exports.db = db;
     module.exports.activeAdapters = activeAdapters;
     module.exports.broadcastCrawler = broadcastCrawler;
 
@@ -175,11 +176,11 @@ const shutdown = async () => {
     logger.error("Error closing Redis", { error: err.message });
   }
 
-  // Close both database connections
+  // Close unified database connection
   try {
-    await closeDatabases();
+    await closeDatabase();
   } catch (err) {
-    dbLogger.error("Error closing databases", { error: err.message });
+    dbLogger.error("Error closing database", { error: err.message });
   }
 
   // Close server if available

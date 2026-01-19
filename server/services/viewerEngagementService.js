@@ -2,10 +2,11 @@
  * ViewerEngagementService - 시청자-방송자 관계 추적 서비스
  *
  * 누가 누구를 봤는지, 카테고리별로 누적 통계 관리
- * - watch_minutes: 시청 시간 (카테고리별 누적)
  * - chat_count: 채팅 횟수
  * - donation_count: 후원 횟수
- * - donation_amount: 후원 금액
+ * - total_donation_amount: 후원 금액
+ *
+ * Schema: viewer_engagement (person_id, platform, channel_id, category_id unique)
  */
 
 const { db: dbLogger } = require("./logger");
@@ -18,35 +19,33 @@ class ViewerEngagementService {
   /**
    * 시청자 참여 기록 upsert (채팅/후원 시 호출)
    * @param {Object} data - 참여 데이터
-   * @param {number} data.viewerPersonId - 시청자 Person ID
+   * @param {number} data.personId - 시청자 Person ID
    * @param {number} [data.broadcasterPersonId] - 방송자 Person ID
-   * @param {string} data.broadcasterChannelId - 방송자 채널 ID
+   * @param {string} data.channelId - 방송자 채널 ID
    * @param {string} data.platform - 플랫폼
    * @param {string} [data.categoryId] - 카테고리 ID
-   * @param {string} [data.categoryName] - 카테고리 이름
    * @param {string} data.eventType - 이벤트 타입 (chat, donation)
    * @param {number} [data.donationAmount] - 후원 금액 (donation일 때)
    * @returns {Promise<number>} - Engagement ID
    */
   async recordEngagement(data) {
     const {
-      viewerPersonId,
+      personId,
       broadcasterPersonId,
-      broadcasterChannelId,
+      channelId,
       platform,
       categoryId,
-      categoryName,
       eventType,
       donationAmount = 0,
     } = data;
 
     return new Promise((resolve, reject) => {
-      // 기존 레코드 조회 (같은 viewer + broadcaster + category)
+      // 기존 레코드 조회 (같은 person + channel + platform + category)
       this.db.get(
-        `SELECT id, chat_count, donation_count, donation_amount
+        `SELECT id, chat_count, donation_count, total_donation_amount
          FROM viewer_engagement
-         WHERE viewer_person_id = ? AND broadcaster_channel_id = ? AND platform = ? AND category_id = ?`,
-        [viewerPersonId, broadcasterChannelId, platform, categoryId || null],
+         WHERE person_id = ? AND channel_id = ? AND platform = ? AND category_id IS ?`,
+        [personId, channelId, platform, categoryId || null],
         (err, row) => {
           if (err) {
             dbLogger.error("ViewerEngagementService.recordEngagement find error", { error: err.message });
@@ -63,7 +62,7 @@ class ViewerEngagementService {
               `UPDATE viewer_engagement
                SET chat_count = chat_count + ?,
                    donation_count = donation_count + ?,
-                   donation_amount = donation_amount + ?,
+                   total_donation_amount = total_donation_amount + ?,
                    last_seen_at = CURRENT_TIMESTAMP,
                    updated_at = CURRENT_TIMESTAMP
                WHERE id = ?`,
@@ -84,16 +83,15 @@ class ViewerEngagementService {
 
             this.db.run(
               `INSERT INTO viewer_engagement (
-                viewer_person_id, broadcaster_person_id, broadcaster_channel_id, platform,
-                category_id, category_name, chat_count, donation_count, donation_amount
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                person_id, platform, channel_id, broadcaster_person_id,
+                category_id, chat_count, donation_count, total_donation_amount
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
               [
-                viewerPersonId,
-                broadcasterPersonId || null,
-                broadcasterChannelId,
+                personId,
                 platform,
+                channelId,
+                broadcasterPersonId || null,
                 categoryId || null,
-                categoryName || null,
                 chatCount,
                 donationCount,
                 donationAmount,
@@ -104,9 +102,9 @@ class ViewerEngagementService {
                   reject(insertErr);
                 } else {
                   dbLogger.debug("New viewer engagement created", {
-                    viewerPersonId,
-                    broadcasterChannelId,
-                    categoryName,
+                    personId,
+                    channelId,
+                    categoryId,
                     id: this.lastID,
                   });
                   resolve(this.lastID);
@@ -120,47 +118,19 @@ class ViewerEngagementService {
   }
 
   /**
-   * 시청 시간 추가 (분 단위)
-   * @param {number} viewerPersonId - 시청자 Person ID
-   * @param {string} broadcasterChannelId - 방송자 채널 ID
-   * @param {string} platform - 플랫폼
-   * @param {string} categoryId - 카테고리 ID
-   * @param {number} minutes - 추가할 시청 시간 (분)
-   */
-  async addWatchMinutes(viewerPersonId, broadcasterChannelId, platform, categoryId, minutes) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `UPDATE viewer_engagement
-         SET watch_minutes = watch_minutes + ?,
-             last_seen_at = CURRENT_TIMESTAMP,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE viewer_person_id = ? AND broadcaster_channel_id = ? AND platform = ? AND category_id = ?`,
-        [minutes, viewerPersonId, broadcasterChannelId, platform, categoryId || null],
-        (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
-        }
-      );
-    });
-  }
-
-  /**
    * 특정 시청자의 모든 참여 기록 조회
-   * @param {number} viewerPersonId - 시청자 Person ID
+   * @param {number} personId - 시청자 Person ID
    * @returns {Promise<Array>}
    */
-  async getViewerEngagements(viewerPersonId) {
+  async getViewerEngagements(personId) {
     return new Promise((resolve, reject) => {
       this.db.all(
         `SELECT ve.*, p.nickname as broadcaster_nickname
          FROM viewer_engagement ve
          LEFT JOIN persons p ON ve.broadcaster_person_id = p.id
-         WHERE ve.viewer_person_id = ?
+         WHERE ve.person_id = ?
          ORDER BY ve.last_seen_at DESC`,
-        [viewerPersonId],
+        [personId],
         (err, rows) => {
           if (err) {
             reject(err);
@@ -174,19 +144,19 @@ class ViewerEngagementService {
 
   /**
    * 특정 방송자의 시청자 참여 기록 조회
-   * @param {string} broadcasterChannelId - 방송자 채널 ID
+   * @param {string} channelId - 방송자 채널 ID
    * @param {string} platform - 플랫폼
    * @returns {Promise<Array>}
    */
-  async getBroadcasterViewerEngagements(broadcasterChannelId, platform) {
+  async getBroadcasterViewerEngagements(channelId, platform) {
     return new Promise((resolve, reject) => {
       this.db.all(
         `SELECT ve.*, p.nickname as viewer_nickname
          FROM viewer_engagement ve
-         LEFT JOIN persons p ON ve.viewer_person_id = p.id
-         WHERE ve.broadcaster_channel_id = ? AND ve.platform = ?
-         ORDER BY ve.donation_amount DESC, ve.chat_count DESC`,
-        [broadcasterChannelId, platform],
+         LEFT JOIN persons p ON ve.person_id = p.id
+         WHERE ve.channel_id = ? AND ve.platform = ?
+         ORDER BY ve.total_donation_amount DESC, ve.chat_count DESC`,
+        [channelId, platform],
         (err, rows) => {
           if (err) {
             reject(err);
@@ -200,24 +170,23 @@ class ViewerEngagementService {
 
   /**
    * 시청자-방송자 카테고리별 통계 요약
-   * @param {number} viewerPersonId - 시청자 Person ID
-   * @returns {Promise<Object>}
+   * @param {number} personId - 시청자 Person ID
+   * @returns {Promise<Array>}
    */
-  async getViewerCategorySummary(viewerPersonId) {
+  async getViewerCategorySummary(personId) {
     return new Promise((resolve, reject) => {
       this.db.all(
         `SELECT
-           category_name,
-           COUNT(DISTINCT broadcaster_channel_id) as broadcaster_count,
-           SUM(watch_minutes) as total_watch_minutes,
+           category_id,
+           COUNT(DISTINCT channel_id) as broadcaster_count,
            SUM(chat_count) as total_chats,
            SUM(donation_count) as total_donations,
-           SUM(donation_amount) as total_donation_amount
+           SUM(total_donation_amount) as total_donation_amount
          FROM viewer_engagement
-         WHERE viewer_person_id = ?
+         WHERE person_id = ?
          GROUP BY category_id
-         ORDER BY total_watch_minutes DESC`,
-        [viewerPersonId],
+         ORDER BY total_donation_amount DESC`,
+        [personId],
         (err, rows) => {
           if (err) {
             reject(err);
@@ -227,6 +196,118 @@ class ViewerEngagementService {
         }
       );
     });
+  }
+
+  /**
+   * 특정 채널의 상위 시청자 조회
+   * @param {string} channelId - 채널 ID
+   * @param {string} platform - 플랫폼
+   * @param {number} limit - 조회 개수
+   * @returns {Promise<Array>}
+   */
+  async getTopViewers(channelId, platform, limit = 10) {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT
+           ve.person_id,
+           p.nickname,
+           p.profile_image_url,
+           SUM(ve.chat_count) as total_chats,
+           SUM(ve.donation_count) as total_donations,
+           SUM(ve.total_donation_amount) as total_donation_amount,
+           MAX(ve.last_seen_at) as last_seen_at
+         FROM viewer_engagement ve
+         LEFT JOIN persons p ON ve.person_id = p.id
+         WHERE ve.channel_id = ? AND ve.platform = ?
+         GROUP BY ve.person_id
+         ORDER BY total_donation_amount DESC, total_chats DESC
+         LIMIT ?`,
+        [channelId, platform, limit],
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows || []);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * 특정 카테고리에서의 활성 시청자 조회
+   * @param {string} categoryId - 카테고리 ID
+   * @param {number} limit - 조회 개수
+   * @returns {Promise<Array>}
+   */
+  async getCategoryActiveViewers(categoryId, limit = 20) {
+    return new Promise((resolve, reject) => {
+      this.db.all(
+        `SELECT
+           ve.person_id,
+           p.nickname,
+           COUNT(DISTINCT ve.channel_id) as channels_watched,
+           SUM(ve.chat_count) as total_chats,
+           SUM(ve.total_donation_amount) as total_donation_amount
+         FROM viewer_engagement ve
+         LEFT JOIN persons p ON ve.person_id = p.id
+         WHERE ve.category_id = ?
+         GROUP BY ve.person_id
+         ORDER BY total_donation_amount DESC
+         LIMIT ?`,
+        [categoryId, limit],
+        (err, rows) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(rows || []);
+          }
+        }
+      );
+    });
+  }
+
+  /**
+   * 시청자의 특정 채널 참여 통계 조회
+   * @param {number} personId - 시청자 Person ID
+   * @param {string} channelId - 채널 ID
+   * @param {string} platform - 플랫폼
+   * @returns {Promise<Object|null>}
+   */
+  async getViewerChannelStats(personId, channelId, platform) {
+    return new Promise((resolve, reject) => {
+      this.db.get(
+        `SELECT
+           SUM(chat_count) as total_chats,
+           SUM(donation_count) as total_donations,
+           SUM(total_donation_amount) as total_donation_amount,
+           MIN(first_seen_at) as first_seen_at,
+           MAX(last_seen_at) as last_seen_at,
+           COUNT(DISTINCT category_id) as categories_watched
+         FROM viewer_engagement
+         WHERE person_id = ? AND channel_id = ? AND platform = ?`,
+        [personId, channelId, platform],
+        (err, row) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(row || null);
+          }
+        }
+      );
+    });
+  }
+
+  // ===== Backward Compatibility Methods =====
+
+  /**
+   * @deprecated Use recordEngagement with new schema
+   */
+  async addWatchMinutes(viewerPersonId, broadcasterChannelId, platform, categoryId, minutes) {
+    // Watch minutes tracking removed in new schema
+    // This method is kept for backward compatibility but does nothing
+    dbLogger.debug("addWatchMinutes is deprecated - watch_minutes removed from schema");
+    return Promise.resolve();
   }
 }
 
