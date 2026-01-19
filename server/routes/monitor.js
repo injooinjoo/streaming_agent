@@ -9,13 +9,14 @@ const { api: apiLogger } = require("../services/logger");
 /**
  * Create monitor router
  * @param {sqlite3.Database} streamingDb - Streaming database instance
+ * @param {sqlite3.Database} overlayDb - Overlay database instance
  * @returns {express.Router}
  */
-const createMonitorRouter = (streamingDb) => {
+const createMonitorRouter = (streamingDb, overlayDb) => {
   const router = express.Router();
 
   /**
-   * Helper: Promisify db.get
+   * Helper: Promisify db.get for streaming DB
    */
   const dbGet = (sql, params = []) => {
     return new Promise((resolve, reject) => {
@@ -27,11 +28,23 @@ const createMonitorRouter = (streamingDb) => {
   };
 
   /**
-   * Helper: Promisify db.all
+   * Helper: Promisify db.all for streaming DB
    */
   const dbAll = (sql, params = []) => {
     return new Promise((resolve, reject) => {
       streamingDb.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
+      });
+    });
+  };
+
+  /**
+   * Helper: Promisify db.all for overlay DB
+   */
+  const overlayDbAll = (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+      overlayDb.all(sql, params, (err, rows) => {
         if (err) reject(err);
         else resolve(rows || []);
       });
@@ -259,6 +272,68 @@ const createMonitorRouter = (streamingDb) => {
     } catch (error) {
       apiLogger.error("Monitor engagement error", { error: error.message });
       res.status(500).json({ error: "Failed to fetch engagement" });
+    }
+  });
+
+  /**
+   * GET /api/monitor/schema
+   * Returns database schema for both streaming and overlay databases
+   */
+  router.get("/monitor/schema", async (req, res) => {
+    try {
+      /**
+       * Helper: Get table schema from a database
+       * @param {Function} dbAllFn - Promisified db.all function
+       * @param {string} dbName - Database name for logging
+       * @returns {Array} Array of table schemas
+       */
+      const getDbSchema = async (dbAllFn, dbName) => {
+        // Get all tables from sqlite_master
+        const tables = await dbAllFn(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
+        );
+
+        const schema = [];
+        for (const table of tables) {
+          // Get column info using PRAGMA
+          const columns = await dbAllFn(`PRAGMA table_info("${table.name}")`);
+          schema.push({
+            name: table.name,
+            columns: columns.map((col) => ({
+              name: col.name,
+              type: col.type,
+              notNull: col.notnull === 1,
+              defaultValue: col.dflt_value,
+              primaryKey: col.pk === 1,
+            })),
+          });
+        }
+        return schema;
+      };
+
+      // Get schemas from both databases in parallel
+      const [streamingSchema, overlaySchema] = await Promise.all([
+        getDbSchema(dbAll, "streaming"),
+        getDbSchema(overlayDbAll, "overlay"),
+      ]);
+
+      res.json({
+        streamingDb: {
+          name: "streaming_data.db",
+          description: "스트리밍 데이터 (이벤트, 시청자, 카테고리)",
+          tables: streamingSchema,
+          tableCount: streamingSchema.length,
+        },
+        overlayDb: {
+          name: "weflab_clone.db",
+          description: "오버레이 설정 (사용자, 설정, 광고, 마켓)",
+          tables: overlaySchema,
+          tableCount: overlaySchema.length,
+        },
+      });
+    } catch (error) {
+      apiLogger.error("Monitor schema error", { error: error.message });
+      res.status(500).json({ error: "Failed to fetch schema" });
     }
   });
 

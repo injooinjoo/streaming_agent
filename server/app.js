@@ -179,7 +179,7 @@ const createApp = ({
   app.use("/", healthRouter);
 
   // ===== Monitor Routes (public, no auth) =====
-  const monitorRouter = createMonitorRouter(streamingDb);
+  const monitorRouter = createMonitorRouter(streamingDb, overlayDb);
   app.use("/api", monitorRouter);
 
   // ===== SPA Fallback =====

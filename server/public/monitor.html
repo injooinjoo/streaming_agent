@@ -358,6 +358,154 @@
       display: block;
     }
 
+    /* Schema Section */
+    .schema-section {
+      margin-bottom: 30px;
+    }
+
+    .schema-section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+
+    .schema-section-title {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .schema-section-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .schema-badge {
+      background: var(--accent-blue);
+      color: white;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .schema-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      gap: 15px;
+    }
+
+    .table-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .table-card-header {
+      background: var(--bg-secondary);
+      padding: 12px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+    }
+
+    .table-card-header:hover {
+      background: rgba(55, 66, 250, 0.1);
+    }
+
+    .table-card-name {
+      font-weight: 600;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .table-card-name .icon {
+      opacity: 0.6;
+    }
+
+    .table-card-count {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .table-card-expand {
+      color: var(--text-secondary);
+      font-size: 12px;
+      transition: transform 0.2s;
+    }
+
+    .table-card.expanded .table-card-expand {
+      transform: rotate(180deg);
+    }
+
+    .table-card-body {
+      display: none;
+      padding: 0;
+    }
+
+    .table-card.expanded .table-card-body {
+      display: block;
+    }
+
+    .column-list {
+      list-style: none;
+    }
+
+    .column-item {
+      padding: 8px 16px;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .column-item:last-child {
+      border-bottom: none;
+    }
+
+    .column-name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .column-name .pk-badge {
+      background: var(--accent-yellow);
+      color: #000;
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .column-type {
+      color: var(--accent-cyan);
+      font-family: monospace;
+      font-size: 12px;
+    }
+
+    .column-meta {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+    }
+
+    .not-null-badge {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--accent-red);
+      padding: 2px 5px;
+      border-radius: 3px;
+      font-size: 9px;
+      font-weight: 600;
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       .stats-grid {
@@ -439,6 +587,7 @@
       <button class="tab-btn active" data-tab="broadcasts">방송 목록</button>
       <button class="tab-btn" data-tab="persons">인원 목록</button>
       <button class="tab-btn" data-tab="engagement">참여 기록</button>
+      <button class="tab-btn" data-tab="schema">DB 스키마</button>
     </div>
 
     <!-- Broadcasts Tab -->
@@ -552,6 +701,36 @@
         </div>
       </div>
     </div>
+
+    <!-- Schema Tab -->
+    <div id="schema" class="tab-content">
+      <div id="schemaLoading" class="loading">스키마 로딩 중...</div>
+      <div id="schemaContent" style="display: none;">
+        <!-- Streaming DB Section -->
+        <div class="schema-section">
+          <div class="schema-section-header">
+            <div>
+              <div class="schema-section-title">📊 Streaming DB</div>
+              <div class="schema-section-subtitle" id="streamingDbInfo">streaming_data.db</div>
+            </div>
+            <span class="schema-badge" id="streamingTableCount">-</span>
+          </div>
+          <div class="schema-grid" id="streamingSchemaGrid"></div>
+        </div>
+
+        <!-- Overlay DB Section -->
+        <div class="schema-section">
+          <div class="schema-section-header">
+            <div>
+              <div class="schema-section-title">⚙️ Overlay DB</div>
+              <div class="schema-section-subtitle" id="overlayDbInfo">weflab_clone.db</div>
+            </div>
+            <span class="schema-badge" id="overlayTableCount">-</span>
+          </div>
+          <div class="schema-grid" id="overlaySchemaGrid"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -583,11 +762,12 @@
       return '₩' + Number(num).toLocaleString('ko-KR');
     };
 
-    // Format date
+    // Format date (KST - Korea Standard Time)
     const formatDate = (dateStr) => {
       if (!dateStr) return '-';
       const date = new Date(dateStr);
       return date.toLocaleString('ko-KR', {
+        timeZone: 'Asia/Seoul',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
@@ -777,6 +957,83 @@
       nextBtn.disabled = pagination.page >= pagination.totalPages;
     }
 
+    // Schema state
+    let schemaLoaded = false;
+
+    // Generate table card HTML
+    const generateTableCard = (table) => {
+      const columnsHtml = table.columns.map(col => `
+        <li class="column-item">
+          <span class="column-name">
+            ${col.name}
+            ${col.primaryKey ? '<span class="pk-badge">PK</span>' : ''}
+          </span>
+          <span class="column-meta">
+            ${col.notNull ? '<span class="not-null-badge">NOT NULL</span>' : ''}
+            <span class="column-type">${col.type || 'ANY'}</span>
+          </span>
+        </li>
+      `).join('');
+
+      return `
+        <div class="table-card" onclick="this.classList.toggle('expanded')">
+          <div class="table-card-header">
+            <span class="table-card-name">
+              <span class="icon">📋</span>
+              ${table.name}
+              <span class="table-card-count">(${table.columns.length})</span>
+            </span>
+            <span class="table-card-expand">▼</span>
+          </div>
+          <div class="table-card-body">
+            <ul class="column-list">
+              ${columnsHtml}
+            </ul>
+          </div>
+        </div>
+      `;
+    };
+
+    // Fetch schema
+    async function loadSchema() {
+      if (schemaLoaded) return;
+
+      const loading = document.getElementById('schemaLoading');
+      const content = document.getElementById('schemaContent');
+
+      try {
+        const res = await fetch(`${API_BASE}/schema`);
+        const data = await res.json();
+
+        // Update Streaming DB info
+        document.getElementById('streamingDbInfo').textContent =
+          `${data.streamingDb.name} - ${data.streamingDb.description}`;
+        document.getElementById('streamingTableCount').textContent =
+          `${data.streamingDb.tableCount} 테이블`;
+
+        // Render Streaming DB tables
+        document.getElementById('streamingSchemaGrid').innerHTML =
+          data.streamingDb.tables.map(generateTableCard).join('');
+
+        // Update Overlay DB info
+        document.getElementById('overlayDbInfo').textContent =
+          `${data.overlayDb.name} - ${data.overlayDb.description}`;
+        document.getElementById('overlayTableCount').textContent =
+          `${data.overlayDb.tableCount} 테이블`;
+
+        // Render Overlay DB tables
+        document.getElementById('overlaySchemaGrid').innerHTML =
+          data.overlayDb.tables.map(generateTableCard).join('');
+
+        loading.style.display = 'none';
+        content.style.display = 'block';
+        schemaLoaded = true;
+      } catch (error) {
+        console.error('Failed to load schema:', error);
+        loading.innerHTML = '스키마를 불러올 수 없습니다';
+      }
+    }
+
     // Tab switching
     document.querySelectorAll('.tab-btn').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -787,6 +1044,11 @@
         // Update tab content
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         document.getElementById(btn.dataset.tab).classList.add('active');
+
+        // Load schema when schema tab is clicked
+        if (btn.dataset.tab === 'schema') {
+          loadSchema();
+        }
       });
     });
 
@@ -804,7 +1066,7 @@
       ]);
 
       document.getElementById('lastUpdated').textContent =
-        `마지막 업데이트: ${new Date().toLocaleString('ko-KR')}`;
+        `마지막 업데이트: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`;
 
       btn.disabled = false;
       btn.textContent = '새로고침';
