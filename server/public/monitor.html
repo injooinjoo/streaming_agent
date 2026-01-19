@@ -908,10 +908,10 @@
             <thead>
               <tr>
                 <th>플랫폼</th>
-                <th>카테고리 ID</th>
                 <th>카테고리명</th>
                 <th>타입</th>
-                <th>등록일</th>
+                <th>시청자</th>
+                <th>스트리머</th>
                 <th>수정일</th>
               </tr>
             </thead>
@@ -1311,10 +1311,10 @@
           tbody.innerHTML = data.map(c => `
             <tr>
               <td>${getPlatformBadge(c.platform)}</td>
-              <td>${c.category_id || '-'}</td>
               <td>${c.category_name || '-'}</td>
               <td>${c.category_type || '-'}</td>
-              <td>${formatDate(c.recorded_at)}</td>
+              <td class="number">${formatNumber(c.viewer_count)}</td>
+              <td class="number">${formatNumber(c.streamer_count)}</td>
               <td>${formatDate(c.updated_at)}</td>
             </tr>
           `).join('');

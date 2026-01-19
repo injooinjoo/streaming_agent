@@ -735,7 +735,7 @@ const createMonitorRouter = (db) => {
 
   /**
    * GET /api/monitor/categories
-   * Returns paginated categories list
+   * Returns paginated categories list from platform_categories table
    * Query params: page (default 1), limit (default 50), platform (optional)
    */
   router.get("/monitor/categories", async (req, res) => {
@@ -745,34 +745,36 @@ const createMonitorRouter = (db) => {
       const offset = (page - 1) * limit;
       const platform = req.query.platform;
 
-      let whereClause = "";
+      let whereClause = "WHERE is_active = 1";
       let params = [limit, offset];
       if (platform && platform !== "all") {
-        whereClause = "WHERE platform = ?";
+        whereClause = "WHERE is_active = 1 AND platform = ?";
         params = [platform, limit, offset];
       }
 
       // Get total count
       const countSql = platform && platform !== "all"
-        ? `SELECT COUNT(*) as total FROM categories WHERE platform = ?`
-        : `SELECT COUNT(*) as total FROM categories`;
+        ? `SELECT COUNT(*) as total FROM platform_categories WHERE is_active = 1 AND platform = ?`
+        : `SELECT COUNT(*) as total FROM platform_categories WHERE is_active = 1`;
       const countResult = await dbGet(countSql, platform && platform !== "all" ? [platform] : []);
       const total = countResult?.total || 0;
 
-      // Get categories
+      // Get categories from platform_categories table
       const categories = await dbAll(
         `SELECT
           id,
           platform,
-          category_id,
-          category_name,
+          platform_category_id as category_id,
+          platform_category_name as category_name,
           category_type,
           thumbnail_url,
-          recorded_at,
+          viewer_count,
+          streamer_count,
+          created_at as recorded_at,
           updated_at
-        FROM categories
+        FROM platform_categories
         ${whereClause}
-        ORDER BY category_name ASC
+        ORDER BY viewer_count DESC, platform_category_name ASC
         LIMIT ? OFFSET ?`,
         params
       );
