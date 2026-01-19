@@ -1400,6 +1400,21 @@
     </div>
   </div>
 
+  <!-- Person Detail Modal -->
+  <div id="personModalOverlay" class="modal-overlay">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div id="personModalProfile" class="modal-profile">
+          <!-- Profile content loaded dynamically -->
+        </div>
+        <button class="modal-close-btn" onclick="closePersonModal()">&times;</button>
+      </div>
+      <div id="personModalBody" class="modal-body">
+        <!-- Modal body content loaded dynamically -->
+      </div>
+    </div>
+  </div>
+
   <script>
     const API_BASE = '/api/monitor';
     const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
@@ -2272,20 +2287,5 @@
       }
     });
   </script>
-
-  <!-- Person Detail Modal -->
-  <div id="personModalOverlay" class="modal-overlay" onclick="if(event.target === this) closePersonModal()">
-    <div class="modal-container">
-      <div class="modal-header">
-        <div id="personModalProfile" class="modal-profile">
-          <!-- Profile content loaded dynamically -->
-        </div>
-        <button class="modal-close-btn" onclick="closePersonModal()">&times;</button>
-      </div>
-      <div id="personModalBody" class="modal-body">
-        <!-- Modal body content loaded dynamically -->
-      </div>
-    </div>
-  </div>
 </body>
 </html>
