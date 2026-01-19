@@ -114,7 +114,8 @@ class CategoryCrawler {
   async fetchSoopCategories() {
     categoryLogger.debug("Fetching SOOP categories...");
 
-    const categories = [];
+    // Step 1: categoryList API에서 카테고리 목록 가져오기
+    const categoryMap = new Map();
     let pageNo = 1;
     const listCnt = 100;
     let hasMore = true;
@@ -129,7 +130,6 @@ class CategoryCrawler {
           },
         });
 
-        // API 응답: { result: 1, data: { is_more: true, list: [...] } }
         if (!data || !data.data || !Array.isArray(data.data.list)) {
           categoryLogger.debug("SOOP: No more data or invalid response", { data });
           break;
@@ -142,29 +142,75 @@ class CategoryCrawler {
         }
 
         for (const item of items) {
-          categories.push({
+          const categoryId = String(item.category_no || item.cate_no || item.id);
+          categoryMap.set(categoryId, {
             platform: "soop",
-            platformCategoryId: String(item.category_no || item.cate_no || item.id),
+            platformCategoryId: categoryId,
             platformCategoryName: item.category_name || item.cate_name || item.name,
             categoryType: item.cate_type || "GAME",
             thumbnailUrl: item.cate_img || item.thumbnail || null,
-            viewerCount: parseInt(item.view_cnt || item.total_view_cnt, 10) || 0,
-            streamerCount: parseInt(item.broad_cnt || item.total_broad_cnt, 10) || 0,
+            viewerCount: 0,  // 라이브 방송에서 재집계
+            streamerCount: 0,  // 라이브 방송에서 집계
           });
         }
 
-        categoryLogger.debug("SOOP page fetched", { page: pageNo, count: items.length });
-
-        // 다음 페이지 확인 (is_more 플래그 사용)
+        categoryLogger.debug("SOOP categoryList page fetched", { page: pageNo, count: items.length });
         hasMore = data.data.is_more === true;
         pageNo++;
       } catch (error) {
-        categoryLogger.error("SOOP page failed", { page: pageNo, error: error.message });
+        categoryLogger.error("SOOP categoryList page failed", { page: pageNo, error: error.message });
         hasMore = false;
       }
     }
 
-    categoryLogger.info("SOOP crawl complete", { total: categories.length });
+    // Step 2: 라이브 방송 목록에서 시청자/스트리머 수 집계
+    const liveFetchPages = 30;  // 약 1,800개 방송 스캔
+    const livePageSize = 60;
+
+    for (let page = 1; page <= liveFetchPages; page++) {
+      try {
+        const url = `https://live.sooplive.co.kr/api/main_broad_list_api.php?selectType=action&selectValue=all&orderType=view_cnt&pageNo=${page}&lang=ko`;
+        const data = await this.fetchWithRetry("soop", url, {
+          headers: {
+            Origin: "https://www.sooplive.co.kr",
+            Referer: "https://www.sooplive.co.kr/",
+          },
+        });
+
+        if (!data || !data.broad || !Array.isArray(data.broad)) {
+          categoryLogger.debug("SOOP: No more live data", { page });
+          break;
+        }
+
+        const broadcasts = data.broad;
+        if (broadcasts.length === 0) break;
+
+        for (const live of broadcasts) {
+          const categoryId = String(live.broad_cate_no || "");
+          if (categoryId && categoryMap.has(categoryId)) {
+            const category = categoryMap.get(categoryId);
+            category.viewerCount += parseInt(live.total_view_cnt, 10) || 0;
+            category.streamerCount += 1;
+          }
+        }
+
+        categoryLogger.debug("SOOP live page fetched", { page, count: broadcasts.length });
+
+        if (broadcasts.length < livePageSize) break;
+      } catch (error) {
+        categoryLogger.error("SOOP live page failed", { page, error: error.message });
+        break;
+      }
+    }
+
+    const categories = Array.from(categoryMap.values());
+    const activeCategories = categories.filter(c => c.streamerCount > 0).length;
+    categoryLogger.info("SOOP crawl complete", {
+      total: categories.length,
+      activeCategories,
+      totalViewers: categories.reduce((sum, c) => sum + c.viewerCount, 0),
+      totalStreamers: categories.reduce((sum, c) => sum + c.streamerCount, 0)
+    });
     return categories;
   }
 
@@ -178,7 +224,7 @@ class CategoryCrawler {
     const categoryMap = new Map();
 
     // 여러 페이지의 라이브 방송에서 카테고리 수집
-    const pagesToFetch = 10;
+    const pagesToFetch = 60;
     const pageSize = 100;
 
     for (let page = 0; page < pagesToFetch; page++) {

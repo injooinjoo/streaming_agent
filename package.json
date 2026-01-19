@@ -6,7 +6,9 @@
     "dev": "npm start --prefix server",
     "server": "npm start --prefix server",
     "install-all": "npm install --prefix server",
-    "start:prod": "cd server && npm start"
+    "start:prod": "cd server && npm start",
+    "db:browse:overlay": "sqlite_web --read-only --port 8080 --host 127.0.0.1 server/weflab_clone.db",
+    "db:browse:streaming": "sqlite_web --read-only --port 8081 --host 127.0.0.1 server/streaming_data.db"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -133,6 +133,8 @@ const loggers = {
   api: createChildLogger({ service: "api" }),
   category: createChildLogger({ service: "category" }),
   platform: createChildLogger({ service: "platform" }),
+  broadcast: createChildLogger({ service: "broadcast" }),
+  person: createChildLogger({ service: "person" }),
 
   // Direct logging methods
   debug: (msg, ctx) => logger.debug(ctx, msg),

@@ -12,6 +12,8 @@
 
 const express = require("express");
 const { getDiscoveryService } = require("../services/liveDiscoveryService");
+const PersonService = require("../services/personService");
+const ViewerEngagementService = require("../services/viewerEngagementService");
 
 /**
  * Create platforms router
@@ -25,6 +27,56 @@ const { getDiscoveryService } = require("../services/liveDiscoveryService");
  */
 const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, normalizer, db) => {
   const router = express.Router();
+  const personService = db ? new PersonService(db) : null;
+  const viewerEngagementService = db ? new ViewerEngagementService(db) : null;
+
+  /**
+   * Handle person tracking and engagement for events
+   * @param {Object} event - Event data
+   * @param {string} broadcasterChannelId - Channel ID of the broadcaster
+   * @param {Object} [broadcastInfo] - Optional broadcast info (category, title)
+   */
+  const trackPersonAndEngagement = async (event, broadcasterChannelId, broadcastInfo = {}) => {
+    if (!personService || !event.sender?.id || event.sender.id === "system") return;
+
+    try {
+      // 1. Upsert person (viewer)
+      const personId = await personService.upsertPerson({
+        platform: event.platform,
+        platformUserId: event.sender.id,
+        nickname: event.sender.nickname,
+        profileImageUrl: event.sender.profileImage || event.sender.profileImageUrl,
+      });
+
+      // 2. Update person statistics (what this person SPENT)
+      if (event.type === "chat") {
+        await personService.incrementChatCount(personId);
+      } else if (event.type === "donation" && event.content?.amount) {
+        await personService.incrementDonation(personId, event.content.amount);
+      }
+
+      // 3. Record viewer engagement (viewer-broadcaster relationship)
+      if (viewerEngagementService && broadcasterChannelId) {
+        await viewerEngagementService.recordEngagement({
+          viewerPersonId: personId,
+          broadcasterChannelId,
+          platform: event.platform,
+          categoryId: broadcastInfo.categoryId || null,
+          categoryName: broadcastInfo.categoryName || null,
+          eventType: event.type,
+          donationAmount: event.content?.amount || 0,
+        });
+      }
+    } catch (error) {
+      console.error(`[persons] Track error:`, error.message);
+    }
+  };
+
+  // Legacy function for backward compatibility
+  const trackPerson = async (event) => {
+    const channelId = event.metadata?.channelId || null;
+    await trackPersonAndEngagement(event, channelId);
+  };
 
   // ===== Events API (SQLite) =====
 
@@ -129,6 +181,13 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
 
       adapter.on("event", async (event) => {
         const legacyEvent = normalizer.toEventsFormat(event);
+
+        // Track person and engagement (viewer-broadcaster relationship)
+        const broadcastInfo = adapter.getInfo ? adapter.getInfo() : {};
+        await trackPersonAndEngagement(event, channelId, {
+          categoryId: broadcastInfo.categoryId || event.metadata?.categoryId,
+          categoryName: broadcastInfo.categoryName || event.metadata?.categoryName,
+        });
 
         // Save to SQLite
         if (db && event.type) {
@@ -299,6 +358,13 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
 
       adapter.on("event", async (event) => {
         const legacyEvent = normalizer.toEventsFormat(event);
+
+        // Track person and engagement (viewer-broadcaster relationship)
+        const broadcastInfo = adapter.getInfo ? adapter.getInfo() : {};
+        await trackPersonAndEngagement(event, bjId, {
+          categoryId: broadcastInfo.categoryId || event.metadata?.categoryId,
+          categoryName: broadcastInfo.categoryName || event.metadata?.categoryName,
+        });
 
         // Save to SQLite
         if (db && event.type) {

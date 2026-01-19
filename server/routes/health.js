@@ -13,10 +13,11 @@ const { getRedisService } = require("../services/redisService");
 /**
  * Create health check router
  * @param {Object} dependencies
- * @param {sqlite3.Database} dependencies.db - Database instance
+ * @param {sqlite3.Database} dependencies.overlayDb - Overlay database instance
+ * @param {sqlite3.Database} dependencies.streamingDb - Streaming database instance
  * @returns {express.Router}
  */
-const createHealthRouter = ({ db }) => {
+const createHealthRouter = ({ overlayDb, streamingDb }) => {
   const router = express.Router();
   const redisService = getRedisService();
 
@@ -25,17 +26,27 @@ const createHealthRouter = ({ db }) => {
 
   /**
    * Check database connectivity
+   * @param {sqlite3.Database} db - Database to check
+   * @param {string} name - Database name for logging
    * @returns {Promise<{status: string, latency: number}>}
    */
-  const checkDatabase = () => {
+  const checkDatabase = (db, name) => {
     return new Promise((resolve) => {
       const start = Date.now();
+
+      if (!db) {
+        resolve({
+          status: "not_configured",
+          latency: 0,
+        });
+        return;
+      }
 
       db.get("SELECT 1 as test", [], (err) => {
         const latency = Date.now() - start;
 
         if (err) {
-          logger.error("Database health check failed", { error: err.message });
+          logger.error(`${name} database health check failed`, { error: err.message });
           resolve({
             status: "unhealthy",
             latency,
@@ -96,13 +107,19 @@ const createHealthRouter = ({ db }) => {
     const checks = {};
     let isReady = true;
 
-    // Check database
-    checks.database = await checkDatabase();
-    if (checks.database.status !== "healthy") {
+    // Check overlay database
+    checks.overlayDb = await checkDatabase(overlayDb, "Overlay");
+    if (checks.overlayDb.status !== "healthy") {
       isReady = false;
     }
 
-    // Check Redis (future)
+    // Check streaming database
+    checks.streamingDb = await checkDatabase(streamingDb, "Streaming");
+    if (checks.streamingDb.status !== "healthy") {
+      isReady = false;
+    }
+
+    // Check Redis (optional)
     checks.redis = await checkRedis();
     if (checks.redis.status === "unhealthy") {
       isReady = false;
@@ -127,17 +144,19 @@ const createHealthRouter = ({ db }) => {
   router.get("/health/detailed", async (req, res) => {
     const checks = {};
 
-    // Database check
-    checks.database = await checkDatabase();
+    // Database checks
+    checks.overlayDb = await checkDatabase(overlayDb, "Overlay");
+    checks.streamingDb = await checkDatabase(streamingDb, "Streaming");
 
-    // Redis check (future)
+    // Redis check
     checks.redis = await checkRedis();
 
     // Memory usage
     const memory = getMemoryUsage();
 
     // Overall status
-    const isHealthy = checks.database.status === "healthy" &&
+    const isHealthy = checks.overlayDb.status === "healthy" &&
+      checks.streamingDb.status === "healthy" &&
       (checks.redis.status === "healthy" || checks.redis.status === "not_configured");
 
     res.json({

@@ -1,20 +1,25 @@
 /**
  * Stats Service
  * Business logic for statistics and analytics
+ *
+ * Uses two databases:
+ * - overlayDb: User data for admin stats
+ * - streamingDb: Events data for viewer/donation stats
  */
 
 /**
  * Create Stats Service
- * @param {sqlite3.Database} db - Database instance
+ * @param {sqlite3.Database} overlayDb - Overlay database instance (users, ads)
+ * @param {sqlite3.Database} streamingDb - Streaming database instance (events, viewer_stats)
  * @returns {Object} Stats service methods
  */
-const createStatsService = (db) => {
+const createStatsService = (overlayDb, streamingDb) => {
   /**
-   * Promisified db.get
+   * Promisified db.get for overlay database
    */
-  const dbGet = (sql, params = []) => {
+  const overlayDbGet = (sql, params = []) => {
     return new Promise((resolve, reject) => {
-      db.get(sql, params, (err, row) => {
+      overlayDb.get(sql, params, (err, row) => {
         if (err) reject(err);
         else resolve(row);
       });
@@ -22,11 +27,35 @@ const createStatsService = (db) => {
   };
 
   /**
-   * Promisified db.all
+   * Promisified db.all for overlay database
    */
-  const dbAll = (sql, params = []) => {
+  const overlayDbAll = (sql, params = []) => {
     return new Promise((resolve, reject) => {
-      db.all(sql, params, (err, rows) => {
+      overlayDb.all(sql, params, (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows);
+      });
+    });
+  };
+
+  /**
+   * Promisified db.get for streaming database
+   */
+  const streamingDbGet = (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+      streamingDb.get(sql, params, (err, row) => {
+        if (err) reject(err);
+        else resolve(row);
+      });
+    });
+  };
+
+  /**
+   * Promisified db.all for streaming database
+   */
+  const streamingDbAll = (sql, params = []) => {
+    return new Promise((resolve, reject) => {
+      streamingDb.all(sql, params, (err, rows) => {
         if (err) reject(err);
         else resolve(rows);
       });
@@ -34,7 +63,7 @@ const createStatsService = (db) => {
   };
 
   return {
-    // ===== Revenue Statistics =====
+    // ===== Revenue Statistics (from streamingDb) =====
 
     /**
      * Get revenue summary
@@ -46,7 +75,7 @@ const createStatsService = (db) => {
       startDate.setDate(startDate.getDate() - days);
       const startDateStr = startDate.toISOString().split("T")[0];
 
-      const row = await dbGet(
+      const row = await streamingDbGet(
         `SELECT
           COUNT(*) as donationCount,
           COALESCE(SUM(amount), 0) as totalDonations
@@ -59,7 +88,7 @@ const createStatsService = (db) => {
         totalRevenue: row?.totalDonations || 0,
         donationRevenue: row?.totalDonations || 0,
         donationCount: row?.donationCount || 0,
-        adRevenue: 0, // TODO: Add ad revenue calculation
+        adRevenue: 0, // TODO: Add ad revenue calculation from overlayDb
         period: `${days}일`,
       };
     },
@@ -70,7 +99,7 @@ const createStatsService = (db) => {
      * @returns {Promise<Array>}
      */
     async getRevenueTrend(days = 30) {
-      const rows = await dbAll(
+      const rows = await streamingDbAll(
         `SELECT
           DATE(timestamp) as date,
           COUNT(*) as count,
@@ -103,7 +132,7 @@ const createStatsService = (db) => {
      * @returns {Promise<Array>}
      */
     async getRevenueByPlatform() {
-      const rows = await dbAll(
+      const rows = await streamingDbAll(
         `SELECT
           platform,
           COALESCE(SUM(amount), 0) as value
@@ -124,7 +153,7 @@ const createStatsService = (db) => {
      * @returns {Promise<Array>}
      */
     async getMonthlyRevenue(months = 6) {
-      const rows = await dbAll(
+      const rows = await streamingDbAll(
         `SELECT
           strftime('%Y-%m', timestamp) as month,
           COALESCE(SUM(amount), 0) as revenue
@@ -149,7 +178,7 @@ const createStatsService = (db) => {
      * @returns {Promise<Array>}
      */
     async getTopStreamersByRevenue(limit = 10) {
-      const rows = await dbAll(
+      const rows = await streamingDbAll(
         `SELECT
           sender as username,
           COUNT(*) as donationCount,
@@ -171,7 +200,7 @@ const createStatsService = (db) => {
       }));
     },
 
-    // ===== Streamer Statistics =====
+    // ===== Streamer Statistics (from streamingDb) =====
 
     /**
      * Get streamers list (based on donation data)
@@ -192,7 +221,7 @@ const createStatsService = (db) => {
         params.push(`%${search}%`);
       }
 
-      const countRow = await dbGet(
+      const countRow = await streamingDbGet(
         `SELECT COUNT(DISTINCT sender) as total FROM events ${whereClause}`,
         params
       );
@@ -200,7 +229,7 @@ const createStatsService = (db) => {
       const totalCount = countRow?.total || 0;
       const totalPages = Math.ceil(totalCount / limit);
 
-      const rows = await dbAll(
+      const rows = await streamingDbAll(
         `SELECT
           sender as username,
           COUNT(*) as total_events,
@@ -229,28 +258,34 @@ const createStatsService = (db) => {
       return { streamers, totalCount, totalPages, page, limit };
     },
 
-    // ===== Admin Overview =====
+    // ===== Admin Overview (from both databases) =====
 
     /**
      * Get admin overview statistics
      * @returns {Promise<Object>}
      */
     async getAdminOverview() {
-      const queries = {
+      // Queries for overlayDb (users, ads)
+      const overlayQueries = {
         totalStreamers: "SELECT COUNT(*) as count FROM users WHERE role IN ('user', 'creator')",
         totalUsers: "SELECT COUNT(*) as count FROM users",
         activeUsers: "SELECT COUNT(*) as count FROM users WHERE created_at > datetime('now', '-30 days')",
-        totalRevenue: "SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions",
-        monthlyRevenue: "SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions WHERE strftime('%Y-%m', timestamp) = strftime('%Y-%m', 'now')",
+        totalAdRevenue: "SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions",
+        monthlyAdRevenue: "SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions WHERE strftime('%Y-%m', timestamp) = strftime('%Y-%m', 'now')",
         activeCampaigns: "SELECT COUNT(*) as count FROM ad_campaigns WHERE status = 'active'",
+      };
+
+      // Queries for streamingDb (events)
+      const streamingQueries = {
         totalEvents: "SELECT COUNT(*) as count FROM events",
         totalDonations: "SELECT COALESCE(SUM(amount), 0) as total FROM events WHERE type = 'donation'",
       };
 
-      const results = await Promise.all(
-        Object.entries(queries).map(async ([key, query]) => {
+      // Execute overlay queries
+      const overlayResults = await Promise.all(
+        Object.entries(overlayQueries).map(async ([key, query]) => {
           try {
-            const row = await dbGet(query);
+            const row = await overlayDbGet(query);
             return [key, row?.count || row?.total || 0];
           } catch {
             return [key, 0];
@@ -258,21 +293,33 @@ const createStatsService = (db) => {
         })
       );
 
-      const stats = Object.fromEntries(results);
+      // Execute streaming queries
+      const streamingResults = await Promise.all(
+        Object.entries(streamingQueries).map(async ([key, query]) => {
+          try {
+            const row = await streamingDbGet(query);
+            return [key, row?.count || row?.total || 0];
+          } catch {
+            return [key, 0];
+          }
+        })
+      );
+
+      const stats = Object.fromEntries([...overlayResults, ...streamingResults]);
 
       return {
         totalStreamers: stats.totalStreamers,
         totalUsers: stats.totalUsers,
         activeUsers: stats.activeUsers,
-        totalRevenue: Math.round(stats.totalRevenue),
-        monthlyRevenue: Math.round(stats.monthlyRevenue),
+        totalRevenue: Math.round(stats.totalAdRevenue),
+        monthlyRevenue: Math.round(stats.monthlyAdRevenue),
         activeCampaigns: stats.activeCampaigns,
         totalEvents: stats.totalEvents,
         totalDonations: stats.totalDonations,
       };
     },
 
-    // ===== Viewer/Chat Statistics =====
+    // ===== Viewer/Chat Statistics (from streamingDb) =====
 
     /**
      * Get chat activity summary
@@ -280,7 +327,7 @@ const createStatsService = (db) => {
      * @returns {Promise<Object>}
      */
     async getChatActivitySummary(days = 7) {
-      const summary = await dbGet(
+      const summary = await streamingDbGet(
         `SELECT
           COUNT(*) as totalChats,
           COUNT(DISTINCT sender) as uniqueUsers,
@@ -289,7 +336,7 @@ const createStatsService = (db) => {
         WHERE type = 'chat' AND timestamp >= datetime('now', '-${days} days')`
       );
 
-      const peakChat = await dbGet(
+      const peakChat = await streamingDbGet(
         `SELECT
           strftime('%H:00', timestamp) as hour,
           COUNT(*) as count
@@ -315,7 +362,7 @@ const createStatsService = (db) => {
      * @returns {Promise<Array>}
      */
     async getChatTrendByHour(days = 7) {
-      const rows = await dbAll(
+      const rows = await streamingDbAll(
         `SELECT
           strftime('%H:00', timestamp) as hour,
           COUNT(*) as chats,
@@ -347,7 +394,7 @@ const createStatsService = (db) => {
      */
     async getChatTrendByDayOfWeek(weeks = 4) {
       const days = weeks * 7;
-      const rows = await dbAll(
+      const rows = await streamingDbAll(
         `SELECT
           CASE strftime('%w', timestamp)
             WHEN '0' THEN '일'
@@ -384,7 +431,7 @@ const createStatsService = (db) => {
      * @returns {Promise<Array>}
      */
     async getActivityTimeline(days = 7) {
-      const rows = await dbAll(
+      const rows = await streamingDbAll(
         `SELECT
           DATE(timestamp) as date,
           COUNT(CASE WHEN type = 'chat' THEN 1 END) as chats,
@@ -406,7 +453,7 @@ const createStatsService = (db) => {
       }));
     },
 
-    // ===== Platform Statistics =====
+    // ===== Platform Statistics (from streamingDb) =====
 
     /**
      * Get recent activity feed (donations, subscriptions, follows)
@@ -414,7 +461,7 @@ const createStatsService = (db) => {
      * @returns {Promise<Array>}
      */
     async getRecentActivity(limit = 20) {
-      const rows = await dbAll(
+      const rows = await streamingDbAll(
         `SELECT
           id,
           type,
@@ -453,7 +500,7 @@ const createStatsService = (db) => {
       yesterday.setDate(yesterday.getDate() - 1);
       const dateStr = yesterday.toISOString().split('T')[0];
 
-      const summary = await dbGet(
+      const summary = await streamingDbGet(
         `SELECT
           COUNT(CASE WHEN type = 'chat' THEN 1 END) as chatCount,
           COUNT(CASE WHEN type = 'donation' THEN 1 END) as donationCount,
@@ -505,7 +552,7 @@ const createStatsService = (db) => {
      * @returns {Promise<Array>}
      */
     async getHourlyActivityByPlatform(hours = 24) {
-      const rows = await dbAll(
+      const rows = await streamingDbAll(
         `SELECT
           strftime('%H:00', timestamp) as time,
           platform,
@@ -549,7 +596,7 @@ const createStatsService = (db) => {
      */
     async getPlatformStats() {
       const [eventsByPlatform, recentTrend] = await Promise.all([
-        dbAll(`
+        streamingDbAll(`
           SELECT platform,
             COUNT(*) as total_events,
             SUM(CASE WHEN type = 'donation' THEN 1 ELSE 0 END) as donations,
@@ -560,7 +607,7 @@ const createStatsService = (db) => {
           FROM events
           GROUP BY platform
         `),
-        dbAll(`
+        streamingDbAll(`
           SELECT platform,
             strftime('%Y-%m-%d', timestamp) as date,
             COUNT(*) as events
@@ -577,7 +624,7 @@ const createStatsService = (db) => {
       };
     },
 
-    // ===== Viewer Statistics =====
+    // ===== Viewer Statistics (from streamingDb) =====
 
     /**
      * Get viewer count history
@@ -605,7 +652,7 @@ const createStatsService = (db) => {
 
       query += ` ORDER BY timestamp ASC`;
 
-      const rows = await dbAll(query, params);
+      const rows = await streamingDbAll(query, params);
       return rows || [];
     },
 
@@ -616,7 +663,7 @@ const createStatsService = (db) => {
     async getPeakViewers() {
       const today = new Date().toISOString().split('T')[0];
 
-      const peakRow = await dbGet(
+      const peakRow = await streamingDbGet(
         `SELECT
           MAX(viewer_count) as peakViewers,
           strftime('%H:%M', timestamp) as peakTime,
@@ -629,7 +676,7 @@ const createStatsService = (db) => {
         [today]
       );
 
-      const totalPeak = await dbGet(
+      const totalPeak = await streamingDbGet(
         `SELECT MAX(viewer_count) as peakViewers
         FROM viewer_stats
         WHERE DATE(timestamp) = ?`,
@@ -652,7 +699,7 @@ const createStatsService = (db) => {
 
       const [todayStats, peakViewers, subscribeCount, platformStats] = await Promise.all([
         // Today's donation stats
-        dbGet(
+        streamingDbGet(
           `SELECT
             COALESCE(SUM(amount), 0) as todayDonation,
             COUNT(*) as donationCount
@@ -661,21 +708,21 @@ const createStatsService = (db) => {
           [today]
         ),
         // Peak viewers from viewer_stats
-        dbGet(
+        streamingDbGet(
           `SELECT MAX(viewer_count) as peakViewers
           FROM viewer_stats
           WHERE DATE(timestamp) = ?`,
           [today]
         ),
         // Today's subscribe count
-        dbGet(
+        streamingDbGet(
           `SELECT COUNT(*) as newSubs
           FROM events
           WHERE type = 'subscribe' AND DATE(timestamp) = ?`,
           [today]
         ),
         // Platform activity for top categories
-        dbAll(
+        streamingDbAll(
           `SELECT
             platform,
             COUNT(*) as activity,

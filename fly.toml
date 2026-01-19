@@ -17,13 +17,13 @@ primary_region = "nrt"  # Tokyo (closest to Korea)
   processes = ["app"]
 
 [[http_service.checks]]
-  grace_period = "10s"
+  grace_period = "30s"
   interval = "30s"
   method = "GET"
   path = "/health"
-  timeout = "5s"
+  timeout = "10s"
 
 [[vm]]
-  memory = "512mb"
+  memory = "1gb"
   cpu_kind = "shared"
   cpus = 1

@@ -12,6 +12,7 @@ const { createStatsRouter } = require("./stats");
 const createPlatformsRouter = require("./platforms");
 const createGameStatsRouter = require("./game-stats");
 const createCategoriesRouter = require("./categories");
+const { createMonitorRouter } = require("./monitor");
 
 module.exports = {
   createAuthRouter,
@@ -23,4 +24,5 @@ module.exports = {
   createPlatformsRouter,
   createGameStatsRouter,
   createCategoriesRouter,
+  createMonitorRouter,
 };
