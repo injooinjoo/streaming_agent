@@ -184,7 +184,8 @@ const createApp = ({
 
   // ===== SPA Fallback =====
   // Serve index.html for all non-API routes (React Router support)
-  app.get("*", (req, res, next) => {
+  // Express 5 requires named wildcard: {*path} instead of just *
+  app.get("/{*path}", (req, res, next) => {
     // Skip API routes and static files
     if (req.path.startsWith("/api") || req.path.startsWith("/socket.io")) {
       return next();
