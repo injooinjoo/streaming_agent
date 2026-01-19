@@ -1,0 +1,820 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Streaming Data Monitor</title>
+  <style>
+    :root {
+      --bg-primary: #0f0f23;
+      --bg-secondary: #1a1a2e;
+      --bg-card: #16213e;
+      --text-primary: #e8e8e8;
+      --text-secondary: #a0a0a0;
+      --accent-red: #ff4757;
+      --accent-blue: #3742fa;
+      --accent-green: #2ed573;
+      --accent-yellow: #ffa502;
+      --accent-purple: #9b59b6;
+      --accent-cyan: #1abc9c;
+      --border-color: #2a2a4a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 600;
+    }
+
+    .refresh-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      color: var(--text-secondary);
+      font-size: 14px;
+    }
+
+    .refresh-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .refresh-btn:hover {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+    }
+
+    .refresh-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .stat-icon {
+      font-size: 32px;
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+    }
+
+    .stat-icon.red { background: rgba(255, 71, 87, 0.15); }
+    .stat-icon.blue { background: rgba(55, 66, 250, 0.15); }
+    .stat-icon.green { background: rgba(46, 213, 115, 0.15); }
+    .stat-icon.yellow { background: rgba(255, 165, 2, 0.15); }
+    .stat-icon.purple { background: rgba(155, 89, 182, 0.15); }
+    .stat-icon.cyan { background: rgba(26, 188, 156, 0.15); }
+
+    .stat-content h3 {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .stat-content .value {
+      font-size: 24px;
+      font-weight: 700;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 10px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 10px 20px;
+      font-size: 14px;
+      cursor: pointer;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+    }
+
+    .tab-btn.active {
+      background: var(--accent-blue);
+      color: white;
+    }
+
+    /* Table */
+    .table-container {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .table-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .table-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .filter-group select {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    th {
+      background: var(--bg-secondary);
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+
+    tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .platform-badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .platform-badge.soop { background: #1a4bcc; color: white; }
+    .platform-badge.chzzk { background: #00d67e; color: black; }
+    .platform-badge.twitch { background: #9146ff; color: white; }
+    .platform-badge.youtube { background: #ff0000; color: white; }
+
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .status-badge.live {
+      background: rgba(255, 71, 87, 0.15);
+      color: var(--accent-red);
+    }
+
+    .status-badge.offline {
+      background: rgba(160, 160, 160, 0.15);
+      color: var(--text-secondary);
+    }
+
+    .type-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .type-badge.broadcaster {
+      background: rgba(155, 89, 182, 0.15);
+      color: var(--accent-purple);
+    }
+
+    .type-badge.viewer {
+      background: rgba(26, 188, 156, 0.15);
+      color: var(--accent-cyan);
+    }
+
+    .text-truncate {
+      max-width: 250px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .number {
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .pagination-info {
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+
+    .pagination-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .page-btn {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 8px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+
+    .page-btn:hover:not(:disabled) {
+      background: var(--accent-blue);
+      border-color: var(--accent-blue);
+    }
+
+    .page-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* Loading */
+    .loading {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 60px;
+      color: var(--text-secondary);
+    }
+
+    .loading::before {
+      content: '';
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 12px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px;
+      color: var(--text-secondary);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      table {
+        font-size: 13px;
+      }
+
+      th, td {
+        padding: 10px 12px;
+      }
+
+      .text-truncate {
+        max-width: 120px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Streaming Data Monitor</h1>
+      <div class="refresh-info">
+        <span id="lastUpdated">-</span>
+        <button class="refresh-btn" onclick="refreshAll()">새로고침</button>
+      </div>
+    </header>
+
+    <!-- Stats Cards -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon red">📺</div>
+        <div class="stat-content">
+          <h3>라이브 방송</h3>
+          <div class="value" id="statLiveBroadcasts">-</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue">👥</div>
+        <div class="stat-content">
+          <h3>총 시청자</h3>
+          <div class="value" id="statTotalViewers">-</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">👤</div>
+        <div class="stat-content">
+          <h3>등록 인원</h3>
+          <div class="value" id="statTotalPersons">-</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon yellow">💰</div>
+        <div class="stat-content">
+          <h3>총 후원액</h3>
+          <div class="value" id="statTotalDonations">-</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon purple">📊</div>
+        <div class="stat-content">
+          <h3>스냅샷</h3>
+          <div class="value" id="statSnapshotCount">-</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon cyan">🤝</div>
+        <div class="stat-content">
+          <h3>참여 기록</h3>
+          <div class="value" id="statEngagementCount">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="broadcasts">방송 목록</button>
+      <button class="tab-btn" data-tab="persons">인원 목록</button>
+      <button class="tab-btn" data-tab="engagement">참여 기록</button>
+    </div>
+
+    <!-- Broadcasts Tab -->
+    <div id="broadcasts" class="tab-content active">
+      <div class="table-container">
+        <div class="table-header">
+          <span class="table-title">방송 목록</span>
+          <div class="filter-group">
+            <select id="broadcastFilter" onchange="loadBroadcasts(1)">
+              <option value="all">전체</option>
+              <option value="live">라이브만</option>
+            </select>
+          </div>
+        </div>
+        <div id="broadcastsTableWrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>플랫폼</th>
+                <th>닉네임</th>
+                <th>제목</th>
+                <th>카테고리</th>
+                <th>시청자</th>
+                <th>최고</th>
+                <th>후원액</th>
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody id="broadcastsBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span class="pagination-info" id="broadcastsPagination">-</span>
+          <div class="pagination-buttons">
+            <button class="page-btn" id="broadcastsPrev" onclick="loadBroadcasts(currentPages.broadcasts - 1)">이전</button>
+            <button class="page-btn" id="broadcastsNext" onclick="loadBroadcasts(currentPages.broadcasts + 1)">다음</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Persons Tab -->
+    <div id="persons" class="tab-content">
+      <div class="table-container">
+        <div class="table-header">
+          <span class="table-title">인원 목록</span>
+          <div class="filter-group">
+            <select id="personFilter" onchange="loadPersons(1)">
+              <option value="all">전체</option>
+              <option value="broadcaster">방송자</option>
+              <option value="viewer">시청자</option>
+            </select>
+          </div>
+        </div>
+        <div id="personsTableWrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>플랫폼</th>
+                <th>닉네임</th>
+                <th>타입</th>
+                <th>팔로워</th>
+                <th>채팅수</th>
+                <th>후원횟수</th>
+                <th>후원액</th>
+                <th>마지막 활동</th>
+              </tr>
+            </thead>
+            <tbody id="personsBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span class="pagination-info" id="personsPagination">-</span>
+          <div class="pagination-buttons">
+            <button class="page-btn" id="personsPrev" onclick="loadPersons(currentPages.persons - 1)">이전</button>
+            <button class="page-btn" id="personsNext" onclick="loadPersons(currentPages.persons + 1)">다음</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Engagement Tab -->
+    <div id="engagement" class="tab-content">
+      <div class="table-container">
+        <div class="table-header">
+          <span class="table-title">참여 기록</span>
+        </div>
+        <div id="engagementTableWrapper">
+          <table>
+            <thead>
+              <tr>
+                <th>플랫폼</th>
+                <th>시청자</th>
+                <th>방송자</th>
+                <th>카테고리</th>
+                <th>시청시간</th>
+                <th>채팅수</th>
+                <th>후원액</th>
+                <th>마지막 참여</th>
+              </tr>
+            </thead>
+            <tbody id="engagementBody"></tbody>
+          </table>
+        </div>
+        <div class="pagination">
+          <span class="pagination-info" id="engagementPagination">-</span>
+          <div class="pagination-buttons">
+            <button class="page-btn" id="engagementPrev" onclick="loadEngagement(currentPages.engagement - 1)">이전</button>
+            <button class="page-btn" id="engagementNext" onclick="loadEngagement(currentPages.engagement + 1)">다음</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = '/api/monitor';
+    const REFRESH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+    const PAGE_SIZE = 50;
+
+    let currentPages = {
+      broadcasts: 1,
+      persons: 1,
+      engagement: 1
+    };
+
+    let totalPages = {
+      broadcasts: 1,
+      persons: 1,
+      engagement: 1
+    };
+
+    // Format numbers with locale
+    const formatNumber = (num) => {
+      if (num === null || num === undefined) return '-';
+      return Number(num).toLocaleString('ko-KR');
+    };
+
+    // Format currency
+    const formatCurrency = (num) => {
+      if (num === null || num === undefined) return '-';
+      return '₩' + Number(num).toLocaleString('ko-KR');
+    };
+
+    // Format date
+    const formatDate = (dateStr) => {
+      if (!dateStr) return '-';
+      const date = new Date(dateStr);
+      return date.toLocaleString('ko-KR', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    };
+
+    // Format minutes to hours/minutes
+    const formatMinutes = (minutes) => {
+      if (!minutes) return '-';
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      if (hours > 0) {
+        return `${hours}시간 ${mins}분`;
+      }
+      return `${mins}분`;
+    };
+
+    // Get platform badge HTML
+    const getPlatformBadge = (platform) => {
+      return `<span class="platform-badge ${platform}">${platform}</span>`;
+    };
+
+    // Get status badge HTML
+    const getStatusBadge = (isLive) => {
+      return isLive
+        ? '<span class="status-badge live">LIVE</span>'
+        : '<span class="status-badge offline">종료</span>';
+    };
+
+    // Get type badge HTML
+    const getTypeBadge = (type) => {
+      return type === 'broadcaster'
+        ? '<span class="type-badge broadcaster">방송자</span>'
+        : '<span class="type-badge viewer">시청자</span>';
+    };
+
+    // Show loading state
+    const showLoading = (tbody) => {
+      tbody.innerHTML = '<tr><td colspan="8" class="loading">불러오는 중...</td></tr>';
+    };
+
+    // Show empty state
+    const showEmpty = (tbody, message = '데이터가 없습니다') => {
+      tbody.innerHTML = `<tr><td colspan="8" class="empty-state">${message}</td></tr>`;
+    };
+
+    // Fetch stats
+    async function loadStats() {
+      try {
+        const res = await fetch(`${API_BASE}/stats`);
+        const data = await res.json();
+
+        document.getElementById('statLiveBroadcasts').textContent = formatNumber(data.liveBroadcasts);
+        document.getElementById('statTotalViewers').textContent = formatNumber(data.totalViewers);
+        document.getElementById('statTotalPersons').textContent = formatNumber(data.totalPersons);
+        document.getElementById('statTotalDonations').textContent = formatCurrency(data.totalDonations);
+        document.getElementById('statSnapshotCount').textContent = formatNumber(data.snapshotCount);
+        document.getElementById('statEngagementCount').textContent = formatNumber(data.engagementCount);
+      } catch (error) {
+        console.error('Failed to load stats:', error);
+      }
+    }
+
+    // Fetch broadcasts
+    async function loadBroadcasts(page = 1) {
+      const tbody = document.getElementById('broadcastsBody');
+      const filter = document.getElementById('broadcastFilter').value;
+      showLoading(tbody);
+
+      try {
+        const liveOnly = filter === 'live' ? 'true' : 'false';
+        const res = await fetch(`${API_BASE}/broadcasts?page=${page}&limit=${PAGE_SIZE}&live_only=${liveOnly}`);
+        const { data, pagination } = await res.json();
+
+        currentPages.broadcasts = pagination.page;
+        totalPages.broadcasts = pagination.totalPages;
+
+        if (data.length === 0) {
+          showEmpty(tbody);
+        } else {
+          tbody.innerHTML = data.map(b => `
+            <tr>
+              <td>${getPlatformBadge(b.platform)}</td>
+              <td>${b.broadcaster_nickname || '-'}</td>
+              <td class="text-truncate" title="${b.title || ''}">${b.title || '-'}</td>
+              <td>${b.category_name || '-'}</td>
+              <td class="number">${formatNumber(b.current_viewer_count)}</td>
+              <td class="number">${formatNumber(b.peak_viewer_count)}</td>
+              <td class="number">${formatCurrency(b.total_donation_amount)}</td>
+              <td>${getStatusBadge(b.is_live)}</td>
+            </tr>
+          `).join('');
+        }
+
+        updatePagination('broadcasts', pagination);
+      } catch (error) {
+        console.error('Failed to load broadcasts:', error);
+        showEmpty(tbody, '데이터를 불러올 수 없습니다');
+      }
+    }
+
+    // Fetch persons
+    async function loadPersons(page = 1) {
+      const tbody = document.getElementById('personsBody');
+      const filter = document.getElementById('personFilter').value;
+      showLoading(tbody);
+
+      try {
+        const res = await fetch(`${API_BASE}/persons?page=${page}&limit=${PAGE_SIZE}&type=${filter}`);
+        const { data, pagination } = await res.json();
+
+        currentPages.persons = pagination.page;
+        totalPages.persons = pagination.totalPages;
+
+        if (data.length === 0) {
+          showEmpty(tbody);
+        } else {
+          tbody.innerHTML = data.map(p => `
+            <tr>
+              <td>${getPlatformBadge(p.platform)}</td>
+              <td>${p.nickname || '-'}</td>
+              <td>${getTypeBadge(p.person_type)}</td>
+              <td class="number">${formatNumber(p.follower_count)}</td>
+              <td class="number">${formatNumber(p.total_chat_count)}</td>
+              <td class="number">${formatNumber(p.total_donation_count)}</td>
+              <td class="number">${formatCurrency(p.total_donation_amount)}</td>
+              <td>${formatDate(p.last_seen_at)}</td>
+            </tr>
+          `).join('');
+        }
+
+        updatePagination('persons', pagination);
+      } catch (error) {
+        console.error('Failed to load persons:', error);
+        showEmpty(tbody, '데이터를 불러올 수 없습니다');
+      }
+    }
+
+    // Fetch engagement
+    async function loadEngagement(page = 1) {
+      const tbody = document.getElementById('engagementBody');
+      showLoading(tbody);
+
+      try {
+        const res = await fetch(`${API_BASE}/engagement?page=${page}&limit=${PAGE_SIZE}`);
+        const { data, pagination } = await res.json();
+
+        currentPages.engagement = pagination.page;
+        totalPages.engagement = pagination.totalPages;
+
+        if (data.length === 0) {
+          showEmpty(tbody);
+        } else {
+          tbody.innerHTML = data.map(e => `
+            <tr>
+              <td>${getPlatformBadge(e.platform)}</td>
+              <td>${e.viewer_nickname || '-'}</td>
+              <td>${e.broadcaster_nickname || '-'}</td>
+              <td>${e.category_name || '-'}</td>
+              <td class="number">${formatMinutes(e.watch_minutes)}</td>
+              <td class="number">${formatNumber(e.chat_count)}</td>
+              <td class="number">${formatCurrency(e.donation_amount)}</td>
+              <td>${formatDate(e.last_seen_at)}</td>
+            </tr>
+          `).join('');
+        }
+
+        updatePagination('engagement', pagination);
+      } catch (error) {
+        console.error('Failed to load engagement:', error);
+        showEmpty(tbody, '데이터를 불러올 수 없습니다');
+      }
+    }
+
+    // Update pagination UI
+    function updatePagination(type, pagination) {
+      const info = document.getElementById(`${type}Pagination`);
+      const prevBtn = document.getElementById(`${type}Prev`);
+      const nextBtn = document.getElementById(`${type}Next`);
+
+      const start = (pagination.page - 1) * pagination.limit + 1;
+      const end = Math.min(pagination.page * pagination.limit, pagination.total);
+
+      info.textContent = `${formatNumber(start)} - ${formatNumber(end)} / ${formatNumber(pagination.total)}`;
+      prevBtn.disabled = pagination.page <= 1;
+      nextBtn.disabled = pagination.page >= pagination.totalPages;
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        // Update tab buttons
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        // Update tab content
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Refresh all data
+    async function refreshAll() {
+      const btn = document.querySelector('.refresh-btn');
+      btn.disabled = true;
+      btn.textContent = '새로고침 중...';
+
+      await Promise.all([
+        loadStats(),
+        loadBroadcasts(currentPages.broadcasts),
+        loadPersons(currentPages.persons),
+        loadEngagement(currentPages.engagement)
+      ]);
+
+      document.getElementById('lastUpdated').textContent =
+        `마지막 업데이트: ${new Date().toLocaleString('ko-KR')}`;
+
+      btn.disabled = false;
+      btn.textContent = '새로고침';
+    }
+
+    // Initial load
+    refreshAll();
+
+    // Auto refresh
+    setInterval(refreshAll, REFRESH_INTERVAL);
+  </script>
+</body>
+</html>
