@@ -138,10 +138,6 @@ const main = async () => {
       });
     });
   } catch (error) {
-    console.error("=== SERVER INITIALIZATION ERROR ===");
-    console.error("Message:", error.message);
-    console.error("Stack:", error.stack);
-    console.error("Full error:", error);
     logger.fatal("Failed to initialize server", { error: error.message, stack: error.stack });
     process.exit(1);
   }
