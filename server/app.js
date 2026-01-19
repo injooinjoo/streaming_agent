@@ -123,7 +123,10 @@ const createApp = ({
   // Apply standard rate limiter to all other API endpoints
   app.use("/api", standardLimiter);
 
-  // Frontend disabled - data collection only mode
+  // ===== Frontend Static Files =====
+  // Serve React client build
+  const clientDistPath = path.join(__dirname, "../client/dist");
+  app.use(express.static(clientDistPath));
 
   // ===== Mount Routes =====
 
@@ -179,7 +182,15 @@ const createApp = ({
   const monitorRouter = createMonitorRouter(streamingDb);
   app.use("/api", monitorRouter);
 
-  // SPA Fallback disabled - API only mode
+  // ===== SPA Fallback =====
+  // Serve index.html for all non-API routes (React Router support)
+  app.get("*", (req, res, next) => {
+    // Skip API routes and static files
+    if (req.path.startsWith("/api") || req.path.startsWith("/socket.io")) {
+      return next();
+    }
+    res.sendFile(path.join(__dirname, "../client/dist/index.html"));
+  });
 
   // ===== Error Handler =====
   app.use((err, req, res, next) => {
