@@ -11,7 +11,7 @@ on:
 env:
   SERVER_HOST: 158.247.204.45
   SERVER_USER: root
-  DEPLOY_PATH: /root/streaming_agent
+  DEPLOY_PATH: /root/streaming-agent
 
 jobs:
   deploy:
