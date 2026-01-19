@@ -770,8 +770,8 @@ const createMonitorRouter = (db) => {
           thumbnail_url,
           viewer_count,
           streamer_count,
-          created_at as recorded_at,
-          updated_at
+          first_seen_at as recorded_at,
+          last_seen_at as updated_at
         FROM platform_categories
         ${whereClause}
         ORDER BY viewer_count DESC, platform_category_name ASC
