@@ -301,21 +301,34 @@
     }
 
     .category-thumb {
-      width: 60px;
-      height: 40px;
+      width: 50px;
+      height: 50px;
       object-fit: cover;
-      border-radius: 4px;
+      border-radius: 6px;
       background: var(--bg-secondary);
+    }
+
+    .category-initial {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-purple));
+      border-radius: 6px;
+      color: white;
+      font-size: 20px;
+      font-weight: 700;
     }
 
     .no-thumb {
       display: inline-block;
-      width: 60px;
-      height: 40px;
-      line-height: 40px;
+      width: 50px;
+      height: 50px;
+      line-height: 50px;
       text-align: center;
       background: var(--bg-secondary);
-      border-radius: 4px;
+      border-radius: 6px;
       color: var(--text-secondary);
       font-size: 12px;
     }
@@ -1329,9 +1342,16 @@
         if (data.length === 0) {
           showEmpty(tbody);
         } else {
-          tbody.innerHTML = data.map(c => `
+          tbody.innerHTML = data.map(c => {
+            // 게임 타이틀 이미지만 표시 (방송 썸네일 제외)
+            const isGameImage = c.thumbnail_url && c.thumbnail_url.includes('category_img');
+            const initial = (c.category_name || '?')[0].toUpperCase();
+            const thumbHtml = isGameImage
+              ? `<img src="${c.thumbnail_url}" class="category-thumb" alt="${c.category_name}" onerror="this.parentElement.innerHTML='<span class=\\'category-initial\\'>${initial}</span>'">`
+              : `<span class="category-initial">${initial}</span>`;
+            return `
             <tr>
-              <td>${c.thumbnail_url ? `<img src="${c.thumbnail_url.replace('{type}', '480')}" class="category-thumb" alt="${c.category_name}" onerror="this.style.display='none'">` : '<span class="no-thumb">-</span>'}</td>
+              <td>${thumbHtml}</td>
               <td>${getPlatformBadge(c.platform)}</td>
               <td>${c.category_name || '-'}</td>
               <td>${c.category_type || '-'}</td>
@@ -1339,7 +1359,7 @@
               <td class="number">${formatNumber(c.streamer_count)}</td>
               <td>${formatDate(c.updated_at)}</td>
             </tr>
-          `).join('');
+          `}).join('');
         }
 
         updatePagination('categories', pagination);
