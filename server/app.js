@@ -1,6 +1,10 @@
 /**
  * Express Application Setup
  * Configures middleware and mounts all route modules
+ *
+ * Uses two separate databases:
+ * - overlayDb: Settings, users, ads, marketplace
+ * - streamingDb: Events, viewer stats, categories
  */
 
 const express = require("express");
@@ -19,6 +23,7 @@ const {
   createPlatformsRouter,
   createGameStatsRouter,
   createCategoriesRouter,
+  createMonitorRouter,
 } = require("./routes");
 const { createHealthRouter } = require("./routes/health");
 
@@ -48,7 +53,8 @@ const { logger, api: apiLogger } = require("./services/logger");
 /**
  * Create and configure Express application
  * @param {Object} dependencies - Application dependencies
- * @param {sqlite3.Database} dependencies.db - Database instance
+ * @param {sqlite3.Database} dependencies.overlayDb - Overlay database instance
+ * @param {sqlite3.Database} dependencies.streamingDb - Streaming database instance
  * @param {Server} dependencies.io - Socket.io server instance
  * @param {Map} dependencies.activeAdapters - Active platform adapters map
  * @param {Function} dependencies.ChzzkAdapter - Chzzk adapter class
@@ -59,7 +65,8 @@ const { logger, api: apiLogger } = require("./services/logger");
  * @returns {express.Application}
  */
 const createApp = ({
-  db,
+  overlayDb,
+  streamingDb,
   io,
   activeAdapters,
   ChzzkAdapter,
@@ -71,13 +78,18 @@ const createApp = ({
   const app = express();
 
   // ===== Instantiate Services =====
-  const userService = createUserService(db);
-  const settingsService = createSettingsService(db, io);
-  const eventService = createEventService(db);
-  const adService = createAdService(db, io);
-  const statsService = createStatsService(db);
+  // Services using overlayDb (users, settings, ads)
+  const userService = createUserService(overlayDb);
+  const settingsService = createSettingsService(overlayDb, io);
+  const adService = createAdService(overlayDb, io);
   const stateStore = createStateStoreService({ ttl: 5 * 60 * 1000 }); // 5 minute TTL for OAuth state
   const tokenService = createTokenService();
+
+  // Services using streamingDb (events)
+  const eventService = createEventService(streamingDb);
+
+  // Services using both databases (stats needs events from streamingDb, users from overlayDb)
+  const statsService = createStatsService(overlayDb, streamingDb);
 
   // Create auth middleware with tokenService (supports blacklist checking)
   const authMiddleware = createAuthMiddleware(tokenService);
@@ -85,6 +97,9 @@ const createApp = ({
   // ===== Middleware =====
   app.use(cors());
   app.use(express.json());
+
+  // Static files (monitor dashboard)
+  app.use(express.static(path.join(__dirname, "public")));
 
   // Request logging
   app.use(createRequestLogger());
@@ -117,34 +132,34 @@ const createApp = ({
   const authRouter = createAuthRouter(userService, stateStore, tokenService, authMiddleware);
   app.use("/api", authRouter);
 
-  // Settings routes (global and user-specific)
+  // Settings routes (global and user-specific) - uses overlayDb
   const settingsRouter = createSettingsRouter(settingsService, authMiddleware);
   app.use("/api", settingsRouter);
 
-  // Overlay routes (public overlay access via hash)
-  const overlayRouter = createOverlayRouter(db, io, authMiddleware);
+  // Overlay routes (public overlay access via hash) - uses overlayDb
+  const overlayRouter = createOverlayRouter(overlayDb, io, authMiddleware);
   app.use("/api", overlayRouter);
 
-  // Ads routes (slots, campaigns, impressions)
+  // Ads routes (slots, campaigns, impressions) - uses overlayDb
   const adsRouter = createAdsRouter(adService, userService, authMiddleware);
   app.use("/api", adsRouter);
 
-  // Admin routes (dashboard, analytics)
-  const adminRouter = createAdminRouter(db, authenticateAdmin, developerLogin);
+  // Admin routes (dashboard, analytics) - uses overlayDb
+  const adminRouter = createAdminRouter(overlayDb, authenticateAdmin, developerLogin);
   app.use("/api", adminRouter);
 
-  // Stats routes (events, donations, revenue) - now with authentication
+  // Stats routes (events, donations, revenue) - uses both databases
   const statsRouter = createStatsRouter(eventService, statsService, activeAdapters, authMiddleware);
   app.use("/api", statsRouter);
 
-  // Platform routes (Chzzk, SOOP, events) - SQLite storage
+  // Platform routes (Chzzk, SOOP, events) - uses streamingDb for events
   const platformsRouter = createPlatformsRouter(
     io,
     activeAdapters,
     ChzzkAdapter,
     SoopAdapter,
     normalizer,
-    db
+    streamingDb
   );
   app.use("/api", platformsRouter);
 
@@ -152,13 +167,17 @@ const createApp = ({
   const gameStatsRouter = createGameStatsRouter(riotApi);
   app.use("/api", gameStatsRouter);
 
-  // Categories routes (existing)
-  const categoriesRouter = createCategoriesRouter(db, categoryService, authMiddleware);
+  // Categories routes - uses streamingDb
+  const categoriesRouter = createCategoriesRouter(streamingDb, categoryService, authMiddleware);
   app.use("/api", categoriesRouter);
 
   // ===== Health Check Routes =====
-  const healthRouter = createHealthRouter({ db });
+  const healthRouter = createHealthRouter({ overlayDb, streamingDb });
   app.use("/", healthRouter);
+
+  // ===== Monitor Routes (public, no auth) =====
+  const monitorRouter = createMonitorRouter(streamingDb);
+  app.use("/api", monitorRouter);
 
   // SPA Fallback disabled - API only mode
 
