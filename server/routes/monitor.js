@@ -743,16 +743,27 @@ const createMonitorRouter = (db) => {
 
       let whereClause = "";
       let params = [limit, offset];
-      if (type && type !== "all") {
+      let countParams = [];
+
+      if (type === "no_chat") {
+        // Exclude chat events (default view)
+        whereClause = "WHERE e.event_type != 'chat'";
+        params = [limit, offset];
+      } else if (type && type !== "all") {
+        // Specific type filter
         whereClause = "WHERE e.event_type = ?";
         params = [type, limit, offset];
+        countParams = [type];
       }
 
       // Get total count
-      const countSql = type && type !== "all"
-        ? `SELECT COUNT(*) as total FROM events WHERE event_type = ?`
-        : `SELECT COUNT(*) as total FROM events`;
-      const countResult = await dbGet(countSql, type && type !== "all" ? [type] : []);
+      let countSql = `SELECT COUNT(*) as total FROM events`;
+      if (type === "no_chat") {
+        countSql = `SELECT COUNT(*) as total FROM events WHERE event_type != 'chat'`;
+      } else if (type && type !== "all") {
+        countSql = `SELECT COUNT(*) as total FROM events WHERE event_type = ?`;
+      }
+      const countResult = await dbGet(countSql, countParams);
       const total = countResult?.total || 0;
 
       // Get events with actor info

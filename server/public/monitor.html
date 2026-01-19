@@ -910,13 +910,17 @@
       <div class="table-container">
         <div class="table-header">
           <span class="table-title">이벤트 목록</span>
-          <div class="filter-group">
+          <div class="filter-group" style="display: flex; align-items: center; gap: 15px;">
+            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: var(--text-secondary);">
+              <input type="checkbox" id="includeChatCheckbox" onchange="loadEvents(1)" style="cursor: pointer;">
+              채팅 포함
+            </label>
             <select id="eventFilter" onchange="loadEvents(1)">
               <option value="all">전체</option>
-              <option value="chat">채팅</option>
               <option value="donation">후원</option>
               <option value="subscribe">구독</option>
               <option value="follow">팔로우</option>
+              <option value="chat">채팅만</option>
             </select>
           </div>
         </div>
@@ -1328,10 +1332,17 @@
     async function loadEvents(page = 1) {
       const tbody = document.getElementById('eventsBody');
       const filter = document.getElementById('eventFilter').value;
+      const includeChat = document.getElementById('includeChatCheckbox')?.checked || false;
       showLoading(tbody);
 
+      // Build query params
+      let typeParam = filter;
+      if (filter === 'all' && !includeChat) {
+        typeParam = 'no_chat'; // Server will exclude chat events
+      }
+
       try {
-        const res = await fetch(`${API_BASE}/events?page=${page}&limit=${PAGE_SIZE}&type=${filter}`);
+        const res = await fetch(`${API_BASE}/events?page=${page}&limit=${PAGE_SIZE}&type=${typeParam}`);
         const { data, pagination } = await res.json();
 
         currentPages.events = pagination.page;
