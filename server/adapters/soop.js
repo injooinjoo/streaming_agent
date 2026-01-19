@@ -39,6 +39,14 @@ const GRADE_CODES = {
   6: "streamer",
 };
 
+// Static diagnostics for all SOOP adapters
+const SoopDiagnostics = {
+  actionCodes: {},      // Count of each action code received
+  lastDonations: [],    // Last 10 donation raw parts
+  totalMessages: 0,
+  startedAt: new Date().toISOString(),
+};
+
 class SoopAdapter extends BaseAdapter {
   constructor(options = {}) {
     super(options);
@@ -58,6 +66,17 @@ class SoopAdapter extends BaseAdapter {
     this.defaultHeaders = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Referer": "https://play.sooplive.co.kr/",
+    };
+  }
+
+  /**
+   * Get diagnostic data for all SOOP adapters
+   * @returns {Object}
+   */
+  static getDiagnostics() {
+    return {
+      ...SoopDiagnostics,
+      uptime: Math.round((Date.now() - new Date(SoopDiagnostics.startedAt).getTime()) / 1000),
     };
   }
 
@@ -573,13 +592,49 @@ class SoopAdapter extends BaseAdapter {
 
   /**
    * 구독 처리 (SUBSCRIBE - 0093)
+   * 메시지 형식 분석 필요 - 디버그 로깅 포함
    */
   processSubscribe(parts) {
     try {
-      const userId = parts[1] || "";
-      const nickname = parts[2] || "";
-      const months = parseInt(parts[3], 10) || 1;
-      const tier = parts[4] || "기본";
+      // Debug: Log raw parts to understand the format
+      console.log(`[soop:debug] SUBSCRIBE raw parts (${parts.length}):`, JSON.stringify(parts.slice(0, 10)));
+
+      // SOOP 구독 메시지 형식 추정:
+      // parts[1] = 메시지 또는 userId
+      // parts[2] = userId 또는 다른 값
+      // 실제 닉네임은 더 뒤에 있을 수 있음 (채팅처럼 parts[6])
+
+      // Try to find nickname - check multiple positions
+      let userId = "";
+      let nickname = "";
+
+      // Check if parts[2] looks like a user ID (alphanumeric, no spaces)
+      if (parts[2] && /^[a-zA-Z0-9_]+$/.test(parts[2])) {
+        userId = parts[2];
+      } else if (parts[1] && /^[a-zA-Z0-9_]+$/.test(parts[1])) {
+        userId = parts[1];
+      }
+
+      // Nickname might be in parts[6] like chat messages, or parts[3]
+      nickname = parts[6] || parts[3] || parts[1] || "";
+
+      // If nickname still looks like userId, try to get it from elsewhere
+      if (nickname === userId || /^[a-zA-Z0-9_]+$/.test(nickname)) {
+        // Check parts[3] or parts[4] for Korean characters (likely nickname)
+        for (let i = 3; i < Math.min(8, parts.length); i++) {
+          if (parts[i] && /[가-힣]/.test(parts[i])) {
+            nickname = parts[i];
+            break;
+          }
+        }
+      }
+
+      // Fallback
+      if (!nickname) nickname = userId || "구독자";
+      if (!userId) userId = parts[1] || "unknown";
+
+      const months = parseInt(parts[3], 10) || parseInt(parts[4], 10) || 1;
+      const tier = parts[4] || parts[5] || "기본";
 
       const event = {
         id: uuidv4(),
@@ -587,8 +642,8 @@ class SoopAdapter extends BaseAdapter {
         platform: "soop",
         sender: {
           id: userId,
-          nickname: nickname || userId,
-          profileImage: userId ? `https://profile.img.sooplive.co.kr/LOGO/${userId.substring(0, 2)}/${userId}/${userId}.jpg` : null,
+          nickname: nickname,
+          profileImage: userId && userId !== "unknown" ? `https://profile.img.sooplive.co.kr/LOGO/${userId.substring(0, 2)}/${userId}/${userId}.jpg` : null,
         },
         content: {
           message: `${nickname}님이 ${months}개월 구독`,
@@ -605,7 +660,7 @@ class SoopAdapter extends BaseAdapter {
       };
 
       this.emitEvent(event);
-      console.log(`[soop] ⭐ 구독: ${nickname}님이 ${months}개월 구독 (${tier})`);
+      console.log(`[soop] ⭐ 구독: ${nickname}님 (ID: ${userId}) ${months}개월 구독`);
     } catch (error) {
       console.error(`[soop] Subscribe processing error:`, error.message);
     }
