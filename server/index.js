@@ -1,11 +1,14 @@
 /**
  * Streaming Agent Server
- * Main entry point - initializes database, Socket.io, and Express app
+ * Main entry point - initializes databases, Socket.io, and Express app
+ *
+ * Uses two separate databases:
+ * - overlayDb (weflab_clone.db): Settings, users, ads, marketplace
+ * - streamingDb (streaming_data.db): Events, viewer stats, categories
  */
 
 const http = require("http");
 const { Server } = require("socket.io");
-const sqlite3 = require("sqlite3").verbose();
 const path = require("path");
 require("dotenv").config({ path: path.join(__dirname, ".env") });
 
@@ -15,7 +18,7 @@ validateEnv(process.env.NODE_ENV === "production"); // Only exit in production
 
 // Application modules
 const { createApp } = require("./app");
-const { initializeDatabase } = require("./db/init");
+const { initializeDatabases, closeDatabases } = require("./db/connections");
 const { setupSocketHandlers } = require("./socket/handlers");
 
 // Platform Adapters
@@ -27,6 +30,10 @@ const normalizer = require("./services/normalizer");
 // Category Service
 const CategoryService = require("./services/categoryService");
 
+// Broadcast Crawler Service
+const BroadcastCrawler = require("./services/broadcastCrawler");
+const ViewerEngagementService = require("./services/viewerEngagementService");
+
 // Redis Service
 const { getRedisService } = require("./services/redisService");
 
@@ -36,10 +43,6 @@ const { logger, db: dbLogger, socket: socketLogger } = require("./services/logge
 // ===== Configuration =====
 const PORT = process.env.PORT || 3001;
 
-// ===== Database Setup =====
-const dbPath = path.resolve(__dirname, "weflab_clone.db");
-const db = new sqlite3.Database(dbPath);
-
 // ===== Platform Adapters =====
 const activeAdapters = new Map();
 
@@ -48,6 +51,10 @@ const riotApi = new RiotAdapter({
   apiKey: process.env.RIOT_API_KEY,
   region: "kr",
 });
+
+// Database references (set during initialization)
+let overlayDb = null;
+let streamingDb = null;
 
 // ===== Main Initialization =====
 const main = async () => {
@@ -61,9 +68,11 @@ const main = async () => {
       logger.info("Redis not configured, using in-memory fallback");
     }
 
-    // Initialize database tables
-    await initializeDatabase(db);
-    dbLogger.info("Database ready");
+    // Initialize both databases
+    const databases = await initializeDatabases();
+    overlayDb = databases.overlayDb;
+    streamingDb = databases.streamingDb;
+    dbLogger.info("Both databases ready");
 
     // Create HTTP server (app will be attached after initialization)
     const express = require("express");
@@ -77,15 +86,27 @@ const main = async () => {
       },
     });
 
-    // Initialize Category Service
-    const categoryService = new CategoryService(db, io);
+    // Initialize Category Service with streamingDb
+    const categoryService = new CategoryService(streamingDb, io);
     await categoryService.initialize().catch((err) => {
       logger.error("Category service initialization error", { error: err.message, stack: err.stack });
     });
 
+    // Initialize Broadcast Crawler Service with streamingDb and auto-connection options
+    const broadcastCrawler = new BroadcastCrawler(streamingDb, io, {
+      ChzzkAdapter,
+      SoopAdapter,
+      activeAdapters,
+      normalizer,
+      ViewerEngagementService,
+    });
+    broadcastCrawler.startScheduledCrawl();
+    logger.info("Broadcast crawler started (5 min interval, auto-connect top 50)");
+
     // Create Express app with all dependencies
     const app = createApp({
-      db,
+      overlayDb,
+      streamingDb,
       io,
       activeAdapters,
       ChzzkAdapter,
@@ -104,8 +125,10 @@ const main = async () => {
 
     // Store server reference for graceful shutdown
     module.exports.server = server;
-    module.exports.db = db;
+    module.exports.overlayDb = overlayDb;
+    module.exports.streamingDb = streamingDb;
     module.exports.activeAdapters = activeAdapters;
+    module.exports.broadcastCrawler = broadcastCrawler;
 
     // Start server
     server.listen(PORT, () => {
@@ -123,6 +146,16 @@ const main = async () => {
 // ===== Graceful Shutdown =====
 const shutdown = async () => {
   logger.info("Shutting down gracefully...");
+
+  // Stop broadcast crawler
+  if (module.exports.broadcastCrawler) {
+    try {
+      module.exports.broadcastCrawler.stopScheduledCrawl();
+      logger.info("Broadcast crawler stopped");
+    } catch (err) {
+      logger.error("Error stopping broadcast crawler", { error: err.message });
+    }
+  }
 
   // Disconnect all platform adapters
   for (const [key, adapter] of activeAdapters.entries()) {
@@ -142,14 +175,12 @@ const shutdown = async () => {
     logger.error("Error closing Redis", { error: err.message });
   }
 
-  // Close database connection
-  db.close((err) => {
-    if (err) {
-      dbLogger.error("Error closing database", { error: err.message });
-    } else {
-      dbLogger.info("Database connection closed");
-    }
-  });
+  // Close both database connections
+  try {
+    await closeDatabases();
+  } catch (err) {
+    dbLogger.error("Error closing databases", { error: err.message });
+  }
 
   // Close server if available
   if (module.exports.server) {
