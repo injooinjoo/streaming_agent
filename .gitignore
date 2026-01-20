@@ -6,3 +6,7 @@ dist/
 build/
 *.db
 *.log
+
+# GCS credentials (sensitive)
+gcs-key.json
+**/gcs-key.json
