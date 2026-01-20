@@ -1126,10 +1126,10 @@
 
     <!-- Stats Cards - Platform Breakdown -->
     <div class="stats-grid">
-      <div class="stat-card" title="현재 라이브 중인 방송 수 (SOOP + Chzzk)">
+      <div class="stat-card" title="시청자 50명 이상 라이브 방송 수 (SOOP + Chzzk)">
         <div class="stat-icon red">📺</div>
         <div class="stat-content">
-          <h3>전체 라이브</h3>
+          <h3>50명+ 라이브</h3>
           <div class="value" id="statLiveBroadcasts">-</div>
           <div class="stat-sub" id="statTotalViewers">-</div>
         </div>
@@ -1154,12 +1154,24 @@
           <div class="stat-sub" id="statChzzkViewers">-</div>
         </div>
       </div>
-      <div class="stat-card nexon" title="넥슨 게임 방송 (메이플, 던파, FC온라인, 서든어택, 카트, 마비노기 등)">
-        <div class="stat-icon" style="background: rgba(255, 165, 2, 0.2);">🎮</div>
+      <div class="stat-card nexon-soop" title="넥슨 게임 SOOP 방송 (메이플, 던파, FC온라인, 서든어택, 카트, 마비노기 등)">
+        <div class="stat-icon" style="background: rgba(255, 165, 2, 0.2);">
+          <img src="/assets/logos/soop.png" alt="SOOP" style="width:20px;height:20px;">
+        </div>
         <div class="stat-content">
-          <h3>넥슨 게임</h3>
-          <div class="value" id="statNexonBroadcasts">-</div>
-          <div class="stat-sub" id="statNexonViewers">-</div>
+          <h3>넥슨(숲)</h3>
+          <div class="value" id="statNexonSoopBroadcasts">-</div>
+          <div class="stat-sub" id="statNexonSoopViewers">-</div>
+        </div>
+      </div>
+      <div class="stat-card nexon-chzzk" title="넥슨 게임 Chzzk 방송 (메이플, 던파, FC온라인, 서든어택, 카트, 마비노기 등)">
+        <div class="stat-icon" style="background: rgba(255, 165, 2, 0.2);">
+          <img src="/assets/logos/chzzk.png" alt="Chzzk" style="width:20px;height:20px;">
+        </div>
+        <div class="stat-content">
+          <h3>넥슨(치지직)</h3>
+          <div class="value" id="statNexonChzzkBroadcasts">-</div>
+          <div class="stat-sub" id="statNexonChzzkViewers">-</div>
         </div>
       </div>
     </div>
@@ -1714,9 +1726,11 @@
         document.getElementById('statChzzkBroadcasts').textContent = `${formatNumber(data.platforms?.chzzk?.broadcasts || 0)}개`;
         document.getElementById('statChzzkViewers').textContent = `👥 ${formatNumber(data.platforms?.chzzk?.viewers || 0)}명`;
 
-        // Nexon stats
-        document.getElementById('statNexonBroadcasts').textContent = `${formatNumber(data.nexon?.broadcasts || 0)}개`;
-        document.getElementById('statNexonViewers').textContent = `👥 ${formatNumber(data.nexon?.viewers || 0)}명`;
+        // Nexon stats (플랫폼별로 분리)
+        document.getElementById('statNexonSoopBroadcasts').textContent = `${formatNumber(data.nexon?.soop?.broadcasts || 0)}개`;
+        document.getElementById('statNexonSoopViewers').textContent = `👥 ${formatNumber(data.nexon?.soop?.viewers || 0)}명`;
+        document.getElementById('statNexonChzzkBroadcasts').textContent = `${formatNumber(data.nexon?.chzzk?.broadcasts || 0)}개`;
+        document.getElementById('statNexonChzzkViewers').textContent = `👥 ${formatNumber(data.nexon?.chzzk?.viewers || 0)}명`;
 
         // Other stats
         document.getElementById('statTotalPersons').textContent = formatNumber(data.totalPersons);

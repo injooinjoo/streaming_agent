@@ -267,9 +267,8 @@ const createMonitorRouter = (db) => {
    */
   router.get("/monitor/stats", async (req, res) => {
     try {
-      // Nexon game category IDs
-      const nexonCategoryIds = [
-        // SOOP
+      // Nexon game category IDs by platform
+      const nexonSoopCategoryIds = [
         '00040005', // 서든어택
         '00040070', // FC 온라인
         '00040032', // 메이플스토리
@@ -278,11 +277,13 @@ const createMonitorRouter = (db) => {
         '00360055', // 카트라이더 러쉬플러스
         '00040004', // 던전앤파이터
         '00040065', // 바람의나라
-        // Chzzk (need to find IDs)
+      ];
+      const nexonChzzkCategoryIds = [
         'MapleStory', 'Dungeon_Fighter_Online', 'FC_Online', 'Sudden_Attack',
         'KartRider', 'Mabinogi', 'The_First_Descendant', 'V4'
       ];
-      const nexonPlaceholders = nexonCategoryIds.map(() => '?').join(',');
+      const nexonSoopPlaceholders = nexonSoopCategoryIds.map(() => '?').join(',');
+      const nexonChzzkPlaceholders = nexonChzzkCategoryIds.map(() => '?').join(',');
 
       // Execute all stats queries in parallel
       const [
@@ -298,13 +299,14 @@ const createMonitorRouter = (db) => {
         // Platform breakdown
         soopStats,
         chzzkStats,
-        // Nexon games stats
-        nexonStats,
+        // Nexon games stats by platform
+        nexonSoopStats,
+        nexonChzzkStats,
       ] = await Promise.all([
-        // Live broadcasts count
-        dbGet(`SELECT COUNT(*) as count FROM broadcasts WHERE is_live = 1`),
-        // Total viewers from live broadcasts
-        dbGet(`SELECT COALESCE(SUM(current_viewer_count), 0) as total FROM broadcasts WHERE is_live = 1`),
+        // Live broadcasts count (50+ viewers only)
+        dbGet(`SELECT COUNT(*) as count FROM broadcasts WHERE is_live = 1 AND current_viewer_count >= 50`),
+        // Total viewers from live broadcasts (50+ viewers only)
+        dbGet(`SELECT COALESCE(SUM(current_viewer_count), 0) as total FROM broadcasts WHERE is_live = 1 AND current_viewer_count >= 50`),
         // Total persons
         dbGet(`SELECT COUNT(*) as count FROM persons`),
         // Total donation amount (from events table)
@@ -317,17 +319,17 @@ const createMonitorRouter = (db) => {
         dbGet(`SELECT COUNT(*) as count FROM events`),
         // Total broadcast segments
         dbGet(`SELECT COUNT(*) as count FROM broadcast_segments`),
-        // SOOP stats
+        // SOOP stats (50+ viewers only)
         dbGet(`SELECT
           COUNT(*) as broadcasts,
           COALESCE(SUM(current_viewer_count), 0) as viewers
-          FROM broadcasts WHERE is_live = 1 AND platform = 'soop'`),
-        // Chzzk stats
+          FROM broadcasts WHERE is_live = 1 AND platform = 'soop' AND current_viewer_count >= 50`),
+        // Chzzk stats (50+ viewers only)
         dbGet(`SELECT
           COUNT(*) as broadcasts,
           COALESCE(SUM(current_viewer_count), 0) as viewers
-          FROM broadcasts WHERE is_live = 1 AND platform = 'chzzk'`),
-        // Nexon games stats (join with latest segment to get category)
+          FROM broadcasts WHERE is_live = 1 AND platform = 'chzzk' AND current_viewer_count >= 50`),
+        // Nexon games stats - SOOP (50+ viewers only)
         dbGet(`SELECT
           COUNT(*) as broadcasts,
           COALESCE(SUM(b.current_viewer_count), 0) as viewers
@@ -337,8 +339,20 @@ const createMonitorRouter = (db) => {
             ROW_NUMBER() OVER (PARTITION BY broadcast_id ORDER BY segment_started_at DESC) as rn
             FROM broadcast_segments
           ) seg ON b.id = seg.broadcast_id AND seg.rn = 1
-          WHERE b.is_live = 1 AND seg.category_id IN (${nexonPlaceholders})`,
-          nexonCategoryIds),
+          WHERE b.is_live = 1 AND b.platform = 'soop' AND b.current_viewer_count >= 50 AND seg.category_id IN (${nexonSoopPlaceholders})`,
+          nexonSoopCategoryIds),
+        // Nexon games stats - Chzzk (50+ viewers only)
+        dbGet(`SELECT
+          COUNT(*) as broadcasts,
+          COALESCE(SUM(b.current_viewer_count), 0) as viewers
+          FROM broadcasts b
+          INNER JOIN (
+            SELECT broadcast_id, category_id,
+            ROW_NUMBER() OVER (PARTITION BY broadcast_id ORDER BY segment_started_at DESC) as rn
+            FROM broadcast_segments
+          ) seg ON b.id = seg.broadcast_id AND seg.rn = 1
+          WHERE b.is_live = 1 AND b.platform = 'chzzk' AND b.current_viewer_count >= 50 AND seg.category_id IN (${nexonChzzkPlaceholders})`,
+          nexonChzzkCategoryIds),
       ]);
 
       res.json({
@@ -361,10 +375,16 @@ const createMonitorRouter = (db) => {
             viewers: chzzkStats?.viewers || 0,
           },
         },
-        // Nexon games
+        // Nexon games by platform
         nexon: {
-          broadcasts: nexonStats?.broadcasts || 0,
-          viewers: nexonStats?.viewers || 0,
+          soop: {
+            broadcasts: nexonSoopStats?.broadcasts || 0,
+            viewers: nexonSoopStats?.viewers || 0,
+          },
+          chzzk: {
+            broadcasts: nexonChzzkStats?.broadcasts || 0,
+            viewers: nexonChzzkStats?.viewers || 0,
+          },
         },
       });
     } catch (error) {
