@@ -16,12 +16,8 @@ const backupConfig = {
   // 백업할 데이터베이스 목록
   databases: [
     {
-      name: "weflab_clone",
-      path: path.resolve(__dirname, "../weflab_clone.db"),
-    },
-    {
-      name: "streaming_data",
-      path: path.resolve(__dirname, "../streaming_data.db"),
+      name: "unified",
+      path: path.resolve(__dirname, "../unified.db"),
     },
   ],
 
