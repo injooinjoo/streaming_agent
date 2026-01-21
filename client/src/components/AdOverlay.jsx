@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import { API_URL } from '../config/api';
+import socket from '../config/socket';
 import './AdOverlay.css';
-
-const socket = io(API_URL);
 
 const CANVAS_WIDTH = 1920;
 const CANVAS_HEIGHT = 1080;

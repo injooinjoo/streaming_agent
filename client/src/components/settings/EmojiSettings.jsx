@@ -5,10 +5,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
-import { io } from 'socket.io-client';
+import socket from '../../config/socket';
 import './EmojiSettings.css';
-
-const socket = io(API_URL);
 
 const defaultEmojis = ['❤️', '🔥', '👏', '😂', '🎉', '💪', '👍', '🙌'];
 

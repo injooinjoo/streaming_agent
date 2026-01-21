@@ -151,6 +151,11 @@ const main = async () => {
         origin: "*",
         methods: ["GET", "POST"],
       },
+      // WebSocket first to avoid sticky session issues on Fly.io
+      transports: ['websocket', 'polling'],
+      pingTimeout: 60000,
+      pingInterval: 25000,
+      upgradeTimeout: 30000,
     });
 
     // Store io on app for route access
@@ -164,35 +169,35 @@ const main = async () => {
     setupSocketHandlers(io);
     socketLogger.info("Socket.io handlers initialized");
 
-    // Initialize Category Service
-    await categoryService.initialize().catch((err) => {
-      logger.error("Category service initialization error", { error: err.message, stack: err.stack });
-    });
-
-    // Initialize Broadcast Crawler Service with unified db and auto-connection options
-    const broadcastCrawler = new BroadcastCrawler(db, io, {
-      ChzzkAdapter,
-      SoopAdapter,
-      activeAdapters,
-      normalizer,
-      ViewerEngagementService,
-      eventService, // Pass eventService for storing events
-    });
-    broadcastCrawler.startScheduledCrawl();
-    logger.info("Broadcast crawler started (5 min interval, auto-connect top 50)");
-
     // Store server reference for graceful shutdown
     module.exports.server = server;
     module.exports.db = db;
     module.exports.activeAdapters = activeAdapters;
-    module.exports.broadcastCrawler = broadcastCrawler;
 
-    // Start server
+    // Start server FIRST (before slow initialization tasks)
     server.listen(PORT, '0.0.0.0', () => {
       logger.info("Server started", {
         port: PORT,
         host: '0.0.0.0',
         environment: process.env.NODE_ENV || "development",
+      });
+
+      // Initialize Category Service in background (after server is listening)
+      categoryService.initialize().then(() => {
+        // Initialize Broadcast Crawler Service after category service is ready
+        const broadcastCrawler = new BroadcastCrawler(db, io, {
+          ChzzkAdapter,
+          SoopAdapter,
+          activeAdapters,
+          normalizer,
+          ViewerEngagementService,
+          eventService,
+        });
+        broadcastCrawler.startScheduledCrawl();
+        logger.info("Broadcast crawler started (5 min interval, auto-connect top 50)");
+        module.exports.broadcastCrawler = broadcastCrawler;
+      }).catch((err) => {
+        logger.error("Category service initialization error", { error: err.message, stack: err.stack });
       });
     });
   } catch (error) {

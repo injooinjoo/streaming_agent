@@ -6,10 +6,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
-import { io } from 'socket.io-client';
+import socket from '../../config/socket';
 import './BotSettings.css';
-
-const socket = io(API_URL);
 
 const defaultCommands = [
   { id: 1, command: '!안녕', response: '{user}님 안녕하세요! 환영합니다 🎉', cooldown: 5, isActive: true },

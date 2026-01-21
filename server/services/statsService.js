@@ -777,6 +777,7 @@ const createStatsService = (overlayDb, streamingDb) => {
       }
 
       // Top game categories from unified_games (실제 게임 카테고리)
+      // 이미지 우선순위: SOOP 카테고리 이미지 > Chzzk 포스터 이미지 > unified_games 이미지
       let topCategories = [];
       try {
         const categoryRows = await streamingDbAll(`
@@ -790,7 +791,7 @@ const createStatsService = (overlayDb, streamingDb) => {
             COALESCE(SUM(pc.streamer_count), 0) as total_streamers,
             GROUP_CONCAT(DISTINCT pc.platform) as platforms,
             MAX(CASE WHEN pc.platform = 'soop' THEN pc.thumbnail_url END) as soop_thumbnail,
-            MAX(pc.thumbnail_url) as fallback_thumbnail
+            MAX(CASE WHEN pc.platform = 'chzzk' THEN pc.thumbnail_url END) as chzzk_thumbnail
           FROM unified_games ug
           LEFT JOIN category_game_mappings cgm ON ug.id = cgm.unified_game_id
           LEFT JOIN platform_categories pc ON cgm.platform = pc.platform
@@ -806,7 +807,7 @@ const createStatsService = (overlayDb, streamingDb) => {
             rank: i + 1,
             id: row.id,
             name: row.name_kr || row.name,
-            imageUrl: row.soop_thumbnail || row.image_url || null,
+            imageUrl: row.soop_thumbnail || row.chzzk_thumbnail || row.image_url || null,
             genre: row.genre_kr,
             totalViewers: row.total_viewers,
             totalStreamers: row.total_streamers,

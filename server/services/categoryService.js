@@ -248,6 +248,7 @@ class CategoryService {
       return this.filterAndSortGames(cached, { sort, order, limit, genre, search });
     }
 
+    // 이미지 우선순위: SOOP 카테고리 이미지 > Chzzk 포스터 이미지 > unified_games 이미지
     return new Promise((resolve, reject) => {
       const sql = `
         SELECT
@@ -265,7 +266,8 @@ class CategoryService {
           COALESCE(SUM(pc.viewer_count), 0) as total_viewers,
           COALESCE(SUM(pc.streamer_count), 0) as total_streamers,
           GROUP_CONCAT(DISTINCT pc.platform) as platforms,
-          MAX(CASE WHEN pc.platform = 'soop' THEN pc.thumbnail_url END) as soop_thumbnail
+          MAX(CASE WHEN pc.platform = 'soop' THEN pc.thumbnail_url END) as soop_thumbnail,
+          MAX(CASE WHEN pc.platform = 'chzzk' THEN pc.thumbnail_url END) as chzzk_thumbnail
         FROM unified_games ug
         LEFT JOIN category_game_mappings cgm ON ug.id = cgm.unified_game_id
         LEFT JOIN platform_categories pc ON cgm.platform = pc.platform
@@ -290,7 +292,7 @@ class CategoryService {
           developer: row.developer,
           releaseDate: row.release_date,
           description: row.description,
-          imageUrl: row.soop_thumbnail || row.image_url || null,
+          imageUrl: row.soop_thumbnail || row.chzzk_thumbnail || row.image_url || null,
           isVerified: row.is_verified === 1,
           totalViewers: row.total_viewers,
           totalStreamers: row.total_streamers,

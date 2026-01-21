@@ -5,10 +5,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
-import { io } from 'socket.io-client';
+import socket from '../../config/socket';
 import './VotingSettings.css';
-
-const socket = io(API_URL);
 
 const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 

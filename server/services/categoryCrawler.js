@@ -215,7 +215,24 @@ class CategoryCrawler {
   }
 
   /**
-   * Chzzk 카테고리 목록 크롤링 (라이브 방송에서 discover)
+   * Chzzk 카테고리 포스터 이미지 조회
+   * @param {string} categoryType - 카테고리 타입 (GAME, ETC)
+   * @param {string} categoryId - 카테고리 ID
+   * @returns {Promise<string|null>}
+   */
+  async fetchChzzkCategoryPoster(categoryType, categoryId) {
+    try {
+      const url = `https://api.chzzk.naver.com/service/v1/categories/${categoryType}/${categoryId}/info`;
+      const data = await this.fetchWithRetry("chzzk", url);
+      return data?.content?.posterImageUrl || null;
+    } catch (error) {
+      categoryLogger.debug("Chzzk poster fetch failed", { categoryId, error: error.message });
+      return null;
+    }
+  }
+
+  /**
+   * Chzzk 카테고리 목록 크롤링 (라이브 방송에서 discover + 포스터 이미지)
    * @returns {Promise<PlatformCategory[]>}
    */
   async fetchChzzkCategories() {
@@ -256,7 +273,7 @@ class CategoryCrawler {
                 platformCategoryId: categoryId,
                 platformCategoryName: live.liveCategoryValue,
                 categoryType: live.categoryType || "GAME",
-                thumbnailUrl: live.liveImageUrl || live.liveThumbnailImageUrl || null,
+                thumbnailUrl: null, // 포스터 이미지로 나중에 업데이트
                 viewerCount: 0,
                 streamerCount: 0,
               });
@@ -276,8 +293,32 @@ class CategoryCrawler {
       }
     }
 
+    // 각 카테고리의 포스터 이미지 가져오기 (병렬 처리, 최대 10개씩)
     const categories = Array.from(categoryMap.values());
-    categoryLogger.info("Chzzk crawl complete", { total: categories.length });
+    const batchSize = 10;
+
+    for (let i = 0; i < categories.length; i += batchSize) {
+      const batch = categories.slice(i, i + batchSize);
+      await Promise.all(
+        batch.map(async (category) => {
+          const posterUrl = await this.fetchChzzkCategoryPoster(
+            category.categoryType,
+            category.platformCategoryId
+          );
+          if (posterUrl) {
+            category.thumbnailUrl = posterUrl;
+          }
+        })
+      );
+      categoryLogger.debug("Chzzk poster batch fetched", {
+        progress: `${Math.min(i + batchSize, categories.length)}/${categories.length}`
+      });
+    }
+
+    categoryLogger.info("Chzzk crawl complete", {
+      total: categories.length,
+      withPoster: categories.filter(c => c.thumbnailUrl).length
+    });
     return categories;
   }
 

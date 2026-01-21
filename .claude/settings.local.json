@@ -123,7 +123,22 @@
       "mcp__plugin_playwright_playwright__browser_navigate",
       "mcp__plugin_playwright_playwright__browser_close",
       "mcp__plugin_playwright_playwright__browser_click",
-      "mcp__plugin_playwright_playwright__browser_snapshot"
+      "mcp__plugin_playwright_playwright__browser_snapshot",
+      "Bash(fly machines list:*)",
+      "Bash(railway login:*)",
+      "Bash(railway whoami:*)",
+      "Bash(railway init:*)",
+      "Bash(railway list:*)",
+      "Bash(railway delete:*)",
+      "Bash(railway link:*)",
+      "Bash(railway up:*)",
+      "Bash(railway service:*)",
+      "Bash(gcloud --version:*)",
+      "Bash(/opt/homebrew/share/google-cloud-sdk/bin/gcloud --version)",
+      "Bash(export PATH=\"/opt/homebrew/share/google-cloud-sdk/bin:$PATH\")",
+      "Bash(gcloud services enable:*)",
+      "Bash(gcloud run deploy:*)",
+      "Bash(gcloud logging read:*)"
     ]
   }
 }

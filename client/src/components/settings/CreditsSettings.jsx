@@ -5,10 +5,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
-import { io } from 'socket.io-client';
+import socket from '../../config/socket';
 import './CreditsSettings.css';
-
-const socket = io(API_URL);
 
 const defaultSettings = {
   title: '오늘의 방송',

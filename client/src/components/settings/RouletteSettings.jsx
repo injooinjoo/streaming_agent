@@ -6,10 +6,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
-import { io } from 'socket.io-client';
+import socket from '../../config/socket';
 import './RouletteSettings.css';
-
-const socket = io(API_URL);
 
 const defaultColors = [
   '#ff6b6b', '#4ecdc4', '#ffe66d', '#95e1d3', '#a8e6cf',

@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { io } from 'socket.io-client';
 import { Heart, Star } from 'lucide-react';
 import { API_URL } from '../config/api';
+import socket from '../config/socket';
 import './Overlay.css';
-
-const socket = io(API_URL);
 
 const GoalOverlay = () => {
   const { userHash } = useParams();
