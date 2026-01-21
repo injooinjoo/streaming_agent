@@ -1,33 +1,60 @@
-# Render 배포 가이드
+# 배포 가이드
 
-이 문서는 Streaming Agent를 Render에 배포하는 방법을 설명합니다.
+이 문서는 Streaming Agent를 배포하는 방법을 설명합니다.
 
 ## 목차
 
-1. [사전 요구사항](#사전-요구사항)
-2. [Blueprint 배포](#blueprint-배포)
-3. [수동 배포](#수동-배포)
-4. [환경 변수 설정](#환경-변수-설정)
-5. [데이터베이스 마이그레이션](#데이터베이스-마이그레이션)
-6. [Redis 설정 (선택사항)](#redis-설정-선택사항)
-7. [배포 후 확인](#배포-후-확인)
-8. [문제 해결](#문제-해결)
+1. [로컬 개발 환경](#로컬-개발-환경)
+2. [Render 배포](#render-배포)
+3. [환경 변수 설정](#환경-변수-설정)
+4. [데이터베이스](#데이터베이스)
+5. [Redis 설정 (선택사항)](#redis-설정-선택사항)
+6. [배포 후 확인](#배포-후-확인)
+7. [문제 해결](#문제-해결)
 
 ---
 
-## 사전 요구사항
+## 로컬 개발 환경
+
+### 데이터베이스
+
+로컬 환경에서는 **SQLite3** (`unified.db`)를 사용합니다.
+
+```bash
+# 데이터베이스 파일 위치
+server/unified.db
+```
+
+서버 시작 시 자동으로 테이블이 생성됩니다.
+
+### 빌드 및 실행
+
+```bash
+# 의존성 설치
+npm install
+cd client && npm install && cd ..
+cd server && npm install && cd ..
+
+# 개발 서버 실행
+npm run dev
+
+# 프로덕션 빌드
+cd client && npm run build && cp -r dist/* ../server/public/
+```
+
+---
+
+## Render 배포
+
+### 사전 요구사항
 
 - [Render 계정](https://render.com)
 - GitHub 저장소 연결
-- OAuth 제공자 클라이언트 ID/Secret (Google, Naver, Twitch, SOOP)
+- OAuth 제공자 클라이언트 ID/Secret (Google, Naver, Twitch, SOOP) - 선택
 
----
-
-## Blueprint 배포 (권장)
+### Blueprint 배포 (권장)
 
 Render Blueprint를 사용하면 한 번에 모든 서비스를 배포할 수 있습니다.
-
-### 1. Blueprint 배포 시작
 
 1. [Render Dashboard](https://dashboard.render.com) 접속
 2. **New** → **Blueprint** 클릭
@@ -35,12 +62,7 @@ Render Blueprint를 사용하면 한 번에 모든 서비스를 배포할 수 �
 4. `render.yaml` 파일 감지 확인
 5. **Apply** 클릭
 
-### 2. 자동 생성되는 리소스
-
-- **Web Service**: streaming-agent (Node.js)
-- **PostgreSQL**: streaming-agent-db (Free tier)
-
-### 3. 수동 설정 필요 항목
+### 수동 설정 필요 항목
 
 Blueprint 배포 후 다음 환경 변수를 수동으로 설정해야 합니다:
 
@@ -63,17 +85,7 @@ Blueprint 배포 후 다음 환경 변수를 수동으로 설정해야 합니다
 
 Blueprint 없이 수동으로 배포하는 방법입니다.
 
-### 1. PostgreSQL 데이터베이스 생성
-
-1. Render Dashboard → **New** → **PostgreSQL**
-2. 설정:
-   - Name: `streaming-agent-db`
-   - Region: `Singapore` (한국에 가까움)
-   - Plan: `Free` (또는 `Starter`)
-3. **Create Database**
-4. **Internal Database URL** 복사해두기
-
-### 2. Web Service 생성
+### Web Service 생성
 
 1. Render Dashboard → **New** → **Web Service**
 2. GitHub 저장소 연결
@@ -85,21 +97,21 @@ Blueprint 없이 수동으로 배포하는 방법입니다.
    - Build Command: `npm install && cd client && npm install && npm run build`
    - Start Command: `cd server && npm start`
    - Plan: `Starter` (Free는 15분 후 슬립)
-
 4. **Advanced** → **Health Check Path**: `/health`
 
-### 3. 환경 변수 설정
+### 환경 변수 설정
 
 **Environment** 탭에서 추가:
 
 ```
 NODE_ENV=production
 PORT=3001
-DATABASE_URL=[PostgreSQL Internal URL]
 JWT_SECRET=[Generate: openssl rand -base64 32]
 JWT_REFRESH_SECRET=[Generate: openssl rand -base64 32]
 ADMIN_ACCESS_CODE=[원하는 코드]
 ```
+
+> **참고**: 기본적으로 SQLite (`unified.db`)를 사용합니다. PostgreSQL을 사용하려면 `DATABASE_URL` 환경 변수를 설정하세요.
 
 ---
 
@@ -111,9 +123,9 @@ ADMIN_ACCESS_CODE=[원하는 코드]
 |------|------|------|
 | `NODE_ENV` | 환경 | `production` |
 | `PORT` | 포트 | `3001` |
-| `DATABASE_URL` | PostgreSQL URL | `postgres://...` |
 | `JWT_SECRET` | JWT 서명 키 | (자동 생성 권장) |
 | `JWT_REFRESH_SECRET` | Refresh Token 키 | (자동 생성 권장) |
+| `DATABASE_URL` | PostgreSQL URL (선택) | `postgres://...` |
 
 ### OAuth 변수 (각 제공자별)
 
@@ -146,33 +158,35 @@ https://[your-app].onrender.com/api/auth/soop/callback
 
 ---
 
-## 데이터베이스 마이그레이션
+## 데이터베이스
 
-### 첫 배포 시
+### 기본 설정 (SQLite)
 
-Render는 빌드 성공 후 자동으로 서버를 시작합니다.
-서버 시작 시 자동으로 데이터베이스 테이블이 생성됩니다.
+기본적으로 SQLite3 (`unified.db`)를 사용합니다. 서버 시작 시 자동으로 테이블이 생성됩니다.
 
-### 수동 마이그레이션
+```bash
+# 데이터베이스 파일 위치
+server/unified.db
+```
 
-Knex 마이그레이션을 수동으로 실행하려면:
+### PostgreSQL 사용 (선택)
 
-1. Render Dashboard → Web Service → **Shell** 탭
-2. 실행:
+대규모 배포나 다중 인스턴스가 필요한 경우 PostgreSQL을 사용할 수 있습니다.
+
+1. Render에서 PostgreSQL 생성
+2. `DATABASE_URL` 환경 변수 설정
+3. 마이그레이션 실행:
    ```bash
    cd server
    npm run db:migrate
    ```
 
-### SQLite에서 데이터 이전
+### SQLite에서 PostgreSQL로 데이터 이전
 
-기존 SQLite 데이터를 PostgreSQL로 이전:
-
-1. 로컬에서 마이그레이션 스크립트 실행:
-   ```bash
-   cd server
-   DATABASE_URL=[Production URL] npm run db:migrate-to-postgres
-   ```
+```bash
+cd server
+DATABASE_URL=[Production URL] npm run db:migrate-to-postgres
+```
 
 ---
 

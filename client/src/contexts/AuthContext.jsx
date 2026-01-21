@@ -3,143 +3,68 @@ import { API_URL } from '../config/api';
 
 const AuthContext = createContext(null);
 
+// 기본 사용자 정보 (overlayHash는 API에서 가져옴)
+const defaultUser = {
+  id: 1,
+  email: 'devil0108@soop.co.kr',
+  displayName: '감스트',
+  role: 'admin',
+  channelId: 'devil0108',
+  platform: 'soop',
+  userHash: null, // DB에서 가져옴
+  avatarUrl: null,
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [user, setUser] = useState(defaultUser);
   const [loading, setLoading] = useState(true);
 
-  // OAuth 콜백 토큰 처리
+  // 서버에서 유저 정보 가져오기 (overlayHash 포함)
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const oauthToken = urlParams.get('token');
-
-    if (oauthToken) {
-      localStorage.setItem('token', oauthToken);
-      setToken(oauthToken);
-      // URL에서 토큰 파라미터 제거
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
+    const fetchUser = async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/auth/me`, {
+          headers: {
+            'Authorization': 'Bearer auto-login-token',
+          },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setUser({
+            ...defaultUser,
+            id: data.id,
+            email: data.email,
+            displayName: data.displayName,
+            role: data.role,
+            avatarUrl: data.avatarUrl,
+            userHash: data.overlayHash, // DB에서 가져온 해시
+          });
+        }
+      } catch (e) {
+        console.error('Failed to fetch user info:', e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUser();
   }, []);
 
-  // 토큰이 있으면 사용자 정보 로드
-  useEffect(() => {
-    const loadUser = async () => {
-      if (token) {
-        try {
-          const res = await fetch(`${API_URL}/api/auth/me`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            },
-          });
-
-          if (res.ok) {
-            const userData = await res.json();
-            setUser(userData);
-          } else {
-            // 토큰이 유효하지 않으면 제거
-            localStorage.removeItem('token');
-            setToken(null);
-            setUser(null);
-          }
-        } catch (err) {
-          console.error('Failed to load user:', err);
-          localStorage.removeItem('token');
-          setToken(null);
-          setUser(null);
-        }
-      }
-      setLoading(false);
-    };
-
-    loadUser();
-  }, [token]);
-
-  // 회원가입
-  const register = async (email, password, displayName) => {
-    const res = await fetch(`${API_URL}/api/auth/register`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password, displayName }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || '회원가입에 실패했습니다.');
-    }
-
-    localStorage.setItem('token', data.token);
-    setToken(data.token);
-    setUser(data.user);
-
-    return data;
-  };
-
-  // 로그인
-  const login = async (email, password) => {
-    const res = await fetch(`${API_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ email, password }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || '로그인에 실패했습니다.');
-    }
-
-    localStorage.setItem('token', data.token);
-    setToken(data.token);
-    setUser(data.user);
-
-    return data;
-  };
-
-  // 로그아웃
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken(null);
-    setUser(null);
-  };
-
-  // 프로필 수정
-  const updateProfile = async (displayName, avatarUrl) => {
-    const res = await fetch(`${API_URL}/api/auth/profile`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify({ displayName, avatarUrl }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      throw new Error(data.error || '프로필 수정에 실패했습니다.');
-    }
-
-    setUser(prev => ({
-      ...prev,
-      displayName: data.user.displayName,
-      avatarUrl: data.user.avatarUrl,
-    }));
-
-    return data;
-  };
+  // 더미 함수들 (호환성 유지)
+  const register = async () => ({ user });
+  const login = async () => ({ user });
+  const loginAsGuest = () => {};
+  const logout = () => {};
+  const updateProfile = async () => ({ user });
 
   const value = {
     user,
-    token,
+    token: 'auto-login-token',
+    accessToken: 'auto-login-token', // alias for compatibility
     loading,
-    isAuthenticated: !!user,
+    isAuthenticated: true,
     register,
     login,
+    loginAsGuest,
     logout,
     updateProfile,
   };

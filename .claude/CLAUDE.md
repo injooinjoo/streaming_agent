@@ -8,7 +8,7 @@
 
 | 영역 | 기술 |
 |------|------|
-| Frontend | React 19, Vite 7, React Router DOM 7, Lucide React |
+| Frontend | React 19, Vite 7, React Router DOM 7, Lucide React, Recharts |
 | Backend | Express 5, Socket.io 4, SQLite3 |
 | 인증 | JWT (jsonwebtoken), bcrypt |
 | 스타일 | CSS Custom Properties, glass-morphism |
@@ -19,22 +19,34 @@
 
 ```
 streaming_agent/
-├── client/                     # React 프론트엔드
+├── client/                         # React 프론트엔드
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── settings/       # 설정 패널 (Chat, Alert, Goal 등)
-│   │   │   ├── marketplace/    # 디자인 마켓플레이스
-│   │   │   ├── ads/            # 광고 관리
-│   │   │   ├── auth/           # 로그인/회원가입
-│   │   │   └── *Overlay.jsx    # 오버레이 렌더러
-│   │   ├── contexts/           # React Context (Auth 등)
-│   │   └── App.jsx             # 라우터 설정
-│   └── public/assets/          # 로고, 이미지
+│   │   │   ├── settings/           # 설정 패널 (16개)
+│   │   │   ├── admin/              # 관리자 대시보드
+│   │   │   ├── analytics/          # 분석 대시보드
+│   │   │   ├── advertiser/         # 광고주 기능
+│   │   │   ├── marketplace/        # 디자인 마켓플레이스
+│   │   │   ├── catalog/            # 게임 카탈로그
+│   │   │   ├── channel/            # 채널 페이지
+│   │   │   ├── auth/               # 로그인/회원가입
+│   │   │   └── *Overlay.jsx        # 오버레이 렌더러 (10개)
+│   │   ├── contexts/               # React Context (Auth, Theme)
+│   │   └── App.jsx                 # 라우터 설정
+│   └── public/assets/              # 로고, 이미지
 ├── server/
-│   ├── index.js                # Express + Socket.io 서버
-│   ├── routes/                 # API 라우트 모듈
-│   └── middleware/             # 인증 미들웨어
-└── docs/spec.md                # 기능 명세서
+│   ├── index.js                    # Express + Socket.io 서버
+│   ├── routes/                     # API 라우트 모듈 (12개)
+│   ├── services/                   # 비즈니스 로직 (25개)
+│   ├── adapters/                   # 플랫폼 어댑터 (SOOP, Chzzk, Riot)
+│   ├── middleware/                 # 인증 미들웨어
+│   ├── db/                         # 데이터베이스 초기화
+│   └── unified.db                  # SQLite 데이터베이스
+└── docs/                           # 문서
+    ├── FEATURES.md                 # 기능 명세서
+    ├── ARCHITECTURE.md             # 기술 아키텍처
+    ├── API.md                      # API 명세
+    └── DEPLOYMENT.md               # 배포 가이드
 ```
 
 ---
@@ -53,16 +65,19 @@ const defaultSettings = {
 const ComponentSettings = () => {
   const [settings, setSettings] = useState(defaultSettings);
   const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
+
+  const overlayHash = user?.userHash || null;
 
   const fetchSettings = async () => {
-    const res = await fetch('http://localhost:3001/api/settings/key');
+    const res = await fetch(`${API_URL}/api/settings/key`);
     const data = await res.json();
     if (data.value) setSettings(JSON.parse(data.value));
     setLoading(false);
   };
 
   const saveSettings = async () => {
-    await fetch('http://localhost:3001/api/settings', {
+    await fetch(`${API_URL}/api/settings`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key: 'key', value: settings })
@@ -100,36 +115,93 @@ POST /api/settings
 
 ## 데이터베이스
 
-SQLite3 사용. 테이블 구조:
+SQLite3 사용 (`unified.db`). 주요 테이블:
 
-### 기존 테이블
+### 사용자 & 설정
+- `users`: 사용자 계정 (email, password_hash, role, overlay_hash)
+- `user_settings`: 사용자별 설정 (JSON)
+- `settings`: 글로벌 설정 (레거시)
+
+### 이벤트 & 통계
 - `events`: 채팅/후원 이벤트 기록
-- `settings`: 오버레이 설정 (JSON)
+- `persons`: 스트리머 정보
+- `broadcasts`: 라이브 방송 정보
+- `viewer_stats`: 시청자 통계
 
-### 신규 테이블
-- `users`: 사용자 계정
-- `sessions`: JWT 세션
+### 오버레이 기능
+- `roulette_wheels`: 룰렛 설정
+- `emoji_settings`: 이모지 설정
+- `voting_polls`: 투표
+- `ending_credits`: 엔딩 크레딧
+
+### 광고 & 마켓플레이스
 - `ad_slots`: 광고 슬롯
-- `ad_impressions`: 광고 노출 기록
+- `ad_campaigns`: 광고 캠페인
 - `designs`: 마켓플레이스 디자인
-- `design_reviews`: 디자인 리뷰
 - `creators`: 크리에이터 프로필
+
+---
+
+## 데이터베이스 스키마 규칙
+
+> 상세 내용: `.claude/SCHEMA.md` 참조
+
+### events 테이블 컬럼 (정규 스키마)
+
+| 사용 | 컬럼명 |
+|------|--------|
+| ✅ 사용 | `event_type`, `event_timestamp`, `actor_nickname`, `actor_person_id`, `target_channel_id` |
+| ❌ 금지 | `type`, `timestamp`, `sender`, `sender_id` |
+
+### 컬럼 매핑
+
+```
+type       → event_type
+timestamp  → event_timestamp (events 테이블만)
+sender     → actor_nickname
+sender_id  → actor_person_id
+```
+
+### 쿼리 작성 시 주의사항
+
+```javascript
+// ✅ 올바른 예시
+WHERE event_type = 'donation' AND DATE(event_timestamp) = ?
+
+// ❌ 잘못된 예시 (레거시 컬럼)
+WHERE type = 'donation' AND DATE(timestamp) = ?
+```
+
+### 검증 명령어
+
+```bash
+# 레거시 컬럼 사용 검색 (0건이어야 함)
+grep -rn "WHERE type = " server/
+grep -rn "DATE(timestamp)" server/services/
+```
 
 ---
 
 ## 핵심 기능
 
-### 오버레이 (5종)
+### 오버레이 (10종)
 1. **Chat** - 채팅창 (26+ 테마)
 2. **Alert** - 후원 알림 (TTS)
 3. **Goal** - 목표치 그래프
 4. **Ticker** - 전광판
 5. **Subtitle** - 후원 자막
+6. **Roulette** - 룰렛 게임
+7. **Emoji** - 이모지 반응
+8. **Voting** - 실시간 투표
+9. **Credits** - 엔딩 크레딧
+10. **Ad** - 광고 표시
 
 ### 추가 기능
-- **광고 관리** - 직접 광고주 연결, 슬롯 관리
+- **광고 관리** - 스트리머 슬롯, 광고주 캠페인
 - **마켓플레이스** - 무료 디자인 공유/다운로드
-- **인증** - 이메일/비밀번호 로그인
+- **분석 대시보드** - 시청자, 콘텐츠, 수익 분석
+- **Admin** - 실시간 모니터링, 플랫폼 통계
+- **인증** - 이메일/비밀번호, OAuth
 
 ---
 
@@ -144,6 +216,19 @@ npm run client
 
 # 서버만
 npm run server
+```
+
+---
+
+## 빌드 필수 규칙
+
+**클라이언트 빌드 후 반드시 server/public에 복사해야 함!**
+
+서버가 `server/public/` 폴더에서 정적 파일을 서빙하므로, 빌드만 하면 반영 안됨.
+
+```bash
+# 빌드 후 필수 실행
+cd client && npm run build && cp -r dist/* ../server/public/
 ```
 
 ---

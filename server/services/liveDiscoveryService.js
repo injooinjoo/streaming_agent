@@ -259,16 +259,17 @@ class LiveDiscoveryService {
   }
 
   handleEvent(platform, channelId, event) {
-    // Save to SQLite
+    // Save to SQLite (canonical schema)
     if (this.db && event.type) {
       this.db.run(
-        `INSERT INTO events (id, type, platform, sender, sender_id, message, amount, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO events (id, event_type, platform, actor_nickname, actor_person_id, target_channel_id, message, amount, event_timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           event.id || require("uuid").v4(),
           event.type,
           platform,
           event.sender?.nickname || "unknown",
-          event.sender?.id || null,
+          null, // actor_person_id
+          channelId,
           event.content?.message || "",
           event.content?.amount || 0,
           event.metadata?.timestamp || new Date().toISOString(),

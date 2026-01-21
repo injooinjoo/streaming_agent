@@ -37,7 +37,7 @@ const createAdminRouter = (db, authenticateAdmin, developerLogin) => {
         "SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions WHERE strftime('%Y-%m', timestamp) = strftime('%Y-%m', 'now')",
       activeCampaigns: "SELECT COUNT(*) as count FROM ad_campaigns WHERE status = 'active'",
       totalEvents: "SELECT COUNT(*) as count FROM events",
-      totalDonations: "SELECT COALESCE(SUM(amount), 0) as total FROM events WHERE type = 'donation'",
+      totalDonations: "SELECT COALESCE(SUM(amount), 0) as total FROM events WHERE event_type = 'donation'",
     };
 
     const results = {};
@@ -93,7 +93,7 @@ const createAdminRouter = (db, authenticateAdmin, developerLogin) => {
         u.created_at,
         u.overlay_hash,
         COALESCE((SELECT COUNT(*) FROM events), 0) as event_count,
-        COALESCE((SELECT SUM(amount) FROM events WHERE type = 'donation'), 0) as total_donations,
+        COALESCE((SELECT SUM(amount) FROM events WHERE event_type = 'donation'), 0) as total_donations,
         COALESCE((SELECT SUM(revenue) FROM ad_impressions WHERE streamer_id = u.id), 0) as ad_revenue
       FROM users u
       WHERE u.role IN ('user', 'creator') AND (u.display_name LIKE ? OR u.email LIKE ?)
@@ -163,16 +163,16 @@ const createAdminRouter = (db, authenticateAdmin, developerLogin) => {
         GROUP BY date ORDER BY date
       `,
       donationTrend: `
-        SELECT strftime('${dateFormat}', timestamp) as date,
+        SELECT strftime('${dateFormat}', event_timestamp) as date,
                SUM(amount) as amount,
                COUNT(*) as count
         FROM events
-        WHERE type = 'donation' AND ${dateCondition}
+        WHERE event_type = 'donation' AND event_timestamp > datetime('now', '-30 days')
         GROUP BY date ORDER BY date
       `,
       platformRevenue: `
         SELECT platform, SUM(amount) as total, COUNT(*) as count
-        FROM events WHERE type = 'donation'
+        FROM events WHERE event_type = 'donation'
         GROUP BY platform
       `,
       topStreamers: `
@@ -219,20 +219,20 @@ const createAdminRouter = (db, authenticateAdmin, developerLogin) => {
       eventsByPlatform: `
         SELECT platform,
                COUNT(*) as total_events,
-               SUM(CASE WHEN type = 'donation' THEN 1 ELSE 0 END) as donations,
-               SUM(CASE WHEN type = 'chat' THEN 1 ELSE 0 END) as chats,
-               SUM(CASE WHEN type = 'subscription' THEN 1 ELSE 0 END) as subscriptions,
-               SUM(CASE WHEN type = 'follow' THEN 1 ELSE 0 END) as follows,
-               COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount
+               SUM(CASE WHEN event_type = 'donation' THEN 1 ELSE 0 END) as donations,
+               SUM(CASE WHEN event_type = 'chat' THEN 1 ELSE 0 END) as chats,
+               SUM(CASE WHEN event_type = 'subscription' THEN 1 ELSE 0 END) as subscriptions,
+               SUM(CASE WHEN event_type = 'follow' THEN 1 ELSE 0 END) as follows,
+               COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount
         FROM events
         GROUP BY platform
       `,
       recentTrend: `
         SELECT platform,
-               strftime('%Y-%m-%d', timestamp) as date,
+               strftime('%Y-%m-%d', event_timestamp) as date,
                COUNT(*) as events
         FROM events
-        WHERE timestamp > datetime('now', '-7 days')
+        WHERE event_timestamp > datetime('now', '-7 days')
         GROUP BY platform, date
         ORDER BY date
       `,
@@ -264,44 +264,44 @@ const createAdminRouter = (db, authenticateAdmin, developerLogin) => {
     const queries = {
       hourlyTrend: `
         SELECT
-          strftime('%H:00', timestamp) as hour,
+          strftime('%H:00', event_timestamp) as hour,
           SUM(CASE WHEN platform = 'soop' THEN 1 ELSE 0 END) as soop,
           SUM(CASE WHEN platform = 'chzzk' THEN 1 ELSE 0 END) as chzzk,
           SUM(CASE WHEN platform = 'youtube' THEN 1 ELSE 0 END) as youtube,
           SUM(CASE WHEN platform = 'twitch' THEN 1 ELSE 0 END) as twitch
         FROM events
-        WHERE timestamp >= datetime('now', '-24 hours')
-        GROUP BY strftime('%H', timestamp)
+        WHERE event_timestamp >= datetime('now', '-24 hours')
+        GROUP BY strftime('%H', event_timestamp)
         ORDER BY hour
       `,
       platformStats: `
         SELECT
           platform,
           COUNT(*) as total_events,
-          COUNT(CASE WHEN type = 'donation' THEN 1 END) as donations,
-          COUNT(CASE WHEN type = 'chat' THEN 1 END) as chats,
-          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount,
-          COUNT(DISTINCT sender) as unique_users
+          COUNT(CASE WHEN event_type = 'donation' THEN 1 END) as donations,
+          COUNT(CASE WHEN event_type = 'chat' THEN 1 END) as chats,
+          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount,
+          COUNT(DISTINCT actor_nickname) as unique_users
         FROM events
         GROUP BY platform
       `,
       todayStats: `
         SELECT
           COUNT(*) as total_events,
-          COUNT(DISTINCT sender) as unique_users,
-          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as total_donations
+          COUNT(DISTINCT actor_nickname) as unique_users,
+          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as total_donations
         FROM events
-        WHERE DATE(timestamp) = DATE('now')
+        WHERE DATE(event_timestamp) = DATE('now')
       `,
       topDonors: `
         SELECT
-          sender as name,
+          actor_nickname as name,
           platform,
           COUNT(*) as donation_count,
           COALESCE(SUM(amount), 0) as total_amount
         FROM events
-        WHERE type = 'donation' AND sender IS NOT NULL AND sender != ''
-        GROUP BY sender
+        WHERE event_type = 'donation' AND actor_nickname IS NOT NULL AND actor_nickname != ''
+        GROUP BY actor_nickname
         ORDER BY total_amount DESC
         LIMIT 10
       `,
@@ -310,7 +310,7 @@ const createAdminRouter = (db, authenticateAdmin, developerLogin) => {
           COUNT(*) as count,
           platform
         FROM events
-        WHERE timestamp >= datetime('now', '-1 hour')
+        WHERE event_timestamp >= datetime('now', '-1 hour')
         GROUP BY platform
       `
     };
@@ -420,43 +420,43 @@ const createAdminRouter = (db, authenticateAdmin, developerLogin) => {
       eventStats: `
         SELECT
           COUNT(*) as total_events,
-          COUNT(CASE WHEN type = 'donation' THEN 1 END) as donation_count,
-          COUNT(CASE WHEN type = 'chat' THEN 1 END) as chat_count,
-          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as total_donations,
-          COUNT(DISTINCT DATE(timestamp)) as active_days
+          COUNT(CASE WHEN event_type = 'donation' THEN 1 END) as donation_count,
+          COUNT(CASE WHEN event_type = 'chat' THEN 1 END) as chat_count,
+          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as total_donations,
+          COUNT(DISTINCT DATE(event_timestamp)) as active_days
         FROM events
       `,
       performanceTrend: `
         SELECT
-          DATE(timestamp) as date,
-          COUNT(CASE WHEN type = 'chat' THEN 1 END) as chats,
-          COUNT(CASE WHEN type = 'donation' THEN 1 END) as donations,
-          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount,
-          COUNT(DISTINCT sender) as unique_users
+          DATE(event_timestamp) as date,
+          COUNT(CASE WHEN event_type = 'chat' THEN 1 END) as chats,
+          COUNT(CASE WHEN event_type = 'donation' THEN 1 END) as donations,
+          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount,
+          COUNT(DISTINCT actor_nickname) as unique_users
         FROM events
-        WHERE timestamp >= datetime('now', '-7 days')
-        GROUP BY DATE(timestamp)
+        WHERE event_timestamp >= datetime('now', '-7 days')
+        GROUP BY DATE(event_timestamp)
         ORDER BY date
       `,
       recentActivity: `
         SELECT
           id,
-          type,
-          sender,
+          event_type as type,
+          actor_nickname as sender,
           amount,
           message,
           platform,
-          timestamp
+          event_timestamp as timestamp
         FROM events
-        WHERE type = 'donation'
-        ORDER BY timestamp DESC
+        WHERE event_type = 'donation'
+        ORDER BY event_timestamp DESC
         LIMIT 10
       `,
       platformBreakdown: `
         SELECT
           platform,
           COUNT(*) as events,
-          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as donations
+          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donations
         FROM events
         GROUP BY platform
       `

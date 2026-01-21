@@ -67,11 +67,11 @@ const themeOptions = [
 ];
 
 const GoalSettings = () => {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
   const [saving, setSaving] = useState(false);
   const [activeNav, setActiveNav] = useState('theme');
-  const [overlayHash, setOverlayHash] = useState(null);
+  const overlayHash = user?.userHash || null;
   const [copied, setCopied] = useState(false);
 
   const sectionRefs = {
@@ -113,17 +113,6 @@ const GoalSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      // Fetch overlay hash
-      if (token) {
-        const urlsRes = await fetch(`${API_URL}/api/overlay/urls`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (urlsRes.ok) {
-          const urlsData = await urlsRes.json();
-          setOverlayHash(urlsData.hash);
-        }
-      }
-
       const res = await fetch(`${API_URL}/api/settings/goal`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {

@@ -113,10 +113,10 @@ const widgetThemes = [
 const timerThemes = [...widgetThemes, '디지털', '네이버'];
 
 const ChatSettings = () => {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
   const [saving, setSaving] = useState(false);
-  const [overlayHash, setOverlayHash] = useState(null);
+  const overlayHash = user?.userHash || null;
   const [testChat, setTestChat] = useState({ 
     amount: '100', 
     message: '채팅 입력', 
@@ -173,17 +173,6 @@ const ChatSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      // 해시 가져오기
-      if (token) {
-        const urlsRes = await fetch(`${API_URL}/api/overlay/urls`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (urlsRes.ok) {
-          const urlsData = await urlsRes.json();
-          setOverlayHash(urlsData.hash);
-        }
-      }
-
       const res = await fetch(`${API_URL}/api/settings/chat`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {

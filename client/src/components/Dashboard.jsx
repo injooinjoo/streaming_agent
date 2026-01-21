@@ -5,7 +5,7 @@ import {
   HelpCircle, Send, Plus, ExternalLink, Settings,
   RefreshCw, Megaphone, Palette, Sparkles, Activity, TrendingUp, MousePointerClick,
   DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, ChevronDown, Disc,
-  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket, Trophy
+  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket, Trophy, Heart
 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { useAuth } from '../contexts/AuthContext';
@@ -139,7 +139,12 @@ const Dashboard = () => {
 
   const fetchEvents = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/events`);
+      // 로그인된 사용자의 channelId로 필터링
+      const params = new URLSearchParams();
+      if (user?.channelId) params.set('channelId', user.channelId);
+      const queryString = params.toString();
+      const url = `${API_URL}/api/events${queryString ? `?${queryString}` : ''}`;
+      const res = await fetch(url);
       const data = await res.json();
       setEvents(data);
     } catch (e) {
@@ -150,7 +155,13 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setDashboardLoading(true);
-      const res = await fetch(`${API_URL}/api/stats/dashboard`);
+      // 로그인된 사용자의 channelId와 platform을 쿼리 파라미터로 전달
+      const params = new URLSearchParams();
+      if (user?.channelId) params.set('channelId', user.channelId);
+      if (user?.platform) params.set('platform', user.platform);
+      const queryString = params.toString();
+      const url = `${API_URL}/api/stats/dashboard${queryString ? `?${queryString}` : ''}`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         setDashboardData(data);
@@ -171,7 +182,7 @@ const Dashboard = () => {
       clearInterval(eventsInterval);
       clearInterval(dashboardInterval);
     };
-  }, []);
+  }, [user?.channelId, user?.platform]);
 
   const triggerSimulate = async () => {
     if (!simulation.sender) {
@@ -298,8 +309,8 @@ const Dashboard = () => {
             <div className="categories-section">
               <div className="section-header">
                 <div className="section-title">
-                  <BarChart3 size={18} className="text-primary" />
-                  <h2>플랫폼별 활동 현황</h2>
+                  <Gamepad2 size={18} className="text-primary" />
+                  <h2>인기 게임 카테고리</h2>
                 </div>
                 <button className="section-link" onClick={() => setActiveTab('analytics-content')}>
                   콘텐츠 분석 보기 <ChevronRight size={14} />
@@ -307,37 +318,51 @@ const Dashboard = () => {
               </div>
               <div className="categories-grid">
                 {dashboardData.topCategories && dashboardData.topCategories.length > 0 ?
-                  dashboardData.topCategories.map((platform, index) => {
-                    const getPlatformLogo = (p) => {
-                      if (p === 'soop') return '/assets/logos/soop.png';
-                      if (p === 'chzzk') return '/assets/logos/chzzk.png';
-                      if (p === 'youtube') return '/assets/logos/youtube.png';
-                      return null;
+                  dashboardData.topCategories.map((category, index) => {
+                    // 플랫폼 로고 가져오기
+                    const getPlatformLogos = (platforms) => {
+                      if (!platforms || platforms.length === 0) return null;
+                      return platforms.map(p => {
+                        if (p === 'soop') return { src: '/assets/logos/soop.png', name: 'SOOP' };
+                        if (p === 'chzzk') return { src: '/assets/logos/chzzk.png', name: '치지직' };
+                        return null;
+                      }).filter(Boolean);
                     };
+                    const platformLogos = getPlatformLogos(category.platforms);
+
                     return (
-                      <div key={platform.platform || index} className="category-card">
+                      <div key={category.id || index} className="category-card">
                         <div className="category-rank">#{index + 1}</div>
-                        <div className="category-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-card-hover)' }}>
-                          {getPlatformLogo(platform.platform) ? (
-                            <img src={getPlatformLogo(platform.platform)} alt={platform.name} style={{ height: '40px', objectFit: 'contain' }} />
+                        <div className="category-image">
+                          {category.imageUrl ? (
+                            <img src={category.imageUrl} alt={category.name} />
                           ) : (
-                            <Activity size={32} style={{ color: 'var(--text-muted)' }} />
+                            <Gamepad2 size={40} className="category-placeholder-icon" />
                           )}
                         </div>
                         <div className="category-info">
-                          <span className="category-name">{platform.name}</span>
+                          <span className="category-name">{category.name}</span>
+                          {category.genre && (
+                            <span className="category-genre">{category.genre}</span>
+                          )}
                           <div className="category-stats">
                             <div className="category-stat">
-                              <span className="stat-label">총 활동</span>
-                              <span className="stat-value sensitive-blur">{platform.activity?.toLocaleString() || 0}</span>
+                              <span className="stat-label">시청자</span>
+                              <span className="stat-value sensitive-blur">{category.totalViewers?.toLocaleString() || 0}</span>
                             </div>
                             <div className="category-stat">
-                              <span className="stat-label">채팅</span>
-                              <span className="stat-value sensitive-blur">{platform.chats?.toLocaleString() || 0}</span>
+                              <span className="stat-label">방송</span>
+                              <span className="stat-value sensitive-blur">{category.totalStreamers?.toLocaleString() || 0}</span>
                             </div>
                             <div className="category-stat">
-                              <span className="stat-label">후원</span>
-                              <span className="stat-value sensitive-blur">{platform.donations?.toLocaleString() || 0}</span>
+                              <span className="stat-label">플랫폼</span>
+                              <span className="stat-value platform-logos">
+                                {platformLogos && platformLogos.length > 0 ? (
+                                  platformLogos.map((logo, i) => (
+                                    <img key={i} src={logo.src} alt={logo.name} className="platform-logo" />
+                                  ))
+                                ) : '-'}
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -345,9 +370,9 @@ const Dashboard = () => {
                     );
                   }) : (
                     <div className="empty-state" style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center' }}>
-                      <Activity size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
-                      <p>아직 플랫폼 활동 데이터가 없습니다.</p>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>SOOP이나 치지직에 연결하여 데이터 수집을 시작하세요.</p>
+                      <Gamepad2 size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
+                      <p>아직 카테고리 데이터가 없습니다.</p>
+                      <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>SOOP이나 치지직에서 방송 중인 게임 정보를 수집합니다.</p>
                     </div>
                   )
                 }
@@ -373,10 +398,10 @@ const Dashboard = () => {
           {feedTab === 'recent' && (
             <div className="table-container">
               <div className="table-header">
-                <span>이벤트 타입</span>
-                <span>상태</span>
-                <span>송신자</span>
-                <span>금액 / 메시지</span>
+                <span>플랫폼</span>
+                <span>유형</span>
+                <span>보낸 사람</span>
+                <span>내용</span>
                 <span style={{ textAlign: 'right' }}>시간</span>
               </div>
               <div className="table-list">
@@ -393,33 +418,60 @@ const Dashboard = () => {
                     };
                     const platformLogo = getPlatformLogo(ev.platform);
 
+                    // 이벤트 타입별 한국어 레이블 및 스타일
+                    const getEventTypeInfo = (type) => {
+                      const typeMap = {
+                        donation: { label: '후원', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', icon: <DollarSign size={14} /> },
+                        subscribe: { label: '구독', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', icon: <Users size={14} /> },
+                        chat: { label: '채팅', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', icon: <MessageSquare size={14} /> },
+                        cheer: { label: '응원', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', icon: <Heart size={14} /> },
+                      };
+                      return typeMap[type] || { label: type, color: '#6b7280', bg: 'rgba(107, 114, 128, 0.1)', icon: <Activity size={14} /> };
+                    };
+                    const eventInfo = getEventTypeInfo(ev.type);
+
+                    // 플랫폼 이름
+                    const getPlatformName = (p) => {
+                      const names = { soop: 'SOOP', chzzk: '치지직', youtube: 'YouTube', twitch: 'Twitch' };
+                      return names[p?.toLowerCase()] || p || '-';
+                    };
+
                     return (
                       <div key={ev.id} className="table-row">
-                        <div className="recipient-cell">
-                          <div className="platform-tag" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {platformLogo ? (
-                               <img src={platformLogo} alt={ev.platform} style={{ height: '14px', borderRadius: '2px' }} />
-                            ) : (
-                               <MessageSquare size={12} className="text-muted" />
-                            )}
-                          </div>
-                          <div className="recipient-icon" style={{ marginLeft: '4px' }}>
-                            {ev.type === 'donation' ? <Plus size={14} /> : <MessageSquare size={14} />}
-                          </div>
-                          <span>{ev.type.charAt(0).toUpperCase() + ev.type.slice(1)}</span>
+                        <div className="recipient-cell" style={{ gap: '8px' }}>
+                          {platformLogo ? (
+                            <img src={platformLogo} alt={ev.platform} style={{ height: '18px', borderRadius: '3px' }} />
+                          ) : (
+                            <Activity size={16} className="text-muted" />
+                          )}
+                          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{getPlatformName(ev.platform)}</span>
                         </div>
-                      <div>
-                        <span className={`status-badge ${ev.type}`}>
-                          {ev.type === 'donation' ? '후원' : '채팅'}
-                        </span>
-                      </div>
-                      <div style={{ fontWeight: 500 }}>{ev.sender}</div>
-                      <div className="amount-cell">
-                        {ev.type === 'donation' ? `₩${ev.amount.toLocaleString()}` : ev.message}
-                      </div>
-                      <div className="time-cell">
-                        {new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </div>
+                        <div>
+                          <span
+                            className="status-badge"
+                            style={{
+                              background: eventInfo.bg,
+                              color: eventInfo.color,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontSize: '12px',
+                              fontWeight: 500
+                            }}
+                          >
+                            {eventInfo.icon}
+                            {eventInfo.label}
+                          </span>
+                        </div>
+                        <div style={{ fontWeight: 500 }}>{ev.sender}</div>
+                        <div className="amount-cell" style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
+                          {ev.type === 'donation' && ev.amount ? `₩${ev.amount.toLocaleString()}` : ev.message || '-'}
+                        </div>
+                        <div className="time-cell" style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+                          {new Date(ev.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                        </div>
                       </div>
                     );
                   })
@@ -829,16 +881,6 @@ const Dashboard = () => {
               <Shield size={16} />
               관리자
             </button>
-            {isAuthenticated ? (
-              <button className="btn btn-primary" style={{ borderRadius: 'var(--radius-full)' }}>
-                방송 시작
-              </button>
-            ) : (
-              <button className="btn btn-primary" style={{ borderRadius: 'var(--radius-full)' }} onClick={() => navigate('/login')}>
-                <LogIn size={16} />
-                로그인
-              </button>
-            )}
           </div>
         </header>
         <div className="content-body">

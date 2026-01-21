@@ -113,10 +113,10 @@ const ttsVoiceOptions = [
 ];
 
 const AlertSettings = () => {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
   const [saving, setSaving] = useState(false);
-  const [overlayHash, setOverlayHash] = useState(null);
+  const overlayHash = user?.userHash || null;
   const [activeNav, setActiveNav] = useState('theme');
   const [expandedSignatures, setExpandedSignatures] = useState({});
   const [draggedIdx, setDraggedIdx] = useState(null);
@@ -161,17 +161,6 @@ const AlertSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      // 해시 가져오기
-      if (token) {
-        const urlsRes = await fetch(`${API_URL}/api/overlay/urls`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (urlsRes.ok) {
-          const urlsData = await urlsRes.json();
-          setOverlayHash(urlsData.hash);
-        }
-      }
-
       const res = await fetch(`${API_URL}/api/settings/alert`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {

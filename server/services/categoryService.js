@@ -264,7 +264,8 @@ class CategoryService {
           ug.created_at,
           COALESCE(SUM(pc.viewer_count), 0) as total_viewers,
           COALESCE(SUM(pc.streamer_count), 0) as total_streamers,
-          GROUP_CONCAT(DISTINCT pc.platform) as platforms
+          GROUP_CONCAT(DISTINCT pc.platform) as platforms,
+          MAX(CASE WHEN pc.platform = 'soop' THEN pc.thumbnail_url END) as soop_thumbnail
         FROM unified_games ug
         LEFT JOIN category_game_mappings cgm ON ug.id = cgm.unified_game_id
         LEFT JOIN platform_categories pc ON cgm.platform = pc.platform
@@ -289,7 +290,7 @@ class CategoryService {
           developer: row.developer,
           releaseDate: row.release_date,
           description: row.description,
-          imageUrl: row.image_url,
+          imageUrl: row.soop_thumbnail || row.image_url || null,
           isVerified: row.is_verified === 1,
           totalViewers: row.total_viewers,
           totalStreamers: row.total_streamers,

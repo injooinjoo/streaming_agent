@@ -209,6 +209,23 @@
   margin-top: 16px;
 }
 
+.platform-extra {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
+}
+
+.platform-extra .btn-full {
+  width: 100%;
+}
+
+.platform-tip {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 .platform-connect-prompt {
   padding: 20px 12px;
   text-align: center;

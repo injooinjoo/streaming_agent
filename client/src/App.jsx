@@ -3,7 +3,10 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { StreamingModeProvider } from './contexts/StreamingModeContext';
+import { ToastProvider } from './contexts/ToastContext';
+import ToastContainer from './components/shared/Toast';
 import Dashboard from './components/Dashboard';
+import ChannelPage from './components/channel/ChannelPage';
 import ChatOverlay from './components/ChatOverlay';
 import AlertOverlay from './components/AlertOverlay';
 import SubtitleOverlay from './components/SubtitleOverlay';
@@ -42,12 +45,17 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <ToastProvider>
         <StreamingModeProvider>
         <Router>
           <div className="app-container">
             <Routes>
             {/* 메인 */}
             <Route path="/" element={<Dashboard />} />
+
+            {/* 채널 정보 페이지 */}
+            <Route path="/channel/:channelId" element={<ChannelPage />} />
+            <Route path="/channel" element={<ChannelPage />} />
 
             {/* 인증 */}
             <Route path="/login" element={<LoginPage />} />
@@ -90,6 +98,8 @@ function App() {
           </div>
         </Router>
         </StreamingModeProvider>
+        <ToastContainer />
+        </ToastProvider>
       </AuthProvider>
     </ThemeProvider>
   );

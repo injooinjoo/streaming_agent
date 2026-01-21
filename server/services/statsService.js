@@ -80,7 +80,7 @@ const createStatsService = (overlayDb, streamingDb) => {
           COUNT(*) as donationCount,
           COALESCE(SUM(amount), 0) as totalDonations
         FROM events
-        WHERE type = 'donation' AND DATE(timestamp) >= ?`,
+        WHERE event_type = 'donation' AND DATE(event_timestamp) >= ?`,
         [startDateStr]
       );
 
@@ -101,12 +101,12 @@ const createStatsService = (overlayDb, streamingDb) => {
     async getRevenueTrend(days = 30) {
       const rows = await streamingDbAll(
         `SELECT
-          DATE(timestamp) as date,
+          DATE(event_timestamp) as date,
           COUNT(*) as count,
           COALESCE(SUM(amount), 0) as donations
         FROM events
-        WHERE type = 'donation' AND timestamp >= datetime('now', '-${days} days')
-        GROUP BY DATE(timestamp)
+        WHERE event_type = 'donation' AND event_timestamp >= datetime('now', '-${days} days')
+        GROUP BY DATE(event_timestamp)
         ORDER BY date ASC`
       );
 
@@ -137,7 +137,7 @@ const createStatsService = (overlayDb, streamingDb) => {
           platform,
           COALESCE(SUM(amount), 0) as value
         FROM events
-        WHERE type = 'donation'
+        WHERE event_type = 'donation'
         GROUP BY platform`
       );
 
@@ -155,11 +155,11 @@ const createStatsService = (overlayDb, streamingDb) => {
     async getMonthlyRevenue(months = 6) {
       const rows = await streamingDbAll(
         `SELECT
-          strftime('%Y-%m', timestamp) as month,
+          strftime('%Y-%m', event_timestamp) as month,
           COALESCE(SUM(amount), 0) as revenue
         FROM events
-        WHERE type = 'donation' AND timestamp >= datetime('now', '-${months} months')
-        GROUP BY strftime('%Y-%m', timestamp)
+        WHERE event_type = 'donation' AND event_timestamp >= datetime('now', '-${months} months')
+        GROUP BY strftime('%Y-%m', event_timestamp)
         ORDER BY month ASC`
       );
 
@@ -180,12 +180,12 @@ const createStatsService = (overlayDb, streamingDb) => {
     async getTopStreamersByRevenue(limit = 10) {
       const rows = await streamingDbAll(
         `SELECT
-          sender as username,
+          actor_nickname as username,
           COUNT(*) as donationCount,
           COALESCE(SUM(amount), 0) as totalRevenue
         FROM events
-        WHERE type = 'donation' AND sender IS NOT NULL AND sender != ''
-        GROUP BY sender
+        WHERE event_type = 'donation' AND actor_nickname IS NOT NULL AND actor_nickname != ''
+        GROUP BY actor_nickname
         ORDER BY totalRevenue DESC
         LIMIT ?`,
         [limit]
@@ -217,12 +217,12 @@ const createStatsService = (overlayDb, streamingDb) => {
       const params = [];
 
       if (search) {
-        whereClause = "WHERE sender LIKE ?";
+        whereClause = "WHERE actor_nickname LIKE ?";
         params.push(`%${search}%`);
       }
 
       const countRow = await streamingDbGet(
-        `SELECT COUNT(DISTINCT sender) as total FROM events ${whereClause}`,
+        `SELECT COUNT(DISTINCT actor_nickname) as total FROM events ${whereClause}`,
         params
       );
 
@@ -231,14 +231,14 @@ const createStatsService = (overlayDb, streamingDb) => {
 
       const rows = await streamingDbAll(
         `SELECT
-          sender as username,
+          actor_nickname as username,
           COUNT(*) as total_events,
-          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as total_donations,
-          MIN(timestamp) as first_seen,
-          MAX(timestamp) as last_seen
+          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as total_donations,
+          MIN(event_timestamp) as first_seen,
+          MAX(event_timestamp) as last_seen
         FROM events
         ${whereClause}
-        GROUP BY sender
+        GROUP BY actor_nickname
         ORDER BY ${sortColumn} ${order}
         LIMIT ? OFFSET ?`,
         [...params, limit, offset]
@@ -271,14 +271,14 @@ const createStatsService = (overlayDb, streamingDb) => {
         totalUsers: "SELECT COUNT(*) as count FROM users",
         activeUsers: "SELECT COUNT(*) as count FROM users WHERE created_at > datetime('now', '-30 days')",
         totalAdRevenue: "SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions",
-        monthlyAdRevenue: "SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions WHERE strftime('%Y-%m', timestamp) = strftime('%Y-%m', 'now')",
+        monthlyAdRevenue: "SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions WHERE strftime('%Y-%m', event_timestamp) = strftime('%Y-%m', 'now')",
         activeCampaigns: "SELECT COUNT(*) as count FROM ad_campaigns WHERE status = 'active'",
       };
 
       // Queries for streamingDb (events)
       const streamingQueries = {
         totalEvents: "SELECT COUNT(*) as count FROM events",
-        totalDonations: "SELECT COALESCE(SUM(amount), 0) as total FROM events WHERE type = 'donation'",
+        totalDonations: "SELECT COALESCE(SUM(amount), 0) as total FROM events WHERE event_type = 'donation'",
       };
 
       // Execute overlay queries
@@ -330,19 +330,19 @@ const createStatsService = (overlayDb, streamingDb) => {
       const summary = await streamingDbGet(
         `SELECT
           COUNT(*) as totalChats,
-          COUNT(DISTINCT sender) as uniqueUsers,
-          COUNT(DISTINCT DATE(timestamp)) as activeDays
+          COUNT(DISTINCT actor_nickname) as uniqueUsers,
+          COUNT(DISTINCT DATE(event_timestamp)) as activeDays
         FROM events
-        WHERE type = 'chat' AND timestamp >= datetime('now', '-${days} days')`
+        WHERE event_type = 'chat' AND event_timestamp >= datetime('now', '-${days} days')`
       );
 
       const peakChat = await streamingDbGet(
         `SELECT
-          strftime('%H:00', timestamp) as hour,
+          strftime('%H:00', event_timestamp) as hour,
           COUNT(*) as count
         FROM events
-        WHERE type = 'chat' AND timestamp >= datetime('now', '-${days} days')
-        GROUP BY strftime('%H', timestamp)
+        WHERE event_type = 'chat' AND event_timestamp >= datetime('now', '-${days} days')
+        GROUP BY strftime('%H', event_timestamp)
         ORDER BY count DESC
         LIMIT 1`
       );
@@ -364,12 +364,12 @@ const createStatsService = (overlayDb, streamingDb) => {
     async getChatTrendByHour(days = 7) {
       const rows = await streamingDbAll(
         `SELECT
-          strftime('%H:00', timestamp) as hour,
+          strftime('%H:00', event_timestamp) as hour,
           COUNT(*) as chats,
-          COUNT(DISTINCT sender) as users
+          COUNT(DISTINCT actor_nickname) as users
         FROM events
-        WHERE type = 'chat' AND timestamp >= datetime('now', '-${days} days')
-        GROUP BY strftime('%H', timestamp)
+        WHERE event_type = 'chat' AND event_timestamp >= datetime('now', '-${days} days')
+        GROUP BY strftime('%H', event_timestamp)
         ORDER BY hour`
       );
 
@@ -396,7 +396,7 @@ const createStatsService = (overlayDb, streamingDb) => {
       const days = weeks * 7;
       const rows = await streamingDbAll(
         `SELECT
-          CASE strftime('%w', timestamp)
+          CASE strftime('%w', event_timestamp)
             WHEN '0' THEN '일'
             WHEN '1' THEN '월'
             WHEN '2' THEN '화'
@@ -405,12 +405,12 @@ const createStatsService = (overlayDb, streamingDb) => {
             WHEN '5' THEN '금'
             WHEN '6' THEN '토'
           END as day,
-          strftime('%w', timestamp) as dayNum,
+          strftime('%w', event_timestamp) as dayNum,
           COUNT(*) as chats,
-          COUNT(DISTINCT sender) as users
+          COUNT(DISTINCT actor_nickname) as users
         FROM events
-        WHERE type = 'chat' AND timestamp >= datetime('now', '-${days} days')
-        GROUP BY strftime('%w', timestamp)
+        WHERE event_type = 'chat' AND event_timestamp >= datetime('now', '-${days} days')
+        GROUP BY strftime('%w', event_timestamp)
         ORDER BY dayNum`
       );
 
@@ -433,14 +433,14 @@ const createStatsService = (overlayDb, streamingDb) => {
     async getActivityTimeline(days = 7) {
       const rows = await streamingDbAll(
         `SELECT
-          DATE(timestamp) as date,
-          COUNT(CASE WHEN type = 'chat' THEN 1 END) as chats,
-          COUNT(CASE WHEN type = 'donation' THEN 1 END) as donations,
-          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as donationAmount,
-          COUNT(DISTINCT sender) as activeUsers
+          DATE(event_timestamp) as date,
+          COUNT(CASE WHEN event_type = 'chat' THEN 1 END) as chats,
+          COUNT(CASE WHEN event_type = 'donation' THEN 1 END) as donations,
+          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donationAmount,
+          COUNT(DISTINCT actor_nickname) as activeUsers
         FROM events
-        WHERE timestamp >= datetime('now', '-${days} days')
-        GROUP BY DATE(timestamp)
+        WHERE event_timestamp >= datetime('now', '-${days} days')
+        GROUP BY DATE(event_timestamp)
         ORDER BY date DESC`
       );
 
@@ -464,15 +464,15 @@ const createStatsService = (overlayDb, streamingDb) => {
       const rows = await streamingDbAll(
         `SELECT
           id,
-          type,
-          sender as user,
+          event_type as type,
+          actor_nickname as user,
           amount,
           message,
           platform,
-          timestamp
+          event_timestamp as timestamp
         FROM events
-        WHERE type IN ('donation', 'subscribe', 'follow', 'subscription')
-        ORDER BY timestamp DESC
+        WHERE event_type IN ('donation', 'subscribe', 'follow', 'subscription')
+        ORDER BY event_timestamp DESC
         LIMIT ?`,
         [limit]
       );
@@ -502,14 +502,14 @@ const createStatsService = (overlayDb, streamingDb) => {
 
       const summary = await streamingDbGet(
         `SELECT
-          COUNT(CASE WHEN type = 'chat' THEN 1 END) as chatCount,
-          COUNT(CASE WHEN type = 'donation' THEN 1 END) as donationCount,
-          COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as donationAmount,
-          COUNT(DISTINCT sender) as uniqueUsers,
-          MIN(timestamp) as firstEvent,
-          MAX(timestamp) as lastEvent
+          COUNT(CASE WHEN event_type = 'chat' THEN 1 END) as chatCount,
+          COUNT(CASE WHEN event_type = 'donation' THEN 1 END) as donationCount,
+          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donationAmount,
+          COUNT(DISTINCT actor_nickname) as uniqueUsers,
+          MIN(event_timestamp) as firstEvent,
+          MAX(event_timestamp) as lastEvent
         FROM events
-        WHERE DATE(timestamp) = ?`,
+        WHERE DATE(event_timestamp) = ?`,
         [dateStr]
       );
 
@@ -554,12 +554,12 @@ const createStatsService = (overlayDb, streamingDb) => {
     async getHourlyActivityByPlatform(hours = 24) {
       const rows = await streamingDbAll(
         `SELECT
-          strftime('%H:00', timestamp) as time,
+          strftime('%H:00', event_timestamp) as time,
           platform,
           COUNT(*) as count
         FROM events
-        WHERE timestamp >= datetime('now', '-${hours} hours')
-        GROUP BY strftime('%H', timestamp), platform
+        WHERE event_timestamp >= datetime('now', '-${hours} hours')
+        GROUP BY strftime('%H', event_timestamp), platform
         ORDER BY time`
       );
 
@@ -599,20 +599,20 @@ const createStatsService = (overlayDb, streamingDb) => {
         streamingDbAll(`
           SELECT platform,
             COUNT(*) as total_events,
-            SUM(CASE WHEN type = 'donation' THEN 1 ELSE 0 END) as donations,
-            SUM(CASE WHEN type = 'chat' THEN 1 ELSE 0 END) as chats,
-            SUM(CASE WHEN type = 'subscription' THEN 1 ELSE 0 END) as subscriptions,
-            SUM(CASE WHEN type = 'follow' THEN 1 ELSE 0 END) as follows,
-            COALESCE(SUM(CASE WHEN type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount
+            SUM(CASE WHEN event_type = 'donation' THEN 1 ELSE 0 END) as donations,
+            SUM(CASE WHEN event_type = 'chat' THEN 1 ELSE 0 END) as chats,
+            SUM(CASE WHEN event_type = 'subscription' THEN 1 ELSE 0 END) as subscriptions,
+            SUM(CASE WHEN event_type = 'follow' THEN 1 ELSE 0 END) as follows,
+            COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount
           FROM events
           GROUP BY platform
         `),
         streamingDbAll(`
           SELECT platform,
-            strftime('%Y-%m-%d', timestamp) as date,
+            strftime('%Y-%m-%d', event_timestamp) as date,
             COUNT(*) as events
           FROM events
-          WHERE timestamp > datetime('now', '-7 days')
+          WHERE event_timestamp > datetime('now', '-7 days')
           GROUP BY platform, date
           ORDER BY date
         `),
@@ -692,9 +692,11 @@ const createStatsService = (overlayDb, streamingDb) => {
 
     /**
      * Get dashboard summary (combined stats for Dashboard.jsx)
+     * @param {string|null} channelId - Optional channel ID to filter by
+     * @param {string|null} platform - Optional platform filter
      * @returns {Promise<Object>}
      */
-    async getDashboardSummary() {
+    async getDashboardSummary(channelId = null, platform = null) {
       const today = new Date().toISOString().split('T')[0];
 
       const [todayStats, peakViewers, subscribeCount, platformStats] = await Promise.all([
@@ -704,32 +706,32 @@ const createStatsService = (overlayDb, streamingDb) => {
             COALESCE(SUM(amount), 0) as todayDonation,
             COUNT(*) as donationCount
           FROM events
-          WHERE type = 'donation' AND DATE(timestamp) = ?`,
+          WHERE event_type = 'donation' AND DATE(event_timestamp) = ?`,
           [today]
         ),
         // Peak viewers from viewer_stats
         streamingDbGet(
           `SELECT MAX(viewer_count) as peakViewers
-          FROM viewer_stats
-          WHERE DATE(timestamp) = ?`,
+           FROM viewer_stats
+           WHERE DATE(timestamp) = ?`,
           [today]
         ),
         // Today's subscribe count
         streamingDbGet(
           `SELECT COUNT(*) as newSubs
           FROM events
-          WHERE type = 'subscribe' AND DATE(timestamp) = ?`,
+          WHERE event_type = 'subscribe' AND DATE(event_timestamp) = ?`,
           [today]
         ),
-        // Platform activity for top categories
+        // Platform activity (최근 7일)
         streamingDbAll(
           `SELECT
             platform,
             COUNT(*) as activity,
-            COUNT(CASE WHEN type = 'chat' THEN 1 END) as chats,
-            COUNT(CASE WHEN type = 'donation' THEN 1 END) as donations
+            COUNT(CASE WHEN event_type = 'chat' THEN 1 END) as chats,
+            COUNT(CASE WHEN event_type = 'donation' THEN 1 END) as donations
           FROM events
-          WHERE timestamp >= datetime('now', '-7 days')
+          WHERE event_timestamp >= datetime('now', '-7 days')
           GROUP BY platform
           ORDER BY activity DESC`
         ),
@@ -774,15 +776,46 @@ const createStatsService = (overlayDb, streamingDb) => {
         });
       }
 
-      // Top categories from platform stats
-      const topCategories = (platformStats || []).map((p, i) => ({
-        rank: i + 1,
-        name: p.platform === 'soop' ? 'SOOP' : p.platform === 'chzzk' ? '치지직' : p.platform,
-        platform: p.platform,
-        activity: p.activity || 0,
-        chats: p.chats || 0,
-        donations: p.donations || 0,
-      }));
+      // Top game categories from unified_games (실제 게임 카테고리)
+      let topCategories = [];
+      try {
+        const categoryRows = await streamingDbAll(`
+          SELECT
+            ug.id,
+            ug.name,
+            ug.name_kr,
+            ug.image_url,
+            ug.genre_kr,
+            COALESCE(SUM(pc.viewer_count), 0) as total_viewers,
+            COALESCE(SUM(pc.streamer_count), 0) as total_streamers,
+            GROUP_CONCAT(DISTINCT pc.platform) as platforms,
+            MAX(CASE WHEN pc.platform = 'soop' THEN pc.thumbnail_url END) as soop_thumbnail,
+            MAX(pc.thumbnail_url) as fallback_thumbnail
+          FROM unified_games ug
+          LEFT JOIN category_game_mappings cgm ON ug.id = cgm.unified_game_id
+          LEFT JOIN platform_categories pc ON cgm.platform = pc.platform
+            AND cgm.platform_category_id = pc.platform_category_id
+            AND pc.is_active = 1
+          GROUP BY ug.id
+          HAVING total_viewers > 0
+          ORDER BY total_viewers DESC
+          LIMIT 5
+        `);
+        if (categoryRows && categoryRows.length > 0) {
+          topCategories = categoryRows.map((row, i) => ({
+            rank: i + 1,
+            id: row.id,
+            name: row.name_kr || row.name,
+            imageUrl: row.soop_thumbnail || row.image_url || null,
+            genre: row.genre_kr,
+            totalViewers: row.total_viewers,
+            totalStreamers: row.total_streamers,
+            platforms: row.platforms ? row.platforms.split(',') : [],
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch game categories:', err);
+      }
 
       return {
         todayDonation: todayStats?.todayDonation || 0,

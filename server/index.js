@@ -42,6 +42,54 @@ const { logger, db: dbLogger, socket: socketLogger } = require("./services/logge
 
 // ===== Configuration =====
 const PORT = process.env.PORT || 3001;
+const crypto = require("crypto");
+
+// ===== Demo User Initialization =====
+const DEMO_USER = {
+  email: 'devil0108@soop.co.kr',
+  displayName: '감스트',
+  role: 'admin',
+  channelId: 'devil0108',
+  platform: 'soop',
+};
+
+/**
+ * Initialize demo user for development mode
+ * Creates the user in DB if not exists, or returns existing user
+ */
+const initializeDemoUser = async (db) => {
+  return new Promise((resolve) => {
+    db.get("SELECT * FROM users WHERE email = ?", [DEMO_USER.email], (err, user) => {
+      if (err) {
+        logger.error("Failed to check demo user", { error: err.message });
+        return resolve(null);
+      }
+
+      if (user) {
+        // User exists, export the hash for auth middleware
+        module.exports.demoUserOverlayHash = user.overlay_hash;
+        logger.info("Demo user loaded", { email: DEMO_USER.email, overlayHash: user.overlay_hash });
+        return resolve(user);
+      }
+
+      // Create new demo user with generated hash
+      const overlayHash = crypto.randomBytes(8).toString("hex");
+      db.run(
+        `INSERT INTO users (email, display_name, role, overlay_hash) VALUES (?, ?, ?, ?)`,
+        [DEMO_USER.email, DEMO_USER.displayName, DEMO_USER.role, overlayHash],
+        function (err) {
+          if (err) {
+            logger.error("Failed to create demo user", { error: err.message });
+            return resolve(null);
+          }
+          module.exports.demoUserOverlayHash = overlayHash;
+          logger.info("Demo user created", { id: this.lastID, email: DEMO_USER.email, overlayHash });
+          resolve({ id: this.lastID, ...DEMO_USER, overlay_hash: overlayHash });
+        }
+      );
+    });
+  });
+};
 
 // ===== Platform Adapters =====
 const activeAdapters = new Map();
@@ -71,11 +119,33 @@ const main = async () => {
     db = await initializeDatabase();
     dbLogger.info("Unified database ready");
 
-    // Create HTTP server (app will be attached after initialization)
-    const express = require("express");
-    const placeholderApp = express();
-    const server = http.createServer(placeholderApp);
+    // Initialize demo user for development mode
+    await initializeDemoUser(db);
 
+    // Initialize Category Service with unified db (io will be set later)
+    const categoryService = new CategoryService(db, null);
+
+    // Initialize Event Service for storing chat/donation events (io will be set later)
+    const { createEventService } = require("./services/eventService");
+
+    // Create Express app with unified db (passed as both overlayDb and streamingDb for backward compatibility)
+    // Note: io is not available yet, but app.js will receive it via req.app.get('io')
+    const app = createApp({
+      overlayDb: db,
+      streamingDb: db,
+      io: null, // Will be set after server creation
+      activeAdapters,
+      ChzzkAdapter,
+      SoopAdapter,
+      normalizer,
+      riotApi,
+      categoryService,
+    });
+
+    // Create HTTP server with Express app
+    const server = http.createServer(app);
+
+    // Initialize Socket.io on the server
     const io = new Server(server, {
       cors: {
         origin: "*",
@@ -83,15 +153,21 @@ const main = async () => {
       },
     });
 
-    // Initialize Category Service with unified db
-    const categoryService = new CategoryService(db, io);
+    // Store io on app for route access
+    app.set("io", io);
+
+    // Update services with io reference
+    categoryService.io = io;
+    const eventService = createEventService(db, io);
+
+    // Setup Socket.io handlers
+    setupSocketHandlers(io);
+    socketLogger.info("Socket.io handlers initialized");
+
+    // Initialize Category Service
     await categoryService.initialize().catch((err) => {
       logger.error("Category service initialization error", { error: err.message, stack: err.stack });
     });
-
-    // Initialize Event Service for storing chat/donation events
-    const { createEventService } = require("./services/eventService");
-    const eventService = createEventService(db, io);
 
     // Initialize Broadcast Crawler Service with unified db and auto-connection options
     const broadcastCrawler = new BroadcastCrawler(db, io, {
@@ -105,26 +181,6 @@ const main = async () => {
     broadcastCrawler.startScheduledCrawl();
     logger.info("Broadcast crawler started (5 min interval, auto-connect top 50)");
 
-    // Create Express app with unified db (passed as both overlayDb and streamingDb for backward compatibility)
-    const app = createApp({
-      overlayDb: db,
-      streamingDb: db,
-      io,
-      activeAdapters,
-      ChzzkAdapter,
-      SoopAdapter,
-      normalizer,
-      riotApi,
-      categoryService,
-    });
-
-    // Replace placeholder app with configured app
-    server.removeAllListeners("request");
-    server.on("request", app);
-
-    // Setup Socket.io handlers
-    setupSocketHandlers(io);
-
     // Store server reference for graceful shutdown
     module.exports.server = server;
     module.exports.db = db;
@@ -132,9 +188,10 @@ const main = async () => {
     module.exports.broadcastCrawler = broadcastCrawler;
 
     // Start server
-    server.listen(PORT, () => {
+    server.listen(PORT, '0.0.0.0', () => {
       logger.info("Server started", {
         port: PORT,
+        host: '0.0.0.0',
         environment: process.env.NODE_ENV || "development",
       });
     });

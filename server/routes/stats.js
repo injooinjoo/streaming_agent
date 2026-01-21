@@ -345,8 +345,12 @@ const createStatsRouter = (eventService, statsService, activeAdapters, authentic
    */
   router.get("/stats/dashboard", optionalAuth, async (req, res) => {
     try {
-      // If not authenticated, return empty dashboard prompting login
-      if (!req.user) {
+      // channelId를 쿼리 파라미터에서 가져옴 (로그인 사용자의 채널)
+      const channelId = req.query.channelId || null;
+      const platform = req.query.platform || null;
+
+      // If not authenticated and no channelId, return empty dashboard prompting login
+      if (!req.user && !channelId) {
         return res.json({
           todayDonation: 0,
           peakViewers: 0,
@@ -363,7 +367,8 @@ const createStatsRouter = (eventService, statsService, activeAdapters, authentic
         });
       }
 
-      const result = await statsService.getDashboardSummary();
+      // channelId가 있으면 해당 채널의 데이터만 조회
+      const result = await statsService.getDashboardSummary(channelId, platform);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });

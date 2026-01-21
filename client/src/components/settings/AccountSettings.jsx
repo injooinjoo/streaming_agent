@@ -316,6 +316,12 @@ const AccountSettings = () => {
                     </button>
                   )}
                 </div>
+                {platform.id === 'soop' && platform.connected && (
+                  <div className="platform-extra">
+                    <button className="btn-outline-sm btn-full">다른 SOOP 아이디 연결</button>
+                    <p className="platform-tip">비밀번호 방송 및 구독 플러스 전용 LIVE 방송 연결이 되지 않을 경우 연결 해제 후 다시 연결 해주세요.</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -345,10 +351,6 @@ const AccountSettings = () => {
                 <span className="bullet">•</span>
                 <p>테스트를 제외한 기능들은 <strong>생방송을 시작해야 연결</strong> 가능하며, 생방송 시작 직후 1분이 지나도 연결이 불가할 경우 채팅 재연결을 눌러주세요.</p>
               </div>
-            </div>
-            <div className="tips-footer">
-              <button className="btn-outline-sm">다른 SOOP 아이디 연결</button>
-              <p>비밀번호 방송 및 구독 플러스 전용 LIVE 방송 연결이 되지 않을 경우 채널 연결 해제 후 다시 연결 해주세요.</p>
             </div>
           </div>
         </div>

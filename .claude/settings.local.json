@@ -118,7 +118,12 @@
       "Bash(gh run view:*)",
       "Bash(gh workflow run:*)",
       "Bash(pm2 logs:*)",
-      "mcp__render__list_services"
+      "mcp__render__list_services",
+      "Bash(__NEW_LINE_9ac834a4469671de__ echo \"Data copied. Checking unified.db tables:\")",
+      "mcp__plugin_playwright_playwright__browser_navigate",
+      "mcp__plugin_playwright_playwright__browser_close",
+      "mcp__plugin_playwright_playwright__browser_click",
+      "mcp__plugin_playwright_playwright__browser_snapshot"
     ]
   }
 }

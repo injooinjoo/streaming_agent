@@ -105,12 +105,12 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
 
     const overlayHash = req.body.overlayHash;
 
-    // Save to SQLite
+    // Save to SQLite (using canonical schema)
     const legacyEvent = normalizer.toEventsFormat(event);
     if (db) {
       db.run(
-        `INSERT INTO events (id, type, platform, sender, message, amount, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [event.id, event.type, event.platform, event.sender.nickname, event.content.message, event.content.amount, event.metadata.timestamp]
+        `INSERT INTO events (id, event_type, platform, actor_nickname, target_channel_id, message, amount, event_timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [event.id, event.type, event.platform, event.sender.nickname, event.metadata.channelId || 'manual', event.content.message, event.content.amount, event.metadata.timestamp]
       );
     }
 
@@ -127,6 +127,9 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
   /**
    * GET /api/events
    * Get historical events from SQLite
+   * Query params:
+   *   - channelId: Filter events by target channel (e.g., 'devil0108')
+   *   - limit: Number of events to return (default: 50)
    */
   router.get("/events", async (req, res) => {
     try {
@@ -134,17 +137,38 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
         return res.json([]);
       }
 
-      db.all(
-        `SELECT id, type, platform, sender, message, amount, timestamp FROM events ORDER BY timestamp DESC LIMIT 50`,
-        [],
-        (err, rows) => {
-          if (err) {
-            console.error("[events] SQLite query error:", err.message);
-            return res.json([]);
-          }
-          res.json(rows || []);
+      const channelId = req.query.channelId || null;
+      const limit = parseInt(req.query.limit, 10) || 50;
+
+      // Build query with optional channelId filter
+      let query = `
+        SELECT
+          id,
+          event_type as type,
+          platform,
+          actor_nickname as sender,
+          message,
+          amount,
+          event_timestamp as timestamp
+        FROM events
+      `;
+      const params = [];
+
+      if (channelId) {
+        query += ` WHERE target_channel_id = ?`;
+        params.push(channelId);
+      }
+
+      query += ` ORDER BY event_timestamp DESC LIMIT ?`;
+      params.push(limit);
+
+      db.all(query, params, (err, rows) => {
+        if (err) {
+          console.error("[events] SQLite query error:", err.message);
+          return res.json([]);
         }
-      );
+        res.json(rows || []);
+      });
     } catch (err) {
       console.error("[events] Query error:", err.message);
       res.json([]);
@@ -189,16 +213,17 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
           categoryName: broadcastInfo.categoryName || event.metadata?.categoryName,
         });
 
-        // Save to SQLite
+        // Save to SQLite (using canonical schema)
         if (db && event.type) {
           db.run(
-            `INSERT INTO events (id, type, platform, sender, sender_id, message, amount, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO events (id, event_type, platform, actor_nickname, actor_person_id, target_channel_id, message, amount, event_timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               event.id || require("uuid").v4(),
               event.type,
               "chzzk",
               event.sender?.nickname || "unknown",
-              event.sender?.id || null,
+              null, // actor_person_id - resolved via PersonService
+              channelId,
               event.content?.message || "",
               event.content?.amount || 0,
               event.metadata?.timestamp || new Date().toISOString(),
@@ -366,16 +391,17 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
           categoryName: broadcastInfo.categoryName || event.metadata?.categoryName,
         });
 
-        // Save to SQLite
+        // Save to SQLite (using canonical schema)
         if (db && event.type) {
           db.run(
-            `INSERT INTO events (id, type, platform, sender, sender_id, message, amount, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            `INSERT INTO events (id, event_type, platform, actor_nickname, actor_person_id, target_channel_id, message, amount, event_timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               event.id || require("uuid").v4(),
               event.type,
               "soop",
               event.sender?.nickname || "unknown",
-              event.sender?.id || null,
+              null, // actor_person_id - resolved via PersonService
+              bjId,
               event.content?.message || "",
               event.content?.amount || 0,
               event.metadata?.timestamp || new Date().toISOString(),

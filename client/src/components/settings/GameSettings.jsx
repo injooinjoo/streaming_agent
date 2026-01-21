@@ -145,11 +145,11 @@ const overlayTypes = [
 ];
 
 const GameSettings = () => {
-  const { token } = useAuth();
+  const { user } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [overlayHash, setOverlayHash] = useState(null);
+  const overlayHash = user?.userHash || null;
   const [copied, setCopied] = useState('');
   const [selectedOverlayType, setSelectedOverlayType] = useState('stats');
   const [selectedGame, setSelectedGame] = useState('lol');
@@ -160,17 +160,7 @@ const GameSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const urlsRes = await fetch(`${API_URL}/api/overlay/urls`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (urlsRes.ok) {
-        const urlsData = await urlsRes.json();
-        setOverlayHash(urlsData.hash);
-      }
-
-      const res = await fetch(`${API_URL}/api/user-settings/game`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const res = await fetch(`${API_URL}/api/settings/game`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
         setSettings(prev => ({ ...prev, ...JSON.parse(data.value) }));
@@ -185,11 +175,10 @@ const GameSettings = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch(`${API_URL}/api/user-settings`, {
+      await fetch(`${API_URL}/api/settings`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ key: 'game', value: settings })
       });
@@ -425,12 +414,8 @@ const GameSettings = () => {
   };
 
   useEffect(() => {
-    if (token) {
-      fetchSettings();
-    } else {
-      setLoading(false);
-    }
-  }, [token]);
+    fetchSettings();
+  }, []);
 
   useEffect(() => {
     const enabledGames = getEnabledGames();

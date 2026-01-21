@@ -396,16 +396,23 @@
   font-weight: 500;
 }
 
+.stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .stat-content .value {
-  font-size: 32px;
+  font-size: 36px;
   font-weight: 700;
-  margin-bottom: 4px;
-  display: block;
+  line-height: 1.1;
+  color: var(--text-main);
 }
 
 .stat-content .subtext {
   font-size: 13px;
   color: var(--text-muted);
+  margin-top: 4px;
 }
 
 .stat-card.clickable {
@@ -563,10 +570,10 @@
 .category-card {
   position: relative;
   flex-shrink: 0;
-  width: 140px;
+  width: 160px;
   background: var(--bg-card);
   border: 1px solid var(--border-medium);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   overflow: hidden;
   transition: all 0.2s ease;
   cursor: pointer;
@@ -580,22 +587,26 @@
 
 .category-rank {
   position: absolute;
-  top: 8px;
-  left: 8px;
-  background: rgba(0, 0, 0, 0.7);
+  top: 10px;
+  left: 10px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
   color: white;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
   z-index: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .category-image {
   width: 100%;
   aspect-ratio: 3 / 4;
   overflow: hidden;
-  background: var(--bg-sidebar);
+  background: linear-gradient(135deg, var(--bg-sidebar) 0%, var(--bg-card-hover) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .category-image img {
@@ -606,43 +617,47 @@
 }
 
 .category-card:hover .category-image img {
-  transform: scale(1.05);
+  transform: scale(1.08);
 }
 
 .category-info {
-  padding: 12px;
+  padding: 14px;
 }
 
 .category-name {
   display: block;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text-main);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  line-height: 1.3;
 }
 
 .category-stats {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 .category-stat {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  padding: 2px 0;
 }
 
 .category-stat .stat-label {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--text-muted);
+  font-weight: 500;
 }
 
 .category-stat .stat-value {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-main);
 }
@@ -664,6 +679,34 @@
 .category-growth.negative {
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
+}
+
+.category-genre {
+  display: block;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.category-placeholder-icon {
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.platform-logos {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.platform-logo {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  border-radius: 3px;
 }
 
 /* Categories Wrapper - 세로 배치 */
