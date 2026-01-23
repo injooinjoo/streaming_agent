@@ -1,11 +1,21 @@
 /**
  * Backup Configuration
- * SQLite → GCS 백업 설정
+ * SQLite/PostgreSQL → GCS 백업 설정
+ *
+ * Supports both:
+ * - SQLite: VACUUM INTO → gzip → GCS
+ * - PostgreSQL: pg_dump → gzip → GCS (or Supabase auto-backup)
  */
 
 const path = require("path");
 
+// Detect database type from environment
+const DATABASE_TYPE = process.env.DATABASE_TYPE || "sqlite";
+
 const backupConfig = {
+  // Database type ('sqlite' or 'postgres')
+  databaseType: DATABASE_TYPE,
+
   // GCS 설정
   gcs: {
     bucketName: process.env.GCS_BACKUP_BUCKET || "streaming-agent-backups",
@@ -13,7 +23,16 @@ const backupConfig = {
     keyFilename: process.env.GCS_KEY_FILE,
   },
 
-  // 백업할 데이터베이스 목록
+  // PostgreSQL 설정 (Supabase)
+  postgres: {
+    connectionString: process.env.DATABASE_URL,
+    // Supabase 자동 백업 사용 여부 (Pro 플랜)
+    useSupabaseBackup: process.env.SUPABASE_AUTO_BACKUP === "true",
+    // pg_dump 경로 (Cloud Run에서는 불필요할 수 있음)
+    pgDumpPath: process.env.PG_DUMP_PATH || "pg_dump",
+  },
+
+  // 백업할 데이터베이스 목록 (SQLite용)
   databases: [
     {
       name: "unified",

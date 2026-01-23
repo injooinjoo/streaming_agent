@@ -2,10 +2,13 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Copy, RefreshCw, Save, Medal, Users, Clock, Image as ImageIcon, Hash,
   Palette, Settings, Shield, Type, HelpCircle, ExternalLink, Info,
-  Monitor, Plus, Trash2, RotateCcw, ChevronDown, Check, BarChart, Circle, Heart, Star
+  Monitor, Plus, Trash2, RotateCcw, ChevronDown, Check, BarChart, Circle, Heart, Star,
+  Play
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import { OverlayPreviewWrapper } from './shared';
+import GoalOverlay from '../GoalOverlay';
 import './ChatSettings.css';
 
 const defaultSettings = {
@@ -73,6 +76,8 @@ const GoalSettings = () => {
   const [activeNav, setActiveNav] = useState('theme');
   const overlayHash = user?.userHash || null;
   const [copied, setCopied] = useState(false);
+  const [testValue, setTestValue] = useState(500);
+  const [isAnimating, setIsAnimating] = useState(false);
 
   const sectionRefs = {
     theme: useRef(null),
@@ -635,7 +640,58 @@ const GoalSettings = () => {
         </div>
 
         <aside className="chat-settings-preview-aside">
-          <div className="save-controls-wrapper" style={{ position: 'sticky', top: '24px' }}>
+          <OverlayPreviewWrapper title="목표치 미리보기" height={200}>
+            <GoalOverlay
+              previewMode={true}
+              previewSettings={settings}
+              previewValue={testValue}
+            />
+          </OverlayPreviewWrapper>
+
+          <div className="test-controls glass-premium">
+            <div className="section-title-with-badge">
+              <h4>테스트</h4>
+            </div>
+
+            <div className="settings-row-pair vertical" style={{ marginTop: '12px' }}>
+              <div className="row-label">진행률 테스트</div>
+              <div className="flex-row-gap">
+                <input
+                  type="range"
+                  min="0"
+                  max={settings.targetValue}
+                  value={testValue}
+                  onChange={(e) => setTestValue(parseInt(e.target.value))}
+                  style={{ flex: 1 }}
+                />
+                <span className="unit-value">{testValue.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <button
+              className="btn-test-primary"
+              onClick={() => {
+                setIsAnimating(true);
+                const targetVal = settings.targetValue;
+                let current = 0;
+                const interval = setInterval(() => {
+                  current += Math.ceil(targetVal / 20);
+                  if (current >= targetVal) {
+                    current = targetVal;
+                    clearInterval(interval);
+                    setTimeout(() => setIsAnimating(false), 500);
+                  }
+                  setTestValue(current);
+                }, 50);
+              }}
+              disabled={isAnimating}
+              style={{ marginTop: '16px' }}
+            >
+              <Play size={16} /> {isAnimating ? '애니메이션 중...' : '애니메이션 테스트'}
+            </button>
+          </div>
+
+          <div className="save-controls-wrapper">
             <button className="btn-save-full" onClick={saveSettings} disabled={saving}>
               {saving ? <RefreshCw className="spin" size={18}/> : <Save size={18}/>}
               설정 저장하기
@@ -643,14 +699,6 @@ const GoalSettings = () => {
             <button className="btn-reset-light" onClick={resetSettings}>
               <RotateCcw size={14} /> 설정 초기화
             </button>
-            
-            <div className="info-box-premium" style={{ marginTop: '20px' }}>
-              <div className="info-header">
-                <HelpCircle size={14} />
-                <span>도움말</span>
-              </div>
-              <p>폰트 크기는 눈으로 보는 크기보다 좀 더 크게 설정해야 시청자들이 보기 좋습니다.</p>
-            </div>
           </div>
         </aside>
       </div>

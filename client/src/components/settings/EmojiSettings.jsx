@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Copy, RefreshCw, Save, ExternalLink, Plus, Trash2,
   Smile, Check, Play, Zap, CloudRain, Wind
@@ -6,6 +6,8 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
 import socket from '../../config/socket';
+import { OverlayPreviewWrapper } from './shared';
+import EmojiOverlay from '../EmojiOverlay';
 import './EmojiSettings.css';
 
 const defaultEmojis = ['❤️', '🔥', '👏', '😂', '🎉', '💪', '👍', '🙌'];
@@ -33,6 +35,79 @@ const EmojiSettings = () => {
   const [copied, setCopied] = useState(false);
   const [overlayHash, setOverlayHash] = useState(null);
   const [newEmoji, setNewEmoji] = useState('');
+
+  // Preview state
+  const [previewEmojis, setPreviewEmojis] = useState([]);
+
+  // Add emoji to preview with auto-removal
+  const addPreviewEmoji = useCallback((emojiData) => {
+    setPreviewEmojis(prev => [...prev, emojiData]);
+    setTimeout(() => {
+      setPreviewEmojis(prev => prev.filter(e => e.id !== emojiData.id));
+    }, settings.displayDuration);
+  }, [settings.displayDuration]);
+
+  // Test preview emoji
+  const testPreviewEmoji = () => {
+    if (settings.emojiSet.length > 0) {
+      const randomEmoji = settings.emojiSet[Math.floor(Math.random() * settings.emojiSet.length)];
+      addPreviewEmoji({
+        id: Date.now() + Math.random(),
+        emoji: randomEmoji,
+        x: Math.random() * 80 + 10
+      });
+    }
+  };
+
+  // Test preview burst
+  const testPreviewBurst = () => {
+    if (settings.emojiSet.length > 0) {
+      Array(5).fill(null).forEach((_, index) => {
+        setTimeout(() => {
+          const randomEmoji = settings.emojiSet[Math.floor(Math.random() * settings.emojiSet.length)];
+          addPreviewEmoji({
+            id: Date.now() + Math.random(),
+            emoji: randomEmoji,
+            x: Math.random() * 80 + 10
+          });
+        }, index * 100);
+      });
+    }
+  };
+
+  // Auto-animate emojis on mount for live preview
+  useEffect(() => {
+    if (settings.emojiSet.length === 0) return;
+
+    // Initial demo: show a few emojis when page loads
+    const startDemo = () => {
+      settings.emojiSet.slice(0, 3).forEach((emoji, index) => {
+        setTimeout(() => {
+          addPreviewEmoji({
+            id: Date.now() + Math.random(),
+            emoji: emoji,
+            x: 20 + (index * 30)
+          });
+        }, index * 400);
+      });
+    };
+
+    startDemo();
+
+    // Auto-add emoji every 2.5 seconds for natural preview
+    const interval = setInterval(() => {
+      if (settings.emojiSet.length > 0) {
+        const randomEmoji = settings.emojiSet[Math.floor(Math.random() * settings.emojiSet.length)];
+        addPreviewEmoji({
+          id: Date.now() + Math.random(),
+          emoji: randomEmoji,
+          x: Math.random() * 80 + 10
+        });
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [settings.emojiSet, addPreviewEmoji]);
 
   const overlayUrl = overlayHash
     ? `${window.location.origin}/overlay/${overlayHash}/emoji`
@@ -189,6 +264,16 @@ const EmojiSettings = () => {
         </div>
       </div>
 
+      {/* 실시간 미리보기 */}
+      <OverlayPreviewWrapper title="이모지 미리보기" height={200}>
+        <EmojiOverlay
+          previewMode={true}
+          previewSettings={settings}
+          previewEmojis={previewEmojis}
+          onAddEmoji={addPreviewEmoji}
+        />
+      </OverlayPreviewWrapper>
+
       {/* 기본 설정 */}
       <div className="settings-card">
         <div className="card-header">
@@ -301,15 +386,32 @@ const EmojiSettings = () => {
       {/* 테스트 */}
       <div className="settings-card">
         <div className="card-header">
-          <h3>테스트</h3>
+          <h3>미리보기 테스트</h3>
+          <p>위 미리보기 창에서 이모지 효과를 확인하세요.</p>
         </div>
 
         <div className="test-buttons">
-          <button className="btn-test" onClick={testEmoji}>
+          <button className="btn-test" onClick={testPreviewEmoji}>
             <Smile size={18} /> 이모지 1개 테스트
           </button>
-          <button className="btn-test burst" onClick={testEmojiBurst}>
+          <button className="btn-test burst" onClick={testPreviewBurst}>
             <Zap size={18} /> 이모지 폭발 테스트
+          </button>
+        </div>
+
+        <div className="divider-line" style={{ margin: '16px 0' }} />
+
+        <div className="card-header">
+          <h3>실제 오버레이 테스트</h3>
+          <p>실제 오버레이 URL에서 이모지를 테스트합니다.</p>
+        </div>
+
+        <div className="test-buttons">
+          <button className="btn-test" onClick={testEmoji} disabled={!overlayHash}>
+            <Smile size={18} /> 오버레이에 전송
+          </button>
+          <button className="btn-test burst" onClick={testEmojiBurst} disabled={!overlayHash}>
+            <Zap size={18} /> 오버레이에 폭발 전송
           </button>
         </div>
       </div>

@@ -97,12 +97,12 @@ class SoopAdapter extends BaseAdapter {
       this.chatPort = parseInt(broadcastInfo.CHPT, 10) || 8584;  // 포트
       this.ftk = broadcastInfo.FTK || "";
 
-      console.log(`[soop] Broadcast No: ${this.broadNo}, ChatNo: ${this.chatNo}, Chat: ${this.chatDomain}:${this.chatPort + 1}`);
+      // 연결 정보 로그 제거 (너무 많음)
 
       // 2. WebSocket 연결
       await this.connectWebSocket();
     } catch (error) {
-      console.error(`[soop] Connection error:`, error.message);
+      // "not live" errors are expected - don't log as error
       this.emitError(error);
       throw error;
     }
@@ -128,7 +128,7 @@ class SoopAdapter extends BaseAdapter {
       const data = await response.json();
 
       if (data.CHANNEL?.RESULT !== 1) {
-        console.error(`[soop] Broadcast info error:`, data.CHANNEL?.RESULT);
+        // RESULT -6 = not live, -3 = BJ not found - expected conditions, not errors
         return null;
       }
 
@@ -172,14 +172,12 @@ class SoopAdapter extends BaseAdapter {
       // SOOP 채팅 WebSocket 서버 (포트 +1)
       const wsUrl = `wss://${this.chatDomain}:${this.chatPort + 1}/Websocket/${this.bjId}`;
 
-      console.log(`[soop] Connecting to ${wsUrl}`);
 
       this.ws = new WebSocket(wsUrl, ["chat"], {
         headers: this.defaultHeaders,
       });
 
       this.ws.on("open", () => {
-        console.log(`[soop] WebSocket connected`);
         this.sendConnect();
         this.startPingInterval();
       });
@@ -199,7 +197,6 @@ class SoopAdapter extends BaseAdapter {
       });
 
       this.ws.on("close", (code, reason) => {
-        console.log(`[soop] WebSocket closed: ${code} ${reason}`);
         this.stopPingInterval();
         this.onDisconnected();
 
@@ -243,7 +240,6 @@ class SoopAdapter extends BaseAdapter {
     const CONNECT_PACKET = `${PREFIX}000100000600${SEPARATOR}${SEPARATOR}${SEPARATOR}16${SEPARATOR}`;
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      console.log(`[soop] Sending CONNECT packet`);
       this.ws.send(CONNECT_PACKET);
 
       // 연결 후 채팅방 JOIN 패킷 전송
@@ -264,7 +260,6 @@ class SoopAdapter extends BaseAdapter {
     const JOIN_PACKET = `${PREFIX}0002${byteSize}00${SEPARATOR}${chatNo}${SEPARATOR}${SEPARATOR}${SEPARATOR}${SEPARATOR}${SEPARATOR}`;
 
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      console.log(`[soop] Sending JOIN packet for chat room ${chatNo}`);
       this.ws.send(JOIN_PACKET);
     }
   }
@@ -320,21 +315,18 @@ class SoopAdapter extends BaseAdapter {
 
     // 별풍선 후원 처리 (액션 코드 0018)
     if (actionCode === CHAT_ACTIONS.TEXT_DONATION && parts.length >= 4) {
-      console.log(`[soop:debug] TEXT_DONATION raw parts (${parts.length}):`, JSON.stringify(parts.slice(0, 10)));
       this.processTextDonation(parts);
       return;
     }
 
     // 애드벌룬 후원 처리 (액션 코드 0087)
     if (actionCode === CHAT_ACTIONS.AD_BALLOON && parts.length >= 4) {
-      console.log(`[soop:debug] AD_BALLOON raw parts (${parts.length}):`, JSON.stringify(parts.slice(0, 10)));
       this.processAdBalloonDonation(parts);
       return;
     }
 
     // 영상풍선 후원 처리 (액션 코드 0105)
     if (actionCode === CHAT_ACTIONS.VIDEO_DONATION && parts.length >= 4) {
-      console.log(`[soop:debug] VIDEO_DONATION raw parts (${parts.length}):`, JSON.stringify(parts.slice(0, 10)));
       this.processVideoDonation(parts);
       return;
     }
@@ -347,28 +339,22 @@ class SoopAdapter extends BaseAdapter {
 
     // 시스템 알림 처리 (액션 코드 0104)
     if (actionCode === CHAT_ACTIONS.NOTIFICATION && parts.length >= 2) {
-      const notificationMsg = parts[1] || "";
-      if (notificationMsg) {
-        console.log(`[soop] Notification: ${notificationMsg}`);
-      }
       return;
     }
 
     // 사용자 입장/퇴장 처리 (액션 코드 0004)
     if (actionCode === CHAT_ACTIONS.EXIT) {
-      // 입장/퇴장 이벤트는 무시
+      this.processUserExit(parts);
       return;
     }
 
     // 연결 성공 응답 (액션 코드 0001)
     if (actionCode === CHAT_ACTIONS.CONNECT) {
-      console.log(`[soop] Received CONNECT response`);
       return;
     }
 
     // 채팅방 입장 응답 (액션 코드 0002)
     if (actionCode === CHAT_ACTIONS.ENTER_CHAT_ROOM) {
-      console.log(`[soop] Received JOIN response - connected to chat room`);
       if (!this.isConnected) {
         this.onConnected();
       }
@@ -393,8 +379,9 @@ class SoopAdapter extends BaseAdapter {
       return;
     }
 
-    // 입장 정보 (액션 코드 0012)
+    // 입장 정보 (액션 코드 0012) - 시청자 목록 데이터
     if (actionCode === CHAT_ACTIONS.ENTER_INFO) {
+      this.processUserEnter(parts);
       return;
     }
 
@@ -403,14 +390,6 @@ class SoopAdapter extends BaseAdapter {
       return;
     }
 
-    // 알 수 없는 액션 코드 디버깅 (후원 메시지 형식 확인용)
-    if (actionCode && actionCode !== "") {
-      // 중요 액션 코드만 로깅 (0018, 0087, 0093, 0105 등 후원 관련)
-      const importantCodes = ["0018", "0087", "0093", "0105"];
-      if (importantCodes.includes(actionCode)) {
-        console.log(`[soop] DEBUG ${actionCode}: parts=`, parts.slice(0, 10).map(p => p.substring(0, 50)));
-      }
-    }
   }
 
   /**
@@ -442,7 +421,6 @@ class SoopAdapter extends BaseAdapter {
       };
 
       this.emitEvent(event);
-      console.log(`[soop] Chat: ${nickname}: ${message}`);
     } catch (error) {
       console.error(`[soop] Chat processing error:`, error.message);
     }
@@ -596,9 +574,6 @@ class SoopAdapter extends BaseAdapter {
    */
   processSubscribe(parts) {
     try {
-      // Debug: Log raw parts to understand the format
-      console.log(`[soop:debug] SUBSCRIBE raw parts (${parts.length}):`, JSON.stringify(parts.slice(0, 10)));
-
       // SOOP 구독 메시지 형식 추정:
       // parts[1] = 메시지 또는 userId
       // parts[2] = userId 또는 다른 값
@@ -693,9 +668,82 @@ class SoopAdapter extends BaseAdapter {
       };
 
       this.emitEvent(event);
-      console.log(`[soop] 👥 시청자 수: ${viewerCount.toLocaleString()}명`);
     } catch (error) {
       console.error(`[soop] Viewer update processing error:`, error.message);
+    }
+  }
+
+  /**
+   * 사용자 입장 처리 (ENTER_INFO - 0012)
+   */
+  processUserEnter(parts) {
+    try {
+      // SOOP ENTER_INFO 패킷 구조 분석 필요
+      // parts 구조: header|userId|?|?|?|?|nickname|...
+      const userId = parts[2] || parts[1] || "";
+      const nickname = parts[6] || parts[3] || "";
+
+      if (!userId) {
+        return;
+      }
+
+      const event = {
+        id: uuidv4(),
+        type: "user-enter",
+        platform: "soop",
+        sender: {
+          id: userId,
+          nickname: nickname || userId,
+          profileImage: userId ? `https://profile.img.sooplive.co.kr/LOGO/${userId.substring(0, 2)}/${userId}/${userId}.jpg` : null,
+        },
+        metadata: {
+          timestamp: new Date().toISOString(),
+          channelId: this.bjId,
+          broadNo: this.broadNo,
+          chatNo: this.chatNo,
+          rawData: parts.slice(0, 10), // 디버깅용 앞 10개만
+        },
+      };
+
+      this.emitEvent(event);
+    } catch (error) {
+      console.error(`[soop] User enter processing error:`, error.message);
+    }
+  }
+
+  /**
+   * 사용자 퇴장 처리 (EXIT - 0004)
+   */
+  processUserExit(parts) {
+    try {
+      // EXIT 패킷 구조 분석 필요
+      const userId = parts[2] || parts[1] || "";
+      const nickname = parts[6] || parts[3] || "";
+
+      if (!userId) {
+        return;
+      }
+
+      const event = {
+        id: uuidv4(),
+        type: "user-exit",
+        platform: "soop",
+        sender: {
+          id: userId,
+          nickname: nickname || userId,
+        },
+        metadata: {
+          timestamp: new Date().toISOString(),
+          channelId: this.bjId,
+          broadNo: this.broadNo,
+          chatNo: this.chatNo,
+          rawData: parts.slice(0, 10),
+        },
+      };
+
+      this.emitEvent(event);
+    } catch (error) {
+      console.error(`[soop] User exit processing error:`, error.message);
     }
   }
 
@@ -885,7 +933,6 @@ class SoopAdapter extends BaseAdapter {
     this.chatNo = null;
     this.chatDomain = null;
     this.chatPort = null;
-    console.log(`[soop] Disconnected`);
   }
 
   /**
@@ -976,7 +1023,6 @@ class SoopAdapter extends BaseAdapter {
       }
     }
 
-    console.log(`[soop] Fetched ${allCategories.length} categories in ${pageNo} pages`);
     return allCategories;
   }
 
@@ -1055,7 +1101,6 @@ class SoopAdapter extends BaseAdapter {
       await new Promise((resolve) => setTimeout(resolve, 300));
     }
 
-    console.log(`[soop] Fetched ${allBroadcasts.length} live broadcasts in ${pageNo} pages`);
     return allBroadcasts.slice(0, maxBroadcasts);
   }
 }

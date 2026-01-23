@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Layout, MessageSquare, Bell, FileText, BarChart3,
-  HelpCircle, Send, Plus, ExternalLink, Settings,
+  HelpCircle, ExternalLink, Settings,
   RefreshCw, Megaphone, Palette, Sparkles, Activity, TrendingUp, MousePointerClick,
   DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, ChevronDown, Disc,
   Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket, Trophy, Heart
@@ -37,24 +37,17 @@ import './Dashboard.css';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isSimulating, setIsSimulating] = useState(false);
   const [events, setEvents] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [feedTab, setFeedTab] = useState('recent');
   const [selectedGameId, setSelectedGameId] = useState(null);
-  const [simulation, setSimulation] = useState({
-    type: 'chat',
-    sender: '',
-    message: '',
-    amount: 1000,
-    platform: 'twitch'
-  });
   const [dashboardData, setDashboardData] = useState({
     todayDonation: 0,
     peakViewers: 0,
     newSubs: 0,
     insights: [],
+    myCategories: [],
     topCategories: []
   });
   const [dashboardLoading, setDashboardLoading] = useState(true);
@@ -71,6 +64,7 @@ const Dashboard = () => {
 
   // 게임 카탈로그 핸들러
   const handleGameSelect = (gameId) => {
+    console.log('[Dashboard] handleGameSelect - clicked gameId:', gameId);
     setSelectedGameId(gameId);
     setActiveTab('game-detail');
   };
@@ -153,6 +147,7 @@ const Dashboard = () => {
   };
 
   const fetchDashboardData = async () => {
+    console.log('[Dashboard] fetchDashboardData called, user:', { channelId: user?.channelId, platform: user?.platform });
     try {
       setDashboardLoading(true);
       // 로그인된 사용자의 channelId와 platform을 쿼리 파라미터로 전달
@@ -161,13 +156,16 @@ const Dashboard = () => {
       if (user?.platform) params.set('platform', user.platform);
       const queryString = params.toString();
       const url = `${API_URL}/api/stats/dashboard${queryString ? `?${queryString}` : ''}`;
+      console.log('[Dashboard] Fetching URL:', url);
       const res = await fetch(url);
+      console.log('[Dashboard] Response status:', res.status, res.ok);
       if (res.ok) {
         const data = await res.json();
+        console.log('[Dashboard] API Response:', { myCategories: data.myCategories, topCategories: data.topCategories?.length });
         setDashboardData(data);
       }
     } catch (e) {
-      console.error('Failed to fetch dashboard data', e);
+      console.error('[Dashboard] Failed to fetch dashboard data', e);
     } finally {
       setDashboardLoading(false);
     }
@@ -183,26 +181,6 @@ const Dashboard = () => {
       clearInterval(dashboardInterval);
     };
   }, [user?.channelId, user?.platform]);
-
-  const triggerSimulate = async () => {
-    if (!simulation.sender) {
-      alert("송신자 이름을 입력해주세요.");
-      return;
-    }
-    setIsSimulating(true);
-    try {
-      await fetch(`${API_URL}/api/simulate-event`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(simulation)
-      });
-      fetchEvents();
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setTimeout(() => setIsSimulating(false), 500);
-    }
-  };
 
   const renderContent = () => {
     if (activeTab === 'dashboard') {
@@ -231,7 +209,7 @@ const Dashboard = () => {
               </div>
               <div className="stat-content">
                 <span className="value sensitive-blur">₩{dashboardData.todayDonation.toLocaleString()}</span>
-                <span className="subtext">오늘 방송 누적</span>
+                <span className="subtext">이번 달 누적</span>
               </div>
               <div className="stat-link">
                 <span>수익 분석 보기</span>
@@ -245,7 +223,7 @@ const Dashboard = () => {
               </div>
               <div className="stat-content">
                 <span className="value sensitive-blur">{dashboardData.peakViewers.toLocaleString()}</span>
-                <span className="subtext">오늘 기준</span>
+                <span className="subtext">이번 달 기준</span>
               </div>
               <div className="stat-link">
                 <span>시청자 분석 보기</span>
@@ -259,7 +237,7 @@ const Dashboard = () => {
               </div>
               <div className="stat-content">
                 <span className="value sensitive-blur">{dashboardData.newSubs}</span>
-                <span className="subtext">모든 플랫폼 통합</span>
+                <span className="subtext">이번 달 기준</span>
               </div>
               <div className="stat-link">
                 <span>수익 분석 보기</span>
@@ -305,6 +283,86 @@ const Dashboard = () => {
             </div>
           </div>
 
+          {/* 내 방송 카테고리 섹션 */}
+          {dashboardData.myCategories && dashboardData.myCategories.length > 0 && (
+            <div className="categories-wrapper my-categories-wrapper">
+              <div className="categories-section">
+                <div className="section-header">
+                  <div className="section-title">
+                    <Activity size={18} className="text-primary" />
+                    <h2>내 방송 카테고리</h2>
+                  </div>
+                  <button className="section-link" onClick={() => setActiveTab('analytics-content')}>
+                    콘텐츠 분석 보기 <ChevronRight size={14} />
+                  </button>
+                </div>
+                <div className="categories-grid my-categories-grid">
+                  {dashboardData.myCategories.map((category, index) => {
+                    // 방송 시간 포맷팅
+                    const formatBroadcastTime = (minutes) => {
+                      if (!minutes || minutes === 0) return '0분';
+                      const hours = Math.floor(minutes / 60);
+                      const mins = minutes % 60;
+                      if (hours === 0) return `${mins}분`;
+                      if (mins === 0) return `${hours}시간`;
+                      return `${hours}시간 ${mins}분`;
+                    };
+
+                    // 마지막 방송 시간 포맷팅
+                    const formatLastBroadcast = (dateStr) => {
+                      if (!dateStr) return '-';
+                      const date = new Date(dateStr);
+                      const now = new Date();
+                      const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
+                      if (diffDays === 0) return '오늘';
+                      if (diffDays === 1) return '어제';
+                      if (diffDays < 7) return `${diffDays}일 전`;
+                      if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
+                      return `${Math.floor(diffDays / 30)}개월 전`;
+                    };
+
+                    return (
+                      <div key={category.categoryId || index} className="category-card my-category-card">
+                        <div className="category-rank my-rank">#{index + 1}</div>
+                        <div className="category-image">
+                          {category.imageUrl ? (
+                            <img src={category.imageUrl} alt={category.name} />
+                          ) : (
+                            <Gamepad2 size={40} className="category-placeholder-icon" />
+                          )}
+                        </div>
+                        <div className="category-info">
+                          <span className="category-name">{category.name}</span>
+                          {category.genre && (
+                            <span className="category-genre">{category.genre}</span>
+                          )}
+                          <div className="category-stats my-category-stats">
+                            <div className="category-stat">
+                              <span className="stat-label">방송 횟수</span>
+                              <span className="stat-value">{category.broadcastCount}회</span>
+                            </div>
+                            <div className="category-stat">
+                              <span className="stat-label">총 방송시간</span>
+                              <span className="stat-value">{formatBroadcastTime(category.totalMinutes)}</span>
+                            </div>
+                            <div className="category-stat">
+                              <span className="stat-label">최고 시청자</span>
+                              <span className="stat-value sensitive-blur">{category.peakViewers?.toLocaleString() || 0}</span>
+                            </div>
+                            <div className="category-stat">
+                              <span className="stat-label">마지막 방송</span>
+                              <span className="stat-value">{formatLastBroadcast(category.lastBroadcastAt)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="categories-wrapper">
             <div className="categories-section">
               <div className="section-header">
@@ -331,7 +389,11 @@ const Dashboard = () => {
                     const platformLogos = getPlatformLogos(category.platforms);
 
                     return (
-                      <div key={category.id || index} className="category-card">
+                      <div
+                        key={category.id || index}
+                        className="category-card glass-premium"
+                        onClick={() => setSelectedGameId(category.id)}
+                      >
                         <div className="category-rank">#{index + 1}</div>
                         <div className="category-image">
                           {category.imageUrl ? (
@@ -591,97 +653,6 @@ const Dashboard = () => {
               </div>
             </div>
           )}
-
-          <div className="simulator-card">
-            <div className="card-title">이벤트 시뮬레이터</div>
-            <p className="card-subtitle">라이브 이벤트를 가상으로 발생시켜 오버레이를 테스트해보세요.</p>
-            <div className="simulator-form">
-              <div className="input-group">
-                <label>이벤트 종류</label>
-                <select value={simulation.type} onChange={(e) => setSimulation({ ...simulation, type: e.target.value })}>
-                  <option value="chat">채팅 메시지</option>
-                  <option value="donation">후원 이벤트</option>
-                </select>
-              </div>
-              <div className="input-group">
-                <label>플랫폼</label>
-                <div className="platform-grid-mini" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginTop: '8px' }}>
-                  {[
-                    { id: 'soop', label: '숲(SOOP)', logo: '/assets/logos/soop.png' },
-                    { id: 'chzzk', label: '치지직', logo: '/assets/logos/chzzk.png' },
-                    { id: 'youtube', label: '유튜브', logo: '/assets/logos/youtube.png' },
-                    { id: 'twitch', label: '트위치', icon: <MessageSquare size={14} /> }
-                  ].map(p => (
-                    <button 
-                      key={p.id}
-                      className={`platform-btn-mini ${simulation.platform === p.id ? 'active' : ''}`}
-                      onClick={() => setSimulation({ ...simulation, platform: p.id })}
-                      style={{ 
-                        padding: '10px', 
-                        borderRadius: '12px', 
-                        border: '1px solid var(--border-light)',
-                        background: simulation.platform === p.id ? 'var(--primary-light)' : 'var(--bg-card)',
-                        color: simulation.platform === p.id ? 'var(--primary-color)' : 'var(--text-main)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        fontSize: '13px',
-                        fontWeight: '500',
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease'
-                      }}
-                    >
-                      {p.logo ? (
-                        <img src={p.logo} alt={p.label} style={{ height: '16px', borderRadius: '3px' }} />
-                      ) : p.icon}
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="input-group">
-                <label>송신자 이름 / ID</label>
-                <input
-                  type="text"
-                  placeholder="예: 홍길동"
-                  value={simulation.sender}
-                  onChange={(e) => setSimulation({ ...simulation, sender: e.target.value })}
-                />
-              </div>
-              {simulation.type === 'donation' ? (
-                <div className="input-group">
-                  <label>금액 (KRW)</label>
-                  <input
-                    type="number"
-                    value={simulation.amount}
-                    onChange={(e) => setSimulation({ ...simulation, amount: parseInt(e.target.value, 10) })}
-                  />
-                </div>
-              ) : (
-                <div className="input-group">
-                  <label>메시지 내용</label>
-                  <input
-                    type="text"
-                    placeholder="채팅 내용을 입력하세요!"
-                    value={simulation.message}
-                    onChange={(e) => setSimulation({ ...simulation, message: e.target.value })}
-                  />
-                </div>
-              )}
-              <div className="full-width">
-                <button
-                  className="btn btn-primary btn-full"
-                  style={{ height: '44px' }}
-                  onClick={triggerSimulate}
-                  disabled={isSimulating}
-                >
-                  {isSimulating ? <RefreshCw size={18} className="spin" /> : <Send size={18} />}
-                  {isSimulating ? '발생 중...' : '시뮬레이션 시작'}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       );
     }

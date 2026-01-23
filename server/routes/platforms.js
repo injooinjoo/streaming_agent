@@ -14,6 +14,7 @@ const express = require("express");
 const { getDiscoveryService } = require("../services/liveDiscoveryService");
 const PersonService = require("../services/personService");
 const ViewerEngagementService = require("../services/viewerEngagementService");
+const UserSessionService = require("../services/userSessionService");
 
 /**
  * Create platforms router
@@ -29,6 +30,7 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
   const router = express.Router();
   const personService = db ? new PersonService(db) : null;
   const viewerEngagementService = db ? new ViewerEngagementService(db) : null;
+  const userSessionService = db ? new UserSessionService(db) : null;
 
   /**
    * Handle person tracking and engagement for events
@@ -382,6 +384,48 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
       const adapter = new SoopAdapter({ channelId: bjId });
 
       adapter.on("event", async (event) => {
+        // Handle user session events FIRST (SOOP only)
+        // Don't process these through normalizer or save to events table
+        if (userSessionService) {
+          if (event.type === "user-enter") {
+            try {
+              const broadcastInfo = adapter.getInfo ? adapter.getInfo() : {};
+              const personId = event.sender?.id ? await personService?.upsertPerson({
+                platform: "soop",
+                platformUserId: event.sender.id,
+                nickname: event.sender.nickname,
+              }) : null;
+
+              await userSessionService.handleUserEnter({
+                personId,
+                userId: event.sender?.id,
+                nickname: event.sender?.nickname || "unknown",
+                channelId: bjId,
+                platform: "soop",
+                broadcastId: broadcastInfo.broadcastId || null,
+                categoryId: broadcastInfo.categoryId || null,
+              });
+              console.log(`[soop] User entered: ${event.sender?.nickname || "unknown"}`);
+            } catch (err) {
+              console.error(`[soop] User enter error:`, err.message);
+            }
+            return; // Don't save enter/exit events to events table
+          } else if (event.type === "user-exit") {
+            try {
+              await userSessionService.handleUserExit({
+                userId: event.sender?.id,
+                channelId: bjId,
+                platform: "soop",
+              });
+              console.log(`[soop] User exited: ${event.sender?.nickname || "unknown"}`);
+            } catch (err) {
+              console.error(`[soop] User exit error:`, err.message);
+            }
+            return; // Don't save enter/exit events to events table
+          }
+        }
+
+        // Convert to legacy format for normal events only
         const legacyEvent = normalizer.toEventsFormat(event);
 
         // Track person and engagement (viewer-broadcaster relationship)

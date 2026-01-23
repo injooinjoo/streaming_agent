@@ -88,6 +88,12 @@ const AdOverlay = () => {
   const [activeAds, setActiveAds] = useState({}); // Map of slotId -> activeAd
   const [connected, setConnected] = useState(false);
 
+  // OBS 브라우저 소스용 투명 배경
+  useEffect(() => {
+    document.body.classList.add('overlay-mode');
+    return () => document.body.classList.remove('overlay-mode');
+  }, []);
+
   // Fetch user's ad slots configuration
   const fetchSlots = useCallback(async () => {
     try {

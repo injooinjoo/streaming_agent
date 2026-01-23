@@ -23,7 +23,11 @@ const themeOptions = [
   'round', 'balloon', 'chalk', 'neon', 'neon-bg', 'box-white', 'box-black', 'leather', 'postit', 'food', 'overwatch'
 ];
 
-const ChatOverlay = () => {
+const ChatOverlay = ({
+  previewMode = false,
+  previewSettings = null,
+  previewMessages = null
+}) => {
   const { userHash } = useParams();
   const [messages, setMessages] = useState([]);
   const [settings, setSettings] = useState({
@@ -68,6 +72,18 @@ const ChatOverlay = () => {
   const sampleIntervalRef = useRef(null);
   const checkIntervalRef = useRef(null);
 
+  // OBS 브라우저 소스용 투명 배경
+  useEffect(() => {
+    if (!previewMode) {
+      document.body.classList.add('overlay-mode');
+      return () => document.body.classList.remove('overlay-mode');
+    }
+  }, [previewMode]);
+
+  // Use preview settings and messages if in preview mode
+  const activeSettings = previewMode && previewSettings ? previewSettings : settings;
+  const activeMessages = previewMode && previewMessages ? previewMessages : (messages.length > 0 ? messages : displayedSamples);
+
   const fetchSettings = async () => {
     try {
       // 해시가 있으면 해시 기반 API, 없으면 레거시 API
@@ -87,6 +103,9 @@ const ChatOverlay = () => {
   };
 
   useEffect(() => {
+    // Skip API/Socket in preview mode
+    if (previewMode) return;
+
     fetchSettings();
 
     // 해시가 있으면 해당 룸에 조인
@@ -118,7 +137,7 @@ const ChatOverlay = () => {
       socket.off("new-event");
       socket.off("settings-updated");
     };
-  }, [userHash, isPaused]);
+  }, [userHash, isPaused, previewMode]);
 
   // 샘플 채팅 표시 로직
   useEffect(() => {
@@ -249,7 +268,7 @@ const ChatOverlay = () => {
   };
 
   const getAnimationClass = () => {
-    switch (settings.animation) {
+    switch (activeSettings.animation) {
       case 'slideIn': return 'animate-slide-in';
       case 'bounceIn': return 'animate-bounceIn';
       case 'zoomIn': return 'animate-zoomIn';
@@ -261,28 +280,25 @@ const ChatOverlay = () => {
   const getRoleColors = (role) => {
     // Map internal role keys to common tags if needed
     const roleKey = role || 'regular';
-    return settings.colors[roleKey] || settings.colors.regular;
+    return activeSettings.colors[roleKey] || activeSettings.colors.regular;
   };
-
-  // 표시할 메시지 (실제 또는 샘플)
-  const displayMessages = messages.length > 0 ? messages : displayedSamples;
 
   return (
     <div
-      className={`chat-overlay theme-${settings.theme} ${settings.direction} ${isPaused ? 'paused' : ''}`}
+      className={`chat-overlay theme-${activeSettings.theme} ${activeSettings.direction} ${isPaused ? 'paused' : ''} ${previewMode ? 'preview-mode' : ''}`}
       style={{
-        alignItems: settings.direction === 'center' ? 'center' : settings.direction === 'right' ? 'flex-end' : 'flex-start',
-        opacity: settings.transparency / 100,
-        fontFamily: settings.fontFamily,
-        backgroundColor: settings.useBgColor ? settings.bgColor : 'transparent',
-        backgroundImage: settings.bgImage ? `url(${settings.bgImage})` : 'none',
-        backgroundSize: settings.bgImageMode === 'repeat' ? 'auto' : settings.bgImageMode,
-        backgroundRepeat: settings.bgImageMode === 'repeat' ? 'repeat' : 'no-repeat',
+        alignItems: activeSettings.direction === 'center' ? 'center' : activeSettings.direction === 'right' ? 'flex-end' : 'flex-start',
+        opacity: activeSettings.transparency / 100,
+        fontFamily: activeSettings.fontFamily,
+        backgroundColor: activeSettings.useBgColor ? activeSettings.bgColor : 'transparent',
+        backgroundImage: activeSettings.bgImage ? `url(${activeSettings.bgImage})` : 'none',
+        backgroundSize: activeSettings.bgImageMode === 'repeat' ? 'auto' : activeSettings.bgImageMode,
+        backgroundRepeat: activeSettings.bgImageMode === 'repeat' ? 'repeat' : 'no-repeat',
         backgroundPosition: 'center'
       }}
     >
-      {/* 호버 컨트롤 패널 */}
-      {settings.showHoverPanel && (
+      {/* 호버 컨트롤 패널 - 미리보기 모드에서는 숨김 */}
+      {!previewMode && activeSettings.showHoverPanel && (
         <div className="overlay-hover-panel">
           <div className="hover-controls">
             <button
@@ -337,19 +353,19 @@ const ChatOverlay = () => {
             <div className="hover-divider" />
 
             <button
-              className={`hover-btn ${settings.filterEnabled ? 'active' : ''}`}
+              className={`hover-btn ${activeSettings.filterEnabled ? 'active' : ''}`}
               onClick={handleFilterToggle}
-              title={settings.filterEnabled ? '필터 끄기' : '필터 켜기'}
+              title={activeSettings.filterEnabled ? '필터 끄기' : '필터 켜기'}
             >
-              {settings.filterEnabled ? '🔇' : '🔊'}
+              {activeSettings.filterEnabled ? '🔇' : '🔊'}
             </button>
 
             <button
-              className={`hover-btn ${settings.notificationEnabled ? 'active' : ''}`}
+              className={`hover-btn ${activeSettings.notificationEnabled ? 'active' : ''}`}
               onClick={handleNotificationToggle}
-              title={settings.notificationEnabled ? '알림 끄기' : '알림 켜기'}
+              title={activeSettings.notificationEnabled ? '알림 끄기' : '알림 켜기'}
             >
-              {settings.notificationEnabled ? '🔔' : '🔕'}
+              {activeSettings.notificationEnabled ? '🔔' : '🔕'}
             </button>
           </div>
         </div>
@@ -363,10 +379,10 @@ const ChatOverlay = () => {
       )}
 
       <div className="messages-container">
-        {displayMessages.map((msg, index) => {
+        {activeMessages.map((msg, index) => {
           const roleColors = getRoleColors(msg.role);
-          const outlineStyle = settings.fontOutlineSize > 0
-            ? { textShadow: `0 0 ${settings.fontOutlineSize}px ${settings.fontOutlineColor}, 0 0 ${settings.fontOutlineSize}px ${settings.fontOutlineColor}` }
+          const outlineStyle = activeSettings.fontOutlineSize > 0
+            ? { textShadow: `0 0 ${activeSettings.fontOutlineSize}px ${activeSettings.fontOutlineColor}, 0 0 ${activeSettings.fontOutlineSize}px ${activeSettings.fontOutlineColor}` }
             : {};
 
           return (
@@ -374,19 +390,19 @@ const ChatOverlay = () => {
               key={msg.id || index}
               className={`chat-message-item ${getAnimationClass()} ${msg.isSample ? 'sample' : ''}`}
               style={{
-                fontSize: `${settings.fontSize}px`,
-                fontWeight: settings.fontBold ? 'bold' : 'normal',
+                fontSize: `${activeSettings.fontSize}px`,
+                fontWeight: activeSettings.fontBold ? 'bold' : 'normal',
                 color: roleColors.message,
                 ...outlineStyle
               }}
             >
-              {settings.showIcons && msg.platform && (
+              {activeSettings.showIcons && msg.platform && (
                 <span className={`platform-badge ${msg.platform}`}>
                   {msg.platform}
                 </span>
               )}
               <span className="sender" style={{ color: roleColors.nick }}>
-                {msg.sender}{settings.nicknameDivider}
+                {msg.sender}{activeSettings.nicknameDivider}
               </span>
               <span className="message-text">
                 {msg.message}

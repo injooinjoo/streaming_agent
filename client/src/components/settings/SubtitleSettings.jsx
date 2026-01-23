@@ -2,10 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Copy, RefreshCw, Save, Medal, Users, Clock, Image as ImageIcon, Hash,
   Palette, Settings, Shield, Type, HelpCircle, ExternalLink, Info,
-  Monitor, Plus, Trash2, RotateCcw, ChevronDown, Check, Megaphone
+  Monitor, Plus, Trash2, RotateCcw, ChevronDown, Check, Megaphone, Gift
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import { OverlayPreviewWrapper } from './shared';
+import SubtitleOverlay from '../SubtitleOverlay';
 import './ChatSettings.css';
 
 const defaultSettings = {
@@ -69,6 +71,14 @@ const SubtitleSettings = () => {
   const [activeNav, setActiveNav] = useState('theme');
   const overlayHash = user?.userHash || null;
   const [copied, setCopied] = useState(false);
+
+  // Preview test state
+  const [testEvents, setTestEvents] = useState([
+    { id: 1, sender: '테스터1', amount: 10000, type: 'donation' },
+    { id: 2, sender: '테스터2', amount: 5000, type: 'donation' },
+    { id: 3, sender: '테스터3', amount: 3000, type: 'donation' }
+  ]);
+  const [newDonation, setNewDonation] = useState({ sender: '', amount: '' });
 
   const sectionRefs = {
     theme: useRef(null),
@@ -599,7 +609,100 @@ const SubtitleSettings = () => {
         </div>
 
         <aside className="chat-settings-preview-aside">
-          <div className="save-controls-wrapper" style={{ position: 'sticky', top: '24px' }}>
+          {/* 실시간 미리보기 */}
+          <OverlayPreviewWrapper title="후원 자막 미리보기" height={150}>
+            <SubtitleOverlay
+              previewMode={true}
+              previewSettings={settings}
+              previewEvents={testEvents}
+            />
+          </OverlayPreviewWrapper>
+
+          {/* 테스트 컨트롤 */}
+          <div className="test-controls glass-premium" style={{ marginTop: '16px' }}>
+            <div className="test-header">
+              <Gift size={16} />
+              <span>후원 테스트</span>
+            </div>
+
+            <div className="test-form" style={{ marginTop: '12px' }}>
+              <div className="flex-row-gap" style={{ marginBottom: '8px' }}>
+                <input
+                  type="text"
+                  className="styled-input"
+                  placeholder="후원자 닉네임"
+                  value={newDonation.sender}
+                  onChange={(e) => setNewDonation({ ...newDonation, sender: e.target.value })}
+                  style={{ flex: 1 }}
+                />
+                <input
+                  type="number"
+                  className="styled-input"
+                  placeholder="금액"
+                  value={newDonation.amount}
+                  onChange={(e) => setNewDonation({ ...newDonation, amount: e.target.value })}
+                  style={{ width: '100px' }}
+                />
+              </div>
+              <button
+                className="btn-test-action"
+                onClick={() => {
+                  if (newDonation.sender && newDonation.amount) {
+                    setTestEvents(prev => [{
+                      id: Date.now(),
+                      sender: newDonation.sender,
+                      amount: parseInt(newDonation.amount),
+                      type: 'donation'
+                    }, ...prev]);
+                    setNewDonation({ sender: '', amount: '' });
+                  }
+                }}
+                style={{ width: '100%' }}
+              >
+                <Plus size={14} /> 후원 추가
+              </button>
+            </div>
+
+            <div className="test-events-list" style={{ marginTop: '12px', maxHeight: '100px', overflowY: 'auto' }}>
+              {testEvents.map((evt) => (
+                <div key={evt.id} className="test-event-item" style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '6px 8px',
+                  fontSize: '12px',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '6px',
+                  marginBottom: '4px'
+                }}>
+                  <span>{evt.sender}: {evt.amount.toLocaleString()}원</span>
+                  <button
+                    onClick={() => setTestEvents(prev => prev.filter(e => e.id !== evt.id))}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '2px',
+                      color: 'var(--text-muted)'
+                    }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="btn-test-secondary"
+              onClick={() => setTestEvents([])}
+              style={{ marginTop: '8px', width: '100%' }}
+            >
+              <Trash2 size={14} /> 모두 삭제
+            </button>
+          </div>
+
+          {/* 저장 버튼 */}
+          <div className="save-controls-wrapper" style={{ marginTop: '16px' }}>
             <button className="btn-save-full" onClick={saveSettings} disabled={saving}>
               {saving ? <RefreshCw className="spin" size={18}/> : <Save size={18}/>}
               설정 저장하기
@@ -607,14 +710,6 @@ const SubtitleSettings = () => {
             <button className="btn-reset-light" onClick={resetSettings}>
               <RotateCcw size={14} /> 설정 초기화
             </button>
-            
-            <div className="info-box-premium" style={{ marginTop: '20px' }}>
-              <div className="info-header">
-                <HelpCircle size={14} />
-                <span>도움말</span>
-              </div>
-              <p>폰트 크기는 눈으로 보는 크기보다 좀 더 크게 설정해야 시청자들이 보기 좋습니다.</p>
-            </div>
           </div>
         </aside>
       </div>

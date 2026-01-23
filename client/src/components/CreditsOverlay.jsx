@@ -4,7 +4,12 @@ import { API_URL } from '../config/api';
 import socket from '../config/socket';
 import './Overlay.css';
 
-const CreditsOverlay = () => {
+const CreditsOverlay = ({
+  previewMode = false,
+  previewSettings = null,
+  previewCredits = null,
+  previewPlaying = false
+}) => {
   const { userHash } = useParams();
   const [isPlaying, setIsPlaying] = useState(false);
   const [credits, setCredits] = useState(null);
@@ -14,6 +19,19 @@ const CreditsOverlay = () => {
     fontFamily: 'Pretendard',
     backgroundColor: 'rgba(0, 0, 0, 0.9)'
   });
+
+  // OBS 브라우저 소스용 투명 배경
+  useEffect(() => {
+    if (!previewMode) {
+      document.body.classList.add('overlay-mode');
+      return () => document.body.classList.remove('overlay-mode');
+    }
+  }, [previewMode]);
+
+  // Use preview data if in preview mode
+  const activeSettings = previewMode && previewSettings ? previewSettings : settings;
+  const activeCredits = previewMode ? previewCredits : credits;
+  const activePlaying = previewMode ? previewPlaying : isPlaying;
 
   const fetchSettings = async () => {
     try {
@@ -32,6 +50,9 @@ const CreditsOverlay = () => {
   };
 
   useEffect(() => {
+    // Skip API/Socket in preview mode
+    if (previewMode) return;
+
     fetchSettings();
 
     if (userHash) {
@@ -60,18 +81,18 @@ const CreditsOverlay = () => {
       socket.off('credits-stop');
       socket.off('settings-updated');
     };
-  }, [userHash]);
+  }, [userHash, previewMode]);
 
-  if (!isPlaying || !credits) return null;
+  if (!activePlaying || !activeCredits) return null;
 
-  const scrollDuration = (settings.scrollSpeed || 3) * 10; // Higher speed = slower scroll
+  const scrollDuration = (activeSettings.scrollSpeed || 3) * 10; // Higher speed = slower scroll
 
   return (
     <div
-      className={`credits-overlay theme-${settings.theme}`}
+      className={`credits-overlay theme-${activeSettings.theme} ${previewMode ? 'preview-mode' : ''}`}
       style={{
-        backgroundColor: settings.backgroundColor,
-        fontFamily: settings.fontFamily
+        backgroundColor: activeSettings.backgroundColor,
+        fontFamily: activeSettings.fontFamily
       }}
     >
       <div
@@ -80,11 +101,11 @@ const CreditsOverlay = () => {
           animation: `scrollUp ${scrollDuration}s linear forwards`
         }}
       >
-        {credits.title && (
-          <div className="credits-title">{credits.title}</div>
+        {activeCredits.title && (
+          <div className="credits-title">{activeCredits.title}</div>
         )}
 
-        {credits.sections && credits.sections.map((section, index) => (
+        {activeCredits.sections && activeCredits.sections.map((section, index) => (
           <div key={index} className="credits-section">
             <div className="section-title">{section.title}</div>
             <div className="section-items">

@@ -4,7 +4,11 @@ import { API_URL } from '../config/api';
 import socket from '../config/socket';
 import './Overlay.css';
 
-const TickerOverlay = () => {
+const TickerOverlay = ({
+  previewMode = false,
+  previewSettings = null,
+  previewMessages = null
+}) => {
   const { userHash } = useParams();
   const [messages, setMessages] = useState([]);
   const [settings, setSettings] = useState({
@@ -32,6 +36,9 @@ const TickerOverlay = () => {
   };
 
   useEffect(() => {
+    // Skip API/Socket in preview mode
+    if (previewMode) return;
+
     fetchSettings();
 
     if (userHash) {
@@ -65,27 +72,39 @@ const TickerOverlay = () => {
       socket.off('new-event');
       socket.off('settings-updated');
     };
-  }, [userHash, settings.textFormat]); // Re-bind if format changes
+  }, [userHash, settings.textFormat, previewMode]); // Re-bind if format changes
 
-  if (settings.autoHide && messages.length === 0) return null;
+  // OBS 브라우저 소스용 투명 배경
+  useEffect(() => {
+    if (!previewMode) {
+      document.body.classList.add('overlay-mode');
+      return () => document.body.classList.remove('overlay-mode');
+    }
+  }, [previewMode]);
+
+  // Use preview settings and messages if in preview mode
+  const activeSettings = previewMode && previewSettings ? previewSettings : settings;
+  const displayMessages = previewMode && previewMessages ? previewMessages : messages;
+
+  if (!previewMode && activeSettings.autoHide && displayMessages.length === 0) return null;
 
   return (
-    <div className={`ticker-overlay theme-${settings.theme}`}>
+    <div className={`ticker-overlay theme-${activeSettings.theme} ${previewMode ? 'preview-mode' : ''}`}>
       <div className="ticker-track">
         <div
           className="ticker-content"
           style={{
-            animationDuration: `${settings.scrollSpeed}s`,
-            fontSize: `${settings.fontSize}px`
+            animationDuration: `${activeSettings.scrollSpeed}s`,
+            fontSize: `${activeSettings.fontSize}px`
           }}
         >
-          {messages.map((msg) => (
+          {displayMessages.map((msg) => (
             <span key={msg.id} className="ticker-item">
               {msg.text} <span className="separator">///</span>
             </span>
           ))}
           {/* Duplicate for seamless loop if needed, simplistic for now */}
-          {messages.length > 0 && messages.map((msg) => (
+          {displayMessages.length > 0 && displayMessages.map((msg) => (
             <span key={`dup-${msg.id}`} className="ticker-item">
               {msg.text} <span className="separator">///</span>
             </span>

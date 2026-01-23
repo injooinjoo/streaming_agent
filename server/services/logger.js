@@ -75,9 +75,10 @@ const transport = isDevelopment
       target: "pino-pretty",
       options: {
         colorize: true,
-        translateTime: "SYS:standard",
-        ignore: "pid,hostname",
-        singleLine: false,
+        translateTime: "HH:MM:ss",
+        ignore: "pid,hostname,env",
+        singleLine: true,
+        messageFormat: "{msg}",
       },
     }
   : undefined;

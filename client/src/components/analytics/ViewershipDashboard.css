@@ -1,3 +1,14 @@
+/* 스트리밍 모드 - 민감 정보 블러 (ViewershipDashboard용) */
+[data-streaming-mode="true"] .sensitive-blur {
+  filter: blur(8px) !important;
+  user-select: none !important;
+  transition: filter 0.3s ease;
+}
+
+[data-streaming-mode="true"] .sensitive-blur:hover {
+  filter: blur(4px) !important;
+}
+
 .viewership-dashboard {
   padding: 0;
 }

@@ -3,23 +3,102 @@
  * Centralized WebSocket event management for overlays
  */
 
+// 활성 오버레이 어댑터 관리 (userHash → adapter)
+const overlayAdapters = new Map();
+
 /**
  * Setup Socket.io event handlers
  * @param {Server} io - Socket.io server instance
+ * @param {Object} options - Dependencies
+ * @param {Object} options.db - Database instance
+ * @param {Function} options.ChzzkAdapter - Chzzk adapter class
+ * @param {Function} options.SoopAdapter - Soop adapter class
  */
-const setupSocketHandlers = (io) => {
+const setupSocketHandlers = (io, options = {}) => {
+  const { db, ChzzkAdapter, SoopAdapter } = options;
+
+  // Helper: Find user by overlay hash
+  const findUserByOverlayHash = (hash) => {
+    return new Promise((resolve, reject) => {
+      if (!db) return resolve(null);
+      db.get(
+        "SELECT id, platform, channel_id FROM users WHERE overlay_hash = ?",
+        [hash],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        }
+      );
+    });
+  };
+
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
 
     // ===== Overlay Room Management =====
 
     /**
-     * Join overlay room (hash-based)
+     * Join overlay room (hash-based) with auto platform connection
      */
-    socket.on("join-overlay", (hash) => {
-      if (hash) {
-        socket.join(`overlay:${hash}`);
-        console.log(`Socket ${socket.id} joined room overlay:${hash}`);
+    socket.on("join-overlay", async (hash) => {
+      if (!hash) return;
+
+      socket.join(`overlay:${hash}`);
+      console.log(`Socket ${socket.id} joined room overlay:${hash}`);
+
+      // Skip auto-connect if adapters not configured
+      if (!db || !ChzzkAdapter || !SoopAdapter) {
+        return;
+      }
+
+      // Check if adapter already exists for this hash
+      if (overlayAdapters.has(hash)) {
+        const existingAdapter = overlayAdapters.get(hash);
+        if (existingAdapter.isConnected) {
+          socket.emit("overlay-status", { status: "connected", platform: existingAdapter.platform });
+        }
+        return;
+      }
+
+      try {
+        // Find user by overlay hash
+        const user = await findUserByOverlayHash(hash);
+        if (!user || !user.platform || !user.channel_id) {
+          socket.emit("overlay-status", { status: "no_channel", message: "채널이 설정되지 않았습니다" });
+          return;
+        }
+
+        // Create adapter based on platform
+        const AdapterClass = user.platform === "chzzk" ? ChzzkAdapter : SoopAdapter;
+        const adapter = new AdapterClass({ channelId: user.channel_id });
+
+        // Forward events to overlay room
+        adapter.on("event", (event) => {
+          io.to(`overlay:${hash}`).emit("new-event", event);
+        });
+
+        adapter.on("connected", () => {
+          console.log(`[Overlay] Adapter connected for ${hash} (${user.platform}:${user.channel_id})`);
+          io.to(`overlay:${hash}`).emit("overlay-status", { status: "connected", platform: user.platform });
+        });
+
+        adapter.on("disconnected", () => {
+          console.log(`[Overlay] Adapter disconnected for ${hash}`);
+          io.to(`overlay:${hash}`).emit("overlay-status", { status: "disconnected" });
+        });
+
+        adapter.on("error", (err) => {
+          console.error(`[Overlay] Adapter error for ${hash}:`, err.message);
+        });
+
+        // Connect to platform
+        await adapter.connect();
+        overlayAdapters.set(hash, adapter);
+        console.log(`[Overlay] Auto-connected adapter for ${hash} (${user.platform}:${user.channel_id})`);
+
+      } catch (error) {
+        console.error(`[Overlay] Auto-connect failed for ${hash}:`, error.message);
+        socket.emit("overlay-status", { status: "error", message: error.message });
       }
     });
 
@@ -27,9 +106,20 @@ const setupSocketHandlers = (io) => {
      * Leave overlay room
      */
     socket.on("leave-overlay", (hash) => {
-      if (hash) {
-        socket.leave(`overlay:${hash}`);
-        console.log(`Socket ${socket.id} left room overlay:${hash}`);
+      if (!hash) return;
+
+      socket.leave(`overlay:${hash}`);
+      console.log(`Socket ${socket.id} left room overlay:${hash}`);
+
+      // Clean up adapter if no clients remain in the room
+      const room = io.sockets.adapter.rooms.get(`overlay:${hash}`);
+      if (!room || room.size === 0) {
+        const adapter = overlayAdapters.get(hash);
+        if (adapter) {
+          console.log(`[Overlay] Cleaning up adapter for ${hash}`);
+          adapter.disconnect();
+          overlayAdapters.delete(hash);
+        }
       }
     });
 

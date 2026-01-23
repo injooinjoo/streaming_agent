@@ -9,7 +9,18 @@ import {
 } from 'lucide-react';
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { OverlayPreviewWrapper } from './shared';
+import ChatOverlay from '../ChatOverlay';
 import './ChatSettings.css';
+
+// 더미 채팅 메시지 (미리보기용)
+const dummyChatMessages = [
+  { id: 'preview-1', sender: '김스트리머', message: '안녕하세요! 오늘도 방송 시작합니다~', platform: 'soop', role: 'streamer' },
+  { id: 'preview-2', sender: '팬클럽장', message: '오늘 방송도 화이팅입니다!', platform: 'chzzk', role: 'fan' },
+  { id: 'preview-3', sender: '일반시청자', message: 'ㅋㅋㅋㅋ 재밌다', platform: 'youtube', role: 'regular' },
+  { id: 'preview-4', sender: 'VIP유저', message: '후원 감사합니다~', platform: 'soop', role: 'vip' },
+  { id: 'preview-5', sender: '매니저', message: '공지: 오늘 이벤트 진행중!', platform: 'chzzk', role: 'manager' },
+];
 
 const defaultSettings = {
   // Theme
@@ -1126,48 +1137,14 @@ const ChatSettings = () => {
 
         {/* Sidebar remains sticky/fixed */}
         <aside className="chat-settings-preview-aside">
-          <div className="setup-preview-container glass-premium">
-            <div className="preview-header">
-              <div className="preview-status-dots">
-                <span className="dot red"></span>
-                <span className="dot yellow"></span>
-                <span className="dot green"></span>
-              </div>
-              <span className="preview-title">오버레이 미리보기</span>
-              <Maximize2 size={14} className="cursor-pointer" />
-            </div>
-            
-            <div className="setup_preview">
-              <div className="checkerboard-bg"></div>
-              
-              {activePreviewAlert ? (
-                <div className="alert-animation-wrapper">
-                  <div className="alert-asset-3d">
-                    <img 
-                      src="/assets/images/cheese_stair.png" 
-                      alt="alert asset" 
-                      className="floating-asset" 
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = "https://cdn-icons-png.flaticon.com/512/3233/3233483.png"; // Fallback cheese icon
-                      }}
-                    />
-                  </div>
-                  <div className="alert-text-content">
-                    <span className="nickname">{activePreviewAlert.nickname}님</span>
-                    <span className="type-text">{activePreviewAlert.type}</span>
-                    <span className="amount">{activePreviewAlert.amount}개</span>
-                    <span className="thankyou">감사합니다!</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="preview-placeholder">
-                  <Eye size={40} strokeWidth={1} />
-                  <p>테스트 버튼을 눌러보세요</p>
-                </div>
-              )}
-            </div>
-          </div>
+          {/* 실시간 채팅 미리보기 */}
+          <OverlayPreviewWrapper title="채팅 미리보기" height={280}>
+            <ChatOverlay
+              previewMode={true}
+              previewSettings={settings}
+              previewMessages={dummyChatMessages}
+            />
+          </OverlayPreviewWrapper>
 
           <div className="test-controls glass-premium">
             <div className="section-title-with-badge">

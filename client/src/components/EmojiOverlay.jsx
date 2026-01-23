@@ -1,10 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_URL } from '../config/api';
 import socket from '../config/socket';
 import './Overlay.css';
 
-const EmojiOverlay = () => {
+const EmojiOverlay = ({
+  previewMode = false,
+  previewSettings = null,
+  previewEmojis = null,
+  onAddEmoji = null
+}) => {
   const { userHash } = useParams();
   const [emojis, setEmojis] = useState([]);
   const [settings, setSettings] = useState({
@@ -14,6 +19,18 @@ const EmojiOverlay = () => {
     animationStyle: 'float',
     isActive: true
   });
+
+  // OBS 브라우저 소스용 투명 배경
+  useEffect(() => {
+    if (!previewMode) {
+      document.body.classList.add('overlay-mode');
+      return () => document.body.classList.remove('overlay-mode');
+    }
+  }, [previewMode]);
+
+  // Use preview settings if in preview mode
+  const activeSettings = previewMode && previewSettings ? previewSettings : settings;
+  const activeEmojis = previewMode && previewEmojis ? previewEmojis : emojis;
 
   const fetchSettings = async () => {
     try {
@@ -32,21 +49,31 @@ const EmojiOverlay = () => {
     }
   };
 
-  const addEmoji = (emoji, position) => {
-    if (emojis.length >= settings.maxConcurrent) return;
+  const addEmoji = useCallback((emoji, position) => {
+    const maxConcurrent = previewMode && previewSettings ? previewSettings.maxConcurrent : settings.maxConcurrent;
+    const displayDuration = previewMode && previewSettings ? previewSettings.displayDuration : settings.displayDuration;
+
+    if (emojis.length >= maxConcurrent) return;
 
     const id = Date.now() + Math.random();
     const x = position?.x || Math.random() * 80 + 10; // 10-90% of screen width
     const y = position?.y || 100; // Start from bottom
 
-    setEmojis(prev => [...prev, { id, emoji, x, y }]);
+    if (previewMode && onAddEmoji) {
+      onAddEmoji({ id, emoji, x, y });
+    } else {
+      setEmojis(prev => [...prev, { id, emoji, x, y }]);
 
-    setTimeout(() => {
-      setEmojis(prev => prev.filter(e => e.id !== id));
-    }, settings.displayDuration);
-  };
+      setTimeout(() => {
+        setEmojis(prev => prev.filter(e => e.id !== id));
+      }, displayDuration);
+    }
+  }, [previewMode, previewSettings, settings, emojis.length, onAddEmoji]);
 
   useEffect(() => {
+    // Skip API/Socket in preview mode
+    if (previewMode) return;
+
     fetchSettings();
 
     if (userHash) {
@@ -81,10 +108,10 @@ const EmojiOverlay = () => {
       socket.off('emoji-burst');
       socket.off('settings-updated');
     };
-  }, [userHash, settings.maxConcurrent, settings.displayDuration]);
+  }, [userHash, settings.maxConcurrent, settings.displayDuration, previewMode, addEmoji]);
 
   const getAnimationClass = () => {
-    switch (settings.animationStyle) {
+    switch (activeSettings.animationStyle) {
       case 'explode': return 'emoji-explode';
       case 'rain': return 'emoji-rain';
       case 'bounce': return 'emoji-bounce';
@@ -92,17 +119,17 @@ const EmojiOverlay = () => {
     }
   };
 
-  if (!settings.isActive) return null;
+  if (!previewMode && !activeSettings.isActive) return null;
 
   return (
-    <div className="emoji-overlay">
-      {emojis.map(({ id, emoji, x }) => (
+    <div className={`emoji-overlay ${previewMode ? 'preview-mode' : ''}`}>
+      {activeEmojis.map(({ id, emoji, x }) => (
         <div
           key={id}
           className={`emoji-item ${getAnimationClass()}`}
           style={{
             left: `${x}%`,
-            animationDuration: `${settings.displayDuration}ms`
+            animationDuration: `${activeSettings.displayDuration}ms`
           }}
         >
           {emoji}

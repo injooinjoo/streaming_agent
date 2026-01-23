@@ -4,7 +4,11 @@ import { API_URL } from '../config/api';
 import socket from '../config/socket';
 import './Overlay.css';
 
-const AlertOverlay = () => {
+const AlertOverlay = ({
+  previewMode = false,
+  previewSettings = null,
+  previewEvent = null
+}) => {
   const { userHash } = useParams();
   const [activeAlert, setActiveAlert] = useState(null);
   const [settings, setSettings] = useState({
@@ -41,6 +45,9 @@ const AlertOverlay = () => {
   };
 
   useEffect(() => {
+    // Skip API/Socket in preview mode
+    if (previewMode) return;
+
     fetchSettings();
 
     if (userHash) {
@@ -71,19 +78,31 @@ const AlertOverlay = () => {
       socket.off('new-event');
       socket.off('settings-updated');
     };
-  }, [userHash, settings]);
+  }, [userHash, settings, previewMode]);
 
-  if (!activeAlert) return null;
+  // Use preview settings and event if in preview mode
+  // OBS 브라우저 소스용 투명 배경
+  useEffect(() => {
+    if (!previewMode) {
+      document.body.classList.add('overlay-mode');
+      return () => document.body.classList.remove('overlay-mode');
+    }
+  }, [previewMode]);
+
+  const activeSettings = previewMode && previewSettings ? previewSettings : settings;
+  const displayAlert = previewMode ? previewEvent : activeAlert;
+
+  if (!displayAlert) return null;
 
   return (
-    <div className={`alert-overlay theme-${settings.theme}`}>
-      <div className={`alert-card glass animate-${settings.animation}`}>
-        <div className={`alert-header gradient-text animate-${settings.textAnimation}`}>
+    <div className={`alert-overlay theme-${activeSettings.theme} ${previewMode ? 'preview-mode' : ''}`}>
+      <div className={`alert-card glass animate-${activeSettings.animation}`}>
+        <div className={`alert-header gradient-text animate-${activeSettings.textAnimation}`}>
           NEW DONATION!
         </div>
-        <div className="alert-sender">{activeAlert.sender}</div>
-        <div className="alert-amount">{activeAlert.amount.toLocaleString()} KRW</div>
-        <div className="alert-message">{activeAlert.message}</div>
+        <div className="alert-sender">{displayAlert.sender}</div>
+        <div className="alert-amount">{(displayAlert.amount || 0).toLocaleString()} KRW</div>
+        <div className="alert-message">{displayAlert.message}</div>
       </div>
     </div>
   );

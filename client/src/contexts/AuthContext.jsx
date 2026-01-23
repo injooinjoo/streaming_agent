@@ -38,6 +38,8 @@ export const AuthProvider = ({ children }) => {
             role: data.role,
             avatarUrl: data.avatarUrl,
             userHash: data.overlayHash, // DB에서 가져온 해시
+            channelId: data.channelId || defaultUser.channelId, // DB에서 가져온 채널 ID
+            platform: data.platform || defaultUser.platform, // DB에서 가져온 플랫폼
           });
         }
       } catch (e) {

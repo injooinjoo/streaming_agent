@@ -160,8 +160,8 @@ const ViewershipDashboard = () => {
             style={{
               marginTop: '8px',
               padding: '12px 24px',
-              background: 'var(--primary-color)',
-              color: 'white',
+              background: 'var(--primary)',
+              color: 'var(--text-on-primary)',
               border: 'none',
               borderRadius: '8px',
               cursor: 'pointer',
@@ -196,7 +196,7 @@ const ViewershipDashboard = () => {
             <Activity size={16} />
             플랫폼 활동 현황
           </div>
-          <div className="viewership-total-value">
+          <div className="viewership-total-value sensitive-blur">
             {totalEvents.toLocaleString()}
           </div>
           <div className="viewership-total-unit">
@@ -225,14 +225,14 @@ const ViewershipDashboard = () => {
                 />
                 <div className="platform-info">
                   <div className="platform-name">{platform.name}</div>
-                  <div className="platform-channels">채팅 {platform.chats.toLocaleString()}개</div>
+                  <div className="platform-channels">채팅 <span className="sensitive-blur">{platform.chats.toLocaleString()}</span>개</div>
                 </div>
                 <div className="platform-viewers">
                   <div>
-                    <span className="platform-viewers-value">{platform.viewers.toLocaleString()}</span>
+                    <span className="platform-viewers-value sensitive-blur">{platform.viewers.toLocaleString()}</span>
                     <span className="platform-viewers-unit">이벤트</span>
                   </div>
-                  <div className="platform-peak">후원 {platform.donations}건</div>
+                  <div className="platform-peak">후원 <span className="sensitive-blur">{platform.donations}</span>건</div>
                 </div>
               </div>
             )) : (
@@ -264,15 +264,15 @@ const ViewershipDashboard = () => {
               <Users size={20} />
             </div>
             <div className="summary-card-label">참여자</div>
-            <div className="summary-card-value">{yesterdaySummary.avgViewers.toLocaleString()}명</div>
-            <div className="summary-card-sub">채팅 {yesterdaySummary.chatCount.toLocaleString()}개</div>
+            <div className="summary-card-value sensitive-blur">{yesterdaySummary.avgViewers.toLocaleString()}명</div>
+            <div className="summary-card-sub">채팅 <span className="sensitive-blur">{yesterdaySummary.chatCount.toLocaleString()}</span>개</div>
           </div>
           <div className="summary-card">
             <div className="summary-card-icon peak">
               <TrendingUp size={20} />
             </div>
             <div className="summary-card-label">후원 건수</div>
-            <div className="summary-card-value">{(yesterdaySummary.donationCount || 0).toLocaleString()}건</div>
+            <div className="summary-card-value sensitive-blur">{(yesterdaySummary.donationCount || 0).toLocaleString()}건</div>
             <div className="summary-card-sub">어제 기준</div>
           </div>
           <div className="summary-card">
@@ -280,8 +280,8 @@ const ViewershipDashboard = () => {
               <DollarSign size={20} />
             </div>
             <div className="summary-card-label">후원 금액</div>
-            <div className="summary-card-value">₩{yesterdaySummary.donationAmount.toLocaleString()}</div>
-            <div className="summary-card-sub">{(yesterdaySummary.donationCount || 0)}건의 후원</div>
+            <div className="summary-card-value sensitive-blur">₩{yesterdaySummary.donationAmount.toLocaleString()}</div>
+            <div className="summary-card-sub"><span className="sensitive-blur">{(yesterdaySummary.donationCount || 0)}</span>건의 후원</div>
           </div>
         </div>
       </div>
@@ -381,7 +381,7 @@ const ViewershipDashboard = () => {
                 </div>
                 <div className="activity-time">{activity.time}</div>
                 {activity.amount > 0 && (
-                  <div className="activity-amount">₩{activity.amount.toLocaleString()}</div>
+                  <div className="activity-amount sensitive-blur">₩{activity.amount.toLocaleString()}</div>
                 )}
               </div>
             )) : (

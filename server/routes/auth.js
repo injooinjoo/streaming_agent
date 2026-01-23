@@ -262,6 +262,8 @@ const createAuthRouter = (userService, stateStore, tokenService, authenticateTok
         role: user.role,
         avatarUrl: user.avatar_url,
         overlayHash: user.overlay_hash,
+        channelId: user.channel_id,
+        platform: user.platform,
         createdAt: user.created_at,
       });
     } catch (err) {

@@ -2,9 +2,12 @@
  * CategoryCrawler - 플랫폼별 카테고리 크롤링 서비스
  *
  * SOOP과 Chzzk 플랫폼에서 게임/카테고리 목록을 수집합니다.
+ *
+ * Supports both SQLite (development) and PostgreSQL (production/Supabase)
  */
 
 const { category: categoryLogger } = require("./logger");
+const { isPostgres } = require("../config/database.config");
 
 /**
  * 플랫폼 카테고리 스키마
@@ -563,14 +566,89 @@ class CategoryCrawler {
   }
 
   /**
+   * 단일 카테고리의 포스터 이미지를 가져와서 DB에 저장
+   * @param {string} platform - 플랫폼 (soop, chzzk)
+   * @param {string} platformCategoryId - 플랫폼 카테고리 ID
+   * @param {string} categoryType - 카테고리 타입 (GAME, ETC)
+   * @returns {Promise<string|null>} - 가져온 이미지 URL 또는 null
+   */
+  async fetchAndSavePosterImage(platform, platformCategoryId, categoryType = "GAME") {
+    try {
+      let posterUrl = null;
+
+      if (platform === "chzzk") {
+        // Chzzk: API에서 포스터 이미지 가져오기
+        posterUrl = await this.fetchChzzkCategoryPoster(categoryType, platformCategoryId);
+      } else if (platform === "soop") {
+        // SOOP: categoryList API에서 이미지 가져오기
+        try {
+          const url = `https://sch.sooplive.co.kr/api.php?m=categoryList&nPageNo=1&nListCnt=300`;
+          const data = await this.fetchWithRetry("soop", url, {
+            headers: {
+              Origin: "https://play.sooplive.co.kr",
+              Referer: "https://play.sooplive.co.kr/",
+            },
+          });
+
+          if (data?.data?.list) {
+            const found = data.data.list.find(
+              (item) => String(item.category_no || item.cate_no) === platformCategoryId
+            );
+            if (found) {
+              posterUrl = found.cate_img || found.thumbnail || null;
+            }
+          }
+        } catch (error) {
+          categoryLogger.debug("SOOP category image fetch failed", { platformCategoryId, error: error.message });
+        }
+      }
+
+      // DB에 이미지 URL 저장
+      if (posterUrl) {
+        await new Promise((resolve, reject) => {
+          this.db.run(
+            `UPDATE platform_categories SET thumbnail_url = ? WHERE platform = ? AND platform_category_id = ?`,
+            [posterUrl, platform, platformCategoryId],
+            (err) => {
+              if (err) reject(err);
+              else resolve();
+            }
+          );
+        });
+
+        categoryLogger.info("포스터 이미지 저장 완료", {
+          platform,
+          categoryId: platformCategoryId,
+          posterUrl: posterUrl.substring(0, 50) + "..."
+        });
+      }
+
+      return posterUrl;
+    } catch (error) {
+      categoryLogger.error("포스터 이미지 가져오기 실패", {
+        platform,
+        categoryId: platformCategoryId,
+        error: error.message
+      });
+      return null;
+    }
+  }
+
+  /**
    * 오래된 카테고리 비활성화 (7일 이상 미발견)
    */
   async deactivateStaleCategories() {
+    // Cross-database datetime calculation
+    const sevenDaysAgo = isPostgres()
+      ? `NOW() - INTERVAL '7 days'`
+      : `datetime('now', '-7 days')`;
+    const falseValue = isPostgres() ? `FALSE` : `0`;
+
     return new Promise((resolve, reject) => {
       const sql = `
         UPDATE platform_categories
-        SET is_active = 0
-        WHERE last_seen_at < datetime('now', '-7 days')
+        SET is_active = ${falseValue}
+        WHERE last_seen_at < ${sevenDaysAgo}
       `;
 
       this.db.run(sql, [], function (err) {

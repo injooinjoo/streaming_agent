@@ -3,7 +3,7 @@ import {
   Gamepad2, Eye, Users, TrendingUp, TrendingDown,
   RefreshCw, Trophy, Search, AlertCircle
 } from 'lucide-react';
-import { formatNumber } from './mockGameData';
+import { formatNumber } from '../../utils/formatters';
 import './GameCatalog.css';
 
 const API_BASE = 'http://localhost:3001';
@@ -185,7 +185,10 @@ const GameCatalog = ({ onGameSelect }) => {
           <div
             key={game.id}
             className="game-catalog-card glass-premium"
-            onClick={() => onGameSelect(game.id)}
+            onClick={() => {
+              console.log('[GameCatalog] Card clicked - game.id:', game.id, 'name:', game.nameKr || game.name);
+              onGameSelect(game.id);
+            }}
           >
             <div className="game-catalog-card__image">
               {game.imageUrl ? (

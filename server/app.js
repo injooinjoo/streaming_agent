@@ -38,6 +38,8 @@ const { createAdService } = require("./services/adService");
 const { createStatsService } = require("./services/statsService");
 const { createStateStoreService } = require("./services/stateStoreService");
 const { createTokenService } = require("./services/tokenService");
+const UserSessionService = require("./services/userSessionService");
+const ViewerEstimationService = require("./services/viewerEstimationService");
 
 // Middleware
 const { authenticateToken, createAuthMiddleware } = require("./middleware/auth");
@@ -91,8 +93,12 @@ const createApp = ({
   // Services using streamingDb (events)
   const eventService = createEventService(streamingDb);
 
-  // Services using both databases (stats needs events from streamingDb, users from overlayDb)
-  const statsService = createStatsService(overlayDb, streamingDb);
+  // Stats service (uses unified database connection internally)
+  const statsService = createStatsService();
+
+  // Viewer session tracking services (using streamingDb)
+  const userSessionService = new UserSessionService(streamingDb);
+  const viewerEstimationService = new ViewerEstimationService(streamingDb);
 
   // Create auth middleware with tokenService (supports blacklist checking)
   const authMiddleware = createAuthMiddleware(tokenService);
@@ -154,8 +160,15 @@ const createApp = ({
   const adminRouter = createAdminRouter(overlayDb, authenticateAdmin, developerLogin);
   app.use("/api", adminRouter);
 
-  // Stats routes (events, donations, revenue) - uses both databases
-  const statsRouter = createStatsRouter(eventService, statsService, activeAdapters, authMiddleware);
+  // Stats routes (events, donations, revenue, viewer sessions) - uses both databases
+  const statsRouter = createStatsRouter(
+    eventService,
+    statsService,
+    activeAdapters,
+    authMiddleware,
+    userSessionService,
+    viewerEstimationService
+  );
   app.use("/api", statsRouter);
 
   // Platform routes (Chzzk, SOOP, events) - uses streamingDb for events

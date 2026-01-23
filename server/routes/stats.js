@@ -11,9 +11,18 @@ const express = require("express");
  * @param {Object} statsService - Stats service instance
  * @param {Map} activeAdapters - Active platform adapters map
  * @param {Function} authenticateToken - Auth middleware for protected routes
+ * @param {Object} userSessionService - User session service instance
+ * @param {Object} viewerEstimationService - Viewer estimation service instance
  * @returns {express.Router}
  */
-const createStatsRouter = (eventService, statsService, activeAdapters, authenticateToken) => {
+const createStatsRouter = (
+  eventService,
+  statsService,
+  activeAdapters,
+  authenticateToken,
+  userSessionService,
+  viewerEstimationService
+) => {
   const router = express.Router();
 
   // ===== Optional Auth Middleware =====
@@ -332,6 +341,151 @@ const createStatsRouter = (eventService, statsService, activeAdapters, authentic
     try {
       const result = await statsService.getPeakViewers();
       res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ===== Viewer Session Statistics (Protected) =====
+
+  /**
+   * GET /api/stats/viewers/unique/:broadcastId
+   * Get unique viewer count for a broadcast (requires authentication)
+   */
+  router.get("/stats/viewers/unique/:broadcastId", authenticateToken, async (req, res) => {
+    try {
+      const broadcastId = parseInt(req.params.broadcastId, 10);
+      const uniqueViewers = await userSessionService.getUniqueViewers(broadcastId);
+      res.json({ broadcastId, uniqueViewers });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/viewers/estimated/:broadcastId
+   * Get estimated total viewers for a broadcast (Chzzk hybrid approach) (requires authentication)
+   * Query params:
+   *  - channelId: Channel ID
+   *  - platform: Platform (chzzk)
+   *  - startTime: Broadcast start time (ISO format)
+   */
+  router.get("/stats/viewers/estimated/:broadcastId", authenticateToken, async (req, res) => {
+    try {
+      const broadcastId = parseInt(req.params.broadcastId, 10);
+      const { channelId, platform, startTime } = req.query;
+
+      if (!channelId || !platform || !startTime) {
+        return res.status(400).json({
+          error: "Missing required query parameters: channelId, platform, startTime"
+        });
+      }
+
+      const estimate = await viewerEstimationService.estimateTotalViewers({
+        channelId,
+        platform,
+        broadcastId,
+        startTime,
+      });
+
+      res.json({ broadcastId, ...estimate });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/viewers/watch-time/:broadcastId
+   * Get average watch time for a broadcast (requires authentication)
+   */
+  router.get("/stats/viewers/watch-time/:broadcastId", authenticateToken, async (req, res) => {
+    try {
+      const broadcastId = parseInt(req.params.broadcastId, 10);
+      const avgSeconds = await userSessionService.getAverageWatchTime(broadcastId);
+      res.json({
+        broadcastId,
+        averageWatchTimeSeconds: avgSeconds,
+        averageWatchTimeMinutes: Math.round(avgSeconds / 60)
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/viewers/sessions/:broadcastId
+   * Get active viewer sessions for a broadcast (requires authentication)
+   */
+  router.get("/stats/viewers/sessions/:broadcastId", authenticateToken, async (req, res) => {
+    try {
+      const broadcastId = parseInt(req.params.broadcastId, 10);
+      const sessions = userSessionService.getActiveSessions(broadcastId);
+      res.json({
+        broadcastId,
+        activeSessionCount: sessions.length,
+        sessions
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/viewers/daily-estimate
+   * Get daily viewer estimate for a specific channel and date (requires authentication)
+   * Query params:
+   *  - channelId: Channel ID
+   *  - platform: Platform (chzzk)
+   *  - date: Date (YYYY-MM-DD)
+   */
+  router.get("/stats/viewers/daily-estimate", authenticateToken, async (req, res) => {
+    try {
+      const { channelId, platform, date } = req.query;
+
+      if (!channelId || !platform || !date) {
+        return res.status(400).json({
+          error: "Missing required query parameters: channelId, platform, date"
+        });
+      }
+
+      const estimate = await viewerEstimationService.estimateDailyViewers(
+        channelId,
+        platform,
+        date
+      );
+
+      res.json({ channelId, platform, date, ...estimate });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/viewers/pattern
+   * Get viewer activity pattern analysis (requires authentication)
+   * Query params:
+   *  - channelId: Channel ID
+   *  - platform: Platform
+   *  - days: Number of days to analyze (default: 7)
+   */
+  router.get("/stats/viewers/pattern", authenticateToken, async (req, res) => {
+    try {
+      const { channelId, platform } = req.query;
+      const days = parseInt(req.query.days, 10) || 7;
+
+      if (!channelId || !platform) {
+        return res.status(400).json({
+          error: "Missing required query parameters: channelId, platform"
+        });
+      }
+
+      const pattern = await viewerEstimationService.analyzeViewerPattern(
+        channelId,
+        platform,
+        days
+      );
+
+      res.json({ channelId, platform, ...pattern });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

@@ -542,6 +542,165 @@
   text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 }
 
+/* ===========================================
+   Preview Mode Overrides (미리보기 모드)
+   =========================================== */
+
+/* Alert Overlay - Preview Mode */
+.alert-overlay.preview-mode {
+  position: relative;
+  top: auto;
+  left: auto;
+  transform: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.alert-overlay.preview-mode .alert-card {
+  min-width: 280px;
+  padding: 20px;
+  transform: scale(0.85);
+}
+
+.alert-overlay.preview-mode .alert-header {
+  font-size: 18px;
+}
+
+.alert-overlay.preview-mode .alert-sender {
+  font-size: 24px;
+}
+
+.alert-overlay.preview-mode .alert-amount {
+  font-size: 22px;
+  margin: 10px 0;
+}
+
+.alert-overlay.preview-mode .alert-message {
+  font-size: 14px;
+}
+
+/* Goal Overlay - Preview Mode */
+.goal-overlay.preview-mode {
+  position: relative;
+  top: auto;
+  right: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.goal-overlay.preview-mode .goal-card {
+  min-width: 250px;
+  width: auto;
+  max-width: 100%;
+}
+
+/* Subtitle Overlay - Preview Mode */
+.subtitle-overlay.preview-mode {
+  position: relative;
+  bottom: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.subtitle-overlay.preview-mode .subtitle-container {
+  max-width: 90%;
+  font-size: 18px !important;
+}
+
+/* Ticker Overlay - Preview Mode */
+.ticker-overlay.preview-mode {
+  position: relative;
+  top: auto;
+  left: auto;
+  width: 100%;
+  border-radius: 8px;
+}
+
+/* Emoji Overlay - Preview Mode */
+.emoji-overlay.preview-mode {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* Roulette Overlay - Preview Mode */
+.roulette-overlay.preview-mode {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.roulette-overlay.preview-mode .roulette-container {
+  transform: scale(0.9);
+}
+
+/* Voting Overlay - Preview Mode */
+.voting-overlay.preview-mode {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+}
+
+.voting-overlay.preview-mode .voting-container {
+  max-width: 320px;
+  width: 100%;
+}
+
+/* Credits Overlay - Preview Mode */
+.credits-overlay.preview-mode {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  overflow: hidden;
+}
+
+.credits-overlay.preview-mode .credits-container {
+  transform: scale(0.7);
+  animation: none !important;
+}
+
+/* Chat Overlay - Preview Mode */
+.chat-overlay.preview-mode {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 10px;
+}
+
+.chat-overlay.preview-mode .messages-container {
+  max-width: 100%;
+  gap: 6px;
+}
+
+.chat-overlay.preview-mode .chat-message-item {
+  padding: 6px 12px;
+  min-height: auto;
+  font-size: 12px;
+}
+
+/* ===========================================
+   Original Overlay Styles
+   =========================================== */
+
 /* Ticker Overlay */
 .ticker-overlay {
   position: absolute;
@@ -584,4 +743,259 @@
 @keyframes ticker {
   0% { transform: translate3d(100%, 0, 0); }
   100% { transform: translate3d(-100%, 0, 0); }
+}
+
+/* ===========================================
+   Emoji Overlay
+   =========================================== */
+.emoji-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 1000;
+}
+
+.emoji-item {
+  position: absolute;
+  bottom: 0;
+  font-size: 48px;
+  z-index: 1000;
+}
+
+.emoji-float {
+  animation: emojiFloat linear forwards;
+}
+
+.emoji-explode {
+  animation: emojiExplode ease-out forwards;
+}
+
+.emoji-rain {
+  top: 0;
+  bottom: auto;
+  animation: emojiRain linear forwards;
+}
+
+.emoji-bounce {
+  animation: emojiBounce ease-out forwards;
+}
+
+@keyframes emojiFloat {
+  0% { bottom: 0; opacity: 1; transform: scale(0.5); }
+  50% { opacity: 1; transform: scale(1); }
+  100% { bottom: 100%; opacity: 0; transform: scale(0.8); }
+}
+
+@keyframes emojiExplode {
+  0% { transform: scale(0) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.5) rotate(180deg); opacity: 1; }
+  100% { transform: scale(0.5) rotate(360deg) translateY(-100vh); opacity: 0; }
+}
+
+@keyframes emojiRain {
+  0% { top: 0; opacity: 1; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes emojiBounce {
+  0% { bottom: 0; transform: scale(0.5); opacity: 1; }
+  20% { bottom: 60%; transform: scale(1.2); }
+  40% { bottom: 40%; transform: scale(1); }
+  60% { bottom: 70%; transform: scale(0.9); }
+  80% { bottom: 50%; transform: scale(0.85); }
+  100% { bottom: 100%; opacity: 0; transform: scale(0.8); }
+}
+
+/* ===========================================
+   Voting Overlay
+   =========================================== */
+.voting-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+}
+
+.voting-container {
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(12px);
+  border-radius: 16px;
+  padding: 20px;
+  min-width: 350px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.voting-title {
+  color: white;
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.voting-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.voting-option {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.voting-option .option-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  color: white;
+  font-size: 14px;
+}
+
+.voting-option .option-bar-bg {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.voting-option .option-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.voting-option .option-bar-fill.animated {
+  transition: width 0.5s ease-out;
+}
+
+.voting-timer, .voting-closed {
+  text-align: center;
+  margin-top: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 12px;
+}
+
+/* ===========================================
+   Credits Overlay
+   =========================================== */
+.credits-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  z-index: 1000;
+}
+
+.credits-container {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: white;
+  width: 80%;
+  max-width: 600px;
+}
+
+.credits-title {
+  font-size: 48px;
+  font-weight: 800;
+  margin-bottom: 60px;
+}
+
+.credits-section {
+  margin-bottom: 40px;
+}
+
+.section-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 16px;
+}
+
+.section-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.credits-item {
+  font-size: 18px;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.credits-footer {
+  margin-top: 80px;
+}
+
+.thanks-message {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+@keyframes scrollUp {
+  0% { top: 100%; }
+  100% { top: -100%; }
+}
+
+/* ===========================================
+   Roulette Overlay
+   =========================================== */
+.roulette-overlay {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+}
+
+.roulette-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.roulette-pointer {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 32px;
+  z-index: 10;
+  color: white;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.roulette-wheel {
+  transition: transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+}
+
+.roulette-result {
+  position: absolute;
+  bottom: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.9);
+  padding: 12px 24px;
+  border-radius: 8px;
+  z-index: 10;
+}
+
+.result-text {
+  font-size: 24px;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }

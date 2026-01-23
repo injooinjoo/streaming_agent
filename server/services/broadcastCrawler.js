@@ -123,7 +123,7 @@ class BroadcastCrawler {
    * @param {number} maxBroadcasts - 최대 수집 방송 수
    * @returns {Promise<Array>}
    */
-  async fetchSoopLiveBroadcasts(maxBroadcasts = 200) {
+  async fetchSoopLiveBroadcasts(maxBroadcasts = 10000) {
     broadcastLogger.debug("Fetching SOOP live broadcasts...");
 
     const allBroadcasts = [];
@@ -182,7 +182,7 @@ class BroadcastCrawler {
    * @param {number} maxBroadcasts - 최대 수집 방송 수
    * @returns {Promise<Array>}
    */
-  async fetchChzzkLiveBroadcasts(maxBroadcasts = 200) {
+  async fetchChzzkLiveBroadcasts(maxBroadcasts = 10000) {
     broadcastLogger.debug("Fetching Chzzk live broadcasts...");
 
     const allBroadcasts = [];
@@ -842,18 +842,8 @@ class BroadcastCrawler {
       if (!this.activeAdapters.has(adapterKey)) {
         try {
           await this.connectToChannel(platform, broadcast);
-          broadcastLogger.info("Auto-connected to broadcast", {
-            platform,
-            channelId: broadcast.channelId,
-            nickname: broadcast.nickname,
-            viewers: broadcast.viewerCount,
-          });
         } catch (error) {
-          broadcastLogger.error("Auto-connect failed", {
-            platform,
-            channelId: broadcast.channelId,
-            error: error.message,
-          });
+          // "not live" errors are expected during crawling - don't log as error
         }
       }
     }
@@ -899,6 +889,10 @@ class BroadcastCrawler {
 
     // 이벤트 핸들러 설정
     adapter.on("event", async (event) => {
+      // user-enter/user-exit 이벤트는 normalizer 처리 스킵 (SOOP only)
+      // 이미 trackPersonAndEngagement에서 세션 처리됨
+      const isSessionEvent = event.type === "user-enter" || event.type === "user-exit";
+
       // Person 및 Engagement 추적 + Events 테이블 저장
       await this.trackPersonAndEngagement(event, broadcast.channelId, {
         categoryId: broadcast.categoryId,
@@ -908,26 +902,32 @@ class BroadcastCrawler {
       }, viewerEngagementService);
 
       // Socket.io로 브로드캐스트 (auto 연결은 특정 room 없이)
-      if (this.io && this.normalizer) {
+      // 세션 이벤트는 normalizer 처리 스킵 (events 테이블 제약 위반 방지)
+      if (this.io && this.normalizer && !isSessionEvent) {
         const legacyEvent = this.normalizer.toEventsFormat(event);
         this.io.emit("auto-monitor-event", legacyEvent);
       }
 
-      broadcastLogger.debug(`[${platform}:auto] Event: ${event.type} from ${event.sender?.nickname || "system"}`);
+      // viewer-update는 너무 많으므로 로그 제외
+      if (event.type !== "viewer-update") {
+        broadcastLogger.debug(`[${platform}:auto] Event: ${event.type} from ${event.sender?.nickname || "system"}`);
+      }
     });
 
     adapter.on("connected", () => {
-      broadcastLogger.debug(`[${platform}:auto] Connected to ${broadcast.nickname}`);
       this.autoConnectedChannels.add(adapterKey);
     });
 
     adapter.on("disconnected", () => {
-      broadcastLogger.debug(`[${platform}:auto] Disconnected from ${broadcast.nickname}`);
       this.autoConnectedChannels.delete(adapterKey);
     });
 
     adapter.on("error", (error) => {
-      broadcastLogger.error(`[${platform}:auto] Error:`, { error: error.message });
+      // "not live" errors are expected during auto-connect - don't log
+      const msg = error.message || "";
+      if (!msg.includes("not live") && !msg.includes("not found")) {
+        broadcastLogger.error(`[${platform}:auto] Error:`, { error: msg });
+      }
     });
 
     await adapter.connect();
@@ -1020,7 +1020,8 @@ class BroadcastCrawler {
         });
       }
     } catch (error) {
-      broadcastLogger.error("[auto] Track error:", { error: error.message, eventType: event.type });
+      console.error("[auto] Track error:", error?.message || String(error), "| eventType:", event.type, "| platform:", event.platform);
+      if (error?.stack) console.error("  Stack:", error.stack.split('\n')[1]?.trim());
     }
   }
 

@@ -69,7 +69,7 @@ const initializeUnifiedDatabase = (db) => {
         -- Actor (who performed the action)
         actor_person_id INTEGER REFERENCES persons(id),
         actor_nickname TEXT,
-        actor_role TEXT CHECK(actor_role IN ('streamer', 'manager', 'vip', 'fan', 'system')),
+        actor_role TEXT CHECK(actor_role IN ('streamer', 'manager', 'vip', 'fan', 'regular', 'system')),
 
         -- Target (broadcaster receiving the event)
         target_person_id INTEGER REFERENCES persons(id),
@@ -192,6 +192,27 @@ const initializeUnifiedDatabase = (db) => {
         ingested_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
 
+      // ===== 8. USER_SESSIONS (11 columns) - NEW =====
+      // 시청자 입장/퇴장 세션 추적 (SOOP 전용, Chzzk는 추정)
+
+      db.run(`CREATE TABLE IF NOT EXISTS user_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform TEXT NOT NULL CHECK(platform IN ('soop', 'chzzk', 'twitch', 'youtube')),
+        channel_id TEXT NOT NULL,
+        broadcast_id INTEGER REFERENCES broadcasts(id),
+
+        person_id INTEGER REFERENCES persons(id),
+        user_nickname TEXT,
+
+        session_started_at DATETIME NOT NULL,
+        session_ended_at DATETIME,
+        session_duration_seconds INTEGER,
+
+        category_id TEXT,
+
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )`);
+
       // ===================================================================
       // LEGACY STREAMING TABLES (for backward compatibility during migration)
       // ===================================================================
@@ -281,6 +302,8 @@ const initializeUnifiedDatabase = (db) => {
         oauth_provider TEXT,
         oauth_id TEXT,
         overlay_hash TEXT UNIQUE,
+        channel_id TEXT,
+        platform TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
 
@@ -537,6 +560,12 @@ const initializeUnifiedDatabase = (db) => {
       db.run(`CREATE INDEX IF NOT EXISTS idx_snapshots_broadcast ON viewer_snapshots(broadcast_id)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_snapshots_segment ON viewer_snapshots(segment_id)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_snapshots_time ON viewer_snapshots(snapshot_at)`);
+
+      // User sessions indexes
+      db.run(`CREATE INDEX IF NOT EXISTS idx_user_sessions_person ON user_sessions(person_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_user_sessions_broadcast ON user_sessions(broadcast_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_user_sessions_channel ON user_sessions(platform, channel_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_user_sessions_time ON user_sessions(session_started_at)`);
 
       // Legacy table indexes
       db.run(`CREATE INDEX IF NOT EXISTS idx_platform_categories_platform ON platform_categories(platform)`);

@@ -1,10 +1,14 @@
 /**
  * User Service
  * Business logic for user management
+ *
+ * Supports both SQLite (development) and PostgreSQL (production/Supabase)
  */
 
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
+const { getOne, getAll, runQuery, runReturning } = require("../db/connections");
+const { getSQLHelpers, isPostgres } = require("../config/database.config");
 
 /**
  * Generate 16-character overlay hash
@@ -16,45 +20,20 @@ const generateOverlayHash = () => {
 
 /**
  * Create User Service
- * @param {sqlite3.Database} db - Database instance
+ * @param {Object} _db - Deprecated: Database instance (kept for backward compatibility)
  * @returns {Object} User service methods
  */
-const createUserService = (db) => {
-  /**
-   * Promisified db.get
-   */
-  const dbGet = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.get(sql, params, (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-  };
+const createUserService = (_db) => {
+  // Get cross-database SQL helpers
+  const sql = getSQLHelpers();
 
-  /**
-   * Promisified db.run
-   */
-  const dbRun = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.run(sql, params, function (err) {
-        if (err) reject(err);
-        else resolve({ lastID: this.lastID, changes: this.changes });
-      });
-    });
-  };
+  // Use unified query helpers from connections.js
+  const dbGet = getOne;
+  const dbRun = runQuery;
+  const dbAll = getAll;
 
-  /**
-   * Promisified db.all
-   */
-  const dbAll = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.all(sql, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
-  };
+  // Wrapper for insert with RETURNING (PostgreSQL) or lastID (SQLite)
+  const dbRunReturning = runReturning;
 
   return {
     /**
@@ -64,7 +43,7 @@ const createUserService = (db) => {
      */
     async findById(id) {
       return dbGet(
-        `SELECT id, email, display_name, role, avatar_url, overlay_hash, created_at
+        `SELECT id, email, display_name, role, avatar_url, overlay_hash, channel_id, platform, created_at
          FROM users WHERE id = ?`,
         [id]
       );
@@ -232,7 +211,7 @@ const createUserService = (db) => {
       const [totalUsers, totalStreamers, activeUsers] = await Promise.all([
         dbGet("SELECT COUNT(*) as count FROM users"),
         dbGet("SELECT COUNT(*) as count FROM users WHERE role IN ('user', 'creator')"),
-        dbGet("SELECT COUNT(*) as count FROM users WHERE created_at > datetime('now', '-30 days')"),
+        dbGet(`SELECT COUNT(*) as count FROM users WHERE created_at > ${sql.dateSubtract(30, 'days')}`),
       ]);
 
       return {

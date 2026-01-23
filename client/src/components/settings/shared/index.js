@@ -5,3 +5,4 @@ export { default as SettingsRow } from './SettingsRow';
 export { default as RangeSlider } from './RangeSlider';
 export { default as ColorPicker } from './ColorPicker';
 export { default as ThemeGrid } from './ThemeGrid';
+export { default as OverlayPreviewWrapper } from './OverlayPreviewWrapper';

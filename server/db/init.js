@@ -33,6 +33,8 @@ const initializeDatabase = (db) => {
         oauth_provider TEXT,
         oauth_id TEXT,
         overlay_hash TEXT UNIQUE,
+        channel_id TEXT,
+        platform TEXT,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
 

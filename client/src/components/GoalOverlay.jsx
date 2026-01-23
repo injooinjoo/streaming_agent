@@ -5,7 +5,11 @@ import { API_URL } from '../config/api';
 import socket from '../config/socket';
 import './Overlay.css';
 
-const GoalOverlay = () => {
+const GoalOverlay = ({
+  previewMode = false,
+  previewSettings = null,
+  previewValue = null
+}) => {
   const { userHash } = useParams();
   const [settings, setSettings] = useState({
     theme: 'default',
@@ -34,6 +38,9 @@ const GoalOverlay = () => {
   };
 
   useEffect(() => {
+    // Skip API/Socket in preview mode
+    if (previewMode) return;
+
     fetchSettings();
 
     if (userHash) {
@@ -61,12 +68,29 @@ const GoalOverlay = () => {
       socket.off('settings-updated');
       socket.off('new-event');
     };
-  }, [userHash]);
+  }, [userHash, previewMode]);
 
-  const percentage = Math.min(100, Math.max(0, (settings.currentValue / settings.targetValue) * 100));
+  // OBS 브라우저 소스용 투명 배경
+  useEffect(() => {
+    if (!previewMode) {
+      document.body.classList.add('overlay-mode');
+      return () => document.body.classList.remove('overlay-mode');
+    }
+  }, [previewMode]);
+
+  // Use preview settings if in preview mode
+  const activeSettings = previewMode && previewSettings ? previewSettings : settings;
+  const activeCurrentValue = previewMode && previewValue !== null ? previewValue : activeSettings.currentValue;
+  const targetValue = activeSettings.targetValue || 100000;
+
+  const percentage = Math.min(100, Math.max(0, (activeCurrentValue / targetValue) * 100));
 
   const renderGraph = () => {
-    if (settings.type === 'circle') {
+    const graphType = activeSettings.graphType || activeSettings.type || 'bar';
+    const barColor = activeSettings.gradientStart || activeSettings.barColor || '#10a37f';
+    const thickness = activeSettings.thickness || 24;
+
+    if (graphType === 'circle') {
       const radius = 60;
       const circumference = 2 * Math.PI * radius;
       const offset = circumference - (percentage / 100) * circumference;
@@ -76,15 +100,15 @@ const GoalOverlay = () => {
           <svg width="140" height="140" className="progress-ring">
             <circle
               stroke="rgba(255,255,255,0.1)"
-              strokeWidth={settings.thickness}
+              strokeWidth={thickness}
               fill="transparent"
               r={radius}
               cx="70"
               cy="70"
             />
             <circle
-              stroke={settings.barColor}
-              strokeWidth={settings.thickness}
+              stroke={barColor}
+              strokeWidth={thickness}
               fill="transparent"
               r={radius}
               cx="70"
@@ -102,13 +126,13 @@ const GoalOverlay = () => {
       );
     }
 
-    if (settings.type === 'heart' || settings.type === 'star') {
+    if (graphType === 'heart' || graphType === 'star') {
       // Simple fill effect for shapes
-      const Icon = settings.type === 'heart' ? Heart : Star;
+      const Icon = graphType === 'heart' ? Heart : Star;
       return (
-        <div className="goal-shape" style={{ color: settings.barColor }}>
+        <div className="goal-shape" style={{ color: barColor }}>
           <Icon size={140} strokeWidth={1} className="goal-icon-bg" />
-          <div className="goal-shape-fill" style={{ height: `${percentage}%`, background: settings.barColor }}>
+          <div className="goal-shape-fill" style={{ height: `${percentage}%`, background: barColor }}>
             <Icon size={140} strokeWidth={1} className="goal-icon-fill" />
           </div>
           <div className="goal-percent absolute-center text-stroke">
@@ -118,21 +142,23 @@ const GoalOverlay = () => {
       );
     }
 
+    // Default bar type
+    const title = activeSettings.title || activeSettings.titleTemplate || '오늘의 목표';
     return (
       <div className="goal-bar-container">
         <div className="goal-header">
-          <span className="goal-title">{settings.title}</span>
+          <span className="goal-title">{title}</span>
           <span className="goal-values">
-            {settings.currentValue.toLocaleString()} / {settings.targetValue.toLocaleString()}
+            {activeCurrentValue.toLocaleString()} / {targetValue.toLocaleString()}
           </span>
         </div>
-        <div className="goal-bar-bg" style={{ height: `${settings.thickness}px` }}>
+        <div className="goal-bar-bg" style={{ height: `${thickness}px` }}>
           <div
             className="goal-bar-fill"
             style={{
               width: `${percentage}%`,
-              backgroundColor: settings.barColor,
-              boxShadow: `0 0 10px ${settings.barColor}`
+              backgroundColor: barColor,
+              boxShadow: `0 0 10px ${barColor}`
             }}
           >
             <div className="shine"></div>
@@ -143,7 +169,7 @@ const GoalOverlay = () => {
   };
 
   return (
-    <div className={`goal-overlay theme-${settings.theme}`}>
+    <div className={`goal-overlay theme-${activeSettings.theme} ${previewMode ? 'preview-mode' : ''}`}>
       <div className="goal-card glass">
         {renderGraph()}
       </div>

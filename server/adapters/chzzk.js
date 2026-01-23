@@ -62,7 +62,6 @@ class ChzzkAdapter extends BaseAdapter {
       }
 
       this.chatChannelId = liveDetail.chatChannelId;
-      console.log(`[chzzk] Chat channel ID: ${this.chatChannelId}`);
 
       // 3. WebSocket 연결
       await this.connectWebSocket();
@@ -70,7 +69,7 @@ class ChzzkAdapter extends BaseAdapter {
       // 4. 시청자 수 폴링 시작
       this.startViewerPolling();
     } catch (error) {
-      console.error(`[chzzk] Connection error:`, error.message);
+      // "not live" errors are expected - don't log as error
       this.emitError(error);
       throw error;
     }
@@ -131,12 +130,9 @@ class ChzzkAdapter extends BaseAdapter {
       const serverNumber = Math.floor(Math.random() * 5) + 1;
       const wsUrl = `wss://kr-ss${serverNumber}.chat.naver.com/chat`;
 
-      console.log(`[chzzk] Connecting to ${wsUrl}`);
-
       this.ws = new WebSocket(wsUrl);
 
       this.ws.on("open", () => {
-        console.log(`[chzzk] WebSocket connected`);
         this.sendConnect();
         this.startPingInterval();
       });
@@ -157,7 +153,6 @@ class ChzzkAdapter extends BaseAdapter {
       });
 
       this.ws.on("close", (code, reason) => {
-        console.log(`[chzzk] WebSocket closed: ${code} ${reason}`);
         this.stopPingInterval();
         this.onDisconnected();
 
@@ -215,7 +210,7 @@ class ChzzkAdapter extends BaseAdapter {
         break;
 
       case MESSAGE_TYPES.CONNECTED:
-        console.log(`[chzzk] Successfully connected to chat`);
+        // Successfully connected
         break;
 
       case MESSAGE_TYPES.CHAT:
@@ -224,7 +219,6 @@ class ChzzkAdapter extends BaseAdapter {
         break;
 
       case MESSAGE_TYPES.DONATION:
-        console.log(`[chzzk:debug] DONATION received, bdy items: ${Array.isArray(message.bdy) ? message.bdy.length : 1}`);
         this.processDonation(message.bdy);
         break;
 
@@ -233,10 +227,8 @@ class ChzzkAdapter extends BaseAdapter {
         break;
 
       default:
-        // 알 수 없는 메시지 타입은 로깅만
-        if (cmd >= 90000) {
-          console.log(`[chzzk] Unknown message type: ${cmd}`);
-        }
+        // 알 수 없는 메시지 타입은 무시
+        break;
     }
   }
 
@@ -318,7 +310,6 @@ class ChzzkAdapter extends BaseAdapter {
         };
 
         this.emitEvent(event);
-        console.log(`[chzzk] 👥 시청자 수: ${liveDetail.concurrentUserCount.toLocaleString()}명`);
       }
     } catch (error) {
       console.error(`[chzzk] Viewer count polling error:`, error.message);
@@ -481,7 +472,6 @@ class ChzzkAdapter extends BaseAdapter {
 
     this.isConnected = false;
     this.chatChannelId = null;
-    console.log(`[chzzk] Disconnected`);
   }
 
   /**
@@ -663,7 +653,6 @@ class ChzzkAdapter extends BaseAdapter {
     // 시청자순 정렬 (API가 이미 정렬되어 있지만 확실히 하기 위해)
     allBroadcasts.sort((a, b) => b.viewerCount - a.viewerCount);
 
-    console.log(`[chzzk] Fetched ${allBroadcasts.length} live broadcasts in ${pageNum} pages`);
     return allBroadcasts.slice(0, maxBroadcasts);
   }
 }

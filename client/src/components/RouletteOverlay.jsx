@@ -1,10 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_URL } from '../config/api';
 import socket from '../config/socket';
 import './Overlay.css';
 
-const RouletteOverlay = () => {
+const RouletteOverlay = ({
+  previewMode = false,
+  previewSettings = null,
+  triggerSpin = false,
+  onSpinComplete = null
+}) => {
   const { userHash } = useParams();
   const [isSpinning, setIsSpinning] = useState(false);
   const [result, setResult] = useState(null);
@@ -20,6 +25,17 @@ const RouletteOverlay = () => {
     theme: 'default'
   });
   const wheelRef = useRef(null);
+
+  // OBS 브라우저 소스용 투명 배경
+  useEffect(() => {
+    if (!previewMode) {
+      document.body.classList.add('overlay-mode');
+      return () => document.body.classList.remove('overlay-mode');
+    }
+  }, [previewMode]);
+
+  // Use preview settings if in preview mode
+  const activeSettings = previewMode && previewSettings ? previewSettings : settings;
 
   const fetchSettings = async () => {
     try {
@@ -40,13 +56,15 @@ const RouletteOverlay = () => {
     }
   };
 
-  const spinWheel = (resultIndex) => {
+  const spinWheel = useCallback((resultIndex) => {
     if (isSpinning) return;
 
     setIsSpinning(true);
     setResult(null);
 
-    const segmentAngle = 360 / settings.segments.length;
+    const duration = previewMode && previewSettings ? previewSettings.spinDuration : settings.spinDuration;
+    const segments = previewMode && previewSettings ? previewSettings.segments : settings.segments;
+    const segmentAngle = 360 / segments.length;
     const targetAngle = 360 - (resultIndex * segmentAngle) - (segmentAngle / 2);
     const spins = 5; // Number of full rotations
     const finalRotation = rotation + (spins * 360) + targetAngle;
@@ -55,11 +73,34 @@ const RouletteOverlay = () => {
 
     setTimeout(() => {
       setIsSpinning(false);
-      setResult(settings.segments[resultIndex]);
-    }, settings.spinDuration);
-  };
+      setResult(segments[resultIndex]);
+      if (onSpinComplete) onSpinComplete(segments[resultIndex]);
+    }, duration);
+  }, [isSpinning, previewMode, previewSettings, settings, rotation, onSpinComplete]);
+
+  // Handle triggerSpin prop for preview
+  useEffect(() => {
+    if (previewMode && triggerSpin && !isSpinning) {
+      const segments = previewSettings?.segments || settings.segments;
+      const totalProb = segments.reduce((sum, s) => sum + (s.probability || 0), 0);
+      let random = Math.random() * totalProb;
+      let resultIndex = 0;
+
+      for (let i = 0; i < segments.length; i++) {
+        random -= segments[i].probability || 0;
+        if (random <= 0) {
+          resultIndex = i;
+          break;
+        }
+      }
+      spinWheel(resultIndex);
+    }
+  }, [triggerSpin, previewMode, previewSettings, settings, isSpinning, spinWheel]);
 
   useEffect(() => {
+    // Skip API/Socket in preview mode
+    if (previewMode) return;
+
     fetchSettings();
 
     if (userHash) {
@@ -83,10 +124,10 @@ const RouletteOverlay = () => {
       socket.off('roulette-spin');
       socket.off('settings-updated');
     };
-  }, [userHash]);
+  }, [userHash, previewMode, spinWheel]);
 
   const renderWheel = () => {
-    const segments = settings.segments;
+    const segments = activeSettings.segments;
     const segmentAngle = 360 / segments.length;
 
     return (
@@ -95,7 +136,7 @@ const RouletteOverlay = () => {
         className="roulette-wheel"
         style={{
           transform: `rotate(${rotation}deg)`,
-          transition: isSpinning ? `transform ${settings.spinDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)` : 'none'
+          transition: isSpinning ? `transform ${activeSettings.spinDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)` : 'none'
         }}
       >
         {segments.map((segment, index) => {
@@ -143,7 +184,7 @@ const RouletteOverlay = () => {
   };
 
   return (
-    <div className={`roulette-overlay theme-${settings.theme}`}>
+    <div className={`roulette-overlay theme-${activeSettings.theme} ${previewMode ? 'preview-mode' : ''}`}>
       <div className="roulette-container">
         <div className="roulette-pointer">▼</div>
         <svg width="300" height="300" viewBox="0 0 300 300">

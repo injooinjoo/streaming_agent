@@ -3,10 +3,12 @@ import {
   Copy, RefreshCw, Save, Type, Check,
   Image as ImageIcon, HelpCircle, ExternalLink, Info,
   Monitor, Palette, Settings, RotateCcw, Megaphone,
-  Clock, Hash, User, Trash2, Plus, Volume2
+  Clock, Hash, User, Trash2, Plus, Volume2, Send
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import { OverlayPreviewWrapper } from './shared';
+import TickerOverlay from '../TickerOverlay';
 import './ChatSettings.css';
 
 const defaultSettings = {
@@ -56,6 +58,13 @@ const TickerSettings = () => {
   const [activeNav, setActiveNav] = useState('base');
   const overlayHash = user?.userHash || null;
   const [copied, setCopied] = useState(false);
+
+  // Preview test state
+  const [testMessages, setTestMessages] = useState([
+    { id: 1, text: '테스터: 안녕하세요! 전광판 테스트입니다' },
+    { id: 2, text: '시청자: 좋은 방송 감사합니다~' }
+  ]);
+  const [newMessage, setNewMessage] = useState('');
 
   const sectionRefs = {
     base: useRef(null),
@@ -541,7 +550,98 @@ const TickerSettings = () => {
         </div>
 
         <aside className="chat-settings-preview-aside">
-          <div className="save-controls-wrapper" style={{ position: 'sticky', top: '24px' }}>
+          {/* 실시간 미리보기 */}
+          <OverlayPreviewWrapper title="전광판 미리보기" height={100}>
+            <TickerOverlay
+              previewMode={true}
+              previewSettings={settings}
+              previewMessages={testMessages}
+            />
+          </OverlayPreviewWrapper>
+
+          {/* 테스트 컨트롤 */}
+          <div className="test-controls glass-premium" style={{ marginTop: '16px' }}>
+            <div className="test-header">
+              <Megaphone size={16} />
+              <span>메시지 테스트</span>
+            </div>
+
+            <div className="test-input-row" style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+              <input
+                type="text"
+                className="styled-input"
+                placeholder="테스트 메시지 입력..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && newMessage.trim()) {
+                    setTestMessages(prev => [...prev, {
+                      id: Date.now(),
+                      text: `테스터: ${newMessage}`
+                    }]);
+                    setNewMessage('');
+                  }
+                }}
+                style={{ flex: 1 }}
+              />
+              <button
+                className="btn-test-action"
+                onClick={() => {
+                  if (newMessage.trim()) {
+                    setTestMessages(prev => [...prev, {
+                      id: Date.now(),
+                      text: `테스터: ${newMessage}`
+                    }]);
+                    setNewMessage('');
+                  }
+                }}
+              >
+                <Send size={14} />
+              </button>
+            </div>
+
+            <div className="test-messages-list" style={{ marginTop: '12px', maxHeight: '120px', overflowY: 'auto' }}>
+              {testMessages.map((msg) => (
+                <div key={msg.id} className="test-message-item" style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  padding: '6px 8px',
+                  fontSize: '12px',
+                  background: 'var(--bg-secondary)',
+                  borderRadius: '6px',
+                  marginBottom: '4px'
+                }}>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {msg.text}
+                  </span>
+                  <button
+                    onClick={() => setTestMessages(prev => prev.filter(m => m.id !== msg.id))}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '2px',
+                      color: 'var(--text-muted)'
+                    }}
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <button
+              className="btn-test-secondary"
+              onClick={() => setTestMessages([])}
+              style={{ marginTop: '8px', width: '100%' }}
+            >
+              <Trash2 size={14} /> 모두 삭제
+            </button>
+          </div>
+
+          {/* 저장 버튼 */}
+          <div className="save-controls-wrapper" style={{ marginTop: '16px' }}>
             <button className="btn-save-full" onClick={saveSettings} disabled={saving}>
               {saving ? <RefreshCw className="spin" size={18}/> : <Save size={18}/>}
               설정 저장하기
@@ -549,14 +649,6 @@ const TickerSettings = () => {
             <button className="btn-reset-light" onClick={resetSettings}>
               <RotateCcw size={14} /> 전광판 초기화
             </button>
-            
-            <div className="info-box-premium" style={{ marginTop: '20px' }}>
-              <div className="info-header">
-                <HelpCircle size={14} />
-                <span>도움말</span>
-              </div>
-              <p>전광판 설정은 실시간으로 반영됩니다. 명령어 제어가 가능한 점을 활용해 스트림을 풍성하게 만들어보세요.</p>
-            </div>
           </div>
         </aside>
       </div>

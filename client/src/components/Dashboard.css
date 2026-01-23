@@ -585,6 +585,12 @@
   border-color: var(--primary);
 }
 
+.category-card:active {
+  transform: translateY(-2px) scale(0.98);
+  box-shadow: var(--shadow-sm);
+  transition: all 0.1s ease;
+}
+
 .category-rank {
   position: absolute;
   top: 10px;
@@ -1578,6 +1584,109 @@
   }
 }
 
+/* ===== 내 방송 카테고리 섹션 ===== */
+.my-categories-wrapper {
+  margin-bottom: 24px;
+}
+
+.my-categories-wrapper .section-title h2 {
+  color: var(--primary);
+}
+
+.my-categories-grid {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.my-category-card {
+  position: relative;
+  flex-shrink: 0;
+  width: 260px;
+  background: linear-gradient(135deg, var(--bg-card) 0%, rgba(var(--primary-rgb), 0.03) 100%);
+  border: 1px solid var(--primary-light);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.my-category-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(var(--primary-rgb), 0.15);
+  border-color: var(--primary);
+}
+
+.my-category-card .category-rank.my-rank {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+}
+
+.my-category-card .category-image {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background: linear-gradient(135deg, var(--bg-sidebar) 0%, var(--bg-card-hover) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.my-category-card .category-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.my-category-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.my-category-stats .category-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 8px;
+  background: var(--bg-card-hover);
+  border-radius: 6px;
+}
+
+.my-category-stats .category-stat .stat-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.my-category-stats .category-stat .stat-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+@media (max-width: 768px) {
+  .my-category-card {
+    width: 220px;
+  }
+
+  .my-categories-grid {
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .my-category-card {
+    flex: 1 1 100%;
+    width: auto;
+  }
+
+  .my-categories-grid {
+    flex-wrap: wrap;
+    overflow-x: hidden;
+  }
+}
 
 /* Developer Mode Button in Dashboard */
 .dev-mode-toggle-dashboard {
@@ -1798,5 +1907,112 @@
   .btn-onboarding {
     padding: 8px;
     border-radius: 50%;
+  }
+}
+
+/* Right Sidebar - Event Simulator */
+.right-sidebar {
+  width: 280px;
+  background: var(--bg-sidebar);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-left: 1px solid var(--border-medium);
+  padding: 16px;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+.right-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.right-sidebar-header h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0;
+}
+
+.simulator-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.simulator-content .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.simulator-content .form-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.simulator-content .form-field input,
+.simulator-content .form-field select,
+.simulator-content .form-field textarea {
+  padding: 10px 12px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-sm);
+  background: var(--bg-input);
+  color: var(--text-main);
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.simulator-content .form-field input:focus,
+.simulator-content .form-field select:focus,
+.simulator-content .form-field textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.simulator-content .form-field textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.btn-simulate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 16px;
+  margin-top: 8px;
+  font-weight: 600;
+}
+
+.btn-simulate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Hide right sidebar on mobile and tablet */
+@media (max-width: 1200px) {
+  .right-sidebar {
+    display: none;
   }
 }

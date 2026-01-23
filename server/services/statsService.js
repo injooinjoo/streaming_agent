@@ -2,65 +2,29 @@
  * Stats Service
  * Business logic for statistics and analytics
  *
- * Uses two databases:
- * - overlayDb: User data for admin stats
- * - streamingDb: Events data for viewer/donation stats
+ * Supports both SQLite (development) and PostgreSQL (production/Supabase)
  */
+
+const { getOne, getAll } = require("../db/connections");
+const { getSQLHelpers, isPostgres } = require("../config/database.config");
 
 /**
  * Create Stats Service
- * @param {sqlite3.Database} overlayDb - Overlay database instance (users, ads)
- * @param {sqlite3.Database} streamingDb - Streaming database instance (events, viewer_stats)
  * @returns {Object} Stats service methods
  */
-const createStatsService = (overlayDb, streamingDb) => {
-  /**
-   * Promisified db.get for overlay database
-   */
-  const overlayDbGet = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      overlayDb.get(sql, params, (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-  };
+const createStatsService = () => {
+  // Get cross-database SQL helpers
+  const sql = getSQLHelpers();
 
-  /**
-   * Promisified db.all for overlay database
-   */
-  const overlayDbAll = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      overlayDb.all(sql, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
-  };
+  // Unified query helpers (work with both SQLite and PostgreSQL)
+  const dbGet = getOne;
+  const dbAll = getAll;
 
-  /**
-   * Promisified db.get for streaming database
-   */
-  const streamingDbGet = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      streamingDb.get(sql, params, (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-  };
-
-  /**
-   * Promisified db.all for streaming database
-   */
-  const streamingDbAll = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      streamingDb.all(sql, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
-  };
+  // Alias for backward compatibility (both DBs are now unified)
+  const overlayDbGet = dbGet;
+  const overlayDbAll = dbAll;
+  const streamingDbGet = dbGet;
+  const streamingDbAll = dbAll;
 
   return {
     // ===== Revenue Statistics (from streamingDb) =====
@@ -101,12 +65,12 @@ const createStatsService = (overlayDb, streamingDb) => {
     async getRevenueTrend(days = 30) {
       const rows = await streamingDbAll(
         `SELECT
-          DATE(event_timestamp) as date,
+          ${sql.dateOnly('event_timestamp')} as date,
           COUNT(*) as count,
           COALESCE(SUM(amount), 0) as donations
         FROM events
-        WHERE event_type = 'donation' AND event_timestamp >= datetime('now', '-${days} days')
-        GROUP BY DATE(event_timestamp)
+        WHERE event_type = 'donation' AND event_timestamp >= ${sql.dateSubtract(days, 'days')}
+        GROUP BY ${sql.dateOnly('event_timestamp')}
         ORDER BY date ASC`
       );
 
@@ -155,11 +119,11 @@ const createStatsService = (overlayDb, streamingDb) => {
     async getMonthlyRevenue(months = 6) {
       const rows = await streamingDbAll(
         `SELECT
-          strftime('%Y-%m', event_timestamp) as month,
+          ${sql.formatDate('event_timestamp', 'YYYY-MM')} as month,
           COALESCE(SUM(amount), 0) as revenue
         FROM events
-        WHERE event_type = 'donation' AND event_timestamp >= datetime('now', '-${months} months')
-        GROUP BY strftime('%Y-%m', event_timestamp)
+        WHERE event_type = 'donation' AND event_timestamp >= ${sql.dateSubtract(months, 'months')}
+        GROUP BY ${sql.formatDate('event_timestamp', 'YYYY-MM')}
         ORDER BY month ASC`
       );
 
@@ -269,9 +233,9 @@ const createStatsService = (overlayDb, streamingDb) => {
       const overlayQueries = {
         totalStreamers: "SELECT COUNT(*) as count FROM users WHERE role IN ('user', 'creator')",
         totalUsers: "SELECT COUNT(*) as count FROM users",
-        activeUsers: "SELECT COUNT(*) as count FROM users WHERE created_at > datetime('now', '-30 days')",
+        activeUsers: `SELECT COUNT(*) as count FROM users WHERE created_at > ${sql.dateSubtract(30, 'days')}`,
         totalAdRevenue: "SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions",
-        monthlyAdRevenue: "SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions WHERE strftime('%Y-%m', event_timestamp) = strftime('%Y-%m', 'now')",
+        monthlyAdRevenue: `SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions WHERE ${sql.formatDate('timestamp', 'YYYY-MM')} = ${sql.formatDate(sql.now(), 'YYYY-MM')}`,
         activeCampaigns: "SELECT COUNT(*) as count FROM ad_campaigns WHERE status = 'active'",
       };
 
@@ -331,18 +295,18 @@ const createStatsService = (overlayDb, streamingDb) => {
         `SELECT
           COUNT(*) as totalChats,
           COUNT(DISTINCT actor_nickname) as uniqueUsers,
-          COUNT(DISTINCT DATE(event_timestamp)) as activeDays
+          COUNT(DISTINCT ${sql.dateOnly('event_timestamp')}) as activeDays
         FROM events
-        WHERE event_type = 'chat' AND event_timestamp >= datetime('now', '-${days} days')`
+        WHERE event_type = 'chat' AND event_timestamp >= ${sql.dateSubtract(days, 'days')}`
       );
 
       const peakChat = await streamingDbGet(
         `SELECT
-          strftime('%H:00', event_timestamp) as hour,
+          ${sql.formatDate('event_timestamp', 'HH24:00')} as hour,
           COUNT(*) as count
         FROM events
-        WHERE event_type = 'chat' AND event_timestamp >= datetime('now', '-${days} days')
-        GROUP BY strftime('%H', event_timestamp)
+        WHERE event_type = 'chat' AND event_timestamp >= ${sql.dateSubtract(days, 'days')}
+        GROUP BY ${sql.extractHour('event_timestamp')}
         ORDER BY count DESC
         LIMIT 1`
       );
@@ -364,12 +328,12 @@ const createStatsService = (overlayDb, streamingDb) => {
     async getChatTrendByHour(days = 7) {
       const rows = await streamingDbAll(
         `SELECT
-          strftime('%H:00', event_timestamp) as hour,
+          ${sql.formatDate('event_timestamp', 'HH24:00')} as hour,
           COUNT(*) as chats,
           COUNT(DISTINCT actor_nickname) as users
         FROM events
-        WHERE event_type = 'chat' AND event_timestamp >= datetime('now', '-${days} days')
-        GROUP BY strftime('%H', event_timestamp)
+        WHERE event_type = 'chat' AND event_timestamp >= ${sql.dateSubtract(days, 'days')}
+        GROUP BY ${sql.extractHour('event_timestamp')}
         ORDER BY hour`
       );
 
@@ -394,23 +358,26 @@ const createStatsService = (overlayDb, streamingDb) => {
      */
     async getChatTrendByDayOfWeek(weeks = 4) {
       const days = weeks * 7;
+      // Note: PostgreSQL EXTRACT(DOW) returns 0=Sunday like SQLite strftime('%w')
+      const dayCase = isPostgres()
+        ? `CASE EXTRACT(DOW FROM event_timestamp)::INTEGER
+            WHEN 0 THEN '일' WHEN 1 THEN '월' WHEN 2 THEN '화'
+            WHEN 3 THEN '수' WHEN 4 THEN '목' WHEN 5 THEN '금' WHEN 6 THEN '토'
+          END`
+        : `CASE strftime('%w', event_timestamp)
+            WHEN '0' THEN '일' WHEN '1' THEN '월' WHEN '2' THEN '화'
+            WHEN '3' THEN '수' WHEN '4' THEN '목' WHEN '5' THEN '금' WHEN '6' THEN '토'
+          END`;
+
       const rows = await streamingDbAll(
         `SELECT
-          CASE strftime('%w', event_timestamp)
-            WHEN '0' THEN '일'
-            WHEN '1' THEN '월'
-            WHEN '2' THEN '화'
-            WHEN '3' THEN '수'
-            WHEN '4' THEN '목'
-            WHEN '5' THEN '금'
-            WHEN '6' THEN '토'
-          END as day,
-          strftime('%w', event_timestamp) as dayNum,
+          ${dayCase} as day,
+          ${sql.extractDayOfWeek('event_timestamp')} as dayNum,
           COUNT(*) as chats,
           COUNT(DISTINCT actor_nickname) as users
         FROM events
-        WHERE event_type = 'chat' AND event_timestamp >= datetime('now', '-${days} days')
-        GROUP BY strftime('%w', event_timestamp)
+        WHERE event_type = 'chat' AND event_timestamp >= ${sql.dateSubtract(days, 'days')}
+        GROUP BY ${sql.extractDayOfWeek('event_timestamp')}
         ORDER BY dayNum`
       );
 
@@ -433,14 +400,14 @@ const createStatsService = (overlayDb, streamingDb) => {
     async getActivityTimeline(days = 7) {
       const rows = await streamingDbAll(
         `SELECT
-          DATE(event_timestamp) as date,
+          ${sql.dateOnly('event_timestamp')} as date,
           COUNT(CASE WHEN event_type = 'chat' THEN 1 END) as chats,
           COUNT(CASE WHEN event_type = 'donation' THEN 1 END) as donations,
           COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donationAmount,
           COUNT(DISTINCT actor_nickname) as activeUsers
         FROM events
-        WHERE event_timestamp >= datetime('now', '-${days} days')
-        GROUP BY DATE(event_timestamp)
+        WHERE event_timestamp >= ${sql.dateSubtract(days, 'days')}
+        GROUP BY ${sql.dateOnly('event_timestamp')}
         ORDER BY date DESC`
       );
 
@@ -554,12 +521,12 @@ const createStatsService = (overlayDb, streamingDb) => {
     async getHourlyActivityByPlatform(hours = 24) {
       const rows = await streamingDbAll(
         `SELECT
-          strftime('%H:00', event_timestamp) as time,
+          ${sql.formatDate('event_timestamp', 'HH24:00')} as time,
           platform,
           COUNT(*) as count
         FROM events
-        WHERE event_timestamp >= datetime('now', '-${hours} hours')
-        GROUP BY strftime('%H', event_timestamp), platform
+        WHERE event_timestamp >= ${sql.dateSubtract(hours, 'hours')}
+        GROUP BY ${sql.extractHour('event_timestamp')}, platform
         ORDER BY time`
       );
 
@@ -609,11 +576,11 @@ const createStatsService = (overlayDb, streamingDb) => {
         `),
         streamingDbAll(`
           SELECT platform,
-            strftime('%Y-%m-%d', event_timestamp) as date,
+            ${sql.formatDate('event_timestamp', 'YYYY-MM-DD')} as date,
             COUNT(*) as events
           FROM events
-          WHERE event_timestamp > datetime('now', '-7 days')
-          GROUP BY platform, date
+          WHERE event_timestamp > ${sql.dateSubtract(7, 'days')}
+          GROUP BY platform, ${sql.formatDate('event_timestamp', 'YYYY-MM-DD')}
           ORDER BY date
         `),
       ]);
@@ -638,15 +605,15 @@ const createStatsService = (overlayDb, streamingDb) => {
           platform,
           channel_id,
           viewer_count,
-          strftime('%H:%M', timestamp) as time,
+          ${sql.formatDate('timestamp', 'HH24:MI')} as time,
           timestamp
         FROM viewer_stats
-        WHERE timestamp >= datetime('now', '-${hours} hours')
+        WHERE timestamp >= ${sql.dateSubtract(hours, 'hours')}
       `;
 
       const params = [];
       if (platform) {
-        query += ` AND platform = ?`;
+        query += ` AND platform = ${isPostgres() ? '$1' : '?'}`;
         params.push(platform);
       }
 
@@ -662,14 +629,15 @@ const createStatsService = (overlayDb, streamingDb) => {
      */
     async getPeakViewers() {
       const today = new Date().toISOString().split('T')[0];
+      const param = isPostgres() ? '$1' : '?';
 
       const peakRow = await streamingDbGet(
         `SELECT
           MAX(viewer_count) as peakViewers,
-          strftime('%H:%M', timestamp) as peakTime,
+          ${sql.formatDate('timestamp', 'HH24:MI')} as peakTime,
           platform
         FROM viewer_stats
-        WHERE DATE(timestamp) = ?
+        WHERE ${sql.dateOnly('timestamp')} = ${param}
         GROUP BY platform
         ORDER BY peakViewers DESC
         LIMIT 1`,
@@ -679,7 +647,7 @@ const createStatsService = (overlayDb, streamingDb) => {
       const totalPeak = await streamingDbGet(
         `SELECT MAX(viewer_count) as peakViewers
         FROM viewer_stats
-        WHERE DATE(timestamp) = ?`,
+        WHERE ${sql.dateOnly('timestamp')} = ${param}`,
         [today]
       );
 
@@ -697,33 +665,68 @@ const createStatsService = (overlayDb, streamingDb) => {
      * @returns {Promise<Object>}
      */
     async getDashboardSummary(channelId = null, platform = null) {
-      const today = new Date().toISOString().split('T')[0];
+      const currentMonth = new Date().toISOString().slice(0, 7); // '2025-01' 형식
+
+      // Build dynamic WHERE conditions for events table
+      const buildEventConditions = (baseCondition, params) => {
+        let conditions = [baseCondition];
+        let queryParams = [...params];
+        if (channelId) {
+          conditions.push('target_channel_id = ?');
+          queryParams.push(channelId);
+        }
+        if (platform) {
+          conditions.push('platform = ?');
+          queryParams.push(platform);
+        }
+        return { where: conditions.join(' AND '), params: queryParams };
+      };
+
+      // Build dynamic WHERE conditions for viewer_stats table
+      const buildViewerConditions = (baseCondition, params) => {
+        let conditions = [baseCondition];
+        let queryParams = [...params];
+        if (channelId) {
+          conditions.push('channel_id = ?');
+          queryParams.push(channelId);
+        }
+        if (platform) {
+          conditions.push('platform = ?');
+          queryParams.push(platform);
+        }
+        return { where: conditions.join(' AND '), params: queryParams };
+      };
+
+      const donationCond = buildEventConditions(`event_type = 'donation' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${isPostgres() ? '$1' : '?'}`, [currentMonth]);
+      const viewerCond = buildViewerConditions(`${sql.formatDate('timestamp', 'YYYY-MM')} = ${isPostgres() ? '$1' : '?'}`, [currentMonth]);
+      const subscribeCond = buildEventConditions(`event_type = 'subscribe' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${isPostgres() ? '$1' : '?'}`, [currentMonth]);
+      const activityCond = buildEventConditions(`event_timestamp >= ${sql.dateSubtract(7, 'days')}`, []);
 
       const [todayStats, peakViewers, subscribeCount, platformStats] = await Promise.all([
-        // Today's donation stats
+        // Today's donation stats (filtered by channelId if provided)
         streamingDbGet(
           `SELECT
             COALESCE(SUM(amount), 0) as todayDonation,
             COUNT(*) as donationCount
           FROM events
-          WHERE event_type = 'donation' AND DATE(event_timestamp) = ?`,
-          [today]
+          WHERE ${donationCond.where}`,
+          donationCond.params
         ),
-        // Peak viewers from viewer_stats
+        // Peak viewers from viewer_stats (filtered by channelId if provided)
         streamingDbGet(
           `SELECT MAX(viewer_count) as peakViewers
            FROM viewer_stats
-           WHERE DATE(timestamp) = ?`,
-          [today]
+           WHERE ${viewerCond.where}`,
+          viewerCond.params
         ),
-        // Today's subscribe count
+        // Today's subscribe count (filtered by channelId if provided)
         streamingDbGet(
           `SELECT COUNT(*) as newSubs
           FROM events
-          WHERE event_type = 'subscribe' AND DATE(event_timestamp) = ?`,
-          [today]
+          WHERE ${subscribeCond.where}`,
+          subscribeCond.params
         ),
-        // Platform activity (최근 7일)
+        // Platform activity (최근 7일, filtered by channelId if provided)
         streamingDbAll(
           `SELECT
             platform,
@@ -731,9 +734,10 @@ const createStatsService = (overlayDb, streamingDb) => {
             COUNT(CASE WHEN event_type = 'chat' THEN 1 END) as chats,
             COUNT(CASE WHEN event_type = 'donation' THEN 1 END) as donations
           FROM events
-          WHERE event_timestamp >= datetime('now', '-7 days')
+          WHERE ${activityCond.where}
           GROUP BY platform
-          ORDER BY activity DESC`
+          ORDER BY activity DESC`,
+          activityCond.params
         ),
       ]);
 
@@ -743,7 +747,7 @@ const createStatsService = (overlayDb, streamingDb) => {
       if (todayStats?.todayDonation > 0) {
         insights.push({
           type: 'donation',
-          message: `오늘 ${todayStats.donationCount}건의 후원이 있었습니다`,
+          message: `이번 달 ${todayStats.donationCount}건의 후원이 있었습니다`,
           value: `₩${todayStats.todayDonation.toLocaleString()}`
         });
       }
@@ -751,7 +755,7 @@ const createStatsService = (overlayDb, streamingDb) => {
       if (peakViewers?.peakViewers > 0) {
         insights.push({
           type: 'viewers',
-          message: `오늘 최고 시청자 수를 기록했습니다`,
+          message: `이번 달 최고 시청자 수를 기록했습니다`,
           value: `${peakViewers.peakViewers}명`
         });
       }
@@ -776,10 +780,83 @@ const createStatsService = (overlayDb, streamingDb) => {
         });
       }
 
+      // 내 방송 카테고리 (사용자가 주로 방송하는 카테고리)
+      let myCategories = [];
+      if (channelId) {
+        try {
+          // Cross-database duration calculation
+          const durationCalc = isPostgres()
+            ? `EXTRACT(EPOCH FROM (COALESCE(bs.segment_ended_at, NOW()) - bs.segment_started_at)) / 60`
+            : `(julianday(COALESCE(bs.segment_ended_at, datetime('now'))) - julianday(bs.segment_started_at)) * 24 * 60`;
+          const boolTrue = isPostgres() ? 'TRUE' : '1';
+          const param = isPostgres() ? '$1' : '?';
+
+          const myCategoryRows = await streamingDbAll(`
+            SELECT
+              bs.category_id,
+              bs.category_name,
+              COUNT(*) as broadcast_count,
+              SUM(COALESCE(CAST(${durationCalc} AS INTEGER), 0)) as total_minutes,
+              MAX(bs.peak_viewer_count) as peak_viewers,
+              AVG(bs.avg_viewer_count) as avg_viewers,
+              MAX(bs.segment_started_at) as last_broadcast_at,
+              ug.image_url,
+              ug.genre_kr,
+              pc_soop.thumbnail_url as soop_thumbnail,
+              pc_chzzk.thumbnail_url as chzzk_thumbnail
+            FROM broadcast_segments bs
+            INNER JOIN broadcasts b ON bs.broadcast_id = b.id
+            LEFT JOIN unified_games ug ON (
+              LOWER(bs.category_name) = LOWER(ug.name)
+              OR LOWER(bs.category_name) = LOWER(ug.name_kr)
+            )
+            LEFT JOIN platform_categories pc_soop ON (
+              pc_soop.platform = 'soop'
+              AND LOWER(pc_soop.platform_category_name) = LOWER(bs.category_name)
+              AND pc_soop.is_active = ${boolTrue}
+            )
+            LEFT JOIN platform_categories pc_chzzk ON (
+              pc_chzzk.platform = 'chzzk'
+              AND LOWER(pc_chzzk.platform_category_name) = LOWER(bs.category_name)
+              AND pc_chzzk.is_active = ${boolTrue}
+            )
+            WHERE bs.channel_id = ${param}
+              AND bs.category_name IS NOT NULL
+              AND bs.category_name <> ''
+            GROUP BY bs.category_id, bs.category_name
+            ORDER BY broadcast_count DESC, total_minutes DESC
+            LIMIT 5
+          `, [channelId]);
+
+          if (myCategoryRows && myCategoryRows.length > 0) {
+            myCategories = myCategoryRows.map((row, i) => ({
+              rank: i + 1,
+              categoryId: row.category_id,
+              name: row.category_name,
+              imageUrl: row.soop_thumbnail || row.chzzk_thumbnail || row.image_url || null,
+              genre: row.genre_kr || null,
+              broadcastCount: row.broadcast_count,
+              totalMinutes: row.total_minutes || 0,
+              peakViewers: row.peak_viewers || 0,
+              avgViewers: Math.round(row.avg_viewers || 0),
+              lastBroadcastAt: row.last_broadcast_at,
+            }));
+          }
+        } catch (err) {
+          console.error('Failed to fetch my categories:', err);
+        }
+      }
+
       // Top game categories from unified_games (실제 게임 카테고리)
       // 이미지 우선순위: SOOP 카테고리 이미지 > Chzzk 포스터 이미지 > unified_games 이미지
       let topCategories = [];
       try {
+        const boolTrue = isPostgres() ? 'TRUE' : '1';
+        // PostgreSQL uses STRING_AGG, SQLite uses GROUP_CONCAT
+        const concatDistinct = isPostgres()
+          ? `STRING_AGG(DISTINCT pc.platform, ',')`
+          : `GROUP_CONCAT(DISTINCT pc.platform)`;
+
         const categoryRows = await streamingDbAll(`
           SELECT
             ug.id,
@@ -789,16 +866,16 @@ const createStatsService = (overlayDb, streamingDb) => {
             ug.genre_kr,
             COALESCE(SUM(pc.viewer_count), 0) as total_viewers,
             COALESCE(SUM(pc.streamer_count), 0) as total_streamers,
-            GROUP_CONCAT(DISTINCT pc.platform) as platforms,
+            ${concatDistinct} as platforms,
             MAX(CASE WHEN pc.platform = 'soop' THEN pc.thumbnail_url END) as soop_thumbnail,
             MAX(CASE WHEN pc.platform = 'chzzk' THEN pc.thumbnail_url END) as chzzk_thumbnail
           FROM unified_games ug
           LEFT JOIN category_game_mappings cgm ON ug.id = cgm.unified_game_id
           LEFT JOIN platform_categories pc ON cgm.platform = pc.platform
             AND cgm.platform_category_id = pc.platform_category_id
-            AND pc.is_active = 1
-          GROUP BY ug.id
-          HAVING total_viewers > 0
+            AND pc.is_active = ${boolTrue}
+          GROUP BY ug.id, ug.name, ug.name_kr, ug.image_url, ug.genre_kr
+          HAVING COALESCE(SUM(pc.viewer_count), 0) > 0
           ORDER BY total_viewers DESC
           LIMIT 5
         `);
@@ -823,6 +900,7 @@ const createStatsService = (overlayDb, streamingDb) => {
         peakViewers: peakViewers?.peakViewers || 0,
         newSubs: subscribeCount?.newSubs || 0,
         insights,
+        myCategories,
         topCategories,
       };
     },

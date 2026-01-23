@@ -51,8 +51,6 @@ class BaseAdapter extends EventEmitter {
       30000 // 최대 30초
     );
 
-    console.log(`[${this.platform}] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
-
     await this.sleep(delay);
 
     try {
@@ -81,7 +79,6 @@ class BaseAdapter extends EventEmitter {
     this.isConnected = true;
     this.reconnectAttempts = 0;
     this.emit("connected", { platform: this.platform, channelId: this.channelId });
-    console.log(`[${this.platform}] Connected to channel: ${this.channelId}`);
   }
 
   /**
@@ -91,7 +88,6 @@ class BaseAdapter extends EventEmitter {
   onDisconnected() {
     this.isConnected = false;
     this.emit("disconnected", { platform: this.platform, channelId: this.channelId });
-    console.log(`[${this.platform}] Disconnected from channel: ${this.channelId}`);
   }
 
   /**

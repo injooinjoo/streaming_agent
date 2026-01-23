@@ -4,7 +4,11 @@ import { API_URL } from '../config/api';
 import socket from '../config/socket';
 import './Overlay.css';
 
-const VotingOverlay = () => {
+const VotingOverlay = ({
+  previewMode = false,
+  previewSettings = null,
+  previewPoll = null
+}) => {
   const { userHash } = useParams();
   const [poll, setPoll] = useState(null);
   const [settings, setSettings] = useState({
@@ -51,6 +55,9 @@ const VotingOverlay = () => {
   };
 
   useEffect(() => {
+    // Skip API/Socket in preview mode
+    if (previewMode) return;
+
     fetchSettings();
     fetchActivePoll();
 
@@ -95,19 +102,31 @@ const VotingOverlay = () => {
       socket.off('poll-ended');
       socket.off('settings-updated');
     };
-  }, [userHash]);
+  }, [userHash, previewMode]);
 
-  if (!poll) return null;
+  // OBS 브라우저 소스용 투명 배경
+  useEffect(() => {
+    if (!previewMode) {
+      document.body.classList.add('overlay-mode');
+      return () => document.body.classList.remove('overlay-mode');
+    }
+  }, [previewMode]);
 
-  const totalVotes = poll.options.reduce((sum, opt) => sum + (opt.votes || 0), 0);
+  // Use preview settings and poll if in preview mode
+  const activeSettings = previewMode && previewSettings ? previewSettings : settings;
+  const activePoll = previewMode ? previewPoll : poll;
+
+  if (!activePoll) return null;
+
+  const totalVotes = activePoll.options.reduce((sum, opt) => sum + (opt.votes || 0), 0);
 
   return (
-    <div className={`voting-overlay theme-${settings.theme}`}>
+    <div className={`voting-overlay theme-${activeSettings.theme} ${previewMode ? 'preview-mode' : ''}`}>
       <div className="voting-container glass">
-        <div className="voting-title">{poll.title}</div>
+        <div className="voting-title">{activePoll.title}</div>
 
         <div className="voting-options">
-          {poll.options.map((option, index) => {
+          {activePoll.options.map((option, index) => {
             const percentage = totalVotes > 0 ? (option.votes / totalVotes) * 100 : 0;
 
             return (
@@ -115,13 +134,13 @@ const VotingOverlay = () => {
                 <div className="option-header">
                   <span className="option-text">{option.text}</span>
                   <span className="option-stats">
-                    {settings.showCount && <span className="vote-count">{option.votes || 0}표</span>}
-                    {settings.showPercentage && <span className="vote-percentage">{percentage.toFixed(1)}%</span>}
+                    {activeSettings.showCount && <span className="vote-count">{option.votes || 0}표</span>}
+                    {activeSettings.showPercentage && <span className="vote-percentage">{percentage.toFixed(1)}%</span>}
                   </span>
                 </div>
                 <div className="option-bar-bg">
                   <div
-                    className={`option-bar-fill ${settings.animateChanges ? 'animated' : ''}`}
+                    className={`option-bar-fill ${activeSettings.animateChanges ? 'animated' : ''}`}
                     style={{
                       width: `${percentage}%`,
                       backgroundColor: option.color || '#4ecdc4'
@@ -133,13 +152,13 @@ const VotingOverlay = () => {
           })}
         </div>
 
-        {poll.status === 'active' && poll.duration && (
+        {activePoll.status === 'active' && activePoll.duration && (
           <div className="voting-timer">
             투표 진행 중
           </div>
         )}
 
-        {poll.status === 'closed' && (
+        {activePoll.status === 'closed' && (
           <div className="voting-closed">
             투표 종료
           </div>

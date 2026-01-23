@@ -6,52 +6,28 @@
  * - UUID primary key for high-volume handling
  * - Actor/target person relationships
  * - Broadcast context linking
+ *
+ * Supports both SQLite (development) and PostgreSQL (production/Supabase)
  */
 
 const { v4: uuidv4 } = require("uuid");
+const { getOne, getAll, runQuery } = require("../db/connections");
+const { getSQLHelpers, isPostgres } = require("../config/database.config");
 
 /**
  * Create Event Service
- * @param {sqlite3.Database} db - Database instance
+ * @param {Object} _db - Deprecated: Database instance (kept for backward compatibility)
  * @param {Server} io - Socket.io server instance
  * @returns {Object} Event service methods
  */
-const createEventService = (db, io) => {
-  /**
-   * Promisified db.get
-   */
-  const dbGet = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.get(sql, params, (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-  };
+const createEventService = (_db, io) => {
+  // Get cross-database SQL helpers
+  const sql = getSQLHelpers();
 
-  /**
-   * Promisified db.run
-   */
-  const dbRun = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.run(sql, params, function (err) {
-        if (err) reject(err);
-        else resolve({ lastID: this.lastID, changes: this.changes });
-      });
-    });
-  };
-
-  /**
-   * Promisified db.all
-   */
-  const dbAll = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.all(sql, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
-  };
+  // Use unified query helpers from connections.js
+  const dbGet = getOne;
+  const dbRun = runQuery;
+  const dbAll = getAll;
 
   return {
     /**
@@ -240,13 +216,13 @@ const createEventService = (db, io) => {
     async getDonationTrend() {
       return dbAll(
         `SELECT
-          DATE(event_timestamp) as date,
+          ${sql.dateOnly('event_timestamp')} as date,
           COUNT(*) as count,
           SUM(amount) as total
         FROM events
         WHERE event_type = 'donation'
-          AND event_timestamp >= datetime('now', '-7 days')
-        GROUP BY DATE(event_timestamp)
+          AND event_timestamp >= ${sql.dateSubtract(7, 'days')}
+        GROUP BY ${sql.dateOnly('event_timestamp')}
         ORDER BY date`
       );
     },
@@ -311,9 +287,9 @@ const createEventService = (db, io) => {
      */
     async deleteOldEvents(daysOld = 90) {
       const result = await dbRun(
-        `DELETE FROM events WHERE event_timestamp < datetime('now', '-${daysOld} days')`
+        `DELETE FROM events WHERE event_timestamp < ${sql.dateSubtract(daysOld, 'days')}`
       );
-      return result.changes;
+      return result.changes || result.rowCount || 0;
     },
 
     /**

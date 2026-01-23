@@ -165,9 +165,13 @@ const main = async () => {
     categoryService.io = io;
     const eventService = createEventService(db, io);
 
-    // Setup Socket.io handlers
-    setupSocketHandlers(io);
-    socketLogger.info("Socket.io handlers initialized");
+    // Setup Socket.io handlers with auto-connect support
+    setupSocketHandlers(io, {
+      db,
+      ChzzkAdapter,
+      SoopAdapter,
+    });
+    socketLogger.info("Socket.io handlers initialized (with overlay auto-connect)");
 
     // Store server reference for graceful shutdown
     module.exports.server = server;
@@ -224,7 +228,6 @@ const shutdown = async () => {
   for (const [key, adapter] of activeAdapters.entries()) {
     try {
       adapter.disconnect();
-      logger.info("Disconnected adapter", { adapter: key });
     } catch (err) {
       logger.error("Error disconnecting adapter", { adapter: key, error: err.message });
     }

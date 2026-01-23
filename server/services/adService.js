@@ -1,50 +1,27 @@
 /**
  * Ad Service
  * Business logic for advertising system (slots, campaigns, impressions)
+ *
+ * Supports both SQLite (development) and PostgreSQL (production/Supabase)
  */
+
+const { getOne, getAll, runQuery } = require("../db/connections");
+const { getSQLHelpers, isPostgres } = require("../config/database.config");
 
 /**
  * Create Ad Service
- * @param {sqlite3.Database} db - Database instance
+ * @param {sqlite3.Database} _db - Deprecated: Database instance (kept for backward compatibility)
  * @param {Server} io - Socket.io server instance
  * @returns {Object} Ad service methods
  */
-const createAdService = (db, io) => {
-  /**
-   * Promisified db.get
-   */
-  const dbGet = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.get(sql, params, (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-  };
+const createAdService = (_db, io) => {
+  // Get cross-database SQL helpers
+  const sqlHelpers = getSQLHelpers();
 
-  /**
-   * Promisified db.run
-   */
-  const dbRun = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.run(sql, params, function (err) {
-        if (err) reject(err);
-        else resolve({ lastID: this.lastID, changes: this.changes });
-      });
-    });
-  };
-
-  /**
-   * Promisified db.all
-   */
-  const dbAll = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.all(sql, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows);
-      });
-    });
-  };
+  // Use unified query helpers from connections.js
+  const dbGet = getOne;
+  const dbRun = runQuery;
+  const dbAll = getAll;
 
   return {
     // ===== Ad Slots =====
@@ -504,7 +481,7 @@ const createAdService = (db, io) => {
            COALESCE(SUM(revenue), 0) as total_revenue
          FROM ad_impressions
          WHERE streamer_id = ?
-           AND strftime('%Y-%m', timestamp) = ?`,
+           AND ${sqlHelpers.yearMonth('timestamp')} = ?`,
         [streamerId, currentMonth]
       );
 
@@ -542,7 +519,7 @@ const createAdService = (db, io) => {
           COALESCE(SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END), 0) as impressions,
           COALESCE(SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END), 0) as clicks
         FROM ad_impressions
-        WHERE streamer_id = ? AND timestamp >= datetime('now', '-${days} days')`,
+        WHERE streamer_id = ? AND timestamp >= ${sqlHelpers.dateSubtract(days, 'days')}`,
         [streamerId]
       );
 
@@ -589,13 +566,13 @@ const createAdService = (db, io) => {
     async getStreamerRevenueTrend(streamerId, days = 30) {
       return dbAll(
         `SELECT
-          DATE(timestamp) as date,
+          ${sqlHelpers.dateOnly('timestamp')} as date,
           SUM(revenue) as revenue,
           SUM(CASE WHEN event_type = 'impression' THEN 1 ELSE 0 END) as impressions,
           SUM(CASE WHEN event_type = 'click' THEN 1 ELSE 0 END) as clicks
         FROM ad_impressions
-        WHERE streamer_id = ? AND timestamp >= datetime('now', '-${days} days')
-        GROUP BY DATE(timestamp)
+        WHERE streamer_id = ? AND timestamp >= ${sqlHelpers.dateSubtract(days, 'days')}
+        GROUP BY ${sqlHelpers.dateOnly('timestamp')}
         ORDER BY date`,
         [streamerId]
       );
@@ -606,11 +583,14 @@ const createAdService = (db, io) => {
      * @returns {Promise<Object>}
      */
     async getTotalRevenue() {
+      const currentMonth = new Date().toISOString().slice(0, 7);
+
       const [total, monthly] = await Promise.all([
         dbGet("SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions"),
         dbGet(
           `SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions
-           WHERE strftime('%Y-%m', timestamp) = strftime('%Y-%m', 'now')`
+           WHERE ${sqlHelpers.yearMonth('timestamp')} = ?`,
+          [currentMonth]
         ),
       ]);
 

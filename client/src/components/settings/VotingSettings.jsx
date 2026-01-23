@@ -6,6 +6,8 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
 import socket from '../../config/socket';
+import { OverlayPreviewWrapper } from './shared';
+import VotingOverlay from '../VotingOverlay';
 import './VotingSettings.css';
 
 const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -31,6 +33,19 @@ const VotingSettings = () => {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [overlayHash, setOverlayHash] = useState(null);
+
+  // Preview poll for demonstration
+  const previewPoll = currentPoll || {
+    id: 'preview',
+    title: '미리보기 투표',
+    options: [
+      { id: 0, text: '옵션 A', color: defaultColors[0], votes: 35 },
+      { id: 1, text: '옵션 B', color: defaultColors[1], votes: 25 },
+      { id: 2, text: '옵션 C', color: defaultColors[2], votes: 40 }
+    ],
+    status: 'active',
+    duration: 60
+  };
 
   const overlayUrl = overlayHash
     ? `${window.location.origin}/overlay/${overlayHash}/voting`
@@ -231,6 +246,15 @@ const VotingSettings = () => {
           </div>
         </div>
       </div>
+
+      {/* 실시간 미리보기 */}
+      <OverlayPreviewWrapper title="투표 미리보기" height={220}>
+        <VotingOverlay
+          previewMode={true}
+          previewSettings={settings}
+          previewPoll={previewPoll}
+        />
+      </OverlayPreviewWrapper>
 
       {/* 디스플레이 설정 */}
       <div className="settings-card">

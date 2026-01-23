@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ArrowLeft, Eye, Users, TrendingUp, TrendingDown, Trophy, Calendar,
-  Building2, RefreshCw, Tag, Crown
+  Building2, RefreshCw, Tag, Crown, AlertCircle
 } from 'lucide-react';
-import { GAME_CATALOG, TOP_STREAMERS_BY_GAME, formatNumber, formatFullNumber } from './mockGameData';
+import { formatNumber, formatFullNumber } from '../../utils/formatters';
 import './GameCatalog.css';
+
+const API_BASE = 'http://localhost:3001';
 
 const PLATFORM_COLORS = {
   soop: '#1e3a5f',
@@ -15,24 +17,43 @@ const PLATFORM_COLORS = {
 
 const GameDetail = ({ gameId, onBack }) => {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [gameData, setGameData] = useState(null);
 
-  // 게임 데이터 조회
-  const gameData = useMemo(() => {
-    return GAME_CATALOG.find(g => g.id === gameId);
-  }, [gameId]);
-
-  // 탑 스트리머 조회
-  const topStreamers = useMemo(() => {
-    return TOP_STREAMERS_BY_GAME[gameId] || [];
-  }, [gameId]);
-
-  // 로딩 시뮬레이션
-  useEffect(() => {
+  // API에서 게임 데이터 가져오기
+  const fetchGameDetail = async () => {
+    console.log('[GameDetail] fetchGameDetail - gameId prop:', gameId);
     setLoading(true);
-    const timer = setTimeout(() => {
+    setError(null);
+
+    try {
+      console.log('[GameDetail] Fetching:', `${API_BASE}/api/categories/${gameId}`);
+      const response = await fetch(`${API_BASE}/api/categories/${gameId}`);
+
+      if (!response.ok) {
+        throw new Error('게임 정보를 불러오는데 실패했습니다.');
+      }
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        console.log('[GameDetail] API response - game id:', result.data.id, 'name:', result.data.nameKr || result.data.name);
+        setGameData(result.data);
+      } else {
+        throw new Error(result.error || '게임을 찾을 수 없습니다.');
+      }
+    } catch (err) {
+      console.error('GameDetail fetch error:', err);
+      setError(err.message);
+    } finally {
       setLoading(false);
-    }, 300);
-    return () => clearTimeout(timer);
+    }
+  };
+
+  useEffect(() => {
+    if (gameId) {
+      fetchGameDetail();
+    }
   }, [gameId]);
 
   // 로딩 상태
@@ -42,6 +63,26 @@ const GameDetail = ({ gameId, onBack }) => {
         <div className="game-catalog-loading">
           <RefreshCw size={32} className="spinning" />
           <span>게임 정보를 불러오는 중...</span>
+        </div>
+      </div>
+    );
+  }
+
+  // 에러 상태
+  if (error) {
+    return (
+      <div className="game-detail">
+        <button className="game-detail-back" onClick={onBack}>
+          <ArrowLeft size={18} />
+          목록으로 돌아가기
+        </button>
+        <div className="game-catalog-error">
+          <AlertCircle size={32} />
+          <span>{error}</span>
+          <button onClick={fetchGameDetail} className="retry-button">
+            <RefreshCw size={16} />
+            다시 시도
+          </button>
         </div>
       </div>
     );
@@ -64,6 +105,16 @@ const GameDetail = ({ gameId, onBack }) => {
     );
   }
 
+  // 플랫폼 이름 배열 추출
+  const platformNames = gameData.platforms?.map(p => p.platform) || [];
+
+  // 태그 생성 (장르 + 플랫폼)
+  const tags = [
+    gameData.genre,
+    gameData.developer,
+    ...(gameData.isVerified ? ['검증됨'] : [])
+  ].filter(Boolean);
+
   return (
     <div className="game-detail">
       {/* 뒤로가기 */}
@@ -75,13 +126,21 @@ const GameDetail = ({ gameId, onBack }) => {
       {/* 게임 헤더 */}
       <div className="game-detail-header glass-premium">
         <div className="game-detail-header__image">
-          <img src={gameData.image} alt={gameData.nameKr} />
+          {gameData.imageUrl ? (
+            <img src={gameData.imageUrl} alt={gameData.nameKr || gameData.name} />
+          ) : (
+            <div className="game-detail-header__placeholder">
+              <Trophy size={48} />
+            </div>
+          )}
         </div>
         <div className="game-detail-header__info">
-          <h1>{gameData.nameKr}</h1>
-          <p className="game-detail-header__name">{gameData.name}</p>
+          <h1>{gameData.nameKr || gameData.name}</h1>
+          {gameData.nameKr && gameData.name && gameData.nameKr !== gameData.name && (
+            <p className="game-detail-header__name">{gameData.name}</p>
+          )}
           <div className="game-detail-header__tags">
-            {gameData.tags.map((tag, index) => (
+            {tags.map((tag, index) => (
               <span key={index} className="game-detail-tag">
                 <Tag size={12} />
                 {tag}
@@ -89,17 +148,23 @@ const GameDetail = ({ gameId, onBack }) => {
             ))}
           </div>
           <div className="game-detail-header__meta">
-            <span className="game-detail-meta">
-              <Building2 size={14} />
-              {gameData.developer}
-            </span>
-            <span className="game-detail-meta">
-              <Calendar size={14} />
-              {gameData.releaseDate} 출시
-            </span>
-            <span className="game-detail-meta game-detail-genre">
-              {gameData.genre}
-            </span>
+            {gameData.developer && (
+              <span className="game-detail-meta">
+                <Building2 size={14} />
+                {gameData.developer}
+              </span>
+            )}
+            {gameData.releaseDate && (
+              <span className="game-detail-meta">
+                <Calendar size={14} />
+                {gameData.releaseDate} 출시
+              </span>
+            )}
+            {gameData.genre && (
+              <span className="game-detail-meta game-detail-genre">
+                {gameData.genre}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -111,12 +176,8 @@ const GameDetail = ({ gameId, onBack }) => {
             <Eye size={24} />
           </div>
           <div className="game-detail-stat__content">
-            <span className="game-detail-stat__value">{formatFullNumber(gameData.currentViewers)}</span>
+            <span className="game-detail-stat__value">{formatFullNumber(gameData.totalViewers || 0)}</span>
             <span className="game-detail-stat__label">현재 시청자</span>
-          </div>
-          <div className={`game-detail-stat__change ${gameData.growth >= 0 ? 'positive' : 'negative'}`}>
-            {gameData.growth >= 0 ? <TrendingUp size={14} /> : <TrendingDown size={14} />}
-            {gameData.growth >= 0 ? '+' : ''}{gameData.growth.toFixed(1)}%
           </div>
         </div>
         <div className="game-detail-stat glass-premium">
@@ -124,106 +185,62 @@ const GameDetail = ({ gameId, onBack }) => {
             <Users size={24} />
           </div>
           <div className="game-detail-stat__content">
-            <span className="game-detail-stat__value">{formatFullNumber(gameData.liveStreamers)}</span>
+            <span className="game-detail-stat__value">{formatFullNumber(gameData.totalStreamers || 0)}</span>
             <span className="game-detail-stat__label">라이브 스트리머</span>
-          </div>
-        </div>
-        <div className="game-detail-stat glass-premium">
-          <div className="game-detail-stat__icon">
-            <TrendingUp size={24} />
-          </div>
-          <div className="game-detail-stat__content">
-            <span className="game-detail-stat__value">{formatFullNumber(gameData.avgViewers)}</span>
-            <span className="game-detail-stat__label">평균 시청자</span>
-          </div>
-        </div>
-        <div className="game-detail-stat glass-premium">
-          <div className="game-detail-stat__icon">
-            <Trophy size={24} />
-          </div>
-          <div className="game-detail-stat__content">
-            <span className="game-detail-stat__value">{formatFullNumber(gameData.peakViewers)}</span>
-            <span className="game-detail-stat__label">최고 시청자</span>
           </div>
         </div>
       </div>
 
       {/* 게임 소개 */}
-      <div className="game-detail-description glass-premium">
-        <h2>
-          <Tag size={18} />
-          게임 소개
-        </h2>
-        <p>{gameData.description}</p>
-        <div className="game-detail-platforms">
-          <span className="game-detail-platforms__label">방송 플랫폼:</span>
-          <div className="game-detail-platforms__list">
-            {gameData.platforms.map(platform => (
-              <span
-                key={platform}
-                className="game-detail-platform"
-                style={{ '--platform-color': PLATFORM_COLORS[platform] || '#666' }}
-              >
-                {platform.toUpperCase()}
-              </span>
-            ))}
-          </div>
+      {gameData.description && (
+        <div className="game-detail-description glass-premium">
+          <h2>
+            <Tag size={18} />
+            게임 소개
+          </h2>
+          <p>{gameData.description}</p>
         </div>
-      </div>
+      )}
 
-      {/* 탑 스트리머 */}
-      <div className="game-detail-streamers glass-premium">
-        <h2>
-          <Crown size={18} />
-          이 게임 TOP 스트리머
-        </h2>
-        <div className="game-streamers-table">
-          <div className="game-streamers-table__header">
-            <div className="game-streamers-table__col rank">순위</div>
-            <div className="game-streamers-table__col name">스트리머</div>
-            <div className="game-streamers-table__col viewers">현재 시청자</div>
-            <div className="game-streamers-table__col avg">평균 시청자</div>
-            <div className="game-streamers-table__col followers">팔로워</div>
-            <div className="game-streamers-table__col influence">영향력</div>
-          </div>
-          <div className="game-streamers-table__body">
-            {topStreamers.map(streamer => (
-              <div key={streamer.id} className="game-streamers-table__row">
-                <div className="game-streamers-table__col rank">
-                  <span className={`rank-badge rank-${streamer.rank}`}>
-                    {streamer.rank}
-                  </span>
-                </div>
-                <div className="game-streamers-table__col name">
-                  <span
-                    className="platform-dot"
-                    style={{ background: PLATFORM_COLORS[streamer.platform] || '#666' }}
-                  />
-                  {streamer.name}
-                </div>
-                <div className="game-streamers-table__col viewers">
-                  {formatNumber(streamer.viewers)}
-                </div>
-                <div className="game-streamers-table__col avg">
-                  {formatNumber(streamer.avgViewers)}
-                </div>
-                <div className="game-streamers-table__col followers">
-                  {formatNumber(streamer.followers)}
-                </div>
-                <div className="game-streamers-table__col influence">
-                  <div className="influence-bar">
-                    <div
-                      className="influence-bar__fill"
-                      style={{ width: `${streamer.influence}%` }}
+      {/* 플랫폼별 정보 */}
+      {gameData.platforms && gameData.platforms.length > 0 && (
+        <div className="game-detail-streamers glass-premium">
+          <h2>
+            <Crown size={18} />
+            플랫폼별 현황
+          </h2>
+          <div className="game-streamers-table">
+            <div className="game-streamers-table__header">
+              <div className="game-streamers-table__col name">플랫폼</div>
+              <div className="game-streamers-table__col">카테고리명</div>
+              <div className="game-streamers-table__col viewers">시청자</div>
+              <div className="game-streamers-table__col avg">스트리머</div>
+            </div>
+            <div className="game-streamers-table__body">
+              {gameData.platforms.map((platform, index) => (
+                <div key={index} className="game-streamers-table__row">
+                  <div className="game-streamers-table__col name">
+                    <span
+                      className="platform-dot"
+                      style={{ background: PLATFORM_COLORS[platform.platform] || '#666' }}
                     />
-                    <span className="influence-bar__value">{streamer.influence}</span>
+                    {platform.platform.toUpperCase()}
+                  </div>
+                  <div className="game-streamers-table__col">
+                    {platform.categoryName}
+                  </div>
+                  <div className="game-streamers-table__col viewers">
+                    {formatNumber(platform.viewerCount || 0)}
+                  </div>
+                  <div className="game-streamers-table__col avg">
+                    {formatNumber(platform.streamerCount || 0)}
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };

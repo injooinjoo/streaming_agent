@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { DollarSign, Eye, MousePointerClick, Percent, Download, RefreshCw } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 import AnalyticsCard from './shared/AnalyticsCard';
 import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
@@ -12,6 +13,18 @@ import './AnalyticsPage.css';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const AdAnalytics = () => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+
+  // 차트 다크모드 색상
+  const chartColors = {
+    grid: isDark ? '#475569' : '#f0f0f0',
+    border: isDark ? '#475569' : '#e2e8f0',
+    tooltipBg: isDark ? '#1e293b' : '#ffffff',
+    textMuted: isDark ? '#94a3b8' : '#94a3b8',
+    barLight: isDark ? '#64748b' : '#e2e8f0',
+  };
+
   const [period, setPeriod] = useState('week');
   const [loading, setLoading] = useState(true);
   const [revenueTimeline, setRevenueTimeline] = useState([]);
@@ -204,13 +217,13 @@ const AdAnalytics = () => {
         >
           {revenueTimeline.length > 0 ? (
             <ComposedChart data={revenueTimeline}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
-              <YAxis yAxisId="left" stroke="#94a3b8" fontSize={12} />
-              <YAxis yAxisId="right" orientation="right" stroke="#94a3b8" fontSize={12} tickFormatter={(v) => `₩${(v/1000)}K`} />
-              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+              <XAxis dataKey="date" stroke={chartColors.textMuted} fontSize={12} />
+              <YAxis yAxisId="left" stroke={chartColors.textMuted} fontSize={12} />
+              <YAxis yAxisId="right" orientation="right" stroke={chartColors.textMuted} fontSize={12} tickFormatter={(v) => `₩${(v/1000)}K`} />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }} />
               <Legend />
-              <Bar yAxisId="left" dataKey="impressions" name="노출수" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
+              <Bar yAxisId="left" dataKey="impressions" name="노출수" fill={chartColors.barLight} radius={[4, 4, 0, 0]} />
               <Line yAxisId="right" type="monotone" dataKey="revenue" name="수익" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} />
               <Line yAxisId="left" type="monotone" dataKey="clicks" name="클릭수" stroke="#10b981" strokeWidth={2} dot={{ r: 4 }} />
             </ComposedChart>
@@ -227,15 +240,15 @@ const AdAnalytics = () => {
         >
           {performanceByType.length > 0 ? (
             <BarChart data={performanceByType}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="type" stroke="#94a3b8" fontSize={12} />
-              <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(v) => `₩${(v/1000)}K`} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+              <XAxis dataKey="type" stroke={chartColors.textMuted} fontSize={12} />
+              <YAxis stroke={chartColors.textMuted} fontSize={12} tickFormatter={(v) => `₩${(v/1000)}K`} />
               <Tooltip
                 formatter={(value, name) => {
                   if (name === '수익') return formatCurrency(value);
                   return value.toLocaleString();
                 }}
-                contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+                contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }}
               />
               <Bar dataKey="revenue" name="수익" radius={[4, 4, 0, 0]}>
                 {performanceByType.map((entry, index) => (
@@ -256,12 +269,12 @@ const AdAnalytics = () => {
         >
           {performanceByType.length > 0 ? (
             <BarChart data={performanceByType}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="type" stroke="#94a3b8" fontSize={12} />
-              <YAxis stroke="#94a3b8" fontSize={12} />
-              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+              <XAxis dataKey="type" stroke={chartColors.textMuted} fontSize={12} />
+              <YAxis stroke={chartColors.textMuted} fontSize={12} />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }} />
               <Legend />
-              <Bar dataKey="impressions" name="노출" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="impressions" name="노출" fill={chartColors.barLight} radius={[4, 4, 0, 0]} />
               <Bar dataKey="clicks" name="클릭" fill="#10b981" radius={[4, 4, 0, 0]} />
             </BarChart>
           ) : (
@@ -314,13 +327,13 @@ const AdAnalytics = () => {
                     {row.status === 'active' ? '활성' : '일시중지'}
                   </span>
                 </td>
-                <td>{row.impressions.toLocaleString()}</td>
-                <td>{row.clicks.toLocaleString()}</td>
+                <td><span className="sensitive-blur">{row.impressions.toLocaleString()}</span></td>
+                <td><span className="sensitive-blur">{row.clicks.toLocaleString()}</span></td>
                 <td style={{ color: parseFloat(row.ctr) >= 3 ? '#10b981' : 'inherit', fontWeight: parseFloat(row.ctr) >= 3 ? 600 : 400 }}>
-                  {row.ctr}%
+                  <span className="sensitive-blur">{row.ctr}%</span>
                 </td>
-                <td>{formatCurrency(row.cpm)}</td>
-                <td style={{ fontWeight: 600, color: 'var(--primary)' }}>{formatCurrency(row.revenue)}</td>
+                <td><span className="sensitive-blur">{formatCurrency(row.cpm)}</span></td>
+                <td style={{ fontWeight: 600, color: 'var(--primary)' }}><span className="sensitive-blur">{formatCurrency(row.revenue)}</span></td>
               </tr>
             )) : (
               <tr>
@@ -343,8 +356,8 @@ const AdAnalytics = () => {
             <p style={{ opacity: 0.9, fontSize: '14px' }}>
               {totalImpressions > 0 ? (
                 <>
-                  총 {totalImpressions.toLocaleString()}회 노출, {totalClicks.toLocaleString()}회 클릭으로
-                  <strong> {formatCurrency(totalRevenue)}</strong>의 수익을 달성했습니다.
+                  총 <span className="sensitive-blur">{totalImpressions.toLocaleString()}</span>회 노출, <span className="sensitive-blur">{totalClicks.toLocaleString()}</span>회 클릭으로
+                  <strong className="sensitive-blur"> {formatCurrency(totalRevenue)}</strong>의 수익을 달성했습니다.
                 </>
               ) : (
                 '아직 광고 데이터가 없습니다. 광고 슬롯을 설정하고 캠페인을 시작하세요.'
@@ -353,7 +366,7 @@ const AdAnalytics = () => {
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '12px', opacity: 0.8 }}>평균 CPC</div>
-            <div style={{ fontSize: '24px', fontWeight: 700 }}>{formatCurrency(avgCPC)}</div>
+            <div style={{ fontSize: '24px', fontWeight: 700 }} className="sensitive-blur">{formatCurrency(avgCPC)}</div>
           </div>
         </div>
       </div>

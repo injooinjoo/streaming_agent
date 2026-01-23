@@ -138,7 +138,19 @@
       "Bash(export PATH=\"/opt/homebrew/share/google-cloud-sdk/bin:$PATH\")",
       "Bash(gcloud services enable:*)",
       "Bash(gcloud run deploy:*)",
-      "Bash(gcloud logging read:*)"
+      "Bash(gcloud logging read:*)",
+      "mcp__plugin_playwright_playwright__browser_install",
+      "mcp__plugin_playwright_playwright__browser_console_messages",
+      "mcp__plugin_playwright_playwright__browser_network_requests",
+      "Bash(head -20 echo \"\" echo \"=== Test: channelId 없음 \\(전체 데이터\\) ===\")",
+      "Bash(__NEW_LINE_ee1db06884b03e41__ echo \"\")",
+      "mcp__plugin_playwright_playwright__browser_press_key",
+      "mcp__plugin_playwright_playwright__browser_wait_for",
+      "mcp__plugin_playwright_playwright__browser_take_screenshot",
+      "mcp__plugin_playwright_playwright__browser_evaluate",
+      "Bash(tail:*)",
+      "mcp__plugin_supabase_supabase__apply_migration",
+      "Bash(git reset:*)"
     ]
   }
 }

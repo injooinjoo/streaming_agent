@@ -24,7 +24,7 @@ const AnalyticsCard = ({ title, value, change, trend, icon, subtitle, onClick })
         {icon && <div className="analytics-card-icon">{icon}</div>}
       </div>
       <div className="analytics-card-content">
-        <span className="analytics-card-value">{value}</span>
+        <span className="analytics-card-value sensitive-blur">{value}</span>
         {change && (
           <span className={`analytics-card-change ${getTrendClass()}`}>
             {getTrendIcon()}

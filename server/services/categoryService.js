@@ -4,12 +4,15 @@
  * CategoryCrawler와 CategoryMapper를 조율하고,
  * 스케줄링과 API를 제공합니다.
  * Uses Redis for caching when available, falls back to in-memory.
+ *
+ * Supports both SQLite (development) and PostgreSQL (production/Supabase)
  */
 
 const CategoryCrawler = require("./categoryCrawler");
 const CategoryMapper = require("./categoryMapper");
 const { category: categoryLogger } = require("./logger");
 const { getRedisService } = require("./redisService");
+const { isPostgres } = require("../config/database.config");
 
 // 스케줄 간격 (밀리초)
 const SCHEDULE = {
@@ -248,6 +251,14 @@ class CategoryService {
       return this.filterAndSortGames(cached, { sort, order, limit, genre, search });
     }
 
+    // Cross-database string aggregation
+    const concatPlatforms = isPostgres()
+      ? `STRING_AGG(DISTINCT pc.platform, ',')`
+      : `GROUP_CONCAT(DISTINCT pc.platform)`;
+
+    // Cross-database boolean comparison
+    const isActiveCheck = isPostgres() ? `pc.is_active = TRUE` : `pc.is_active = 1`;
+
     // 이미지 우선순위: SOOP 카테고리 이미지 > Chzzk 포스터 이미지 > unified_games 이미지
     return new Promise((resolve, reject) => {
       const sql = `
@@ -265,14 +276,14 @@ class CategoryService {
           ug.created_at,
           COALESCE(SUM(pc.viewer_count), 0) as total_viewers,
           COALESCE(SUM(pc.streamer_count), 0) as total_streamers,
-          GROUP_CONCAT(DISTINCT pc.platform) as platforms,
+          ${concatPlatforms} as platforms,
           MAX(CASE WHEN pc.platform = 'soop' THEN pc.thumbnail_url END) as soop_thumbnail,
           MAX(CASE WHEN pc.platform = 'chzzk' THEN pc.thumbnail_url END) as chzzk_thumbnail
         FROM unified_games ug
         LEFT JOIN category_game_mappings cgm ON ug.id = cgm.unified_game_id
         LEFT JOIN platform_categories pc ON cgm.platform = pc.platform
           AND cgm.platform_category_id = pc.platform_category_id
-          AND pc.is_active = 1
+          AND ${isActiveCheck}
         GROUP BY ug.id
         ORDER BY total_viewers DESC
       `;
@@ -298,12 +309,91 @@ class CategoryService {
           totalStreamers: row.total_streamers,
           platforms: row.platforms ? row.platforms.split(",") : [],
           createdAt: row.created_at,
+          // 자동 fetch를 위한 플랫폼 정보 (내부용)
+          _soopThumbnail: row.soop_thumbnail,
+          _chzzkThumbnail: row.chzzk_thumbnail,
         }));
 
         // 캐시 업데이트 (Redis and memory)
         await this.setCached("games", games);
 
+        // 이미지가 없는 게임들 백그라운드에서 자동 fetch (응답 차단 안함)
+        const gamesWithoutImages = games.filter(g => !g.imageUrl && g.platforms.length > 0);
+        if (gamesWithoutImages.length > 0) {
+          categoryLogger.debug("이미지 없는 게임 발견, 백그라운드 fetch 시작", {
+            count: gamesWithoutImages.length,
+            games: gamesWithoutImages.slice(0, 5).map(g => g.nameKr || g.name)
+          });
+
+          // 비동기로 이미지 fetch (응답 기다리지 않음)
+          this.fetchMissingImagesBackground(gamesWithoutImages).catch(err => {
+            categoryLogger.error("백그라운드 이미지 fetch 실패", { error: err.message });
+          });
+        }
+
         resolve(this.filterAndSortGames(games, { sort, order, limit, genre, search }));
+      });
+    });
+  }
+
+  /**
+   * 이미지가 없는 게임들의 포스터 이미지를 백그라운드에서 가져오기
+   * @param {Array} gamesWithoutImages - 이미지가 없는 게임 목록
+   */
+  async fetchMissingImagesBackground(gamesWithoutImages) {
+    const maxConcurrent = 5; // 동시 요청 제한
+    let fetched = 0;
+
+    for (let i = 0; i < gamesWithoutImages.length; i += maxConcurrent) {
+      const batch = gamesWithoutImages.slice(i, i + maxConcurrent);
+
+      await Promise.all(
+        batch.map(async (game) => {
+          // 게임의 플랫폼 카테고리 정보 조회
+          const platformInfo = await this.getGamePlatformInfo(game.id);
+
+          for (const platform of platformInfo) {
+            if (platform.thumbnail_url) continue; // 이미 이미지 있음
+
+            const fetchedUrl = await this.crawler.fetchAndSavePosterImage(
+              platform.platform,
+              platform.platform_category_id,
+              platform.category_type || "GAME"
+            );
+
+            if (fetchedUrl) {
+              fetched++;
+              break; // 하나만 가져오면 됨
+            }
+          }
+        })
+      );
+    }
+
+    if (fetched > 0) {
+      categoryLogger.info("백그라운드 이미지 fetch 완료", { fetched });
+      await this.invalidateCache(); // 캐시 무효화
+    }
+  }
+
+  /**
+   * 게임의 플랫폼 카테고리 정보 조회 (내부용)
+   * @param {number} gameId
+   * @returns {Promise<Array>}
+   */
+  getGamePlatformInfo(gameId) {
+    return new Promise((resolve, reject) => {
+      const sql = `
+        SELECT pc.platform, pc.platform_category_id, pc.category_type, pc.thumbnail_url
+        FROM platform_categories pc
+        JOIN category_game_mappings cgm
+          ON pc.platform = cgm.platform AND pc.platform_category_id = cgm.platform_category_id
+        WHERE cgm.unified_game_id = ? AND pc.is_active = 1
+      `;
+
+      this.db.all(sql, [gameId], (err, rows) => {
+        if (err) reject(err);
+        else resolve(rows || []);
       });
     });
   }
@@ -379,10 +469,41 @@ class CategoryService {
           WHERE cgm.unified_game_id = ? AND pc.is_active = 1
         `;
 
-        this.db.all(platformsSql, [gameId], (err2, platforms) => {
+        this.db.all(platformsSql, [gameId], async (err2, platforms) => {
           if (err2) {
             reject(err2);
             return;
+          }
+
+          // 이미지 우선순위: SOOP 썸네일 > Chzzk 썸네일 > 기본 이미지
+          const soopPlatform = (platforms || []).find(p => p.platform === 'soop');
+          const chzzkPlatform = (platforms || []).find(p => p.platform === 'chzzk');
+          let imageUrl = soopPlatform?.thumbnail_url || chzzkPlatform?.thumbnail_url || game.image_url || null;
+
+          // 이미지가 없으면 자동으로 가져오기 시도
+          if (!imageUrl && platforms && platforms.length > 0) {
+            categoryLogger.debug("이미지 없음, 자동 fetch 시도", { gameId, gameName: game.name });
+
+            for (const platform of platforms) {
+              try {
+                const fetchedUrl = await this.crawler.fetchAndSavePosterImage(
+                  platform.platform,
+                  platform.platform_category_id,
+                  platform.category_type || "GAME"
+                );
+                if (fetchedUrl) {
+                  imageUrl = fetchedUrl;
+                  // 캐시 무효화 (다음 조회 시 새 이미지 반영)
+                  await this.invalidateCache();
+                  break;
+                }
+              } catch (fetchError) {
+                categoryLogger.debug("자동 이미지 fetch 실패", {
+                  platform: platform.platform,
+                  error: fetchError.message
+                });
+              }
+            }
           }
 
           resolve({
@@ -394,7 +515,7 @@ class CategoryService {
             developer: game.developer,
             releaseDate: game.release_date,
             description: game.description,
-            imageUrl: game.image_url,
+            imageUrl: imageUrl,
             isVerified: game.is_verified === 1,
             createdAt: game.created_at,
             updatedAt: game.updated_at,
@@ -424,14 +545,23 @@ class CategoryService {
    * @returns {Promise<Array>}
    */
   async getGameStats(gameId, period = "24h") {
-    const periodMap = {
+    // Cross-database interval calculation
+    const periodMapSQLite = {
       "1h": "-1 hours",
       "24h": "-24 hours",
       "7d": "-7 days",
       "30d": "-30 days",
     };
+    const periodMapPostgres = {
+      "1h": "1 hour",
+      "24h": "24 hours",
+      "7d": "7 days",
+      "30d": "30 days",
+    };
 
-    const timeFilter = periodMap[period] || "-24 hours";
+    const timeFilter = isPostgres()
+      ? `NOW() - INTERVAL '${periodMapPostgres[period] || "24 hours"}'`
+      : `datetime('now', '${periodMapSQLite[period] || "-24 hours"}')`;
 
     return new Promise((resolve, reject) => {
       const sql = `
@@ -443,12 +573,12 @@ class CategoryService {
         JOIN category_game_mappings cgm
           ON cs.platform = cgm.platform AND cs.platform_category_id = cgm.platform_category_id
         WHERE cgm.unified_game_id = ?
-          AND cs.recorded_at >= datetime('now', ?)
+          AND cs.recorded_at >= ${timeFilter}
         GROUP BY cs.recorded_at
         ORDER BY cs.recorded_at ASC
       `;
 
-      this.db.all(sql, [gameId, timeFilter], (err, rows) => {
+      this.db.all(sql, [gameId], (err, rows) => {
         if (err) reject(err);
         else resolve(rows || []);
       });

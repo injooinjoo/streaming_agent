@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { DollarSign, Gift, Users, Megaphone, Download, RefreshCw, LogIn } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import AnalyticsCard from './shared/AnalyticsCard';
 import TimeRangeSelector from './shared/TimeRangeSelector';
@@ -15,6 +16,17 @@ import './AnalyticsPage.css';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const RevenueAnalytics = () => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+
+  // 차트 다크모드 색상
+  const chartColors = {
+    grid: isDark ? '#475569' : '#f0f0f0',
+    border: isDark ? '#475569' : '#e2e8f0',
+    tooltipBg: isDark ? '#1e293b' : '#ffffff',
+    textMuted: isDark ? '#94a3b8' : '#94a3b8',
+  };
+
   const [period, setPeriod] = useState('week');
   const [loading, setLoading] = useState(true);
   const [revenueData, setRevenueData] = useState([]);
@@ -182,8 +194,8 @@ const RevenueAnalytics = () => {
             style={{
               marginTop: '8px',
               padding: '12px 24px',
-              background: 'var(--primary-color)',
-              color: 'white',
+              background: 'var(--primary)',
+              color: 'var(--text-on-primary)',
               border: 'none',
               borderRadius: '8px',
               cursor: 'pointer',
@@ -261,12 +273,12 @@ const RevenueAnalytics = () => {
           className="chart-full-width"
         >
           <LineChart data={revenueData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
-            <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(v) => `₩${(v/1000)}K`} />
+            <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+            <XAxis dataKey="date" stroke={chartColors.textMuted} fontSize={12} />
+            <YAxis stroke={chartColors.textMuted} fontSize={12} tickFormatter={(v) => `₩${(v/1000)}K`} />
             <Tooltip
               formatter={(value) => formatCurrency(value)}
-              contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+              contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }}
             />
             <Legend />
             <Line type="monotone" dataKey="donation" name="후원금" stroke="#3b82f6" strokeWidth={2} dot={{ r: 4 }} />
@@ -280,12 +292,12 @@ const RevenueAnalytics = () => {
           subtitle="스택 바 차트"
         >
           <BarChart data={revenueData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
-            <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(v) => `₩${(v/1000)}K`} />
+            <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+            <XAxis dataKey="date" stroke={chartColors.textMuted} fontSize={12} />
+            <YAxis stroke={chartColors.textMuted} fontSize={12} tickFormatter={(v) => `₩${(v/1000)}K`} />
             <Tooltip
               formatter={(value) => formatCurrency(value)}
-              contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }}
+              contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }}
             />
             <Legend />
             <Bar dataKey="donation" name="후원금" stackId="a" fill="#3b82f6" radius={[0, 0, 0, 0]} />
@@ -347,7 +359,7 @@ const RevenueAnalytics = () => {
                   <span key={p} className={`platform-badge ${p}`}>{p}</span>
                 ))}
               </div>
-              <div className="top-donor-amount">{formatCurrency(donor.amount)}</div>
+              <div className="top-donor-amount sensitive-blur">{formatCurrency(donor.amount)}</div>
             </div>
           )) : (
             <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>
@@ -377,10 +389,10 @@ const RevenueAnalytics = () => {
             {dailyBreakdown.length > 0 ? dailyBreakdown.map((row) => (
               <tr key={row.date}>
                 <td>{row.date}</td>
-                <td>{formatCurrency(row.donation)}</td>
-                <td>{formatCurrency(row.subscription)}</td>
-                <td>{formatCurrency(row.ads)}</td>
-                <td style={{ fontWeight: 600 }}>{formatCurrency(row.total)}</td>
+                <td><span className="sensitive-blur">{formatCurrency(row.donation)}</span></td>
+                <td><span className="sensitive-blur">{formatCurrency(row.subscription)}</span></td>
+                <td><span className="sensitive-blur">{formatCurrency(row.ads)}</span></td>
+                <td style={{ fontWeight: 600 }}><span className="sensitive-blur">{formatCurrency(row.total)}</span></td>
                 <td>
                   <TrendIndicator value={row.change} />
                 </td>

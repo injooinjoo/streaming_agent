@@ -3,10 +3,12 @@ import {
   Copy, RefreshCw, Save, Volume2, Type, Check,
   Image as ImageIcon, HelpCircle, ExternalLink, Info,
   Monitor, Palette, Settings, RotateCcw, Filter, List,
-  GripVertical, Plus, Trash2, ChevronDown, ChevronUp, Music
+  GripVertical, Plus, Trash2, ChevronDown, ChevronUp, Music, Play
 } from 'lucide-react';
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { OverlayPreviewWrapper } from './shared';
+import AlertOverlay from '../AlertOverlay';
 import './ChatSettings.css';
 
 const defaultSettings = {
@@ -120,6 +122,16 @@ const AlertSettings = () => {
   const [activeNav, setActiveNav] = useState('theme');
   const [expandedSignatures, setExpandedSignatures] = useState({});
   const [draggedIdx, setDraggedIdx] = useState(null);
+  const [testEvent, setTestEvent] = useState({
+    sender: '테스트유저',
+    amount: 10000,
+    message: '테스트 후원 메시지입니다!'
+  });
+  const [testData, setTestData] = useState({
+    sender: '테스트유저',
+    amount: 1000,
+    message: '응원합니다!'
+  });
 
   const sectionRefs = {
     theme: useRef(null),
@@ -837,7 +849,64 @@ const AlertSettings = () => {
         </div>
 
         <aside className="chat-settings-preview-aside">
-          <div className="save-controls-wrapper" style={{ position: 'sticky', top: '24px' }}>
+          <OverlayPreviewWrapper title="후원 알림 미리보기" height={250}>
+            <AlertOverlay
+              previewMode={true}
+              previewSettings={settings}
+              previewEvent={testEvent}
+            />
+          </OverlayPreviewWrapper>
+
+          <div className="test-controls glass-premium">
+            <div className="section-title-with-badge">
+              <h4>테스트</h4>
+            </div>
+
+            <div className="test-form" style={{ marginTop: '12px' }}>
+              <input
+                type="text"
+                className="styled-input"
+                placeholder="닉네임"
+                value={testData.sender}
+                onChange={(e) => setTestData({ ...testData, sender: e.target.value })}
+              />
+              <input
+                type="number"
+                className="styled-input"
+                placeholder="금액"
+                value={testData.amount}
+                onChange={(e) => setTestData({ ...testData, amount: parseInt(e.target.value) || 0 })}
+              />
+              <input
+                type="text"
+                className="styled-input"
+                placeholder="메시지"
+                value={testData.message}
+                onChange={(e) => setTestData({ ...testData, message: e.target.value })}
+                style={{ gridColumn: 'span 2' }}
+              />
+            </div>
+
+            <button
+              className="btn-test-primary"
+              onClick={() => {
+                setTestEvent(null);
+                setTimeout(() => {
+                  setTestEvent({
+                    sender: testData.sender,
+                    amount: testData.amount,
+                    message: testData.message
+                  });
+                  setTimeout(() => setTestEvent(null), (settings.duration || 5) * 1000);
+                }, 100);
+              }}
+              style={{ marginTop: '16px' }}
+            >
+              <Play size={16} /> 알림 테스트
+            </button>
+          </div>
+
+          <div className="save-controls-wrapper">
             <button className="btn-save-full" onClick={saveSettings} disabled={saving}>
               {saving ? <RefreshCw className="spin" size={18}/> : <Save size={18}/>}
               설정 저장하기
@@ -845,14 +914,6 @@ const AlertSettings = () => {
             <button className="btn-reset-light" onClick={resetSettings}>
               <RotateCcw size={14} /> 설정 초기화
             </button>
-            
-            <div className="info-box-premium" style={{ marginTop: '20px' }}>
-              <div className="info-header">
-                <HelpCircle size={14} />
-                <span>도움말</span>
-              </div>
-              <p>알림창 설정은 생방송 진행 중에도 실시간으로 반영됩니다. 테스트 알림을 눌러 확인해 보세요.</p>
-            </div>
           </div>
         </aside>
       </div>

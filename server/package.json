@@ -12,6 +12,8 @@
     "db:status": "knex migrate:status --knexfile db/knexfile.js",
     "db:migrate:make": "knex migrate:make --knexfile db/knexfile.js",
     "db:migrate-to-postgres": "node scripts/migrate-to-postgres.js",
+    "db:migrate-to-supabase": "node db/migrate-to-supabase.js",
+    "db:migrate-to-supabase:dry-run": "node db/migrate-to-supabase.js --dry-run --verbose",
     "backup": "node scripts/backup-to-gcs.js",
     "backup:daily": "node scripts/backup-to-gcs.js --daily",
     "backup:weekly": "node scripts/backup-to-gcs.js --weekly",

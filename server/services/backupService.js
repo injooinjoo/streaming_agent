@@ -1,9 +1,10 @@
 /**
  * Backup Service
- * SQLite 데이터베이스 → GCS 백업 핵심 로직
+ * SQLite/PostgreSQL 데이터베이스 → GCS 백업 핵심 로직
  *
  * Features:
- * - VACUUM INTO로 락 없이 안전한 스냅샷 생성
+ * - SQLite: VACUUM INTO로 락 없이 안전한 스냅샷 생성
+ * - PostgreSQL: 테이블 데이터 JSON 내보내기 (Supabase Pro는 자동 백업)
  * - gzip 압축 (70-80% 용량 감소)
  * - GCS 업로드 및 무결성 검증
  * - 보관 정책에 따른 자동 삭제
@@ -17,15 +18,42 @@ const { createReadStream, createWriteStream } = require("fs");
 const fs = require("fs").promises;
 const path = require("path");
 const sqlite3 = require("sqlite3");
+const { Pool } = require("pg");
 const backupConfig = require("../config/backup.config");
 const loggers = require("./logger");
 
 const logger = loggers.createChildLogger({ service: "backup" });
 
+// PostgreSQL tables to backup (in order)
+const PG_BACKUP_TABLES = [
+  "persons",
+  "users",
+  "broadcasts",
+  "events",
+  "broadcast_segments",
+  "viewer_snapshots",
+  "viewer_engagement",
+  "user_sessions",
+  "categories",
+  "platform_categories",
+  "unified_games",
+  "category_game_mappings",
+  "category_stats",
+  "settings",
+  "user_settings",
+  "roulette_wheels",
+  "emoji_settings",
+  "voting_polls",
+  "ending_credits",
+  "ad_slots",
+  "ad_campaigns",
+];
+
 class BackupService {
   constructor() {
     this.storage = null;
     this.bucket = null;
+    this.pgPool = null;
     this.initialized = false;
   }
 
@@ -70,6 +98,23 @@ class BackupService {
   }
 
   /**
+   * PostgreSQL 연결 초기화
+   */
+  async initializePostgres() {
+    if (this.pgPool) return;
+
+    const { postgres } = backupConfig;
+    if (!postgres.connectionString) {
+      throw new Error("DATABASE_URL is required for PostgreSQL backup");
+    }
+
+    this.pgPool = new Pool({ connectionString: postgres.connectionString });
+    await this.pgPool.query("SELECT 1"); // Test connection
+
+    logger.info("PostgreSQL connection initialized for backup");
+  }
+
+  /**
    * SQLite 데이터베이스 백업 (VACUUM INTO 사용)
    * @param {string} sourcePath - 원본 DB 경로
    * @param {string} destPath - 백업 DB 경로
@@ -94,6 +139,42 @@ class BackupService {
           resolve();
         });
       });
+    });
+  }
+
+  /**
+   * PostgreSQL 데이터베이스 백업 (JSON 내보내기)
+   * Supabase Pro 플랜은 자동 백업 있으므로 주로 Free 티어용
+   * @param {string} destPath - 백업 파일 경로 (.json)
+   */
+  async createPostgresSnapshot(destPath) {
+    await this.initializePostgres();
+
+    const backupData = {
+      timestamp: new Date().toISOString(),
+      tables: {},
+    };
+
+    for (const tableName of PG_BACKUP_TABLES) {
+      try {
+        const result = await this.pgPool.query(`SELECT * FROM "${tableName}"`);
+        backupData.tables[tableName] = {
+          rowCount: result.rows.length,
+          data: result.rows,
+        };
+        logger.debug(`Backed up table: ${tableName} (${result.rows.length} rows)`);
+      } catch (err) {
+        // Table might not exist
+        logger.debug(`Skipped table ${tableName}: ${err.message}`);
+        backupData.tables[tableName] = { rowCount: 0, data: [], error: err.message };
+      }
+    }
+
+    await fs.writeFile(destPath, JSON.stringify(backupData, null, 2));
+
+    logger.info("PostgreSQL snapshot created", {
+      path: destPath,
+      tableCount: Object.keys(backupData.tables).length,
     });
   }
 
@@ -159,44 +240,72 @@ class BackupService {
     const { name, path: dbPath } = dbConfig;
     const date = new Date().toISOString().split("T")[0];
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+    const isPostgres = backupConfig.databaseType === "postgres";
 
     logger.info("Starting database backup", {
       database: name,
       type: backupType,
       date,
+      databaseType: backupConfig.databaseType,
     });
+
+    // Supabase Pro 자동 백업 사용 시
+    if (isPostgres && backupConfig.postgres.useSupabaseBackup) {
+      logger.info("Using Supabase automatic backup (Pro plan)", { database: name });
+      return {
+        gcsPath: null,
+        size: 0,
+        method: "supabase-auto",
+        message: "Supabase Pro plan provides automatic daily backups with PITR",
+      };
+    }
 
     try {
       // 1. 로컬 백업 디렉토리 확인
       const backupDir = await this.ensureBackupDir();
-      const localDbPath = path.join(backupDir, `${name}_${timestamp}.db`);
-      const localGzPath = `${localDbPath}.gz`;
 
-      // 2. 데이터베이스 존재 확인
-      try {
-        await fs.access(dbPath);
-      } catch {
-        logger.warn("Database file not found, skipping", {
-          database: name,
-          path: dbPath,
-        });
-        return null;
+      let localFilePath, localGzPath, gcsPathTemplate;
+
+      if (isPostgres) {
+        // PostgreSQL: JSON 내보내기
+        localFilePath = path.join(backupDir, `${name}_${timestamp}.json`);
+        localGzPath = `${localFilePath}.gz`;
+        gcsPathTemplate = (dbName, ts) => `backups/${backupType}/${dbName}/${ts}.json.gz`;
+
+        await this.createPostgresSnapshot(localFilePath);
+        logger.debug("PostgreSQL snapshot created", { path: localFilePath });
+      } else {
+        // SQLite: VACUUM INTO
+        localFilePath = path.join(backupDir, `${name}_${timestamp}.db`);
+        localGzPath = `${localFilePath}.gz`;
+        gcsPathTemplate = backupConfig.gcsPath[backupType];
+
+        // 2. 데이터베이스 존재 확인
+        try {
+          await fs.access(dbPath);
+        } catch {
+          logger.warn("Database file not found, skipping", {
+            database: name,
+            path: dbPath,
+          });
+          return null;
+        }
+
+        // 3. VACUUM INTO로 스냅샷 생성
+        await this.createDatabaseSnapshot(dbPath, localFilePath);
+        logger.debug("SQLite snapshot created", { path: localFilePath });
       }
-
-      // 3. VACUUM INTO로 스냅샷 생성
-      await this.createDatabaseSnapshot(dbPath, localDbPath);
-      logger.debug("Database snapshot created", { path: localDbPath });
 
       // 4. gzip 압축
       if (backupConfig.compression.enabled) {
-        await this.compressFile(localDbPath, localGzPath);
+        await this.compressFile(localFilePath, localGzPath);
         logger.debug("File compressed", { path: localGzPath });
       }
 
       // 5. GCS 업로드
-      const gcsPath = backupConfig.gcsPath[backupType](name, timestamp);
+      const gcsPath = gcsPathTemplate(name, timestamp);
       const uploadResult = await this.uploadToGCS(
-        backupConfig.compression.enabled ? localGzPath : localDbPath,
+        backupConfig.compression.enabled ? localGzPath : localFilePath,
         gcsPath
       );
 
@@ -204,6 +313,7 @@ class BackupService {
         database: name,
         gcsPath: uploadResult.gcsPath,
         size: uploadResult.size,
+        method: isPostgres ? "postgres-json" : "sqlite-vacuum",
       });
 
       // 6. 로컬 파일 정리
@@ -218,6 +328,7 @@ class BackupService {
       logger.error("Backup failed", {
         database: name,
         error: error.message,
+        databaseType: backupConfig.databaseType,
       });
 
       // 알림 발송
@@ -237,11 +348,17 @@ class BackupService {
    */
   async backupAllDatabases(backupType = "daily") {
     const results = [];
-    const { databases } = backupConfig;
+    const isPostgres = backupConfig.databaseType === "postgres";
+
+    // PostgreSQL 모드에서는 단일 데이터베이스 (Supabase)
+    const databases = isPostgres
+      ? [{ name: "postgres", path: null }]
+      : backupConfig.databases;
 
     logger.info("Starting backup for all databases", {
       count: databases.length,
       type: backupType,
+      databaseType: backupConfig.databaseType,
     });
 
     for (const dbConfig of databases) {
@@ -267,6 +384,7 @@ class BackupService {
       total: databases.length,
       successful,
       failed,
+      databaseType: backupConfig.databaseType,
     });
 
     // 성공 알림

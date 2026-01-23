@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Copy, RefreshCw, Save, ExternalLink, Plus, Trash2,
-  Film, Check, Play, StopCircle, GripVertical
+  Film, Check, Play, StopCircle, GripVertical, RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
 import socket from '../../config/socket';
+import { OverlayPreviewWrapper } from './shared';
+import CreditsOverlay from '../CreditsOverlay';
 import './CreditsSettings.css';
 
 const defaultSettings = {
@@ -30,6 +32,36 @@ const CreditsSettings = () => {
   const [copied, setCopied] = useState(false);
   const [overlayHash, setOverlayHash] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Preview state - 페이지 로드 시 자동 재생
+  const [previewPlaying, setPreviewPlaying] = useState(true);
+  const [previewKey, setPreviewKey] = useState(0);
+
+  // Generate preview credits data from current settings
+  const previewCredits = {
+    title: settings.title,
+    sections: settings.sections.map(sec => ({
+      title: sec.title,
+      items: sec.items.length > 0 ? sec.items : ['예시 항목 1', '예시 항목 2']
+    }))
+  };
+
+  const playPreviewCredits = useCallback(() => {
+    setPreviewKey(prev => prev + 1);
+    setPreviewPlaying(true);
+  }, []);
+
+  const stopPreviewCredits = useCallback(() => {
+    setPreviewPlaying(false);
+  }, []);
+
+  const restartPreviewCredits = useCallback(() => {
+    setPreviewPlaying(false);
+    setTimeout(() => {
+      setPreviewKey(prev => prev + 1);
+      setPreviewPlaying(true);
+    }, 100);
+  }, []);
 
   const overlayUrl = overlayHash
     ? `${window.location.origin}/overlay/${overlayHash}/credits`
@@ -219,6 +251,37 @@ const CreditsSettings = () => {
               {copied ? '복사됨' : '복사'}
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* 실시간 미리보기 */}
+      <OverlayPreviewWrapper title="크레딧 미리보기" height={300}>
+        <CreditsOverlay
+          key={previewKey}
+          previewMode={true}
+          previewSettings={settings}
+          previewCredits={previewCredits}
+          previewPlaying={previewPlaying}
+        />
+      </OverlayPreviewWrapper>
+
+      {/* 미리보기 컨트롤 */}
+      <div className="settings-card preview-control-card">
+        <div className="preview-controls-row">
+          {!previewPlaying ? (
+            <button className="btn-preview-play" onClick={playPreviewCredits}>
+              <Play size={16} /> 미리보기 재생
+            </button>
+          ) : (
+            <>
+              <button className="btn-preview-stop" onClick={stopPreviewCredits}>
+                <StopCircle size={16} /> 정지
+              </button>
+              <button className="btn-preview-restart" onClick={restartPreviewCredits}>
+                <RotateCcw size={16} /> 다시 시작
+              </button>
+            </>
+          )}
         </div>
       </div>
 

@@ -4,6 +4,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { Users, Eye, Clock, MessageSquare, Download, RefreshCw } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
 import AnalyticsCard from './shared/AnalyticsCard';
 import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
@@ -12,6 +13,17 @@ import './AnalyticsPage.css';
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const ViewerAnalytics = () => {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === 'dark';
+
+  // 차트 다크모드 색상
+  const chartColors = {
+    grid: isDark ? '#475569' : '#f0f0f0',
+    border: isDark ? '#475569' : '#e2e8f0',
+    tooltipBg: isDark ? '#1e293b' : '#ffffff',
+    textMuted: isDark ? '#94a3b8' : '#94a3b8',
+  };
+
   const [period, setPeriod] = useState('week');
   const [loading, setLoading] = useState(true);
   const [summary, setSummary] = useState({
@@ -156,10 +168,10 @@ const ViewerAnalytics = () => {
                   <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
-              <YAxis stroke="#94a3b8" fontSize={12} />
-              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+              <XAxis dataKey="date" stroke={chartColors.textMuted} fontSize={12} />
+              <YAxis stroke={chartColors.textMuted} fontSize={12} />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }} />
               <Legend />
               <Area
                 type="monotone"
@@ -184,10 +196,10 @@ const ViewerAnalytics = () => {
         >
           {hourlyData.length > 0 ? (
             <BarChart data={hourlyData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="hour" stroke="#94a3b8" fontSize={11} />
-              <YAxis stroke="#94a3b8" fontSize={12} />
-              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+              <XAxis dataKey="hour" stroke={chartColors.textMuted} fontSize={11} />
+              <YAxis stroke={chartColors.textMuted} fontSize={12} />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }} />
               <Bar dataKey="chats" name="채팅 수" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             </BarChart>
           ) : (
@@ -203,10 +215,10 @@ const ViewerAnalytics = () => {
         >
           {dayOfWeekData.length > 0 ? (
             <BarChart data={dayOfWeekData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
-              <YAxis stroke="#94a3b8" fontSize={12} />
-              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e2e8f0' }} />
+              <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
+              <XAxis dataKey="day" stroke={chartColors.textMuted} fontSize={12} />
+              <YAxis stroke={chartColors.textMuted} fontSize={12} />
+              <Tooltip contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }} />
               <Legend />
               <Bar dataKey="chats" name="채팅 수" fill="#3b82f6" radius={[4, 4, 0, 0]} />
               <Bar dataKey="users" name="참여 유저" fill="#10b981" radius={[4, 4, 0, 0]} />
@@ -238,12 +250,12 @@ const ViewerAnalytics = () => {
             {activityTimeline.length > 0 ? activityTimeline.map((row) => (
               <tr key={row.date}>
                 <td>{row.date}</td>
-                <td>{row.chats?.toLocaleString() || 0}</td>
-                <td>{row.donations?.toLocaleString() || 0}</td>
+                <td><span className="sensitive-blur">{row.chats?.toLocaleString() || 0}</span></td>
+                <td><span className="sensitive-blur">{row.donations?.toLocaleString() || 0}</span></td>
                 <td style={{ fontWeight: 600, color: 'var(--primary)' }}>
-                  ₩{row.donationAmount?.toLocaleString() || 0}
+                  <span className="sensitive-blur">₩{row.donationAmount?.toLocaleString() || 0}</span>
                 </td>
-                <td>{row.activeUsers?.toLocaleString() || 0}</td>
+                <td><span className="sensitive-blur">{row.activeUsers?.toLocaleString() || 0}</span></td>
               </tr>
             )) : (
               <tr>

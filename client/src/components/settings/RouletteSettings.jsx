@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Copy, RefreshCw, Save, ExternalLink, Plus, Trash2,
   Disc, Settings, Palette, Volume2, Play, Check, GripVertical,
@@ -7,6 +7,8 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
 import socket from '../../config/socket';
+import { OverlayPreviewWrapper } from './shared';
+import RouletteOverlay from '../RouletteOverlay';
 import './RouletteSettings.css';
 
 const defaultColors = [
@@ -37,6 +39,23 @@ const RouletteSettings = () => {
   const [copied, setCopied] = useState(false);
   const [overlayHash, setOverlayHash] = useState(null);
   const [testSpinning, setTestSpinning] = useState(false);
+
+  // Preview state
+  const [triggerSpin, setTriggerSpin] = useState(false);
+  const [spinResult, setSpinResult] = useState(null);
+
+  const handleSpinComplete = useCallback((result) => {
+    setSpinResult(result);
+    setTriggerSpin(false);
+    setTestSpinning(false);
+  }, []);
+
+  const testPreviewSpin = () => {
+    if (testSpinning) return;
+    setTestSpinning(true);
+    setSpinResult(null);
+    setTriggerSpin(true);
+  };
 
   const overlayUrl = overlayHash
     ? `${window.location.origin}/overlay/${overlayHash}/roulette`
@@ -378,49 +397,54 @@ const RouletteSettings = () => {
         </button>
       </div>
 
-      {/* 미리보기 및 테스트 */}
+      {/* 실시간 미리보기 */}
+      <OverlayPreviewWrapper title="룰렛 미리보기" height={350}>
+        <RouletteOverlay
+          previewMode={true}
+          previewSettings={settings}
+          triggerSpin={triggerSpin}
+          onSpinComplete={handleSpinComplete}
+        />
+      </OverlayPreviewWrapper>
+
+      {/* 테스트 컨트롤 */}
       <div className="settings-card">
         <div className="card-header">
-          <h3>미리보기 및 테스트</h3>
+          <h3>테스트 스핀</h3>
         </div>
 
-        <div className="roulette-preview-container">
-          <div className="roulette-preview">
-            <div className="preview-wheel">
-              <svg viewBox="0 0 200 200" className="wheel-svg">
-                {settings.segments.map((segment, index) => {
-                  const segmentAngle = 360 / settings.segments.length;
-                  const startAngle = index * segmentAngle;
-                  const endAngle = (index + 1) * segmentAngle;
-                  const largeArc = segmentAngle > 180 ? 1 : 0;
-
-                  const startRad = (startAngle - 90) * Math.PI / 180;
-                  const endRad = (endAngle - 90) * Math.PI / 180;
-                  const x1 = 100 + 90 * Math.cos(startRad);
-                  const y1 = 100 + 90 * Math.sin(startRad);
-                  const x2 = 100 + 90 * Math.cos(endRad);
-                  const y2 = 100 + 90 * Math.sin(endRad);
-
-                  const pathD = `M 100 100 L ${x1} ${y1} A 90 90 0 ${largeArc} 1 ${x2} ${y2} Z`;
-
-                  return (
-                    <path key={index} d={pathD} fill={segment.color} stroke="#fff" strokeWidth="1" />
-                  );
-                })}
-              </svg>
-            </div>
-            <div className="preview-pointer">▼</div>
-          </div>
-
+        <div className="test-spin-controls">
           <button
             className="btn-test-spin"
-            onClick={testSpin}
+            onClick={testPreviewSpin}
             disabled={testSpinning}
           >
             <Play size={18} />
-            {testSpinning ? '회전 중...' : '테스트 스핀'}
+            {testSpinning ? '회전 중...' : '미리보기 스핀'}
           </button>
+
+          {spinResult && !testSpinning && (
+            <div className="spin-result-display">
+              <span className="result-label">결과:</span>
+              <span className="result-value" style={{ color: spinResult.color }}>
+                {spinResult.text}
+              </span>
+            </div>
+          )}
         </div>
+
+        <p className="test-hint">
+          실제 오버레이로 테스트하려면 아래 버튼을 사용하세요.
+        </p>
+
+        <button
+          className="btn-test-overlay"
+          onClick={testSpin}
+          disabled={testSpinning}
+        >
+          <ExternalLink size={16} />
+          오버레이 테스트 스핀
+        </button>
       </div>
 
       {/* 저장 버튼 */}

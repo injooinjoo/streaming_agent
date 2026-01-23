@@ -10,3 +10,4 @@ build/
 # GCS credentials (sensitive)
 gcs-key.json
 **/gcs-key.json
+.playwright-mcp/
