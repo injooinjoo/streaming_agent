@@ -466,12 +466,14 @@ const createAuthRouter = (userService, stateStore, tokenService, authenticateTok
       }
 
       // Create new user
+      // SOOP/Chzzk: oauthId = channelId
       const newUser = await userService.createFromOAuth({
         email,
         displayName,
         avatarUrl,
         provider,
         oauthId,
+        channelId: oauthId,
       });
 
       const { accessToken, refreshToken } = tokenService.generateTokenPair(newUser);

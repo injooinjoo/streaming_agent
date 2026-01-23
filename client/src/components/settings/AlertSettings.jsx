@@ -118,6 +118,7 @@ const AlertSettings = () => {
   const { user } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
   const overlayHash = user?.userHash || null;
   const [activeNav, setActiveNav] = useState('theme');
   const [expandedSignatures, setExpandedSignatures] = useState({});
@@ -274,7 +275,8 @@ const AlertSettings = () => {
     if (!overlayHash) return;
     const url = `${window.location.origin}/overlay/${overlayHash}/alerts`;
     navigator.clipboard.writeText(url);
-    alert('URL이 복사되었습니다.');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const resetSettings = () => {
@@ -323,7 +325,7 @@ const AlertSettings = () => {
             </div>
             <div className="url-actions">
               <button className="url-action-btn primary" onClick={copyUrl} disabled={!overlayHash}>
-                <Copy size={15} /> URL 복사
+                {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? '복사됨' : 'URL 복사'}
               </button>
               <button className="url-action-btn" onClick={fetchSettings}>
                 <RefreshCw size={15} /> 새로고침

@@ -127,6 +127,7 @@ const ChatSettings = () => {
   const { user } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
   const overlayHash = user?.userHash || null;
   const [testChat, setTestChat] = useState({ 
     amount: '100', 
@@ -207,7 +208,8 @@ const ChatSettings = () => {
 
   const copyUrl = (url) => {
     navigator.clipboard.writeText(url);
-    alert('URL이 복사되었습니다.');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const resetSettings = () => {
@@ -290,7 +292,7 @@ const ChatSettings = () => {
             </div>
             <div className="url-actions">
               <button className="url-action-btn primary" onClick={() => overlayHash && copyUrl(`${window.location.origin}/overlay/${overlayHash}/chat`)} disabled={!overlayHash}>
-                <Copy size={15} /> URL 복사
+                {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? '복사됨' : 'URL 복사'}
               </button>
               <button className="url-action-btn" onClick={fetchSettings}>
                 <RefreshCw size={15} /> 새로고침

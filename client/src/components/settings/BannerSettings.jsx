@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Copy, RefreshCw, Save } from 'lucide-react';
+import { Copy, RefreshCw, Save, Check } from 'lucide-react';
 import { API_URL } from '../../config/api';
 
 const defaultSettings = {
@@ -13,6 +13,7 @@ const defaultSettings = {
 const BannerSettings = () => {
   const [settings, setSettings] = useState(defaultSettings);
   const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const fetchSettings = async () => {
     try {
@@ -47,7 +48,8 @@ const BannerSettings = () => {
   const copyUrl = () => {
     const url = `${window.location.origin}/overlay/banners`;
     navigator.clipboard.writeText(url);
-    alert('오버레이 URL이 복사되었습니다.');
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (
@@ -59,7 +61,7 @@ const BannerSettings = () => {
         </div>
         <div className="url-copy-box">
           <input type="text" readOnly value={`${window.location.origin}/overlay/banners`} />
-          <button className="copy-btn" onClick={copyUrl}><Copy size={16} /> 복사</button>
+          <button className="copy-btn" onClick={copyUrl}>{copied ? <Check size={16} /> : <Copy size={16} />} {copied ? '복사됨' : '복사'}</button>
           <button className="refresh-btn" onClick={fetchSettings}><RefreshCw size={16} /></button>
         </div>
       </div>

@@ -75,8 +75,8 @@ const initializeDemoUser = async (db) => {
       // Create new demo user with generated hash
       const overlayHash = crypto.randomBytes(8).toString("hex");
       db.run(
-        `INSERT INTO users (email, display_name, role, overlay_hash) VALUES (?, ?, ?, ?)`,
-        [DEMO_USER.email, DEMO_USER.displayName, DEMO_USER.role, overlayHash],
+        `INSERT INTO users (email, display_name, role, overlay_hash, channel_id, platform) VALUES (?, ?, ?, ?, ?, ?)`,
+        [DEMO_USER.email, DEMO_USER.displayName, DEMO_USER.role, overlayHash, DEMO_USER.channelId, DEMO_USER.platform],
         function (err) {
           if (err) {
             logger.error("Failed to create demo user", { error: err.message });

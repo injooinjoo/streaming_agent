@@ -109,13 +109,16 @@ const createUserService = (_db) => {
      * @param {Object} userData - OAuth user data
      * @returns {Promise<Object>}
      */
-    async createFromOAuth({ email, displayName, avatarUrl, provider, oauthId }) {
+    async createFromOAuth({ email, displayName, avatarUrl, provider, oauthId, channelId }) {
       const overlayHash = generateOverlayHash();
+      // platform = provider (soop, chzzk, twitch 등)
+      // channelId = SOOP/Chzzk의 경우 oauthId와 동일, 다른 플랫폼은 별도 전달
+      const finalChannelId = channelId || oauthId;
 
       const result = await dbRun(
-        `INSERT INTO users (email, display_name, avatar_url, oauth_provider, oauth_id, overlay_hash)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [email, displayName, avatarUrl, provider, oauthId, overlayHash]
+        `INSERT INTO users (email, display_name, avatar_url, oauth_provider, oauth_id, overlay_hash, platform, channel_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [email, displayName, avatarUrl, provider, oauthId, overlayHash, provider, finalChannelId]
       );
 
       return {
@@ -125,6 +128,8 @@ const createUserService = (_db) => {
         avatarUrl,
         role: "user",
         overlayHash,
+        platform: provider,
+        channelId: finalChannelId,
       };
     },
 
