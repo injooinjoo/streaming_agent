@@ -698,6 +698,346 @@
 }
 
 /* ===========================================
+   채팅 정렬 스타일
+   =========================================== */
+
+/* 한줄 (기본) */
+.messages-container.sort-one-line .chat-message-item {
+  flex-direction: row;
+  flex-wrap: nowrap;
+}
+
+/* 줄바꿈 - 닉네임 다음에 메시지 줄바꿈 */
+.messages-container.sort-multi-line .chat-message-item {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.messages-container.sort-multi-line .chat-message-item .sender {
+  margin-bottom: 4px;
+}
+
+/* 시작라인 - 모든 메시지 시작점 정렬 */
+.messages-container.sort-start-align .chat-message-item {
+  flex-direction: row;
+  flex-wrap: wrap;
+}
+
+.messages-container.sort-start-align .chat-message-item .sender {
+  min-width: 120px;
+}
+
+/* 개별라인 - 각 메시지 독립 라인 */
+.messages-container.sort-indiv-align .chat-message-item {
+  flex-direction: column;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 12px;
+  margin-bottom: 8px;
+}
+
+/* ===========================================
+   상단 페이드아웃 효과
+   =========================================== */
+
+.chat-overlay.top-fadeout .messages-container {
+  mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 100%);
+}
+
+/* ===========================================
+   스크롤 모드
+   =========================================== */
+
+.chat-overlay.use-scroll .messages-container {
+  overflow-y: auto;
+  max-height: calc(100vh - 120px);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+}
+
+.chat-overlay.use-scroll .messages-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-overlay.use-scroll .messages-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-overlay.use-scroll .messages-container::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+/* ===========================================
+   아이디 표시
+   =========================================== */
+
+.sender-id {
+  font-size: 0.8em;
+  opacity: 0.7;
+  margin-left: 4px;
+}
+
+/* ===========================================
+   위젯 스타일 - 공지
+   =========================================== */
+
+.notice-widget {
+  position: absolute;
+  left: 0;
+  right: 0;
+  padding: 12px 20px;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 100;
+}
+
+.notice-widget.top {
+  top: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.notice-widget.bottom {
+  bottom: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.notice-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: white;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.notice-icon {
+  font-size: 24px;
+}
+
+.notice-text {
+  flex: 1;
+}
+
+/* 공지 테마 */
+.notice-widget.theme-하트핑크 {
+  background: linear-gradient(135deg, rgba(255, 105, 180, 0.9), rgba(255, 182, 193, 0.9));
+}
+
+.notice-widget.theme-스타핑크 {
+  background: linear-gradient(135deg, rgba(255, 20, 147, 0.9), rgba(255, 105, 180, 0.9));
+}
+
+.notice-widget.theme-네온 {
+  background: linear-gradient(135deg, rgba(0, 255, 127, 0.9), rgba(0, 255, 255, 0.9));
+  color: black;
+}
+
+.notice-widget.theme-골드 {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.9), rgba(255, 165, 0, 0.9));
+  color: black;
+}
+
+/* ===========================================
+   위젯 스타일 - 타이머
+   =========================================== */
+
+.timer-widget {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 24px;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
+  border-radius: 50px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 100;
+}
+
+.timer-widget.top {
+  top: 20px;
+}
+
+.timer-widget.bottom {
+  bottom: 20px;
+}
+
+.timer-value {
+  color: white;
+  font-size: 24px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 타이머 테마 */
+.timer-widget.theme-디지털 {
+  background: #000;
+  border: 2px solid #0f0;
+}
+
+.timer-widget.theme-디지털 .timer-value {
+  color: #0f0;
+  font-family: 'Courier New', monospace;
+  text-shadow: 0 0 10px #0f0;
+}
+
+.timer-widget.theme-네온 {
+  background: transparent;
+  border: 2px solid #00ffff;
+  box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+}
+
+.timer-widget.theme-네온 .timer-value {
+  color: #00ffff;
+  text-shadow: 0 0 10px #00ffff, 0 0 20px #00ffff;
+}
+
+/* ===========================================
+   위젯 스타일 - 시청자수
+   =========================================== */
+
+.viewer-widget {
+  position: absolute;
+  right: 20px;
+  padding: 8px 16px;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 100;
+}
+
+.viewer-widget.top {
+  top: 20px;
+}
+
+.viewer-widget.bottom {
+  bottom: 20px;
+}
+
+.viewer-icon {
+  font-size: 18px;
+}
+
+.viewer-count {
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* ===========================================
+   채팅 고정 스타일
+   =========================================== */
+
+.pinned-messages {
+  position: absolute;
+  top: 80px;
+  left: 40px;
+  right: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 50;
+}
+
+.pinned-message-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.2));
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 215, 0, 0.5);
+  border-radius: 12px;
+  animation: pinPulse 2s ease-in-out infinite;
+}
+
+@keyframes pinPulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.6);
+  }
+}
+
+.pin-icon {
+  font-size: 20px;
+}
+
+.pinned-message-item .sender {
+  font-weight: 700;
+}
+
+.pinned-message-item .message-text {
+  flex: 1;
+}
+
+/* ===========================================
+   입장 메시지 스타일
+   =========================================== */
+
+.chat-message-item.entry {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(99, 102, 241, 0.3));
+  border: 1px solid rgba(99, 102, 241, 0.5);
+}
+
+.chat-message-item.entry .sender {
+  color: #a5b4fc !important;
+}
+
+/* ===========================================
+   미리보기 모드에서 위젯 위치 조정
+   =========================================== */
+
+.chat-overlay.preview-mode .notice-widget,
+.chat-overlay.preview-mode .timer-widget,
+.chat-overlay.preview-mode .viewer-widget,
+.chat-overlay.preview-mode .pinned-messages {
+  position: relative;
+  top: auto;
+  bottom: auto;
+  left: auto;
+  right: auto;
+  transform: none;
+  margin: 4px 0;
+}
+
+.chat-overlay.preview-mode .notice-widget {
+  padding: 6px 12px;
+}
+
+.chat-overlay.preview-mode .notice-content {
+  font-size: 12px;
+}
+
+.chat-overlay.preview-mode .timer-widget {
+  padding: 4px 12px;
+}
+
+.chat-overlay.preview-mode .timer-value {
+  font-size: 14px;
+}
+
+.chat-overlay.preview-mode .viewer-widget {
+  padding: 4px 8px;
+}
+
+.chat-overlay.preview-mode .viewer-count {
+  font-size: 12px;
+}
+
+.chat-overlay.preview-mode .pinned-message-item {
+  padding: 6px 10px;
+  font-size: 11px;
+}
+
+/* ===========================================
    Original Overlay Styles
    =========================================== */
 

@@ -31,7 +31,7 @@ const GameDetail = ({ gameId, onBack }) => {
       const response = await fetch(`${API_BASE}/api/categories/${gameId}`);
 
       if (!response.ok) {
-        throw new Error('게임 정보를 불러오는데 실패했습니다.');
+        throw new Error('불러오기 실패');
       }
 
       const result = await response.json();
@@ -62,7 +62,7 @@ const GameDetail = ({ gameId, onBack }) => {
       <div className="game-detail">
         <div className="game-catalog-loading">
           <RefreshCw size={32} className="spinning" />
-          <span>게임 정보를 불러오는 중...</span>
+          <span>불러오는 중...</span>
         </div>
       </div>
     );

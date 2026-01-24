@@ -221,7 +221,7 @@ const MarketplacePage = () => {
         {loading ? (
           <div className="loading-state">
             <RefreshCw size={32} className="spin" />
-            <p>디자인을 불러오는 중...</p>
+            <p>불러오는 중...</p>
           </div>
         ) : sortedDesigns.length === 0 ? (
           <div className="empty-state">

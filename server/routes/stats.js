@@ -316,6 +316,39 @@ const createStatsRouter = (
     }
   });
 
+  // ===== Realtime Statistics (Protected) =====
+
+  /**
+   * GET /api/stats/realtime/summary
+   * Get realtime platform summary (total viewers, channels by platform)
+   */
+  router.get("/stats/realtime/summary", authenticateToken, async (req, res) => {
+    try {
+      const result = await statsService.getRealtimePlatformSummary();
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/realtime/trend
+   * Get realtime trend data by type (viewers, channels, chats)
+   * Query params: type = viewers | channels | chats
+   */
+  router.get("/stats/realtime/trend", authenticateToken, async (req, res) => {
+    try {
+      const type = req.query.type || 'viewers';
+      if (!['viewers', 'channels', 'chats'].includes(type)) {
+        return res.status(400).json({ error: 'Invalid type. Must be viewers, channels, or chats' });
+      }
+      const result = await statsService.getRealtimeTrend(type);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ===== Viewer Statistics (Protected) =====
 
   /**

@@ -18,7 +18,7 @@ validateEnv(process.env.NODE_ENV === "production"); // Only exit in production
 
 // Application modules
 const { createApp } = require("./app");
-const { initializeDatabase, closeDatabase, getDb } = require("./db/connections");
+const { initializeDatabase, closeDatabase, getDb, getOne, runQuery, isPostgres } = require("./db/connections");
 const { setupSocketHandlers } = require("./socket/handlers");
 
 // Platform Adapters
@@ -56,39 +56,45 @@ const DEMO_USER = {
 /**
  * Initialize demo user for development mode
  * Creates the user in DB if not exists, or returns existing user
+ * Works with both SQLite and PostgreSQL
  */
-const initializeDemoUser = async (db) => {
-  return new Promise((resolve) => {
-    db.get("SELECT * FROM users WHERE email = ?", [DEMO_USER.email], (err, user) => {
-      if (err) {
-        logger.error("Failed to check demo user", { error: err.message });
-        return resolve(null);
-      }
+const initializeDemoUser = async () => {
+  try {
+    // Use parameterized query - PostgreSQL uses $1, SQLite uses ?
+    const paramPlaceholder = isPostgres() ? '$1' : '?';
+    const user = await getOne(`SELECT * FROM users WHERE email = ${paramPlaceholder}`, [DEMO_USER.email]);
 
-      if (user) {
-        // User exists, export the hash for auth middleware
-        module.exports.demoUserOverlayHash = user.overlay_hash;
-        logger.info("Demo user loaded", { email: DEMO_USER.email, overlayHash: user.overlay_hash });
-        return resolve(user);
-      }
+    if (user) {
+      // User exists, export the hash for auth middleware
+      module.exports.demoUserOverlayHash = user.overlay_hash;
+      logger.info("Demo user loaded", { email: DEMO_USER.email, overlayHash: user.overlay_hash });
+      return user;
+    }
 
-      // Create new demo user with generated hash
-      const overlayHash = crypto.randomBytes(8).toString("hex");
-      db.run(
-        `INSERT INTO users (email, display_name, role, overlay_hash, channel_id, platform) VALUES (?, ?, ?, ?, ?, ?)`,
-        [DEMO_USER.email, DEMO_USER.displayName, DEMO_USER.role, overlayHash, DEMO_USER.channelId, DEMO_USER.platform],
-        function (err) {
-          if (err) {
-            logger.error("Failed to create demo user", { error: err.message });
-            return resolve(null);
-          }
-          module.exports.demoUserOverlayHash = overlayHash;
-          logger.info("Demo user created", { id: this.lastID, email: DEMO_USER.email, overlayHash });
-          resolve({ id: this.lastID, ...DEMO_USER, overlay_hash: overlayHash });
-        }
-      );
-    });
-  });
+    // Create new demo user with generated hash
+    const overlayHash = crypto.randomBytes(8).toString("hex");
+
+    let insertQuery;
+    let insertParams;
+
+    if (isPostgres()) {
+      insertQuery = `INSERT INTO users (email, display_name, role, overlay_hash, channel_id, platform)
+                     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
+      insertParams = [DEMO_USER.email, DEMO_USER.displayName, DEMO_USER.role, overlayHash, DEMO_USER.channelId, DEMO_USER.platform];
+    } else {
+      insertQuery = `INSERT INTO users (email, display_name, role, overlay_hash, channel_id, platform)
+                     VALUES (?, ?, ?, ?, ?, ?)`;
+      insertParams = [DEMO_USER.email, DEMO_USER.displayName, DEMO_USER.role, overlayHash, DEMO_USER.channelId, DEMO_USER.platform];
+    }
+
+    const result = await runQuery(insertQuery, insertParams);
+    module.exports.demoUserOverlayHash = overlayHash;
+    logger.info("Demo user created", { id: result.lastID, email: DEMO_USER.email, overlayHash });
+    return { id: result.lastID, ...DEMO_USER, overlay_hash: overlayHash };
+  } catch (err) {
+    logger.error("Failed to initialize demo user", { error: err.message });
+    return null;
+  }
 };
 
 // ===== Platform Adapters =====
@@ -120,7 +126,7 @@ const main = async () => {
     dbLogger.info("Unified database ready");
 
     // Initialize demo user for development mode
-    await initializeDemoUser(db);
+    await initializeDemoUser();
 
     // Initialize Category Service with unified db (io will be set later)
     const categoryService = new CategoryService(db, null);

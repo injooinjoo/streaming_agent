@@ -108,6 +108,8 @@ const getSQLHelpers = () => {
       },
       extractHour: (column) => `EXTRACT(HOUR FROM ${column})`,
       extractDow: (column) => `EXTRACT(DOW FROM ${column})`,
+      extractDayOfWeek: (column) => `EXTRACT(DOW FROM ${column})::INTEGER`,
+      dateOnly: (column) => `${column}::DATE`,
       toDate: (column) => `${column}::DATE`,
       epochDiff: (col1, col2) => `EXTRACT(EPOCH FROM (${col1} - ${col2}))`,
       // Auto-increment
@@ -121,9 +123,22 @@ const getSQLHelpers = () => {
       now: () => "datetime('now')",
       interval: (value, unit) => `'-${value} ${unit}'`,
       dateSubtract: (value, unit) => `datetime('now', '-${value} ${unit}')`,
-      formatDate: (column, format) => `strftime('${format}', ${column})`,
+      formatDate: (column, format) => {
+        // Convert standard format to SQLite strftime format
+        const sqliteFormat = format
+          .replace("YYYY", "%Y")
+          .replace("MM", "%m")
+          .replace("DD", "%d")
+          .replace("HH24", "%H")
+          .replace("HH", "%H")
+          .replace("MI", "%M")
+          .replace("SS", "%S");
+        return `strftime('${sqliteFormat}', ${column})`;
+      },
       extractHour: (column) => `CAST(strftime('%H', ${column}) AS INTEGER)`,
       extractDow: (column) => `CAST(strftime('%w', ${column}) AS INTEGER)`,
+      extractDayOfWeek: (column) => `CAST(strftime('%w', ${column}) AS INTEGER)`,
+      dateOnly: (column) => `DATE(${column})`,
       toDate: (column) => `DATE(${column})`,
       epochDiff: (col1, col2) => `(julianday(${col1}) - julianday(${col2})) * 86400`,
       // Auto-increment

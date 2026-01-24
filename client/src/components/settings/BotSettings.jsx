@@ -180,7 +180,7 @@ const BotSettings = () => {
       <div className="settings-panel">
         <div className="loading-state">
           <RefreshCw className="spin" size={24} />
-          <span>설정 불러오는 중...</span>
+          <span>불러오는 중...</span>
         </div>
       </div>
     );

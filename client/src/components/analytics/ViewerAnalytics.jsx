@@ -93,7 +93,7 @@ const ViewerAnalytics = () => {
       <div className="analytics-page">
         <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
           <RefreshCw className="animate-spin" size={32} />
-          <span style={{ marginLeft: '12px' }}>데이터를 불러오는 중...</span>
+          <span style={{ marginLeft: '12px' }}>불러오는 중...</span>
         </div>
       </div>
     );

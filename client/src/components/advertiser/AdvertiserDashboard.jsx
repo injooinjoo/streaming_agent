@@ -442,7 +442,7 @@ const AdvertiserDashboard = () => {
               <div className="spin">
                 <Settings size={32} style={{ color: 'var(--primary)' }} />
               </div>
-              <p style={{ marginTop: '16px' }}>캠페인 목록을 불러오는 중...</p>
+              <p style={{ marginTop: '16px' }}>불러오는 중...</p>
             </div>
           ) : (
             renderContent()

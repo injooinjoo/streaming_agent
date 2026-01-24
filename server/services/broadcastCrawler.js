@@ -988,7 +988,9 @@ class BroadcastCrawler {
       }
 
       // 2. Insert event into events table (donations always stored, even anonymous)
-      if (this.eventService && broadcasterChannelId) {
+      // Skip session events (user-enter/user-exit) - not valid for events table
+      const isSessionEvent = event.type === "user-enter" || event.type === "user-exit";
+      if (this.eventService && broadcasterChannelId && !isSessionEvent) {
         await this.eventService.createFromNormalized(event, {
           actorPersonId: personId,
           targetPersonId: broadcastInfo.broadcasterPersonId || null,

@@ -624,6 +624,136 @@ const createStatsService = () => {
     },
 
     /**
+     * Get realtime platform summary (total viewers, channels by platform)
+     * @returns {Promise<Object>}
+     */
+    async getRealtimePlatformSummary() {
+      // Get current viewers and channels from platform_categories
+      const platformData = await streamingDbAll(`
+        SELECT
+          platform,
+          SUM(viewer_count) as total_viewers,
+          SUM(streamer_count) as total_channels,
+          MAX(last_seen_at) as last_updated
+        FROM platform_categories
+        WHERE is_active = ${isPostgres() ? 'TRUE' : '1'}
+        GROUP BY platform
+        ORDER BY total_viewers DESC
+      `);
+
+      // Get peak viewers for each platform in last 24h
+      const peakData = await streamingDbAll(`
+        SELECT
+          platform,
+          MAX(viewer_count) as peak_viewers
+        FROM category_stats
+        WHERE recorded_at >= ${sql.dateSubtract(24, 'hours')}
+        GROUP BY platform
+      `);
+
+      const peakMap = {};
+      (peakData || []).forEach(row => {
+        peakMap[row.platform] = row.peak_viewers || 0;
+      });
+
+      const platformNames = {
+        chzzk: '치지직',
+        soop: 'SOOP',
+        twitch: '트위치',
+        youtube: 'YouTube'
+      };
+
+      const platforms = (platformData || []).map(row => ({
+        platform: row.platform,
+        name: platformNames[row.platform] || row.platform,
+        viewers: row.total_viewers || 0,
+        channels: row.total_channels || 0,
+        peak: peakMap[row.platform] || row.total_viewers || 0
+      }));
+
+      const totalViewers = platforms.reduce((sum, p) => sum + p.viewers, 0);
+
+      return {
+        totalViewers,
+        platforms,
+        updatedAt: new Date().toISOString()
+      };
+    },
+
+    /**
+     * Get realtime trend data by type (viewers, channels, chats)
+     * @param {string} type - Type of trend: 'viewers' | 'channels' | 'chats'
+     * @returns {Promise<Array>}
+     */
+    async getRealtimeTrend(type = 'viewers') {
+      const hours = 24;
+
+      if (type === 'chats') {
+        // Get chat count by hour from events table
+        const chatData = await streamingDbAll(`
+          SELECT
+            ${sql.formatDate('event_timestamp', 'HH24:00')} as time,
+            platform,
+            COUNT(*) as count
+          FROM events
+          WHERE event_type = 'chat'
+            AND event_timestamp >= ${sql.dateSubtract(hours, 'hours')}
+          GROUP BY ${sql.extractHour('event_timestamp')}, platform
+          ORDER BY time
+        `);
+
+        const hourlyMap = {};
+        (chatData || []).forEach(row => {
+          if (!hourlyMap[row.time]) {
+            hourlyMap[row.time] = { time: row.time, chzzk: 0, soop: 0, twitch: 0 };
+          }
+          if (row.platform === 'chzzk') hourlyMap[row.time].chzzk = row.count;
+          else if (row.platform === 'soop') hourlyMap[row.time].soop = row.count;
+          else if (row.platform === 'twitch') hourlyMap[row.time].twitch = row.count;
+        });
+
+        // Fill all hours
+        const result = [];
+        for (let i = 0; i < 24; i++) {
+          const hourStr = String(i).padStart(2, '0') + ':00';
+          result.push(hourlyMap[hourStr] || { time: hourStr, chzzk: 0, soop: 0, twitch: 0 });
+        }
+        return result;
+      }
+
+      // For viewers and channels, use category_stats
+      const field = type === 'channels' ? 'streamer_count' : 'viewer_count';
+      const trendData = await streamingDbAll(`
+        SELECT
+          ${sql.formatDate('recorded_at', 'HH24:00')} as time,
+          platform,
+          SUM(${field}) as total
+        FROM category_stats
+        WHERE recorded_at >= ${sql.dateSubtract(hours, 'hours')}
+        GROUP BY ${sql.extractHour('recorded_at')}, platform
+        ORDER BY time
+      `);
+
+      const hourlyMap = {};
+      (trendData || []).forEach(row => {
+        if (!hourlyMap[row.time]) {
+          hourlyMap[row.time] = { time: row.time, chzzk: 0, soop: 0, twitch: 0 };
+        }
+        if (row.platform === 'chzzk') hourlyMap[row.time].chzzk = row.total;
+        else if (row.platform === 'soop') hourlyMap[row.time].soop = row.total;
+        else if (row.platform === 'twitch') hourlyMap[row.time].twitch = row.total;
+      });
+
+      // Fill all hours
+      const result = [];
+      for (let i = 0; i < 24; i++) {
+        const hourStr = String(i).padStart(2, '0') + ':00';
+        result.push(hourlyMap[hourStr] || { time: hourStr, chzzk: 0, soop: 0, twitch: 0 });
+      }
+      return result;
+    },
+
+    /**
      * Get peak viewer count for today
      * @returns {Promise<Object>}
      */

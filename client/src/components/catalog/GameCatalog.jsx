@@ -28,7 +28,7 @@ const GameCatalog = ({ onGameSelect }) => {
       ]);
 
       if (!gamesRes.ok || !statsRes.ok) {
-        throw new Error('데이터를 불러오는데 실패했습니다.');
+        throw new Error('불러오기 실패');
       }
 
       const gamesData = await gamesRes.json();
@@ -78,7 +78,7 @@ const GameCatalog = ({ onGameSelect }) => {
       <div className="game-catalog">
         <div className="game-catalog-loading">
           <RefreshCw size={32} className="spinning" />
-          <span>게임 정보를 불러오는 중...</span>
+          <span>불러오는 중...</span>
         </div>
       </div>
     );

@@ -37,94 +37,66 @@ class PersonService {
       subscriberCount,
     } = data;
 
+    const db = this.db;
+
     return new Promise((resolve, reject) => {
-      // First, try to find existing person
-      this.db.get(
-        `SELECT id FROM persons WHERE platform = ? AND platform_user_id = ?`,
-        [platform, platformUserId],
-        (err, row) => {
+      // Use atomic INSERT ... ON CONFLICT to avoid race conditions
+      db.run(
+        `INSERT INTO persons (
+          platform, platform_user_id, nickname, profile_image_url,
+          channel_id, channel_description, follower_count, subscriber_count
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(platform, platform_user_id) DO UPDATE SET
+          nickname = COALESCE(excluded.nickname, nickname),
+          profile_image_url = COALESCE(excluded.profile_image_url, profile_image_url),
+          channel_id = COALESCE(excluded.channel_id, channel_id),
+          channel_description = COALESCE(excluded.channel_description, channel_description),
+          follower_count = CASE WHEN excluded.follower_count > 0 THEN excluded.follower_count ELSE follower_count END,
+          subscriber_count = CASE WHEN excluded.subscriber_count > 0 THEN excluded.subscriber_count ELSE subscriber_count END,
+          last_seen_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP`,
+        [
+          platform,
+          platformUserId,
+          nickname || null,
+          profileImageUrl || null,
+          channelId || null,
+          channelDescription || null,
+          followerCount || 0,
+          subscriberCount || 0,
+        ],
+        function (err) {
           if (err) {
-            dbLogger.error("PersonService.upsertPerson find error", { error: err.message });
+            dbLogger.error("PersonService.upsertPerson error", { error: err.message });
             reject(err);
             return;
           }
 
-          if (row) {
-            // Update existing person
-            const updates = [];
-            const params = [];
+          const lastID = this.lastID;
+          const changes = this.changes;
 
-            if (nickname !== undefined) {
-              updates.push("nickname = ?");
-              params.push(nickname);
-            }
-            if (profileImageUrl !== undefined) {
-              updates.push("profile_image_url = ?");
-              params.push(profileImageUrl);
-            }
-            if (channelId !== undefined) {
-              updates.push("channel_id = ?");
-              params.push(channelId);
-            }
-            if (channelDescription !== undefined) {
-              updates.push("channel_description = ?");
-              params.push(channelDescription);
-            }
-            if (followerCount !== undefined) {
-              updates.push("follower_count = ?");
-              params.push(followerCount);
-            }
-            if (subscriberCount !== undefined) {
-              updates.push("subscriber_count = ?");
-              params.push(subscriberCount);
-            }
-
-            updates.push("last_seen_at = CURRENT_TIMESTAMP");
-            updates.push("updated_at = CURRENT_TIMESTAMP");
-
-            params.push(row.id);
-
-            this.db.run(
-              `UPDATE persons SET ${updates.join(", ")} WHERE id = ?`,
-              params,
-              (updateErr) => {
-                if (updateErr) {
-                  dbLogger.error("PersonService.upsertPerson update error", { error: updateErr.message });
-                  reject(updateErr);
-                } else {
-                  resolve(row.id);
-                }
-              }
-            );
-          } else {
-            // Insert new person
-            this.db.run(
-              `INSERT INTO persons (
-                platform, platform_user_id, nickname, profile_image_url,
-                channel_id, channel_description, follower_count, subscriber_count
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
+          // If lastID > 0, it's either a new insert or we can use it
+          if (lastID > 0) {
+            if (changes > 0) {
+              dbLogger.debug("Person upserted", {
                 platform,
                 platformUserId,
-                nickname || null,
-                profileImageUrl || null,
-                channelId || null,
-                channelDescription || null,
-                followerCount || 0,
-                subscriberCount || 0,
-              ],
-              function (insertErr) {
-                if (insertErr) {
-                  dbLogger.error("PersonService.upsertPerson insert error", { error: insertErr.message });
-                  reject(insertErr);
+                nickname,
+                id: lastID,
+              });
+            }
+            resolve(lastID);
+          } else {
+            // Fallback: fetch the ID for updated rows
+            db.get(
+              `SELECT id FROM persons WHERE platform = ? AND platform_user_id = ?`,
+              [platform, platformUserId],
+              (selectErr, row) => {
+                if (selectErr || !row) {
+                  dbLogger.error("PersonService.upsertPerson fetch id error", { error: selectErr?.message });
+                  resolve(null);
                 } else {
-                  dbLogger.debug("New person created", {
-                    platform,
-                    platformUserId,
-                    nickname,
-                    id: this.lastID,
-                  });
-                  resolve(this.lastID);
+                  resolve(row.id);
                 }
               }
             );

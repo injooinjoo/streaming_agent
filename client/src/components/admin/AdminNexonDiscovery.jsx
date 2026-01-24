@@ -68,7 +68,7 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
 
     } catch (err) {
       console.error('Failed to fetch discovery data:', err);
-      setError('데이터를 불러오는데 실패했습니다');
+      setError('불러오기 실패');
       setStreamersData([]);
     } finally {
       setLoading(false);

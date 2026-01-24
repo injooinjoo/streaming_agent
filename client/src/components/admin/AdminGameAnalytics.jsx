@@ -61,7 +61,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
 
     } catch (err) {
       console.error('Failed to fetch game analytics:', err);
-      setError('데이터를 불러오는데 실패했습니다');
+      setError('불러오기 실패');
       setGamesData([]);
     } finally {
       setLoading(false);

@@ -110,7 +110,7 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
 
     } catch (err) {
       console.error('Failed to fetch streamer data:', err);
-      setError('스트리머 정보를 불러오는데 실패했습니다');
+      setError('불러오기 실패');
     } finally {
       setLoading(false);
     }

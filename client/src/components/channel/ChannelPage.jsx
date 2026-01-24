@@ -125,7 +125,7 @@ const ChannelPage = () => {
       <div className="channel-page">
         <div className="channel-loading">
           <RefreshCw size={32} className="spin" />
-          <p>채널 정보를 불러오는 중...</p>
+          <p>불러오는 중...</p>
         </div>
       </div>
     );

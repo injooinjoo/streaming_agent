@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+  AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { Activity, Clock, Users, TrendingUp, DollarSign, Heart, UserPlus, Gift, RefreshCw, LogIn } from 'lucide-react';
+import { Activity, Clock, Users, TrendingUp, DollarSign, Heart, UserPlus, Gift, RefreshCw, LogIn, Monitor } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './ViewershipDashboard.css';
@@ -12,6 +12,9 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const ViewershipDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [platformStats, setPlatformStats] = useState({ platforms: [] });
+  const [activeTab, setActiveTab] = useState('viewers'); // viewers | channels | chats
+  const [realtimeSummary, setRealtimeSummary] = useState(null);
+  const [realtimeTrend, setRealtimeTrend] = useState([]);
   const [yesterdaySummary, setYesterdaySummary] = useState({
     date: '-',
     startTime: '-',
@@ -39,6 +42,29 @@ const ViewershipDashboard = () => {
     }
   }, [isAuthenticated]);
 
+  // Fetch trend data when tab changes
+  useEffect(() => {
+    if (isAuthenticated && !loading) {
+      fetchRealtimeTrend(activeTab);
+    }
+  }, [activeTab]);
+
+  const fetchRealtimeTrend = async (type = 'viewers') => {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+    };
+    try {
+      const res = await fetch(`${API_BASE}/api/stats/realtime/trend?type=${type}`, { headers });
+      if (res.ok) {
+        const data = await res.json();
+        setRealtimeTrend(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch realtime trend:', err);
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
     setAuthError(false);
@@ -49,11 +75,13 @@ const ViewershipDashboard = () => {
     };
 
     try {
-      const [platformRes, yesterdayRes, trendRes, activityRes] = await Promise.all([
+      const [platformRes, yesterdayRes, trendRes, activityRes, realtimeSummaryRes, realtimeTrendRes] = await Promise.all([
         fetch(`${API_BASE}/api/stats/platforms`, { headers }),
         fetch(`${API_BASE}/api/stats/yesterday`, { headers }),
         fetch(`${API_BASE}/api/stats/hourly-by-platform`, { headers }),
-        fetch(`${API_BASE}/api/stats/activity/recent?limit=10`, { headers })
+        fetch(`${API_BASE}/api/stats/activity/recent?limit=10`, { headers }),
+        fetch(`${API_BASE}/api/stats/realtime/summary`, { headers }),
+        fetch(`${API_BASE}/api/stats/realtime/trend?type=${activeTab}`, { headers })
       ]);
 
       // Check if any request requires auth
@@ -63,11 +91,13 @@ const ViewershipDashboard = () => {
         return;
       }
 
-      const [platforms, yesterday, trend, activity] = await Promise.all([
+      const [platforms, yesterday, trend, activity, realtimeSummaryData, realtimeTrendData] = await Promise.all([
         platformRes.ok ? platformRes.json() : { platforms: [] },
         yesterdayRes.ok ? yesterdayRes.json() : {},
         trendRes.ok ? trendRes.json() : [],
-        activityRes.ok ? activityRes.json() : []
+        activityRes.ok ? activityRes.json() : [],
+        realtimeSummaryRes.ok ? realtimeSummaryRes.json() : null,
+        realtimeTrendRes.ok ? realtimeTrendRes.json() : []
       ]);
 
       // Transform platform data for ranking display
@@ -85,6 +115,8 @@ const ViewershipDashboard = () => {
       setYesterdaySummary(yesterday);
       setViewerTrend(trend);
       setRecentActivity(activity);
+      setRealtimeSummary(realtimeSummaryData);
+      setRealtimeTrend(realtimeTrendData);
     } catch (err) {
       console.error('Failed to fetch viewership data:', err);
     } finally {
@@ -134,7 +166,7 @@ const ViewershipDashboard = () => {
       <div className="viewership-dashboard analytics-page">
         <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
           <RefreshCw className="animate-spin" size={32} />
-          <span style={{ marginLeft: '12px' }}>데이터를 불러오는 중...</span>
+          <span style={{ marginLeft: '12px' }}>불러오는 중...</span>
         </div>
       </div>
     );
@@ -181,13 +213,119 @@ const ViewershipDashboard = () => {
     <div className="viewership-dashboard analytics-page">
       <header className="page-header">
         <div className="page-title">
-          <h1>뷰어십 현황</h1>
-          <p>플랫폼별 활동 현황과 어제 방송 요약을 확인하세요.</p>
+          <h1>시장 현황</h1>
+          <p>SOOP, 치지직, 트위치 한국어 전체 시청자 수를 실시간으로 확인하세요.</p>
         </div>
         <button className="btn-outline" onClick={fetchData} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <RefreshCw size={16} /> 새로고침
         </button>
       </header>
+
+      {/* 실시간 대시보드 섹션 */}
+      <section className="realtime-dashboard-section">
+        {/* 왼쪽: 차트 */}
+        <div className="realtime-chart-card">
+          <div className="realtime-chart-header">
+            <div className="realtime-chart-title">
+              <Monitor size={18} />
+              실시간 시청자 데이터
+            </div>
+            <div className="realtime-chart-subtitle">
+              SOOP, 치지직, 트위치 한국어 전체 시청자 수
+            </div>
+            <div className="realtime-tabs">
+              <button
+                className={activeTab === 'viewers' ? 'active' : ''}
+                onClick={() => setActiveTab('viewers')}
+              >
+                시청자
+              </button>
+              <button
+                className={activeTab === 'channels' ? 'active' : ''}
+                onClick={() => setActiveTab('channels')}
+              >
+                채널
+              </button>
+              <button
+                className={activeTab === 'chats' ? 'active' : ''}
+                onClick={() => setActiveTab('chats')}
+              >
+                채팅
+              </button>
+            </div>
+          </div>
+          {realtimeTrend.length > 0 ? (
+            <ResponsiveContainer width="100%" height={280}>
+              <LineChart data={realtimeTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
+                <XAxis dataKey="time" stroke="var(--text-muted)" fontSize={12} />
+                <YAxis stroke="var(--text-muted)" fontSize={12} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v} />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: 'var(--bg-card)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: '8px'
+                  }}
+                  formatter={(value, name) => [value.toLocaleString(), name === 'chzzk' ? '치지직' : name === 'soop' ? 'SOOP' : '트위치']}
+                />
+                <Line type="monotone" dataKey="chzzk" stroke="#00ffa3" strokeWidth={2} dot={false} name="chzzk" />
+                <Line type="monotone" dataKey="soop" stroke="#3b82f6" strokeWidth={2} dot={false} name="soop" />
+                <Line type="monotone" dataKey="twitch" stroke="#9146ff" strokeWidth={2} dot={false} name="twitch" />
+              </LineChart>
+            </ResponsiveContainer>
+          ) : (
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '280px', color: '#94a3b8' }}>
+              실시간 데이터가 없습니다
+            </div>
+          )}
+        </div>
+
+        {/* 오른쪽: 랭킹 */}
+        <div className="realtime-ranking-card">
+          <div className="realtime-ranking-header">
+            <Monitor size={18} />
+            실시간 플랫폼 랭킹
+          </div>
+          <div className="realtime-ranking-subtitle">
+            SOOP, 치지직, 트위치 한국어 전체 시청자 수
+          </div>
+          <div className="realtime-total-viewers sensitive-blur">
+            {(realtimeSummary?.totalViewers || 0).toLocaleString()}
+          </div>
+          <div className="realtime-platform-list">
+            {realtimeSummary?.platforms?.length > 0 ? realtimeSummary.platforms.map((platform, index) => (
+              <div key={platform.platform} className="realtime-platform-item">
+                <div className={`realtime-platform-rank rank-${index + 1}`}>
+                  {index + 1}
+                </div>
+                <img
+                  src={getPlatformLogo(platform.platform)}
+                  alt={platform.name}
+                  className="realtime-platform-logo"
+                />
+                <div className="realtime-platform-info">
+                  <div className="realtime-platform-name">{platform.name}</div>
+                  <div className="realtime-platform-channels">{platform.channels.toLocaleString()} 채널</div>
+                </div>
+                <div className="realtime-platform-viewers">
+                  <div>
+                    <span className="realtime-viewers-value sensitive-blur">{platform.viewers.toLocaleString()}</span>
+                    <span className="realtime-viewers-unit">명</span>
+                  </div>
+                  <div className="realtime-platform-peak">최고 <span className="sensitive-blur">{platform.peak.toLocaleString()}</span>명</div>
+                </div>
+              </div>
+            )) : (
+              <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>
+                플랫폼 데이터가 없습니다
+              </div>
+            )}
+          </div>
+          <div className="realtime-update-time">
+            {updateTime}
+          </div>
+        </div>
+      </section>
 
       {/* 플랫폼 랭킹 섹션 */}
       <div className="viewership-header-section">
