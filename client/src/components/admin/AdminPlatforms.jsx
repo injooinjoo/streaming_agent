@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, MessageSquare, DollarSign, Users, Activity, Wifi, WifiOff } from 'lucide-react';
+import { RefreshCw, MessageSquare, DollarSign, Users, Activity, Wifi, WifiOff, TrendingUp, Eye } from 'lucide-react';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -27,6 +27,8 @@ const AdminPlatforms = () => {
   const [connections, setConnections] = useState({ soop: {}, chzzk: {} });
   const [eventsByPlatform, setEventsByPlatform] = useState([]);
   const [donations, setDonations] = useState([]);
+  const [peakStreamers, setPeakStreamers] = useState([]);
+  const [cumulativeStreamers, setCumulativeStreamers] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -35,19 +37,25 @@ const AdminPlatforms = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [eventsRes, donationsRes, connectionsRes] = await Promise.all([
+      const [eventsRes, donationsRes, connectionsRes, peakRes, cumulativeRes] = await Promise.all([
         fetch(`${API_URL}/api/stats/events/by-platform`),
         fetch(`${API_URL}/api/stats/donations`),
-        fetch(`${API_URL}/api/connections/status`)
+        fetch(`${API_URL}/api/connections/status`),
+        fetch(`${API_URL}/api/stats/top-streamers-by-viewers?sortBy=peak&limit=10`),
+        fetch(`${API_URL}/api/stats/top-streamers-by-viewers?sortBy=cumulative&limit=10`)
       ]);
 
       const events = await eventsRes.json();
       const donationsData = await donationsRes.json();
       const connectionsData = await connectionsRes.json();
+      const peakData = peakRes.ok ? await peakRes.json() : [];
+      const cumulativeData = cumulativeRes.ok ? await cumulativeRes.json() : [];
 
       setEventsByPlatform(events);
       setDonations(donationsData);
       setConnections(connectionsData);
+      setPeakStreamers(peakData);
+      setCumulativeStreamers(cumulativeData);
 
       // 플랫폼 데이터 생성
       const platformData = ['soop', 'chzzk'].map(id => {
@@ -308,6 +316,117 @@ const AdminPlatforms = () => {
               </tr>
             </tbody>
           </table>
+        </div>
+      </div>
+
+      {/* Streamer Rankings Grid */}
+      <div className="admin-charts-grid" style={{ marginTop: '24px' }}>
+        {/* Peak Viewers Ranking */}
+        <div className="admin-table-card">
+          <div className="table-header">
+            <h3>
+              <TrendingUp size={20} style={{ marginRight: 8, verticalAlign: 'middle' }} />
+              최고 시청자수 순위
+            </h3>
+          </div>
+          <div className="admin-table-container">
+            {peakStreamers.length > 0 ? (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>순위</th>
+                    <th>스트리머</th>
+                    <th>플랫폼</th>
+                    <th>최고 시청자</th>
+                    <th>방송 횟수</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {peakStreamers.map((streamer) => (
+                    <tr key={`${streamer.platform}-${streamer.channel_id}`}>
+                      <td>{streamer.rank}</td>
+                      <td>{streamer.broadcaster_name}</td>
+                      <td>
+                        <span
+                          className="platform-badge"
+                          style={{
+                            background: PLATFORM_COLORS[streamer.platform] + '20',
+                            color: PLATFORM_COLORS[streamer.platform],
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px'
+                          }}
+                        >
+                          {PLATFORM_NAMES[streamer.platform] || streamer.platform}
+                        </span>
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{formatNumber(streamer.max_peak_viewers)}</td>
+                      <td>{streamer.broadcast_count}회</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="no-data-message" style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+                <TrendingUp size={32} style={{ opacity: 0.5, marginBottom: '12px' }} />
+                <p>방송 데이터가 없습니다</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Cumulative Viewers Ranking */}
+        <div className="admin-table-card">
+          <div className="table-header">
+            <h3>
+              <Eye size={20} style={{ marginRight: 8, verticalAlign: 'middle' }} />
+              누적 시청자수 순위
+            </h3>
+          </div>
+          <div className="admin-table-container">
+            {cumulativeStreamers.length > 0 ? (
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>순위</th>
+                    <th>스트리머</th>
+                    <th>플랫폼</th>
+                    <th>누적 시청자</th>
+                    <th>방송 횟수</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cumulativeStreamers.map((streamer) => (
+                    <tr key={`${streamer.platform}-${streamer.channel_id}`}>
+                      <td>{streamer.rank}</td>
+                      <td>{streamer.broadcaster_name}</td>
+                      <td>
+                        <span
+                          className="platform-badge"
+                          style={{
+                            background: PLATFORM_COLORS[streamer.platform] + '20',
+                            color: PLATFORM_COLORS[streamer.platform],
+                            padding: '2px 8px',
+                            borderRadius: '4px',
+                            fontSize: '12px'
+                          }}
+                        >
+                          {PLATFORM_NAMES[streamer.platform] || streamer.platform}
+                        </span>
+                      </td>
+                      <td style={{ fontWeight: 600 }}>{formatNumber(streamer.total_cumulative_viewers)}</td>
+                      <td>{streamer.broadcast_count}회</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="no-data-message" style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+                <Eye size={32} style={{ opacity: 0.5, marginBottom: '12px' }} />
+                <p>방송 데이터가 없습니다</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

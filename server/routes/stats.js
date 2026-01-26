@@ -233,6 +233,23 @@ const createStatsRouter = (
     }
   });
 
+  /**
+   * GET /api/stats/top-streamers-by-viewers
+   * Get top streamers ranked by peak or cumulative viewer count
+   */
+  router.get("/stats/top-streamers-by-viewers", async (req, res) => {
+    try {
+      const result = await statsService.getTopStreamersByViewers({
+        sortBy: req.query.sortBy || "peak",
+        platform: req.query.platform || null,
+        limit: parseInt(req.query.limit, 10) || 10,
+      });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ===== Platform Statistics (Protected) =====
 
   /**

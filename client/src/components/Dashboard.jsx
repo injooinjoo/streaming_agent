@@ -103,7 +103,7 @@ const Dashboard = () => {
         { id: 'chat', label: '채팅 오버레이', icon: <MessageSquare size={18} /> },
         { id: 'alerts', label: '후원 알림', icon: <Bell size={18} /> },
         { id: 'viewership', label: '시장 현황', icon: <Activity size={18} /> },
-        { id: 'game-catalog', label: '게임 카탈로그', icon: <Trophy size={18} /> }
+        { id: 'game-catalog', label: '카테고리', icon: <Trophy size={18} /> }
       ]
     },
     {

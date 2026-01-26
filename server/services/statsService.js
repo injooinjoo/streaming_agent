@@ -345,6 +345,57 @@ const createStatsService = () => {
       return { broadcasters, totalCount, totalPages, page, limit };
     },
 
+    /**
+     * Get top streamers by viewer metrics from broadcasts table
+     * @param {Object} options - Query options
+     * @param {string} options.sortBy - "peak" for peak viewers, "cumulative" for total viewers
+     * @param {string} options.platform - Optional platform filter
+     * @param {number} options.limit - Number of results
+     * @returns {Promise<Array>}
+     */
+    async getTopStreamersByViewers({ sortBy = "peak", platform = null, limit = 10 }) {
+      const validLimit = Math.min(Math.max(1, parseInt(limit) || 10), 50);
+      const orderColumn = sortBy === "cumulative" ? "total_cumulative_viewers" : "max_peak_viewers";
+
+      let whereClause = "";
+      const params = [];
+      let paramIndex = 1;
+
+      if (platform) {
+        whereClause = `WHERE b.platform = ${p(paramIndex++)}`;
+        params.push(platform);
+      }
+
+      const rows = await streamingDbAll(
+        `SELECT
+          b.channel_id,
+          b.platform,
+          p.nickname as broadcaster_name,
+          MAX(b.peak_viewer_count) as max_peak_viewers,
+          SUM(COALESCE(b.viewer_sum, 0)) as total_cumulative_viewers,
+          COUNT(b.id) as broadcast_count,
+          MAX(b.updated_at) as last_broadcast
+        FROM broadcasts b
+        LEFT JOIN persons p ON b.broadcaster_person_id = p.id
+        ${whereClause}
+        GROUP BY b.channel_id, b.platform, p.nickname
+        ORDER BY ${orderColumn} DESC
+        LIMIT ${p(paramIndex)}`,
+        [...params, validLimit]
+      );
+
+      return (rows || []).map((row, index) => ({
+        rank: index + 1,
+        channel_id: row.channel_id,
+        platform: row.platform,
+        broadcaster_name: row.broadcaster_name || row.channel_id || '익명 스트리머',
+        max_peak_viewers: row.max_peak_viewers || 0,
+        total_cumulative_viewers: row.total_cumulative_viewers || 0,
+        broadcast_count: row.broadcast_count || 0,
+        last_broadcast: row.last_broadcast
+      }));
+    },
+
     // ===== Admin Overview (from both databases) =====
 
     /**
