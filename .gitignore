@@ -11,3 +11,7 @@ build/
 gcs-key.json
 **/gcs-key.json
 .playwright-mcp/
+
+# Google Cloud SDK
+google-cloud-sdk/
+*.tar.gz
