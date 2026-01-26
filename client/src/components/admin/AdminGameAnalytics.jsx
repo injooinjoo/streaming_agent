@@ -6,8 +6,7 @@ import {
 } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../shared/LoadingSpinner';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../../config/api';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
@@ -36,7 +35,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
 
     try {
       // Fetch unified games data
-      const gamesRes = await fetch(`${API_BASE}/api/categories/unified-games?limit=10`, { headers });
+      const gamesRes = await fetch(`${API_URL}/api/categories/unified-games?limit=10`, { headers });
 
       if (gamesRes.ok) {
         const result = await gamesRes.json();

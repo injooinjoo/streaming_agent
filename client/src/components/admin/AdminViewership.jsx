@@ -5,7 +5,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../shared/LoadingSpinner';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../../config/api';
 
 // Game categories for filtering
 const GAME_CATEGORIES = [
@@ -40,7 +40,7 @@ const AdminViewership = ({ onStreamerSelect }) => {
     };
 
     try {
-      const response = await fetch(`${API_BASE}/api/streamers?limit=20&sortBy=total_donations&sortOrder=desc`, { headers });
+      const response = await fetch(`${API_URL}/api/streamers?limit=20&sortBy=total_donations&sortOrder=desc`, { headers });
 
       if (response.ok) {
         const result = await response.json();

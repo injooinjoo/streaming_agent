@@ -6,7 +6,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../shared/LoadingSpinner';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../../config/api';
 
 const AdminViewerJourney = () => {
   const [loading, setLoading] = useState(true);
@@ -54,7 +54,7 @@ const AdminViewerJourney = () => {
         limit: '30'
       });
 
-      const response = await fetch(`${API_BASE}/api/stats/viewers/list?${params}`, { headers });
+      const response = await fetch(`${API_URL}/api/stats/viewers/list?${params}`, { headers });
 
       if (response.ok) {
         const result = await response.json();
@@ -83,7 +83,7 @@ const AdminViewerJourney = () => {
     };
 
     try {
-      const response = await fetch(`${API_BASE}/api/stats/viewers/${personId}/journey`, { headers });
+      const response = await fetch(`${API_URL}/api/stats/viewers/${personId}/journey`, { headers });
 
       if (response.ok) {
         const result = await response.json();

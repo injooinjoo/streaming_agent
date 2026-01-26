@@ -6,9 +6,8 @@ import { Clock, Users, TrendingUp, DollarSign, RefreshCw, LogIn, Monitor, Gamepa
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../shared/LoadingSpinner';
+import { API_URL } from '../../config/api';
 import './ViewershipDashboard.css';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const ViewershipDashboard = () => {
   const [loading, setLoading] = useState(true);
@@ -55,7 +54,7 @@ const ViewershipDashboard = () => {
       ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
     };
     try {
-      const res = await fetch(`${API_BASE}/api/stats/realtime/trend?type=${type}`, { headers });
+      const res = await fetch(`${API_URL}/api/stats/realtime/trend?type=${type}`, { headers });
       if (res.ok) {
         const data = await res.json();
         setRealtimeTrend(data);
@@ -76,11 +75,11 @@ const ViewershipDashboard = () => {
 
     try {
       const [yesterdayRes, trendRes, categoriesRes, realtimeSummaryRes, realtimeTrendRes] = await Promise.all([
-        fetch(`${API_BASE}/api/stats/yesterday`, { headers }),
-        fetch(`${API_BASE}/api/stats/hourly-by-platform`, { headers }),
-        fetch(`${API_BASE}/api/categories?limit=10`, { headers }),
-        fetch(`${API_BASE}/api/stats/realtime/summary`, { headers }),
-        fetch(`${API_BASE}/api/stats/realtime/trend?type=${activeTab}`, { headers })
+        fetch(`${API_URL}/api/stats/yesterday`, { headers }),
+        fetch(`${API_URL}/api/stats/hourly-by-platform`, { headers }),
+        fetch(`${API_URL}/api/categories?limit=10`, { headers }),
+        fetch(`${API_URL}/api/stats/realtime/summary`, { headers }),
+        fetch(`${API_URL}/api/stats/realtime/trend?type=${activeTab}`, { headers })
       ]);
 
       // Check if any request requires auth

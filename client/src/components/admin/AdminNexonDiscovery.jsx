@@ -9,8 +9,7 @@ import {
 } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../shared/LoadingSpinner';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../../config/api';
 
 const AdminNexonDiscovery = ({ onStreamerSelect }) => {
   const [loading, setLoading] = useState(true);
@@ -38,7 +37,7 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
     try {
       // Try to fetch real data from API
       const [streamersRes] = await Promise.all([
-        fetch(`${API_BASE}/api/streamers?limit=20`, { headers })
+        fetch(`${API_URL}/api/streamers?limit=20`, { headers })
       ]);
 
       if (streamersRes.ok) {

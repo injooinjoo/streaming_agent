@@ -6,8 +6,7 @@ import {
 } from 'recharts';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import { useAuth } from '../../contexts/AuthContext';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../../config/api';
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 const AdminRevenue = () => {

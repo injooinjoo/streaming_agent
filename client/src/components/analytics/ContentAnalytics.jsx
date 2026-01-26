@@ -11,7 +11,7 @@ import ChartContainer from './shared/ChartContainer';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './AnalyticsPage.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../../config/api';
 
 const ContentAnalytics = () => {
   const { resolvedTheme } = useTheme();
@@ -49,9 +49,9 @@ const ContentAnalytics = () => {
 
     try {
       const [platformRes, hourlyRes, revenueRes] = await Promise.all([
-        fetch(`${API_BASE}/api/stats/platforms`),
-        fetch(`${API_BASE}/api/stats/chat/hourly?days=${days}`),
-        fetch(`${API_BASE}/api/stats/revenue/by-platform`)
+        fetch(`${API_URL}/api/stats/platforms`),
+        fetch(`${API_URL}/api/stats/chat/hourly?days=${days}`),
+        fetch(`${API_URL}/api/stats/revenue/by-platform`)
       ]);
 
       const [platformData, hourly, revenueByPlatform] = await Promise.all([

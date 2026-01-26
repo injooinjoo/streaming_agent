@@ -14,7 +14,7 @@ import TrendIndicator from './shared/TrendIndicator';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './AnalyticsPage.css';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../../config/api';
 
 const RevenueAnalytics = () => {
   const { resolvedTheme } = useTheme();
@@ -69,10 +69,10 @@ const RevenueAnalytics = () => {
 
     try {
       const [trendRes, platformRes, donorsRes, summaryRes] = await Promise.all([
-        fetch(`${API_BASE}/api/stats/revenue/trend?${queryString}`, { headers }),
-        fetch(`${API_BASE}/api/stats/revenue/by-platform?${queryString}`, { headers }),
-        fetch(`${API_BASE}/api/stats/donations/top-donors?limit=5&${queryString.replace(/days=\d+&?/, '')}`, { headers }),
-        fetch(`${API_BASE}/api/stats/revenue?${queryString}`, { headers })
+        fetch(`${API_URL}/api/stats/revenue/trend?${queryString}`, { headers }),
+        fetch(`${API_URL}/api/stats/revenue/by-platform?${queryString}`, { headers }),
+        fetch(`${API_URL}/api/stats/donations/top-donors?limit=5&${queryString.replace(/days=\d+&?/, '')}`, { headers }),
+        fetch(`${API_URL}/api/stats/revenue?${queryString}`, { headers })
       ]);
 
       // Check if any request requires auth

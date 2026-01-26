@@ -9,9 +9,8 @@ import AnalyticsCard from './shared/AnalyticsCard';
 import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
 import LoadingSpinner from '../shared/LoadingSpinner';
+import { API_URL } from '../../config/api';
 import './AnalyticsPage.css';
-
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const ViewerAnalytics = () => {
   const { resolvedTheme } = useTheme();
@@ -53,10 +52,10 @@ const ViewerAnalytics = () => {
 
     try {
       const [summaryRes, hourlyRes, dailyRes, timelineRes] = await Promise.all([
-        fetch(`${API_BASE}/api/stats/chat/summary?days=${days}`),
-        fetch(`${API_BASE}/api/stats/chat/hourly?days=${days}`),
-        fetch(`${API_BASE}/api/stats/chat/daily?weeks=${Math.ceil(days / 7)}`),
-        fetch(`${API_BASE}/api/stats/activity/timeline?days=${days}`)
+        fetch(`${API_URL}/api/stats/chat/summary?days=${days}`),
+        fetch(`${API_URL}/api/stats/chat/hourly?days=${days}`),
+        fetch(`${API_URL}/api/stats/chat/daily?weeks=${Math.ceil(days / 7)}`),
+        fetch(`${API_URL}/api/stats/activity/timeline?days=${days}`)
       ]);
 
       const [summaryData, hourly, daily, timeline] = await Promise.all([

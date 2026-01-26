@@ -11,7 +11,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../shared/LoadingSpinner';
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../../config/api';
 
 const GAME_ICONS = {
   league: Crown,
@@ -49,7 +49,7 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
 
     try {
       // Fetch streamer details
-      const streamerRes = await fetch(`${API_BASE}/api/streamers/${streamerId}`, { headers });
+      const streamerRes = await fetch(`${API_URL}/api/streamers/${streamerId}`, { headers });
 
       if (streamerRes.ok) {
         const streamerData = await streamerRes.json();
