@@ -1099,8 +1099,8 @@ const createStatsService = () => {
       const subscribeCond = buildEventConditions(`event_type = 'subscribe' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
       const activityCond = buildEventConditions(`event_timestamp >= ${sql.dateSubtract(7, 'days')}`, [], 1);
 
-      // Build conditions for viewer_stats (peak viewers)
-      const buildViewerStatsConditions = (baseCondition, params, startIndex = params.length + 1) => {
+      // Build conditions for broadcasts table (peak viewers)
+      const buildBroadcastConditions = (baseCondition, params, startIndex = params.length + 1) => {
         let conditions = [baseCondition];
         let queryParams = [...params];
         let idx = startIndex;
@@ -1114,7 +1114,7 @@ const createStatsService = () => {
         }
         return { where: conditions.join(' AND '), params: queryParams };
       };
-      const viewerStatsCond = buildViewerStatsConditions(`${sql.formatDate('timestamp', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
+      const broadcastCond = buildBroadcastConditions(`${sql.formatDate('updated_at', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
 
       const [todayStats, peakViewers, subscribeCount, platformStats] = await Promise.all([
         // Today's donation stats (filtered by channelId if provided)
@@ -1126,12 +1126,12 @@ const createStatsService = () => {
           WHERE ${donationCond.where}`,
           donationCond.params
         ),
-        // Peak viewers from viewer_stats (filtered by channelId if provided)
+        // Peak viewers from broadcasts table (filtered by channelId if provided)
         streamingDbGet(
-          `SELECT MAX(viewer_count) as peakViewers
-           FROM viewer_stats
-           WHERE ${viewerStatsCond.where}`,
-          viewerStatsCond.params
+          `SELECT MAX(peak_viewer_count) as peakViewers
+           FROM broadcasts
+           WHERE ${broadcastCond.where}`,
+          broadcastCond.params
         ),
         // Today's subscribe count (filtered by channelId if provided)
         streamingDbGet(

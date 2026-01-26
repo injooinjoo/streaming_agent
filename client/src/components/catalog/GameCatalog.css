@@ -275,13 +275,13 @@
 
 /* Trend Chart Tooltip */
 .trend-chart-tooltip {
-  background: rgba(20, 20, 30, 0.95);
+  background: var(--bg-card);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 14px;
   min-width: 180px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 }
 
 .trend-chart-tooltip__date {
@@ -290,7 +290,7 @@
   color: var(--text-muted);
   margin: 0 0 10px 0;
   padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .trend-chart-tooltip__items {

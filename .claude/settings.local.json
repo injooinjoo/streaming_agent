@@ -192,7 +192,10 @@
       "mcp__plugin_supabase_supabase__list_tables",
       "mcp__plugin_supabase_supabase__get_project",
       "mcp__plugin_supabase_supabase__list_organizations",
-      "Bash(gcloud builds submit:*)"
+      "Bash(gcloud builds submit:*)",
+      "Bash(# Check admin overview for overall stats curl -s \"\"https://streaming-agent-284844460327.asia-northeast3.run.app/api/admin/overview\"\")",
+      "Bash(# Check database connection status curl -s \"\"https://streaming-agent-284844460327.asia-northeast3.run.app/api/health\"\")",
+      "Bash(# Check broadcasts table for recent data curl -s \"\"https://streaming-agent-284844460327.asia-northeast3.run.app/api/stats/top-streamers-by-viewers?limit=10\"\" | python3 -m json.tool)"
     ]
   }
 }
