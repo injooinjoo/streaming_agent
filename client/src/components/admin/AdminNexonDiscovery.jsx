@@ -35,27 +35,31 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
     };
 
     try {
-      // Try to fetch real data from API
-      const [streamersRes] = await Promise.all([
-        fetch(`${API_URL}/api/streamers?limit=20`, { headers })
+      // Fetch broadcasters (actual streamers who have broadcast)
+      const [broadcastersRes] = await Promise.all([
+        fetch(`${API_URL}/api/broadcasters?limit=20`, { headers })
       ]);
 
-      if (streamersRes.ok) {
-        const streamersResult = await streamersRes.json();
+      if (broadcastersRes.ok) {
+        const broadcastersResult = await broadcastersRes.json();
         // Transform to expected format
-        const transformed = (streamersResult.streamers || []).map((s, i) => ({
-          id: s.id || i + 1,
-          name: s.username || '익명',
-          platform: 'chzzk', // Default, would come from actual data
-          avgViewers: 0,
-          chatVelocity: Math.round((s.total_events || 0) / 60), // Rough estimate
-          donationConversion: 0,
-          nexonAffinity: 0,
+        const transformed = (broadcastersResult.broadcasters || []).map((b, i) => ({
+          id: b.id || i + 1,
+          name: b.broadcaster_name || b.channel_id || '익명 스트리머',
+          channelId: b.channel_id,
+          platform: b.platform || 'chzzk',
+          avgViewers: b.unique_viewers || 0,
+          chatVelocity: b.chat_velocity || 0,
+          donationConversion: b.donation_conversion || 0,
+          nexonAffinity: 0, // To be implemented with game category analysis
           sentiment: 0,
           trend: 'stable',
           mainNexonIP: '-',
-          totalDonations: s.total_donations || 0,
-          totalEvents: s.total_events || 0
+          totalDonations: b.total_donations || 0,
+          totalEvents: b.total_events || 0,
+          chatCount: b.chat_count || 0,
+          donationCount: b.donation_count || 0,
+          uniqueViewers: b.unique_viewers || 0
         }));
         setStreamersData(transformed);
       } else {
@@ -182,9 +186,9 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
             <table className="admin-table discovery-table">
               <thead>
                 <tr>
-                  <th>스트리머</th>
+                  <th>스트리머 (방송자)</th>
                   <th>플랫폼</th>
-                  <th>평균 시청자</th>
+                  <th>고유 시청자</th>
                   <th>채팅 밀도</th>
                   <th>후원 전환율</th>
                   <th>넥슨 친화도</th>
@@ -192,11 +196,19 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
                 </tr>
               </thead>
               <tbody>
-                {filteredStreamers.map((streamer) => (
+                {filteredStreamers.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+                      <AlertTriangle size={24} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                      <div>방송 기록이 있는 스트리머가 없습니다</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>채팅/후원 이벤트가 수집되면 자동으로 표시됩니다</div>
+                    </td>
+                  </tr>
+                ) : filteredStreamers.map((streamer) => (
                   <tr
                     key={streamer.id}
                     className="clickable"
-                    onClick={() => handleStreamerClick(streamer.id)}
+                    onClick={() => handleStreamerClick(streamer.channelId || streamer.id)}
                   >
                     <td>
                       <div className="streamer-info">
@@ -205,12 +217,14 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
                         </div>
                         <div className="streamer-details">
                           <span className="streamer-name">{streamer.name}</span>
-                          <span className="streamer-ip">{streamer.mainNexonIP}</span>
+                          <span className="streamer-ip" title={streamer.channelId}>
+                            {streamer.channelId ? `채널: ${streamer.channelId.slice(0, 12)}...` : streamer.mainNexonIP}
+                          </span>
                         </div>
                       </div>
                     </td>
                     <td>
-                      <span className="platform-badge">{streamer.platform}</span>
+                      <span className="platform-badge">{streamer.platform.toUpperCase()}</span>
                     </td>
                     <td>{formatNumber(streamer.avgViewers)}</td>
                     <td>

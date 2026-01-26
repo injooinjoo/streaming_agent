@@ -40,7 +40,7 @@ const Dashboard = () => {
   const [events, setEvents] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState({});
-  const [feedTab, setFeedTab] = useState('recent');
+  const [feedTab, setFeedTab] = useState('pending');
   const [selectedGameId, setSelectedGameId] = useState(null);
 
   // 캐시에서 초기값 로드
@@ -204,19 +204,29 @@ const Dashboard = () => {
     }
   };
 
+  // 이벤트는 대시보드 탭에서만 fetch (대기중인 이벤트 표시용)
   useEffect(() => {
-    // AuthContext 로딩이 완료될 때까지 대기
-    if (authLoading) return;
+    if (authLoading || activeTab !== 'dashboard') return;
 
     fetchEvents();
-    fetchDashboardData();
     const eventsInterval = setInterval(fetchEvents, 3000);
-    const dashboardInterval = setInterval(fetchDashboardData, 30000); // 30초마다 갱신
+
     return () => {
       clearInterval(eventsInterval);
+    };
+  }, [authLoading, user?.channelId, activeTab]);
+
+  // 대시보드 데이터도 대시보드 탭일 때만 fetch
+  useEffect(() => {
+    if (authLoading || activeTab !== 'dashboard') return;
+
+    fetchDashboardData();
+    const dashboardInterval = setInterval(fetchDashboardData, 30000); // 30초마다 갱신
+
+    return () => {
       clearInterval(dashboardInterval);
     };
-  }, [authLoading, user?.channelId, user?.platform]);
+  }, [authLoading, user?.channelId, user?.platform, activeTab]);
 
   const renderContent = () => {
     if (activeTab === 'dashboard') {
@@ -480,10 +490,6 @@ const Dashboard = () => {
 
           <div className="tabs-container">
             <button
-              className={`tab-btn ${feedTab === 'recent' ? 'active' : ''}`}
-              onClick={() => setFeedTab('recent')}
-            >최근 활동 피드</button>
-            <button
               className={`tab-btn ${feedTab === 'pending' ? 'active' : ''}`}
               onClick={() => setFeedTab('pending')}
             >대기중인 이벤트</button>
@@ -492,91 +498,6 @@ const Dashboard = () => {
               onClick={() => setFeedTab('stats')}
             >방송 통계</button>
           </div>
-
-          {feedTab === 'recent' && (
-            <div className="table-container">
-              <div className="table-header">
-                <span>플랫폼</span>
-                <span>유형</span>
-                <span>보낸 사람</span>
-                <span>내용</span>
-                <span style={{ textAlign: 'right' }}>시간</span>
-              </div>
-              <div className="table-list">
-                {events.length === 0 ? (
-                  <div className="empty-state">최근 활동 내역이 없습니다.</div>
-                ) : (
-                  events.map((ev) => {
-                    const getPlatformLogo = (p) => {
-                      const lowP = p?.toLowerCase();
-                      if (lowP === 'soop') return '/assets/logos/soop.png';
-                      if (lowP === 'chzzk') return '/assets/logos/chzzk.png';
-                      if (lowP === 'youtube') return '/assets/logos/youtube.png';
-                      return null;
-                    };
-                    const platformLogo = getPlatformLogo(ev.platform);
-
-                    // 이벤트 타입별 한국어 레이블 및 스타일
-                    const getEventTypeInfo = (type) => {
-                      const typeMap = {
-                        donation: { label: '후원', color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', icon: <DollarSign size={14} /> },
-                        subscribe: { label: '구독', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', icon: <Users size={14} /> },
-                        chat: { label: '채팅', color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', icon: <MessageSquare size={14} /> },
-                        cheer: { label: '응원', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)', icon: <Heart size={14} /> },
-                      };
-                      return typeMap[type] || { label: type, color: '#6b7280', bg: 'rgba(107, 114, 128, 0.1)', icon: <Activity size={14} /> };
-                    };
-                    const eventInfo = getEventTypeInfo(ev.type);
-
-                    // 플랫폼 이름
-                    const getPlatformName = (p) => {
-                      const names = { soop: 'SOOP', chzzk: '치지직', youtube: 'YouTube', twitch: 'Twitch' };
-                      return names[p?.toLowerCase()] || p || '-';
-                    };
-
-                    return (
-                      <div key={ev.id} className="table-row">
-                        <div className="recipient-cell" style={{ gap: '8px' }}>
-                          {platformLogo ? (
-                            <img src={platformLogo} alt={ev.platform} style={{ height: '18px', borderRadius: '3px' }} />
-                          ) : (
-                            <Activity size={16} className="text-muted" />
-                          )}
-                          <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{getPlatformName(ev.platform)}</span>
-                        </div>
-                        <div>
-                          <span
-                            className="status-badge"
-                            style={{
-                              background: eventInfo.bg,
-                              color: eventInfo.color,
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              padding: '4px 10px',
-                              borderRadius: '6px',
-                              fontSize: '12px',
-                              fontWeight: 500
-                            }}
-                          >
-                            {eventInfo.icon}
-                            {eventInfo.label}
-                          </span>
-                        </div>
-                        <div style={{ fontWeight: 500 }}>{ev.sender}</div>
-                        <div className="amount-cell" style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>
-                          {ev.type === 'donation' && ev.amount ? `₩${ev.amount.toLocaleString()}` : ev.message || '-'}
-                        </div>
-                        <div className="time-cell" style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
-                          {new Date(ev.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: true })}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          )}
 
           {feedTab === 'pending' && (
             <div className="table-container">

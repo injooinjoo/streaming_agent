@@ -9,7 +9,7 @@ import socket from '../../config/socket';
 import { OverlayPreviewWrapper } from './shared';
 import CreditsOverlay from '../CreditsOverlay';
 import LoadingSpinner from '../shared/LoadingSpinner';
-import './CreditsSettings.css';
+import './ChatSettings.css';
 
 const defaultSettings = {
   title: '오늘의 방송',
@@ -214,7 +214,7 @@ const CreditsSettings = () => {
   }
 
   return (
-    <div className="settings-panel">
+    <>
       <div className="premium-settings-header">
         <div className="header-top-row">
           <div className="title-area">
@@ -252,186 +252,193 @@ const CreditsSettings = () => {
         </div>
       </div>
 
-      {/* 실시간 미리보기 */}
-      <OverlayPreviewWrapper title="크레딧 미리보기" height={500}>
-        <CreditsOverlay
-          key={previewKey}
-          previewMode={true}
-          previewSettings={settings}
-          previewCredits={previewCredits}
-          previewPlaying={previewPlaying}
-        />
-      </OverlayPreviewWrapper>
+      <div className="chat-settings-container">
+        <div className="chat-settings-main">
+          {/* 기본 설정 */}
+          <div className="settings-card glass-premium">
+            <div className="card-header">
+              <h3>기본 설정</h3>
+            </div>
 
-      {/* 미리보기 컨트롤 */}
-      <div className="settings-card preview-control-card">
-        <div className="preview-controls-row">
-          {!previewPlaying ? (
-            <button className="btn-preview-play" onClick={playPreviewCredits}>
-              <Play size={16} /> 미리보기 재생
-            </button>
-          ) : (
-            <>
-              <button className="btn-preview-stop" onClick={stopPreviewCredits}>
-                <StopCircle size={16} /> 정지
-              </button>
-              <button className="btn-preview-restart" onClick={restartPreviewCredits}>
-                <RotateCcw size={16} /> 다시 시작
-              </button>
-            </>
-          )}
-        </div>
-      </div>
+            <div className="settings-row-pair">
+              <span className="row-label">크레딧 제목</span>
+              <input
+                type="text"
+                className="styled-input"
+                value={settings.title}
+                onChange={(e) => setSettings(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="예: 오늘의 방송"
+              />
+            </div>
 
-      {/* 기본 설정 */}
-      <div className="settings-card">
-        <div className="card-header">
-          <h3>기본 설정</h3>
-        </div>
-
-        <div className="settings-row-pair">
-          <span className="row-label">크레딧 제목</span>
-          <input
-            type="text"
-            className="styled-input"
-            value={settings.title}
-            onChange={(e) => setSettings(prev => ({ ...prev, title: e.target.value }))}
-            placeholder="예: 오늘의 방송"
-          />
-        </div>
-
-        <div className="settings-row-pair">
-          <span className="row-label">스크롤 속도</span>
-          <div className="flex-row-gap">
-            <input
-              type="range"
-              min="1"
-              max="10"
-              step="1"
-              value={settings.scrollSpeed}
-              onChange={(e) => setSettings(prev => ({ ...prev, scrollSpeed: parseInt(e.target.value) }))}
-            />
-            <span className="unit-value">{settings.scrollSpeed}</span>
-          </div>
-        </div>
-
-        <div className="settings-row-pair">
-          <span className="row-label">테마</span>
-          <div className="segmented-control">
-            {['dark', 'light'].map((theme) => (
-              <div key={theme} className="segmented-item">
+            <div className="settings-row-pair">
+              <span className="row-label">스크롤 속도</span>
+              <div className="flex-row-gap">
                 <input
-                  type="radio"
-                  name="theme"
-                  value={theme}
-                  checked={settings.theme === theme}
-                  onChange={(e) => setSettings(prev => ({ ...prev, theme: e.target.value }))}
+                  type="range"
+                  min="1"
+                  max="10"
+                  step="1"
+                  value={settings.scrollSpeed}
+                  onChange={(e) => setSettings(prev => ({ ...prev, scrollSpeed: parseInt(e.target.value) }))}
                 />
-                <span className="segmented-label">{theme === 'dark' ? '다크' : '라이트'}</span>
+                <span className="unit-value">{settings.scrollSpeed}</span>
               </div>
-            ))}
+            </div>
+
+            <div className="settings-row-pair">
+              <span className="row-label">테마</span>
+              <div className="segmented-control">
+                {['dark', 'light'].map((theme) => (
+                  <div key={theme} className="segmented-item">
+                    <input
+                      type="radio"
+                      name="theme"
+                      value={theme}
+                      checked={settings.theme === theme}
+                      onChange={(e) => setSettings(prev => ({ ...prev, theme: e.target.value }))}
+                    />
+                    <span className="segmented-label">{theme === 'dark' ? '다크' : '라이트'}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="settings-row-pair">
+              <span className="row-label">배경색</span>
+              <input
+                type="color"
+                value={settings.backgroundColor.startsWith('rgba') ? '#000000' : settings.backgroundColor}
+                onChange={(e) => setSettings(prev => ({ ...prev, backgroundColor: e.target.value }))}
+              />
+            </div>
           </div>
-        </div>
 
-        <div className="settings-row-pair">
-          <span className="row-label">배경색</span>
-          <input
-            type="color"
-            value={settings.backgroundColor.startsWith('rgba') ? '#000000' : settings.backgroundColor}
-            onChange={(e) => setSettings(prev => ({ ...prev, backgroundColor: e.target.value }))}
-          />
-        </div>
-      </div>
+          {/* 섹션 설정 */}
+          <div className="settings-card glass-premium">
+            <div className="card-header">
+              <h3>크레딧 섹션</h3>
+              <p>방송 엔딩에 표시될 크레딧 내용을 설정합니다.</p>
+            </div>
 
-      {/* 섹션 설정 */}
-      <div className="settings-card">
-        <div className="card-header">
-          <h3>크레딧 섹션</h3>
-          <p>방송 엔딩에 표시될 크레딧 내용을 설정합니다.</p>
-        </div>
-
-        <div className="credits-sections-list">
-          {settings.sections.map((section, sectionIndex) => (
-            <div key={sectionIndex} className="credits-section-item">
-              <div className="section-header">
-                <GripVertical size={16} className="drag-handle" />
-                <input
-                  type="text"
-                  className="styled-input section-title-input"
-                  value={section.title}
-                  onChange={(e) => updateSection(sectionIndex, 'title', e.target.value)}
-                  placeholder="섹션 제목"
-                />
-                <button
-                  className="btn-icon-small danger"
-                  onClick={() => removeSection(sectionIndex)}
-                  disabled={settings.sections.length <= 1}
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-
-              <div className="section-items">
-                {section.items.map((item, itemIndex) => (
-                  <div key={itemIndex} className="section-item-row">
+            <div className="credits-sections-list">
+              {settings.sections.map((section, sectionIndex) => (
+                <div key={sectionIndex} className="credits-section-item">
+                  <div className="section-header">
+                    <GripVertical size={16} className="drag-handle" />
                     <input
                       type="text"
-                      className="styled-input"
-                      value={item}
-                      onChange={(e) => updateSectionItem(sectionIndex, itemIndex, e.target.value)}
-                      placeholder="항목 내용"
+                      className="styled-input section-title-input"
+                      value={section.title}
+                      onChange={(e) => updateSection(sectionIndex, 'title', e.target.value)}
+                      placeholder="섹션 제목"
                     />
                     <button
                       className="btn-icon-small danger"
-                      onClick={() => removeSectionItem(sectionIndex, itemIndex)}
+                      onClick={() => removeSection(sectionIndex)}
+                      disabled={settings.sections.length <= 1}
                     >
-                      <Trash2 size={14} />
+                      <Trash2 size={16} />
                     </button>
                   </div>
-                ))}
-                <button
-                  className="btn-add-item"
-                  onClick={() => addItemToSection(sectionIndex)}
-                >
-                  <Plus size={14} /> 항목 추가
-                </button>
-              </div>
+
+                  <div className="section-items">
+                    {section.items.map((item, itemIndex) => (
+                      <div key={itemIndex} className="section-item-row">
+                        <input
+                          type="text"
+                          className="styled-input"
+                          value={item}
+                          onChange={(e) => updateSectionItem(sectionIndex, itemIndex, e.target.value)}
+                          placeholder="항목 내용"
+                        />
+                        <button
+                          className="btn-icon-small danger"
+                          onClick={() => removeSectionItem(sectionIndex, itemIndex)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      className="btn-add-item"
+                      onClick={() => addItemToSection(sectionIndex)}
+                    >
+                      <Plus size={14} /> 항목 추가
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
 
-        <button className="btn-add-section" onClick={addSection}>
-          <Plus size={18} /> 섹션 추가
-        </button>
-      </div>
-
-      {/* 재생 컨트롤 */}
-      <div className="settings-card">
-        <div className="card-header">
-          <h3>크레딧 재생</h3>
-        </div>
-
-        <div className="play-controls">
-          {!isPlaying ? (
-            <button className="btn-play-credits" onClick={playCredits}>
-              <Play size={20} /> 크레딧 시작
+            <button className="btn-add-section" onClick={addSection}>
+              <Plus size={18} /> 섹션 추가
             </button>
-          ) : (
-            <button className="btn-stop-credits" onClick={stopCredits}>
-              <StopCircle size={20} /> 크레딧 정지
-            </button>
-          )}
-        </div>
-      </div>
+          </div>
 
-      {/* 저장 */}
-      <div className="save-controls-wrapper">
-        <button className="btn-save-full" onClick={saveSettings} disabled={saving}>
-          {saving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
-          {saving ? '저장 중...' : '설정 저장'}
-        </button>
+          {/* 재생 컨트롤 */}
+          <div className="settings-card glass-premium">
+            <div className="card-header">
+              <h3>실제 오버레이 재생</h3>
+            </div>
+
+            <div className="play-controls">
+              {!isPlaying ? (
+                <button className="btn-play-credits" onClick={playCredits}>
+                  <Play size={20} /> 크레딧 시작
+                </button>
+              ) : (
+                <button className="btn-stop-credits" onClick={stopCredits}>
+                  <StopCircle size={20} /> 크레딧 정지
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <aside className="chat-settings-preview-aside">
+          {/* 실시간 미리보기 */}
+          <OverlayPreviewWrapper title="크레딧 미리보기" height={450}>
+            <CreditsOverlay
+              key={previewKey}
+              previewMode={true}
+              previewSettings={settings}
+              previewCredits={previewCredits}
+              previewPlaying={previewPlaying}
+            />
+          </OverlayPreviewWrapper>
+
+          {/* 미리보기 컨트롤 */}
+          <div className="test-controls glass-premium">
+            <h4>미리보기 컨트롤</h4>
+            <div className="preview-controls-row">
+              {!previewPlaying ? (
+                <button className="btn-test" onClick={playPreviewCredits}>
+                  <Play size={16} /> 미리보기 재생
+                </button>
+              ) : (
+                <>
+                  <button className="btn-test" onClick={stopPreviewCredits}>
+                    <StopCircle size={16} /> 정지
+                  </button>
+                  <button className="btn-test" onClick={restartPreviewCredits}>
+                    <RotateCcw size={16} /> 다시 시작
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* 저장 */}
+          <div className="save-controls-wrapper">
+            <button className="btn-save-full" onClick={saveSettings} disabled={saving}>
+              {saving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
+              {saving ? '저장 중...' : '설정 저장'}
+            </button>
+          </div>
+        </aside>
       </div>
-    </div>
+    </>
   );
 };
 

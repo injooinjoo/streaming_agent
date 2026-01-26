@@ -22,6 +22,8 @@ import RegisterPage from './components/auth/RegisterPage';
 import ProtectedRoute, { AdminRoute, AdvertiserRoute } from './components/auth/ProtectedRoute';
 import AdvertiserDashboard from './components/advertiser/AdvertiserDashboard';
 import AdminDashboard from './components/admin/AdminDashboard';
+import MyDesigns from './components/designer/MyDesigns';
+import DesignCustomizer from './components/designer/DesignCustomizer';
 import './App.css';
 
 function App() {
@@ -73,6 +75,23 @@ function App() {
               <AdminRoute>
                 <AdminDashboard />
               </AdminRoute>
+            } />
+
+            {/* 디자인 커스터마이저 (인증 필요) */}
+            <Route path="/my-designs" element={
+              <ProtectedRoute>
+                <MyDesigns />
+              </ProtectedRoute>
+            } />
+            <Route path="/designer" element={
+              <ProtectedRoute>
+                <DesignCustomizer />
+              </ProtectedRoute>
+            } />
+            <Route path="/designer/:designId" element={
+              <ProtectedRoute>
+                <DesignCustomizer />
+              </ProtectedRoute>
             } />
 
             {/* 해시 기반 오버레이 (신규) */}

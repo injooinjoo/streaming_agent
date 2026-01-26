@@ -9,7 +9,7 @@ import socket from '../../config/socket';
 import { OverlayPreviewWrapper } from './shared';
 import EmojiOverlay from '../EmojiOverlay';
 import LoadingSpinner from '../shared/LoadingSpinner';
-import './EmojiSettings.css';
+import './ChatSettings.css';
 
 const defaultEmojis = ['❤️', '🔥', '👏', '😂', '🎉', '💪', '👍', '🙌'];
 
@@ -224,7 +224,7 @@ const EmojiSettings = () => {
   }
 
   return (
-    <div className="settings-panel">
+    <>
       <div className="premium-settings-header">
         <div className="header-top-row">
           <div className="title-area">
@@ -262,166 +262,164 @@ const EmojiSettings = () => {
         </div>
       </div>
 
-      {/* 실시간 미리보기 */}
-      <OverlayPreviewWrapper title="이모지 미리보기" height={400}>
-        <EmojiOverlay
-          previewMode={true}
-          previewSettings={settings}
-          previewEmojis={previewEmojis}
-          onAddEmoji={addPreviewEmoji}
-        />
-      </OverlayPreviewWrapper>
+      <div className="chat-settings-container">
+        <div className="chat-settings-main">
+          {/* 기본 설정 */}
+          <div className="settings-card glass-premium">
+            <div className="card-header">
+              <h3>기본 설정</h3>
+            </div>
 
-      {/* 기본 설정 */}
-      <div className="settings-card">
-        <div className="card-header">
-          <h3>기본 설정</h3>
-        </div>
+            <div className="settings-row-pair">
+              <span className="row-label">이모지 활성화</span>
+              <label className="toggle-switch">
+                <input
+                  type="checkbox"
+                  checked={settings.isActive}
+                  onChange={(e) => setSettings(prev => ({ ...prev, isActive: e.target.checked }))}
+                />
+                <span className="slider"></span>
+              </label>
+            </div>
 
-        <div className="settings-row-pair">
-          <span className="row-label">이모지 활성화</span>
-          <label className="toggle-switch">
-            <input
-              type="checkbox"
-              checked={settings.isActive}
-              onChange={(e) => setSettings(prev => ({ ...prev, isActive: e.target.checked }))}
-            />
-            <span className="slider"></span>
-          </label>
-        </div>
-
-        <div className="settings-row-pair">
-          <span className="row-label">표시 시간</span>
-          <div className="flex-row-gap">
-            <input
-              type="range"
-              min="1000"
-              max="10000"
-              step="500"
-              value={settings.displayDuration}
-              onChange={(e) => setSettings(prev => ({ ...prev, displayDuration: parseInt(e.target.value) }))}
-            />
-            <span className="unit-value">{(settings.displayDuration / 1000).toFixed(1)}초</span>
-          </div>
-        </div>
-
-        <div className="settings-row-pair">
-          <span className="row-label">최대 동시 표시</span>
-          <div className="flex-row-gap">
-            <input
-              type="range"
-              min="1"
-              max="30"
-              step="1"
-              value={settings.maxConcurrent}
-              onChange={(e) => setSettings(prev => ({ ...prev, maxConcurrent: parseInt(e.target.value) }))}
-            />
-            <span className="unit-value">{settings.maxConcurrent}개</span>
-          </div>
-        </div>
-      </div>
-
-      {/* 애니메이션 스타일 */}
-      <div className="settings-card">
-        <div className="card-header">
-          <h3>애니메이션 스타일</h3>
-        </div>
-
-        <div className="animation-style-grid">
-          {animationStyles.map((style) => (
-            <div
-              key={style.id}
-              className={`animation-style-card ${settings.animationStyle === style.id ? 'active' : ''}`}
-              onClick={() => setSettings(prev => ({ ...prev, animationStyle: style.id }))}
-            >
-              <div className="animation-icon">{style.icon}</div>
-              <div className="animation-info">
-                <span className="animation-name">{style.name}</span>
-                <span className="animation-desc">{style.description}</span>
+            <div className="settings-row-pair">
+              <span className="row-label">표시 시간</span>
+              <div className="flex-row-gap">
+                <input
+                  type="range"
+                  min="1000"
+                  max="10000"
+                  step="500"
+                  value={settings.displayDuration}
+                  onChange={(e) => setSettings(prev => ({ ...prev, displayDuration: parseInt(e.target.value) }))}
+                />
+                <span className="unit-value">{(settings.displayDuration / 1000).toFixed(1)}초</span>
               </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* 이모지 목록 */}
-      <div className="settings-card">
-        <div className="card-header">
-          <h3>이모지 목록</h3>
-          <p>리액션에 사용될 이모지들을 설정합니다.</p>
-        </div>
+            <div className="settings-row-pair">
+              <span className="row-label">최대 동시 표시</span>
+              <div className="flex-row-gap">
+                <input
+                  type="range"
+                  min="1"
+                  max="30"
+                  step="1"
+                  value={settings.maxConcurrent}
+                  onChange={(e) => setSettings(prev => ({ ...prev, maxConcurrent: parseInt(e.target.value) }))}
+                />
+                <span className="unit-value">{settings.maxConcurrent}개</span>
+              </div>
+            </div>
+          </div>
 
-        <div className="emoji-grid">
-          {settings.emojiSet.map((emoji, index) => (
-            <div key={index} className="emoji-item">
-              <span className="emoji-display">{emoji}</span>
-              <button
-                className="emoji-remove"
-                onClick={() => removeEmoji(index)}
-                disabled={settings.emojiSet.length <= 1}
-              >
-                <Trash2 size={14} />
+          {/* 애니메이션 스타일 */}
+          <div className="settings-card glass-premium">
+            <div className="card-header">
+              <h3>애니메이션 스타일</h3>
+            </div>
+
+            <div className="animation-style-grid">
+              {animationStyles.map((style) => (
+                <div
+                  key={style.id}
+                  className={`animation-style-card ${settings.animationStyle === style.id ? 'active' : ''}`}
+                  onClick={() => setSettings(prev => ({ ...prev, animationStyle: style.id }))}
+                >
+                  <div className="animation-icon">{style.icon}</div>
+                  <div className="animation-info">
+                    <span className="animation-name">{style.name}</span>
+                    <span className="animation-desc">{style.description}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* 이모지 목록 */}
+          <div className="settings-card glass-premium">
+            <div className="card-header">
+              <h3>이모지 목록</h3>
+              <p>리액션에 사용될 이모지들을 설정합니다.</p>
+            </div>
+
+            <div className="emoji-grid">
+              {settings.emojiSet.map((emoji, index) => (
+                <div key={index} className="emoji-item">
+                  <span className="emoji-display">{emoji}</span>
+                  <button
+                    className="emoji-remove"
+                    onClick={() => removeEmoji(index)}
+                    disabled={settings.emojiSet.length <= 1}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="add-emoji-row">
+              <input
+                type="text"
+                className="styled-input"
+                value={newEmoji}
+                onChange={(e) => setNewEmoji(e.target.value)}
+                placeholder="새 이모지 입력..."
+                onKeyDown={(e) => e.key === 'Enter' && addEmoji()}
+              />
+              <button className="btn-add-emoji" onClick={addEmoji}>
+                <Plus size={18} /> 추가
               </button>
             </div>
-          ))}
+          </div>
         </div>
 
-        <div className="add-emoji-row">
-          <input
-            type="text"
-            className="styled-input"
-            value={newEmoji}
-            onChange={(e) => setNewEmoji(e.target.value)}
-            placeholder="새 이모지 입력..."
-            onKeyDown={(e) => e.key === 'Enter' && addEmoji()}
-          />
-          <button className="btn-add-emoji" onClick={addEmoji}>
-            <Plus size={18} /> 추가
-          </button>
-        </div>
+        <aside className="chat-settings-preview-aside">
+          {/* 실시간 미리보기 */}
+          <OverlayPreviewWrapper title="이모지 미리보기" height={350}>
+            <EmojiOverlay
+              previewMode={true}
+              previewSettings={settings}
+              previewEmojis={previewEmojis}
+              onAddEmoji={addPreviewEmoji}
+            />
+          </OverlayPreviewWrapper>
+
+          {/* 테스트 */}
+          <div className="test-controls glass-premium">
+            <h4>미리보기 테스트</h4>
+            <div className="test-buttons">
+              <button className="btn-test" onClick={testPreviewEmoji}>
+                <Smile size={18} /> 이모지 1개
+              </button>
+              <button className="btn-test burst" onClick={testPreviewBurst}>
+                <Zap size={18} /> 폭발 테스트
+              </button>
+            </div>
+
+            <div className="divider-line" style={{ margin: '16px 0' }} />
+
+            <h4>실제 오버레이 테스트</h4>
+            <div className="test-buttons">
+              <button className="btn-test" onClick={testEmoji} disabled={!overlayHash}>
+                <Smile size={18} /> 오버레이 전송
+              </button>
+              <button className="btn-test burst" onClick={testEmojiBurst} disabled={!overlayHash}>
+                <Zap size={18} /> 폭발 전송
+              </button>
+            </div>
+          </div>
+
+          {/* 저장 */}
+          <div className="save-controls-wrapper">
+            <button className="btn-save-full" onClick={saveSettings} disabled={saving}>
+              {saving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
+              {saving ? '저장 중...' : '설정 저장'}
+            </button>
+          </div>
+        </aside>
       </div>
-
-      {/* 테스트 */}
-      <div className="settings-card">
-        <div className="card-header">
-          <h3>미리보기 테스트</h3>
-          <p>위 미리보기 창에서 이모지 효과를 확인하세요.</p>
-        </div>
-
-        <div className="test-buttons">
-          <button className="btn-test" onClick={testPreviewEmoji}>
-            <Smile size={18} /> 이모지 1개 테스트
-          </button>
-          <button className="btn-test burst" onClick={testPreviewBurst}>
-            <Zap size={18} /> 이모지 폭발 테스트
-          </button>
-        </div>
-
-        <div className="divider-line" style={{ margin: '16px 0' }} />
-
-        <div className="card-header">
-          <h3>실제 오버레이 테스트</h3>
-          <p>실제 오버레이 URL에서 이모지를 테스트합니다.</p>
-        </div>
-
-        <div className="test-buttons">
-          <button className="btn-test" onClick={testEmoji} disabled={!overlayHash}>
-            <Smile size={18} /> 오버레이에 전송
-          </button>
-          <button className="btn-test burst" onClick={testEmojiBurst} disabled={!overlayHash}>
-            <Zap size={18} /> 오버레이에 폭발 전송
-          </button>
-        </div>
-      </div>
-
-      {/* 저장 */}
-      <div className="save-controls-wrapper">
-        <button className="btn-save-full" onClick={saveSettings} disabled={saving}>
-          {saving ? <RefreshCw size={18} className="spin" /> : <Save size={18} />}
-          {saving ? '저장 중...' : '설정 저장'}
-        </button>
-      </div>
-    </div>
+    </>
   );
 };
 

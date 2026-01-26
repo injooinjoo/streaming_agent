@@ -1,12 +1,24 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Layers, Eye, Users, TrendingUp, TrendingDown,
-  RefreshCw, Trophy, Search, AlertCircle
+  Layers, Eye, Users, TrendingUp,
+  RefreshCw, Trophy, Search, AlertCircle, BarChart3
 } from 'lucide-react';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 import { formatNumber } from '../../utils/formatters';
 import { API_URL } from '../../config/api';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './GameCatalog.css';
+
+// 차트 색상 팔레트 (상위 20개용)
+const CHART_COLORS = [
+  '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444',
+  '#ec4899', '#6366f1', '#14b8a6', '#84cc16', '#f97316',
+  '#a855f7', '#22d3d8', '#22c55e', '#eab308', '#dc2626',
+  '#d946ef', '#818cf8', '#2dd4bf', '#a3e635', '#fb923c'
+];
 
 const GameCatalog = ({ onGameSelect }) => {
   const [loading, setLoading] = useState(true);
@@ -14,6 +26,8 @@ const GameCatalog = ({ onGameSelect }) => {
   const [games, setGames] = useState([]);
   const [stats, setStats] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [trends, setTrends] = useState(null);
+  const [trendsLoading, setTrendsLoading] = useState(true);
 
   // 게임 카탈로그 및 통계 로드
   const fetchCatalog = async () => {
@@ -49,8 +63,27 @@ const GameCatalog = ({ onGameSelect }) => {
     }
   };
 
+  // 트렌드 데이터 로드
+  const fetchTrends = async () => {
+    setTrendsLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/api/categories/trends?limit=20&days=7`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.data) {
+          setTrends(data.data);
+        }
+      }
+    } catch (err) {
+      console.error('Trends fetch error:', err);
+    } finally {
+      setTrendsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchCatalog();
+    fetchTrends();
   }, []);
 
   // 검색 필터
@@ -71,6 +104,36 @@ const GameCatalog = ({ onGameSelect }) => {
       (game.totalViewers > (top?.totalViewers || 0)) ? game : top
     , games[0]);
   }, [games]);
+
+  // 차트 커스텀 툴팁
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="trend-chart-tooltip">
+          <p className="trend-chart-tooltip__date">{label}</p>
+          <div className="trend-chart-tooltip__items">
+            {payload
+              .filter(p => p.value > 0)
+              .sort((a, b) => b.value - a.value)
+              .slice(0, 10)
+              .map((item, idx) => (
+                <div key={idx} className="trend-chart-tooltip__item">
+                  <span
+                    className="trend-chart-tooltip__color"
+                    style={{ backgroundColor: item.color }}
+                  />
+                  <span className="trend-chart-tooltip__name">{item.name}</span>
+                  <span className="trend-chart-tooltip__value">
+                    {formatNumber(item.value)}
+                  </span>
+                </div>
+              ))}
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
 
   // 로딩 상태
   if (loading) {
@@ -108,7 +171,7 @@ const GameCatalog = ({ onGameSelect }) => {
             <p>인기 카테고리와 스트리머 정보를 확인하세요</p>
           </div>
         </div>
-        <button onClick={fetchCatalog} className="refresh-button" title="새로고침">
+        <button onClick={() => { fetchCatalog(); fetchTrends(); }} className="refresh-button" title="새로고침">
           <RefreshCw size={18} />
         </button>
       </div>
@@ -151,6 +214,89 @@ const GameCatalog = ({ onGameSelect }) => {
             <span className="game-catalog-stat__label">총 카테고리</span>
           </div>
         </div>
+      </div>
+
+      {/* 트렌드 차트 */}
+      <div className="trend-chart-section glass-premium">
+        <div className="trend-chart-header">
+          <div className="trend-chart-title">
+            <BarChart3 size={20} />
+            <h2>상위 카테고리 일별 시청자 추이</h2>
+          </div>
+          <span className="trend-chart-period">최근 7일</span>
+        </div>
+
+        {trendsLoading ? (
+          <div className="trend-chart-loading">
+            <RefreshCw size={24} className="spin" />
+            <span>트렌드 데이터 로딩 중...</span>
+          </div>
+        ) : trends && trends.dailyData && trends.dailyData.length > 0 ? (
+          <>
+            <div className="trend-chart-container">
+              <ResponsiveContainer width="100%" height={320}>
+                <LineChart
+                  data={trends.dailyData}
+                  margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="rgba(255,255,255,0.6)"
+                    tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 12 }}
+                    tickFormatter={(value) => {
+                      const date = new Date(value);
+                      return `${date.getMonth() + 1}/${date.getDate()}`;
+                    }}
+                  />
+                  <YAxis
+                    stroke="rgba(255,255,255,0.6)"
+                    tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 12 }}
+                    tickFormatter={(value) => formatNumber(value)}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  {trends.categories.slice(0, 10).map((cat, idx) => (
+                    <Line
+                      key={cat.key}
+                      type="monotone"
+                      dataKey={cat.key}
+                      name={cat.name}
+                      stroke={CHART_COLORS[idx % CHART_COLORS.length]}
+                      strokeWidth={2}
+                      dot={false}
+                      activeDot={{ r: 4 }}
+                    />
+                  ))}
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* 범례 */}
+            <div className="trend-chart-legend">
+              {trends.categories.slice(0, 10).map((cat, idx) => (
+                <div
+                  key={cat.key}
+                  className="trend-chart-legend__item"
+                  onClick={() => onGameSelect(cat.id)}
+                >
+                  <span
+                    className="trend-chart-legend__color"
+                    style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                  />
+                  <span className="trend-chart-legend__name">{cat.name}</span>
+                  <span className="trend-chart-legend__viewers">
+                    {formatNumber(cat.totalViewers)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : (
+          <div className="trend-chart-empty">
+            <TrendingUp size={32} />
+            <span>트렌드 데이터가 아직 없습니다</span>
+          </div>
+        )}
       </div>
 
       {/* 플랫폼 현황 */}

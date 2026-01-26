@@ -647,6 +647,103 @@ class CategoryService {
       lowConfidence,
     };
   }
+
+  /**
+   * 상위 카테고리 일별 시청자 추이 조회
+   * @param {number} limit - 상위 몇 개 카테고리 (기본: 20)
+   * @param {number} days - 며칠간의 데이터 (기본: 7)
+   * @returns {Promise<Object>} - { categories: [...], dailyData: [...] }
+   */
+  async getTopCategoriesDailyTrend(limit = 20, days = 7) {
+    // 1. 상위 카테고리 목록 가져오기 (현재 총 시청자 기준)
+    const isActiveValue = isPostgres() ? 'TRUE' : '1';
+    const concatPlatforms = isPostgres()
+      ? `STRING_AGG(DISTINCT pc.platform, ',')`
+      : `GROUP_CONCAT(DISTINCT pc.platform)`;
+
+    const topCategoriesSql = `
+      SELECT
+        ug.id,
+        ug.name,
+        ug.name_kr,
+        COALESCE(SUM(pc.viewer_count), 0) as total_viewers,
+        ${concatPlatforms} as platforms
+      FROM unified_games ug
+      LEFT JOIN category_game_mappings cgm ON ug.id = cgm.unified_game_id
+      LEFT JOIN platform_categories pc ON cgm.platform = pc.platform
+        AND cgm.platform_category_id = pc.platform_category_id
+        AND pc.is_active = ${isActiveValue}
+      GROUP BY ug.id
+      HAVING COALESCE(SUM(pc.viewer_count), 0) > 0
+      ORDER BY total_viewers DESC
+      LIMIT ${p(1)}
+    `;
+
+    const topCategories = await getAll(topCategoriesSql, [limit]);
+
+    if (!topCategories || topCategories.length === 0) {
+      return { categories: [], dailyData: [] };
+    }
+
+    // 카테고리 ID 목록
+    const categoryIds = topCategories.map(c => c.id);
+
+    // 2. 일별 시청자 데이터 가져오기
+    // PostgreSQL vs SQLite 날짜 포맷 차이 처리
+    const dateFormat = isPostgres()
+      ? `TO_CHAR(cs.recorded_at, 'YYYY-MM-DD')`
+      : `DATE(cs.recorded_at)`;
+
+    const timeFilter = isPostgres()
+      ? `NOW() - INTERVAL '${days} days'`
+      : `datetime('now', '-${days} days')`;
+
+    // 카테고리별 일별 최대 시청자 수 집계
+    const placeholders = categoryIds.map((_, i) => p(i + 1)).join(',');
+
+    const dailyStatsSql = `
+      SELECT
+        ${dateFormat} as date,
+        cgm.unified_game_id as game_id,
+        MAX(cs.viewer_count) as max_viewers
+      FROM category_stats cs
+      JOIN category_game_mappings cgm
+        ON cs.platform = cgm.platform AND cs.platform_category_id = cgm.platform_category_id
+      WHERE cgm.unified_game_id IN (${placeholders})
+        AND cs.recorded_at >= ${timeFilter}
+      GROUP BY ${dateFormat}, cgm.unified_game_id
+      ORDER BY date ASC
+    `;
+
+    const dailyStats = await getAll(dailyStatsSql, categoryIds);
+
+    // 3. 데이터 변환: 날짜별로 각 카테고리의 시청자 수를 포함한 객체 배열로 변환
+    const dateMap = new Map();
+
+    for (const stat of dailyStats) {
+      const date = stat.date;
+      if (!dateMap.has(date)) {
+        dateMap.set(date, { date });
+      }
+      dateMap.get(date)[`cat_${stat.game_id}`] = stat.max_viewers || 0;
+    }
+
+    // 날짜 정렬
+    const dailyData = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+    // 카테고리 정보 포맷
+    const categories = topCategories.map(c => ({
+      id: c.id,
+      name: c.name_kr || c.name,
+      key: `cat_${c.id}`,
+      totalViewers: c.total_viewers,
+    }));
+
+    return {
+      categories,
+      dailyData,
+    };
+  }
 }
 
 module.exports = CategoryService;

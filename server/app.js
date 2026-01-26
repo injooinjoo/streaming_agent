@@ -27,6 +27,8 @@ const {
   createGameStatsRouter,
   createCategoriesRouter,
   createMonitorRouter,
+  createDesignsRouter,
+  createMarketplaceRouter,
 } = require("./routes");
 const { createHealthRouter } = require("./routes/health");
 
@@ -38,6 +40,7 @@ const { createAdService } = require("./services/adService");
 const { createStatsService } = require("./services/statsService");
 const { createStateStoreService } = require("./services/stateStoreService");
 const { createTokenService } = require("./services/tokenService");
+const { createDesignService } = require("./services/designService");
 const UserSessionService = require("./services/userSessionService");
 const ViewerEstimationService = require("./services/viewerEstimationService");
 
@@ -83,10 +86,11 @@ const createApp = ({
   const app = express();
 
   // ===== Instantiate Services =====
-  // Services using overlayDb (users, settings, ads)
+  // Services using overlayDb (users, settings, ads, designs)
   const userService = createUserService(overlayDb);
   const settingsService = createSettingsService(overlayDb, io);
   const adService = createAdService(overlayDb, io);
+  const designService = createDesignService(overlayDb, io);
   const stateStore = createStateStoreService({ ttl: 5 * 60 * 1000 }); // 5 minute TTL for OAuth state
   const tokenService = createTokenService();
 
@@ -156,9 +160,17 @@ const createApp = ({
   const adsRouter = createAdsRouter(adService, userService, authMiddleware);
   app.use("/api", adsRouter);
 
-  // Admin routes (dashboard, analytics) - uses overlayDb
-  const adminRouter = createAdminRouter(overlayDb, authenticateAdmin, developerLogin);
+  // Admin routes (dashboard, analytics, design review) - uses overlayDb
+  const adminRouter = createAdminRouter(overlayDb, authenticateAdmin, developerLogin, designService);
   app.use("/api", adminRouter);
+
+  // Designs routes (user design CRUD) - uses overlayDb
+  const designsRouter = createDesignsRouter(designService, authMiddleware);
+  app.use("/api", designsRouter);
+
+  // Marketplace routes (public design browsing, install) - uses designService
+  const marketplaceRouter = createMarketplaceRouter(designService, authMiddleware);
+  app.use("/api", marketplaceRouter);
 
   // Stats routes (events, donations, revenue, viewer sessions) - uses both databases
   const statsRouter = createStatsRouter(

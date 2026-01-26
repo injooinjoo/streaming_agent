@@ -201,12 +201,12 @@ const createStatsService = () => {
         [limit]
       );
 
-      const totalSum = (rows || []).reduce((sum, r) => sum + (r.totalRevenue || 0), 0);
+      const totalSum = (rows || []).reduce((sum, r) => sum + (Number(r.totalRevenue) || 0), 0);
       return (rows || []).map((row, index) => ({
         id: index + 1,
         username: row.username || "익명",
-        totalRevenue: row.totalRevenue || 0,
-        share: totalSum > 0 ? ((row.totalRevenue / totalSum) * 100).toFixed(1) : 0,
+        totalRevenue: Number(row.totalRevenue) || 0,
+        share: totalSum > 0 ? ((Number(row.totalRevenue) / totalSum) * 100).toFixed(1) : 0,
       }));
     },
 
@@ -267,6 +267,82 @@ const createStatsService = () => {
       }));
 
       return { streamers, totalCount, totalPages, page, limit };
+    },
+
+    /**
+     * Get broadcasters list (based on target_channel_id - actual streamers who received events)
+     * @param {Object} options - Query options
+     * @returns {Promise<Object>}
+     */
+    async getBroadcasters({ search = "", sortBy = "total_donations", sortOrder = "desc", page = 1, limit = 20 }) {
+      const offset = (page - 1) * limit;
+      const validSortColumns = ["channel_id", "total_events", "total_donations", "chat_count", "donation_count", "first_seen"];
+      const sortColumn = validSortColumns.includes(sortBy) ? sortBy : "total_donations";
+      const order = sortOrder === "asc" ? "ASC" : "DESC";
+
+      let whereClause = "";
+      const params = [];
+      let paramIndex = 1;
+
+      if (search) {
+        whereClause = isPostgres()
+          ? `WHERE (target_channel_id ILIKE ${p(paramIndex)} OR p.nickname ILIKE ${p(paramIndex)})`
+          : `WHERE (target_channel_id LIKE ${p(paramIndex)} OR p.nickname LIKE ${p(paramIndex)})`;
+        params.push(`%${search}%`);
+        paramIndex++;
+      }
+
+      // Count unique channels (broadcasters)
+      const countRow = await streamingDbGet(
+        `SELECT COUNT(DISTINCT target_channel_id) as total FROM events ${search ? (isPostgres() ? `WHERE target_channel_id ILIKE ${p(1)}` : `WHERE target_channel_id LIKE ${p(1)}`) : ''}`,
+        search ? [`%${search}%`] : []
+      );
+
+      const totalCount = countRow?.total || 0;
+      const totalPages = Math.ceil(totalCount / limit);
+
+      // Get broadcasters with their stats from events table
+      const rows = await streamingDbAll(
+        `SELECT
+          e.target_channel_id as channel_id,
+          e.platform,
+          p.nickname as broadcaster_name,
+          p.profile_image_url,
+          COUNT(*) as total_events,
+          COUNT(CASE WHEN e.event_type = 'chat' THEN 1 END) as chat_count,
+          COUNT(CASE WHEN e.event_type = 'donation' THEN 1 END) as donation_count,
+          COALESCE(SUM(CASE WHEN e.event_type = 'donation' THEN e.amount ELSE 0 END), 0) as total_donations,
+          MIN(e.event_timestamp) as first_seen,
+          MAX(e.event_timestamp) as last_seen,
+          COUNT(DISTINCT e.actor_nickname) as unique_viewers
+        FROM events e
+        LEFT JOIN persons p ON e.target_person_id = p.id
+        ${whereClause}
+        GROUP BY e.target_channel_id, e.platform, p.nickname, p.profile_image_url
+        ORDER BY ${sortColumn} ${order}
+        LIMIT ${p(paramIndex++)} OFFSET ${p(paramIndex++)}`,
+        [...params, limit, offset]
+      );
+
+      const broadcasters = (rows || []).map((row, index) => ({
+        id: offset + index + 1,
+        channel_id: row.channel_id || "unknown",
+        platform: row.platform || "chzzk",
+        broadcaster_name: row.broadcaster_name || row.channel_id || "익명 스트리머",
+        profile_image_url: row.profile_image_url,
+        total_events: row.total_events || 0,
+        chat_count: row.chat_count || 0,
+        donation_count: row.donation_count || 0,
+        total_donations: row.total_donations || 0,
+        unique_viewers: row.unique_viewers || 0,
+        first_seen: row.first_seen,
+        last_seen: row.last_seen,
+        // Calculated metrics for influencer discovery
+        chat_velocity: row.chat_count > 0 ? Math.round(row.chat_count / Math.max(1, Math.ceil((new Date(row.last_seen) - new Date(row.first_seen)) / (1000 * 60)))) : 0,
+        donation_conversion: row.unique_viewers > 0 ? Math.round((row.donation_count / row.unique_viewers) * 100) : 0,
+      }));
+
+      return { broadcasters, totalCount, totalPages, page, limit };
     },
 
     // ===== Admin Overview (from both databases) =====
@@ -623,12 +699,13 @@ const createStatsService = () => {
         if (!hourlyMap[row.time]) {
           hourlyMap[row.time] = { time: row.time, soop: 0, chzzk: 0, total: 0 };
         }
+        const count = Number(row.count) || 0;
         if (row.platform === 'soop') {
-          hourlyMap[row.time].soop = row.count;
+          hourlyMap[row.time].soop = count;
         } else if (row.platform === 'chzzk') {
-          hourlyMap[row.time].chzzk = row.count;
+          hourlyMap[row.time].chzzk = count;
         }
-        hourlyMap[row.time].total += row.count;
+        hourlyMap[row.time].total += count;
       });
 
       // Fill all hours
@@ -797,12 +874,12 @@ const createStatsService = () => {
       const platforms = (platformData || []).map(row => ({
         platform: row.platform,
         name: platformNames[row.platform] || row.platform,
-        viewers: row.total_viewers || 0,
-        channels: row.total_channels || 0,
-        peak: peakMap[row.platform] || row.total_viewers || 0
+        viewers: Number(row.total_viewers) || 0,
+        channels: Number(row.total_channels) || 0,
+        peak: Number(peakMap[row.platform]) || Number(row.total_viewers) || 0
       }));
 
-      const totalViewers = platforms.reduce((sum, p) => sum + p.viewers, 0);
+      const totalViewers = platforms.reduce((sum, p) => sum + Number(p.viewers), 0);
 
       return {
         totalViewers,
@@ -876,9 +953,10 @@ const createStatsService = () => {
         if (!hourlyMap[row.time]) {
           hourlyMap[row.time] = { time: row.time, chzzk: 0, soop: 0, twitch: 0 };
         }
-        if (row.platform === 'chzzk') hourlyMap[row.time].chzzk = row.total;
-        else if (row.platform === 'soop') hourlyMap[row.time].soop = row.total;
-        else if (row.platform === 'twitch') hourlyMap[row.time].twitch = row.total;
+        const total = Number(row.total) || 0;
+        if (row.platform === 'chzzk') hourlyMap[row.time].chzzk = total;
+        else if (row.platform === 'soop') hourlyMap[row.time].soop = total;
+        else if (row.platform === 'twitch') hourlyMap[row.time].twitch = total;
       });
 
       // Fill all hours
@@ -970,8 +1048,8 @@ const createStatsService = () => {
       const subscribeCond = buildEventConditions(`event_type = 'subscribe' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
       const activityCond = buildEventConditions(`event_timestamp >= ${sql.dateSubtract(7, 'days')}`, [], 1);
 
-      // Build conditions for broadcast_segments (peak viewers)
-      const buildSegmentConditions = (baseCondition, params, startIndex = params.length + 1) => {
+      // Build conditions for viewer_stats (peak viewers)
+      const buildViewerStatsConditions = (baseCondition, params, startIndex = params.length + 1) => {
         let conditions = [baseCondition];
         let queryParams = [...params];
         let idx = startIndex;
@@ -985,7 +1063,7 @@ const createStatsService = () => {
         }
         return { where: conditions.join(' AND '), params: queryParams };
       };
-      const segmentCond = buildSegmentConditions(`${sql.formatDate('segment_started_at', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
+      const viewerStatsCond = buildViewerStatsConditions(`${sql.formatDate('timestamp', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
 
       const [todayStats, peakViewers, subscribeCount, platformStats] = await Promise.all([
         // Today's donation stats (filtered by channelId if provided)
@@ -997,12 +1075,12 @@ const createStatsService = () => {
           WHERE ${donationCond.where}`,
           donationCond.params
         ),
-        // Peak viewers from broadcast_segments (filtered by channelId if provided)
+        // Peak viewers from viewer_stats (filtered by channelId if provided)
         streamingDbGet(
-          `SELECT MAX(peak_viewer_count) as peakViewers
-           FROM broadcast_segments
-           WHERE ${segmentCond.where}`,
-          segmentCond.params
+          `SELECT MAX(viewer_count) as peakViewers
+           FROM viewer_stats
+           WHERE ${viewerStatsCond.where}`,
+          viewerStatsCond.params
         ),
         // Today's subscribe count (filtered by channelId if provided)
         streamingDbGet(
@@ -1171,8 +1249,8 @@ const createStatsService = () => {
             name: row.name_kr || row.name,
             imageUrl: row.soop_thumbnail || row.chzzk_thumbnail || row.image_url || null,
             genre: row.genre_kr,
-            totalViewers: row.total_viewers,
-            totalStreamers: row.total_streamers,
+            totalViewers: Number(row.total_viewers) || 0,
+            totalStreamers: Number(row.total_streamers) || 0,
             platforms: row.platforms ? row.platforms.split(',') : [],
           }));
         }

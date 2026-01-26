@@ -24,6 +24,16 @@ const { getAll, runQuery, isPostgres } = require("../db/connections");
 const p = (index) => isPostgres() ? `$${index}` : '?';
 
 /**
+ * Generate numeric event ID (timestamp + random for uniqueness)
+ * PostgreSQL events.id is BIGINT, so we use numeric IDs
+ */
+const generateEventId = () => {
+  const timestamp = Date.now();
+  const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+  return `${timestamp}${random}`;
+};
+
+/**
  * Create platforms router
  * @param {Server} io - Socket.io server instance
  * @param {Map} activeAdapters - Active platform adapters map
@@ -57,6 +67,12 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
         profileImageUrl: event.sender.profileImage || event.sender.profileImageUrl,
       });
 
+      // Skip further processing if person upsert failed
+      if (!personId) {
+        console.warn(`[persons] Upsert returned null for ${event.sender.id}`);
+        return;
+      }
+
       // 2. Update person statistics (what this person SPENT)
       if (event.type === "chat") {
         await personService.incrementChatCount(personId);
@@ -67,8 +83,8 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
       // 3. Record viewer engagement (viewer-broadcaster relationship)
       if (viewerEngagementService && broadcasterChannelId) {
         await viewerEngagementService.recordEngagement({
-          viewerPersonId: personId,
-          broadcasterChannelId,
+          personId: personId,
+          channelId: broadcasterChannelId,
           platform: event.platform,
           categoryId: broadcastInfo.categoryId || null,
           categoryName: broadcastInfo.categoryName || null,
@@ -95,7 +111,7 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
    */
   router.post("/events", (req, res) => {
     const event = {
-      id: require("uuid").v4(),
+      id: generateEventId(),
       type: req.body.type || "chat",
       platform: req.body.platform || "manual",
       sender: {
@@ -200,6 +216,9 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
       }
     }
 
+    // Capture app reference to get io dynamically (io is set after server creation)
+    const app = req.app;
+
     try {
       const adapter = new ChzzkAdapter({ channelId });
 
@@ -218,7 +237,7 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
           runQuery(
             `INSERT INTO events (id, event_type, platform, actor_nickname, actor_person_id, target_channel_id, message, amount, event_timestamp) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)}, ${p(9)})`,
             [
-              event.id || require("uuid").v4(),
+              generateEventId(),
               event.type,
               "chzzk",
               event.sender?.nickname || "unknown",
@@ -231,11 +250,14 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
           ).catch(err => console.error("[chzzk] Event insert error:", err.message));
         }
 
-        // Emit to overlays
-        if (userHash) {
-          io.to(`overlay:${userHash}`).emit("new-event", legacyEvent);
-        } else {
-          io.emit("new-event", legacyEvent);
+        // Emit to overlays (get io dynamically from app)
+        const socketIo = app.get("io");
+        if (socketIo) {
+          if (userHash) {
+            socketIo.to(`overlay:${userHash}`).emit("new-event", legacyEvent);
+          } else {
+            socketIo.emit("new-event", legacyEvent);
+          }
         }
 
         console.log(`[chzzk] Event: ${event.type} from ${event.sender?.nickname || "system"}`);
@@ -378,6 +400,9 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
       });
     }
 
+    // Capture app reference to get io dynamically (io is set after server creation)
+    const app = req.app;
+
     try {
       const adapter = new SoopAdapter({ channelId: bjId });
 
@@ -434,11 +459,12 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
         });
 
         // Save to database (using canonical schema)
-        if (event.type) {
+        // Skip viewer-update events from DB (too much noise, we track peak separately)
+        if (event.type && event.type !== 'viewer-update') {
           runQuery(
             `INSERT INTO events (id, event_type, platform, actor_nickname, actor_person_id, target_channel_id, message, amount, event_timestamp) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)}, ${p(9)})`,
             [
-              event.id || require("uuid").v4(),
+              generateEventId(),
               event.type,
               "soop",
               event.sender?.nickname || "unknown",
@@ -451,11 +477,22 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
           ).catch(err => console.error("[soop] Event insert error:", err.message));
         }
 
-        // Emit to overlays
-        if (userHash) {
-          io.to(`overlay:${userHash}`).emit("new-event", legacyEvent);
-        } else {
-          io.emit("new-event", legacyEvent);
+        // Track viewer count in viewer_stats table (for peak calculation)
+        if (event.type === 'viewer-update' && event.content?.viewerCount) {
+          runQuery(
+            `INSERT INTO viewer_stats (platform, channel_id, viewer_count) VALUES (${p(1)}, ${p(2)}, ${p(3)})`,
+            ['soop', bjId, event.content.viewerCount]
+          ).catch(err => console.error("[soop] Viewer stats insert error:", err.message));
+        }
+
+        // Emit to overlays (get io dynamically from app)
+        const socketIo = app.get("io");
+        if (socketIo) {
+          if (userHash) {
+            socketIo.to(`overlay:${userHash}`).emit("new-event", legacyEvent);
+          } else {
+            socketIo.emit("new-event", legacyEvent);
+          }
         }
 
         console.log(`[soop] Event: ${event.type} from ${event.sender?.nickname || "system"}`);

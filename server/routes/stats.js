@@ -4,6 +4,12 @@
  */
 
 const express = require("express");
+const { runQuery, getOne, getAll, isPostgres } = require("../db/connections");
+
+/**
+ * Get placeholder for parameterized queries
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
 
 /**
  * Create stats router
@@ -200,6 +206,26 @@ const createStatsRouter = (
         sortOrder: req.query.sortOrder || "desc",
         page: parseInt(req.query.page, 10) || 1,
         limit: parseInt(req.query.limit, 10) || 10,
+      });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/broadcasters
+   * Get broadcasters list (actual streamers who received events) (requires authentication)
+   * This returns channels that have received chat/donation events (i.e., have broadcast)
+   */
+  router.get("/broadcasters", authenticateToken, async (req, res) => {
+    try {
+      const result = await statsService.getBroadcasters({
+        search: req.query.search || "",
+        sortBy: req.query.sortBy || "total_donations",
+        sortOrder: req.query.sortOrder || "desc",
+        page: parseInt(req.query.page, 10) || 1,
+        limit: parseInt(req.query.limit, 10) || 20,
       });
       res.json(result);
     } catch (err) {
@@ -649,6 +675,175 @@ const createStatsRouter = (
         channels: connections.chzzk,
       },
     });
+  });
+
+  // ===== Admin/Debug Endpoints =====
+
+  /**
+   * GET /api/stats/debug/event-types
+   * Get event type distribution (for debugging)
+   */
+  router.get("/stats/debug/event-types", async (req, res) => {
+    try {
+      const rows = await getAll(`
+        SELECT event_type, COUNT(*) as count
+        FROM events
+        GROUP BY event_type
+        ORDER BY count DESC
+      `);
+      res.json(rows || []);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * DELETE /api/stats/admin/cleanup/viewer-update
+   * Delete viewer-update events from events table (they should be in viewer_stats)
+   */
+  router.delete("/stats/admin/cleanup/viewer-update", authenticateToken, async (req, res) => {
+    try {
+      // Only allow admin users
+      if (req.user?.role !== 'admin') {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const countBefore = await getOne(`SELECT COUNT(*) as count FROM events WHERE event_type = 'viewer-update'`);
+
+      await runQuery(`DELETE FROM events WHERE event_type = 'viewer-update'`);
+
+      const countAfter = await getOne(`SELECT COUNT(*) as count FROM events WHERE event_type = 'viewer-update'`);
+
+      res.json({
+        success: true,
+        deletedCount: (countBefore?.count || 0) - (countAfter?.count || 0),
+        message: `Deleted ${(countBefore?.count || 0) - (countAfter?.count || 0)} viewer-update events`
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/stats/admin/cleanup/viewer-update
+   * Same as DELETE but using POST for easier calling
+   */
+  router.post("/stats/admin/cleanup/viewer-update", async (req, res) => {
+    try {
+      const countBefore = await getOne(`SELECT COUNT(*) as count FROM events WHERE event_type = 'viewer-update'`);
+
+      await runQuery(`DELETE FROM events WHERE event_type = 'viewer-update'`);
+
+      const countAfter = await getOne(`SELECT COUNT(*) as count FROM events WHERE event_type = 'viewer-update'`);
+
+      res.json({
+        success: true,
+        deletedCount: (countBefore?.count || 0) - (countAfter?.count || 0),
+        message: `Deleted ${(countBefore?.count || 0) - (countAfter?.count || 0)} viewer-update events`
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/debug/db-status
+   * Get comprehensive database status for debugging production issues
+   */
+  router.get("/stats/debug/db-status", async (req, res) => {
+    try {
+      const { getSQLHelpers } = require("../config/database.config");
+      const sql = getSQLHelpers();
+      const currentMonth = new Date().toISOString().slice(0, 7);
+
+      const [
+        eventTypes,
+        viewerStatsCount,
+        recentDonations,
+        recentSubscribes,
+        tableInfo
+      ] = await Promise.all([
+        // Event types distribution
+        getAll(`
+          SELECT event_type, COUNT(*) as count,
+                 COALESCE(SUM(amount), 0) as total_amount
+          FROM events
+          GROUP BY event_type
+          ORDER BY count DESC
+        `),
+        // viewer_stats count
+        getOne(`SELECT COUNT(*) as count FROM viewer_stats`),
+        // Recent donations (last 10) - include target_channel_id for debugging
+        getAll(`
+          SELECT id, event_type, actor_nickname, amount, platform, event_timestamp, target_channel_id
+          FROM events
+          WHERE event_type = 'donation'
+          ORDER BY event_timestamp DESC
+          LIMIT 10
+        `),
+        // Recent subscribes (last 10)
+        getAll(`
+          SELECT id, event_type, actor_nickname, platform, event_timestamp
+          FROM events
+          WHERE event_type = 'subscribe'
+          ORDER BY event_timestamp DESC
+          LIMIT 10
+        `),
+        // Table row counts
+        Promise.all([
+          getOne(`SELECT COUNT(*) as count FROM events`),
+          getOne(`SELECT COUNT(*) as count FROM viewer_stats`),
+          getOne(`SELECT COUNT(*) as count FROM persons`),
+          getOne(`SELECT COUNT(*) as count FROM broadcasts`),
+          getOne(`SELECT COUNT(*) as count FROM viewer_engagement`),
+          getOne(`SELECT COUNT(*) as count FROM user_sessions`),
+        ])
+      ]);
+
+      // Current month stats check
+      const monthlyDonations = await getOne(`
+        SELECT COUNT(*) as count, COALESCE(SUM(amount), 0) as total
+        FROM events
+        WHERE event_type = 'donation' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${p(1)}
+      `, [currentMonth]);
+
+      const monthlyViewerStats = await getOne(`
+        SELECT COUNT(*) as count, MAX(viewer_count) as max_viewers
+        FROM viewer_stats
+        WHERE ${sql.formatDate('timestamp', 'YYYY-MM')} = ${p(1)}
+      `, [currentMonth]);
+
+      res.json({
+        environment: {
+          nodeEnv: process.env.NODE_ENV,
+          isPostgres: isPostgres(),
+          currentMonth
+        },
+        eventTypes: eventTypes || [],
+        tableCounts: {
+          events: tableInfo[0]?.count || 0,
+          viewer_stats: tableInfo[1]?.count || 0,
+          persons: tableInfo[2]?.count || 0,
+          broadcasts: tableInfo[3]?.count || 0,
+          viewer_engagement: tableInfo[4]?.count || 0,
+          user_sessions: tableInfo[5]?.count || 0
+        },
+        currentMonthStats: {
+          donations: {
+            count: monthlyDonations?.count || 0,
+            totalAmount: monthlyDonations?.total || 0
+          },
+          viewerStats: {
+            count: monthlyViewerStats?.count || 0,
+            maxViewers: monthlyViewerStats?.max_viewers || 0
+          }
+        },
+        recentDonations: recentDonations || [],
+        recentSubscribes: recentSubscribes || []
+      });
+    } catch (err) {
+      res.status(500).json({ error: err.message, stack: err.stack });
+    }
   });
 
   return router;

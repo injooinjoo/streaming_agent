@@ -892,6 +892,7 @@ const AlertSettings = () => {
             <button
               className="btn-test-primary"
               onClick={() => {
+                // 애니메이션 재시작을 위해 잠시 null 후 다시 설정
                 setTestEvent(null);
                 setTimeout(() => {
                   setTestEvent({
@@ -899,7 +900,7 @@ const AlertSettings = () => {
                     amount: testData.amount,
                     message: testData.message
                   });
-                  setTimeout(() => setTestEvent(null), (settings.duration || 5) * 1000);
+                  // 미리보기는 항상 표시 (null로 설정하지 않음)
                 }, 100);
               }}
               style={{ marginTop: '16px' }}

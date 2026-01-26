@@ -56,12 +56,12 @@ class PersonService {
           channel_id, channel_description, follower_count, subscriber_count
         ) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)})
         ON CONFLICT(platform, platform_user_id) DO UPDATE SET
-          nickname = COALESCE(${excludedPrefix}.nickname, nickname),
-          profile_image_url = COALESCE(${excludedPrefix}.profile_image_url, profile_image_url),
-          channel_id = COALESCE(${excludedPrefix}.channel_id, channel_id),
-          channel_description = COALESCE(${excludedPrefix}.channel_description, channel_description),
-          follower_count = CASE WHEN ${excludedPrefix}.follower_count > 0 THEN ${excludedPrefix}.follower_count ELSE follower_count END,
-          subscriber_count = CASE WHEN ${excludedPrefix}.subscriber_count > 0 THEN ${excludedPrefix}.subscriber_count ELSE subscriber_count END,
+          nickname = COALESCE(${excludedPrefix}.nickname, persons.nickname),
+          profile_image_url = COALESCE(${excludedPrefix}.profile_image_url, persons.profile_image_url),
+          channel_id = COALESCE(${excludedPrefix}.channel_id, persons.channel_id),
+          channel_description = COALESCE(${excludedPrefix}.channel_description, persons.channel_description),
+          follower_count = CASE WHEN ${excludedPrefix}.follower_count > 0 THEN ${excludedPrefix}.follower_count ELSE persons.follower_count END,
+          subscriber_count = CASE WHEN ${excludedPrefix}.subscriber_count > 0 THEN ${excludedPrefix}.subscriber_count ELSE persons.subscriber_count END,
           last_seen_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP`,
         [

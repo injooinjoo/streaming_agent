@@ -75,6 +75,8 @@ const defaultSettings = {
   profanityFilter: false,
   profanityFilterLevel: 'medium',
   profanityFilterAction: 'hide',
+  // 이모지 전용 모드
+  emojiOnlyMode: false,
   // Notifications
   donationNotify: 'image', // none, text, image
   entryNotify: 'none', // none, text, alert, voice
@@ -728,6 +730,37 @@ const ChatSettings = () => {
                       <span>약함: 심한 욕설만 필터링 | 보통: 일반 비속어 포함 | 강함: 은어, 변형어까지 필터링</span>
                     </div>
                   </>
+                )}
+
+                <div className="divider-line" />
+
+                {/* 이모지 전용 모드 */}
+                <div className="card-header" style={{ marginTop: '16px' }}>
+                  <h3>
+                    <span className="badge" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', marginRight: '8px' }}>NEW</span>
+                    이모지 전용 모드
+                  </h3>
+                  <p>트위치 스타일! 텍스트를 모두 숨기고 이모지/이모티콘만 표시합니다.</p>
+                </div>
+
+                <div className="settings-row-pair">
+                  <div className="row-label">이모지 전용 모드</div>
+                  <label className={`toggle-button ${settings.emojiOnlyMode ? 'active' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={settings.emojiOnlyMode}
+                      onChange={(e) => setSettings({...settings, emojiOnlyMode: e.target.checked})}
+                    />
+                    <div className="check-icon">{settings.emojiOnlyMode && <Check size={10} />}</div>
+                    사용
+                  </label>
+                </div>
+
+                {settings.emojiOnlyMode && (
+                  <div className="settings-info-text">
+                    <Info size={16} />
+                    <span>이모지가 없는 메시지는 표시되지 않습니다. SOOP 이모티콘({'{:emoteName:}'}) 및 유니코드 이모지(😀🎉❤️)가 지원됩니다.</span>
+                  </div>
                 )}
 
                 <div className="info-box-blue">

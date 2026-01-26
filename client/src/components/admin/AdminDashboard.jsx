@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, DollarSign, Activity, BarChart3,
   LogOut, Shield, ArrowLeft, Monitor, Gamepad2, Search, Megaphone,
-  Menu, X, Radio, Footprints
+  Menu, X, Radio, Footprints, Palette
 } from 'lucide-react';
 import AdminOverview from './AdminOverview';
 import AdminStreamers from './AdminStreamers';
@@ -16,6 +16,7 @@ import AdminNexonDiscovery from './AdminNexonDiscovery';
 import AdminNexonCampaign from './AdminNexonCampaign';
 import AdminMonitor from './AdminMonitor';
 import AdminViewerJourney from './AdminViewerJourney';
+import AdminDesignReview from './AdminDesignReview';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -61,6 +62,12 @@ const AdminDashboard = () => {
       ]
     },
     {
+      category: '콘텐츠 관리',
+      items: [
+        { id: 'design-review', label: '디자인 심사', icon: <Palette size={18} /> },
+      ]
+    },
+    {
       category: '기존 기능',
       items: [
         { id: 'overview', label: '개요', icon: <LayoutDashboard size={18} /> },
@@ -79,6 +86,7 @@ const AdminDashboard = () => {
       case 'campaign': return <AdminNexonCampaign />;
       case 'monitor': return <AdminMonitor />;
       case 'viewer-journey': return <AdminViewerJourney />;
+      case 'design-review': return <AdminDesignReview />;
       case 'overview': return <AdminOverview />;
       case 'streamers': return <AdminStreamers onStreamerSelect={handleStreamerSelect} />;
       case 'revenue': return <AdminRevenue />;

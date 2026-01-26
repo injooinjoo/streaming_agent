@@ -69,6 +69,31 @@ function createCategoriesRouter(db, categoryService, authenticateToken) {
   });
 
   /**
+   * GET /api/categories/trends
+   * 상위 카테고리 일별 시청자 추이 조회
+   *
+   * Query Parameters:
+   * - limit: 상위 몇 개 카테고리 (기본: 20)
+   * - days: 며칠간의 데이터 (기본: 7)
+   */
+  router.get("/categories/trends", async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(req.query.limit, 10) || 20, 30);
+      const days = Math.min(parseInt(req.query.days, 10) || 7, 30);
+
+      const trends = await categoryService.getTopCategoriesDailyTrend(limit, days);
+
+      res.json({
+        success: true,
+        data: trends,
+      });
+    } catch (error) {
+      console.error("[categories] GET /categories/trends error:", error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * GET /api/categories/platform/:platform
    * 플랫폼별 카테고리 목록 조회
    */

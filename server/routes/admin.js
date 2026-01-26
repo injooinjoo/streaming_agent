@@ -18,9 +18,10 @@ const p = (index) => isPostgres() ? `$${index}` : '?';
  * @param {Object} db - Database instance (not used directly, for backward compatibility)
  * @param {Function} authenticateAdmin - Admin auth middleware
  * @param {Function} developerLogin - Developer login handler
+ * @param {Object} designService - Design service instance (optional)
  * @returns {express.Router}
  */
-const createAdminRouter = (db, authenticateAdmin, developerLogin) => {
+const createAdminRouter = (db, authenticateAdmin, developerLogin, designService = null) => {
   const router = express.Router();
   const sql = getSQLHelpers();
 
@@ -678,6 +679,126 @@ const createAdminRouter = (db, authenticateAdmin, developerLogin) => {
         success: false,
         error: err.message,
       });
+    }
+  });
+
+  // ===== Design Review APIs =====
+
+  /**
+   * GET /api/admin/designs/pending
+   * Get pending designs for review
+   */
+  router.get("/admin/designs/pending", authenticateAdmin, async (req, res) => {
+    if (!designService) {
+      return res.status(501).json({ error: "Design service not available" });
+    }
+
+    try {
+      const { category, limit, offset } = req.query;
+      const result = await designService.getPending({
+        category,
+        limit: parseInt(limit) || 50,
+        offset: parseInt(offset) || 0
+      });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/admin/designs/stats
+   * Get design statistics
+   */
+  router.get("/admin/designs/stats", authenticateAdmin, async (req, res) => {
+    if (!designService) {
+      return res.status(501).json({ error: "Design service not available" });
+    }
+
+    try {
+      const stats = await designService.getStats();
+      res.json(stats);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/admin/designs/:id
+   * Get design details for review
+   */
+  router.get("/admin/designs/:id", authenticateAdmin, async (req, res) => {
+    if (!designService) {
+      return res.status(501).json({ error: "Design service not available" });
+    }
+
+    try {
+      const design = await designService.getById(parseInt(req.params.id));
+      if (!design) {
+        return res.status(404).json({ error: "디자인을 찾을 수 없습니다." });
+      }
+      res.json({ design });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/admin/designs/:id/approve
+   * Approve a pending design
+   */
+  router.post("/admin/designs/:id/approve", authenticateAdmin, async (req, res) => {
+    if (!designService) {
+      return res.status(501).json({ error: "Design service not available" });
+    }
+
+    try {
+      const design = await designService.approve(
+        parseInt(req.params.id),
+        req.user.id
+      );
+
+      if (!design) {
+        return res.status(404).json({ error: "디자인을 찾을 수 없습니다." });
+      }
+
+      res.json({ design, message: "디자인이 승인되었습니다." });
+    } catch (err) {
+      if (err.message.includes('심사 대기')) {
+        return res.status(400).json({ error: err.message });
+      }
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * POST /api/admin/designs/:id/reject
+   * Reject a pending design with reason
+   */
+  router.post("/admin/designs/:id/reject", authenticateAdmin, async (req, res) => {
+    if (!designService) {
+      return res.status(501).json({ error: "Design service not available" });
+    }
+
+    try {
+      const { reason } = req.body;
+
+      const design = await designService.reject(
+        parseInt(req.params.id),
+        req.user.id,
+        reason
+      );
+
+      if (!design) {
+        return res.status(404).json({ error: "디자인을 찾을 수 없습니다." });
+      }
+
+      res.json({ design, message: "디자인이 거절되었습니다." });
+    } catch (err) {
+      if (err.message.includes('심사 대기') || err.message.includes('사유')) {
+        return res.status(400).json({ error: err.message });
+      }
+      res.status(500).json({ error: err.message });
     }
   });
 

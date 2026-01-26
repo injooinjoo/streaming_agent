@@ -16,6 +16,12 @@ const sampleMessages = [
   { id: 'sample-6', sender: '구독자A', senderId: 'sub_a', message: '구독 1년 달성했어요!', platform: 'youtube', role: 'subscriber' },
   { id: 'sample-7', sender: '서포터', senderId: 'supporter_x', message: '항상 응원합니다', platform: 'soop', role: 'supporter' },
   { id: 'sample-8', sender: 'VVIP멤버', senderId: 'vvip01', message: '방송 퀄리티 최고네요', platform: 'chzzk', role: 'vvip' },
+  // 이모지 포함 샘플
+  { id: 'sample-9', sender: '이모지러버', senderId: 'emoji01', message: '🎉🎉🎉', platform: 'soop', role: 'regular' },
+  { id: 'sample-10', sender: '행복이', senderId: 'happy02', message: '😀😀😀😀', platform: 'chzzk', role: 'fan' },
+  { id: 'sample-11', sender: '하트팬', senderId: 'heart03', message: '❤️❤️❤️', platform: 'youtube', role: 'subscriber' },
+  { id: 'sample-12', sender: '웃음충', senderId: 'laugh04', message: '🤣👍🔥', platform: 'soop', role: 'regular' },
+  { id: 'sample-13', sender: '응원단', senderId: 'cheer05', message: '💪🏆✨', platform: 'chzzk', role: 'supporter' },
 ];
 
 // 테마 목록
@@ -145,6 +151,60 @@ const parseEmoticons = (message) => {
   return parts;
 };
 
+// 유니코드 이모지 정규식 (완전한 이모지 매칭)
+const UNICODE_EMOJI_REGEX = /(?:\p{Emoji_Presentation}|\p{Extended_Pictographic})(?:\u{FE0F})?(?:\u{200D}(?:\p{Emoji_Presentation}|\p{Extended_Pictographic})(?:\u{FE0F})?)*/gu;
+
+// 메시지에 이모지가 있는지 체크 (SOOP 이모티콘 + 유니코드 이모지)
+const hasEmoji = (message) => {
+  if (!message || typeof message !== 'string') return false;
+
+  // SOOP 이모티콘 체크
+  if (/\{:[a-zA-Z0-9_]+:\}/.test(message)) return true;
+
+  // 유니코드 이모지 체크
+  const emojiMatch = message.match(UNICODE_EMOJI_REGEX);
+  if (emojiMatch && emojiMatch.length > 0) return true;
+
+  return false;
+};
+
+// 메시지에서 이모지만 추출 (SOOP 이모티콘 + 유니코드 이모지)
+const extractEmojisOnly = (message) => {
+  if (!message || typeof message !== 'string') return null;
+
+  const parts = [];
+
+  // 1. SOOP 이모티콘 추출 {:emoteName:}
+  const emoticonRegex = /\{:([a-zA-Z0-9_]+):\}/g;
+  let match;
+  while ((match = emoticonRegex.exec(message)) !== null) {
+    parts.push({
+      type: 'emoticon',
+      name: match[1],
+      url: `https://stimg.sooplive.co.kr/emoticon/default/${match[1]}.png`,
+      index: match.index
+    });
+  }
+
+  // 2. 유니코드 이모지 추출
+  const unicodeMatches = message.matchAll(UNICODE_EMOJI_REGEX);
+  for (const m of unicodeMatches) {
+    parts.push({
+      type: 'unicode-emoji',
+      content: m[0],
+      index: m.index
+    });
+  }
+
+  // 이모지가 하나도 없으면 null 반환
+  if (parts.length === 0) return null;
+
+  // 원본 순서대로 정렬
+  parts.sort((a, b) => a.index - b.index);
+
+  return parts;
+};
+
 // 메시지 렌더링 컴포넌트 (이모티콘 포함)
 const MessageContent = ({ message }) => {
   const parsed = parseEmoticons(message);
@@ -175,6 +235,37 @@ const MessageContent = ({ message }) => {
               }}
             />
           );
+        }
+        return null;
+      })}
+    </>
+  );
+};
+
+// 이모지 전용 모드용 렌더링 컴포넌트
+const EmojiOnlyContent = ({ message }) => {
+  const emojis = extractEmojisOnly(message);
+
+  if (!emojis || emojis.length === 0) return null;
+
+  return (
+    <>
+      {emojis.map((item, index) => {
+        if (item.type === 'emoticon') {
+          return (
+            <img
+              key={index}
+              src={item.url}
+              alt={item.name}
+              className="chat-emoticon"
+              onError={(e) => {
+                e.target.style.display = 'none';
+              }}
+            />
+          );
+        }
+        if (item.type === 'unicode-emoji') {
+          return <span key={index} className="unicode-emoji">{item.content}</span>;
         }
         return null;
       })}
@@ -234,6 +325,8 @@ const ChatOverlay = ({
     profanityFilter: false,
     profanityFilterLevel: 'medium',
     profanityFilterAction: 'hide',
+    // 이모지 전용 모드
+    emojiOnlyMode: false,
     // 알림
     donationNotify: 'image',
     entryNotify: 'none',
@@ -318,6 +411,15 @@ const ChatOverlay = ({
     const senderId = msg.senderId?.toLowerCase() || '';
     const message = msg.message || '';
 
+    // 이모지 전용 모드 필터링 (최우선)
+    if (settings.emojiOnlyMode) {
+      if (!hasEmoji(message)) {
+        return { filter: true, reason: 'no-emoji' };
+      }
+      // 이모지가 있으면 emojiOnly 플래그 설정
+      return { filter: false, emojiOnly: true };
+    }
+
     // 후원 메시지 필터링
     if (settings.donationMessageFilter && (msg.type === 'donation' || msg.isDonation)) {
       return { filter: true, reason: 'donation' };
@@ -364,7 +466,7 @@ const ChatOverlay = ({
     }
 
     return { filter: false };
-  }, [settings.filterEnabled, settings.donationMessageFilter, settings.botFilter, settings.userFilter, settings.wordFilter,
+  }, [settings.filterEnabled, settings.emojiOnlyMode, settings.donationMessageFilter, settings.botFilter, settings.userFilter, settings.wordFilter,
       settings.profanityFilter, settings.profanityFilterLevel, settings.profanityFilterAction]);
 
   // 메시지 마스킹
@@ -1058,6 +1160,11 @@ const ChatOverlay = ({
         }}
       >
         {activeMessages.map((msg, index) => {
+          // 이모지 전용 모드: 이모지가 없는 메시지는 완전히 숨김
+          if (activeSettings.emojiOnlyMode && !hasEmoji(msg.message)) {
+            return null;
+          }
+
           const roleColors = getRoleColors(msg.role, msg.sender);
           const outlineStyle = activeSettings.fontOutlineSize > 0
             ? { textShadow: `0 0 ${activeSettings.fontOutlineSize}px ${activeSettings.fontOutlineColor}, 0 0 ${activeSettings.fontOutlineSize}px ${activeSettings.fontOutlineColor}` }
@@ -1092,7 +1199,11 @@ const ChatOverlay = ({
                 </span>
               )}
               <span className="message-text">
-                <MessageContent message={msg.message} />
+                {activeSettings.emojiOnlyMode ? (
+                  <EmojiOnlyContent message={msg.message} />
+                ) : (
+                  <MessageContent message={msg.message} />
+                )}
               </span>
             </div>
           );

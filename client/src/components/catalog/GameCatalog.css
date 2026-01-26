@@ -199,6 +199,216 @@
   color: var(--primary);
 }
 
+/* ===== Trend Chart Section ===== */
+.trend-chart-section {
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border-light);
+  margin-bottom: 24px;
+}
+
+.trend-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+
+.trend-chart-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.trend-chart-title svg {
+  color: var(--primary);
+}
+
+.trend-chart-title h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.trend-chart-period {
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 6px 12px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+}
+
+.trend-chart-container {
+  margin-bottom: 16px;
+}
+
+.trend-chart-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.trend-chart-loading .spin {
+  animation: spin 1s linear infinite;
+}
+
+.trend-chart-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.trend-chart-empty svg {
+  opacity: 0.5;
+}
+
+/* Trend Chart Tooltip */
+.trend-chart-tooltip {
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 14px;
+  min-width: 180px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.trend-chart-tooltip__date {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0 0 10px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.trend-chart-tooltip__items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.trend-chart-tooltip__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.trend-chart-tooltip__color {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.trend-chart-tooltip__name {
+  flex: 1;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+.trend-chart-tooltip__value {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* Trend Chart Legend */
+.trend-chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.trend-chart-legend__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-hover);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.trend-chart-legend__item:hover {
+  border-color: var(--primary);
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.trend-chart-legend__color {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.trend-chart-legend__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trend-chart-legend__viewers {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Responsive for trend chart */
+@media (max-width: 768px) {
+  .trend-chart-section {
+    padding: 16px;
+  }
+
+  .trend-chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .trend-chart-title h2 {
+    font-size: 16px;
+  }
+
+  .trend-chart-legend {
+    gap: 6px;
+  }
+
+  .trend-chart-legend__item {
+    padding: 6px 10px;
+  }
+
+  .trend-chart-legend__name {
+    max-width: 80px;
+    font-size: 12px;
+  }
+
+  .trend-chart-legend__viewers {
+    font-size: 11px;
+  }
+}
+
 /* Search */
 .game-catalog-search {
   display: flex;

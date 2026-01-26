@@ -494,21 +494,33 @@ const initializeUnifiedDatabase = (db) => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
 
-      // Designs (marketplace)
+      // Designs (marketplace + customizer)
       db.run(`CREATE TABLE IF NOT EXISTS designs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         creator_id INTEGER REFERENCES creators(id),
         name TEXT NOT NULL,
         description TEXT,
-        category TEXT CHECK(category IN ('chat', 'alert', 'goal', 'ticker', 'subtitle', 'package')),
+        category TEXT CHECK(category IN ('chat', 'alert', 'goal', 'ticker', 'subtitle', 'roulette', 'emoji', 'voting', 'credits', 'ad', 'package')),
         tags TEXT,
         thumbnail_url TEXT,
         design_data TEXT NOT NULL,
+        custom_css TEXT,
         download_count INTEGER DEFAULT 0,
         average_rating REAL DEFAULT 0,
-        status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected', 'archived')),
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        status TEXT DEFAULT 'draft' CHECK(status IN ('draft', 'pending', 'approved', 'rejected', 'archived')),
+        submitted_at DATETIME,
+        reviewed_at DATETIME,
+        reviewed_by INTEGER REFERENCES users(id),
+        rejection_reason TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )`);
+
+      // Designs indexes
+      db.run(`CREATE INDEX IF NOT EXISTS idx_designs_user ON designs(user_id)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_designs_status ON designs(status)`);
+      db.run(`CREATE INDEX IF NOT EXISTS idx_designs_category ON designs(category)`);
 
       // Design reviews
       db.run(`CREATE TABLE IF NOT EXISTS design_reviews (
