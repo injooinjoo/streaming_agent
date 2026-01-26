@@ -3,9 +3,17 @@
  *
  * 플랫폼별 카테고리를 통합 게임 카탈로그에 매핑합니다.
  * Fuzzy matching을 사용하여 자동 매핑을 지원합니다.
+ *
+ * Uses cross-database compatible helpers from connections.js
  */
 
 const { category: categoryLogger } = require("./logger");
+const { getOne, getAll, runQuery, runReturning, isPostgres } = require("../db/connections");
+
+/**
+ * Get placeholder for parameterized queries
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
 
 // 자동 매핑 신뢰도 임계값
 const CONFIDENCE_THRESHOLD = 0.85;
@@ -36,6 +44,7 @@ const KNOWN_MAPPINGS = [
 
 class CategoryMapper {
   constructor(db) {
+    // db parameter kept for backward compatibility but not used
     this.db = db;
     this.knownMappings = KNOWN_MAPPINGS;
   }
@@ -131,17 +140,8 @@ class CategoryMapper {
    * DB에서 기존 통합 게임 조회
    * @returns {Promise<Array>}
    */
-  getUnifiedGames() {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        "SELECT * FROM unified_games ORDER BY name",
-        [],
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows || []);
-        }
-      );
-    });
+  async getUnifiedGames() {
+    return await getAll("SELECT * FROM unified_games ORDER BY name", []);
   }
 
   /**
@@ -149,30 +149,41 @@ class CategoryMapper {
    * @param {Object} game
    * @returns {Promise<number>}
    */
-  createUnifiedGame(game) {
-    return new Promise((resolve, reject) => {
-      const sql = `
-        INSERT INTO unified_games
-          (name, name_kr, genre, genre_kr, developer, is_verified)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `;
+  async createUnifiedGame(game) {
+    const isVerifiedValue = game.isVerified ? (isPostgres() ? 'TRUE' : 1) : (isPostgres() ? 'FALSE' : 0);
 
-      this.db.run(
-        sql,
+    if (isPostgres()) {
+      // PostgreSQL: Use RETURNING
+      const result = await runReturning(
+        `INSERT INTO unified_games
+          (name, name_kr, genre, genre_kr, developer, is_verified)
+         VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${isVerifiedValue})
+         RETURNING id`,
         [
           game.name,
           game.nameKr || null,
           game.genre || null,
           game.genreKr || null,
           game.developer || null,
-          game.isVerified ? 1 : 0,
-        ],
-        function (err) {
-          if (err) reject(err);
-          else resolve(this.lastID);
-        }
+        ]
       );
-    });
+      return result?.id;
+    } else {
+      // SQLite: Use lastID from runQuery result
+      const result = await runQuery(
+        `INSERT INTO unified_games
+          (name, name_kr, genre, genre_kr, developer, is_verified)
+         VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${isVerifiedValue})`,
+        [
+          game.name,
+          game.nameKr || null,
+          game.genre || null,
+          game.genreKr || null,
+          game.developer || null,
+        ]
+      );
+      return result?.lastID;
+    }
   }
 
   /**
@@ -272,27 +283,21 @@ class CategoryMapper {
    * @param {number} confidence
    * @param {boolean} isManual
    */
-  saveMapping(unifiedGameId, platform, platformCategoryId, confidence, isManual) {
-    return new Promise((resolve, reject) => {
-      const sql = `
-        INSERT INTO category_game_mappings
-          (unified_game_id, platform, platform_category_id, confidence, is_manual)
-        VALUES (?, ?, ?, ?, ?)
-        ON CONFLICT(platform, platform_category_id) DO UPDATE SET
-          unified_game_id = excluded.unified_game_id,
-          confidence = excluded.confidence,
-          is_manual = excluded.is_manual
-      `;
+  async saveMapping(unifiedGameId, platform, platformCategoryId, confidence, isManual) {
+    const excludedPrefix = isPostgres() ? 'EXCLUDED' : 'excluded';
+    const isManualValue = isManual ? (isPostgres() ? 'TRUE' : 1) : (isPostgres() ? 'FALSE' : 0);
 
-      this.db.run(
-        sql,
-        [unifiedGameId, platform, platformCategoryId, confidence, isManual ? 1 : 0],
-        (err) => {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
+    const sql = `
+      INSERT INTO category_game_mappings
+        (unified_game_id, platform, platform_category_id, confidence, is_manual)
+      VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${isManualValue})
+      ON CONFLICT(platform, platform_category_id) DO UPDATE SET
+        unified_game_id = ${excludedPrefix}.unified_game_id,
+        confidence = ${excludedPrefix}.confidence,
+        is_manual = ${excludedPrefix}.is_manual
+    `;
+
+    await runQuery(sql, [unifiedGameId, platform, platformCategoryId, confidence]);
   }
 
   /**
@@ -301,20 +306,15 @@ class CategoryMapper {
    * @param {string} platformCategoryId
    * @returns {Promise<Object|null>}
    */
-  getUnifiedGame(platform, platformCategoryId) {
-    return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT ug.*, cgm.confidence, cgm.is_manual
-        FROM unified_games ug
-        JOIN category_game_mappings cgm ON ug.id = cgm.unified_game_id
-        WHERE cgm.platform = ? AND cgm.platform_category_id = ?
-      `;
+  async getUnifiedGame(platform, platformCategoryId) {
+    const sql = `
+      SELECT ug.*, cgm.confidence, cgm.is_manual
+      FROM unified_games ug
+      JOIN category_game_mappings cgm ON ug.id = cgm.unified_game_id
+      WHERE cgm.platform = ${p(1)} AND cgm.platform_category_id = ${p(2)}
+    `;
 
-      this.db.get(sql, [platform, platformCategoryId], (err, row) => {
-        if (err) reject(err);
-        else resolve(row || null);
-      });
-    });
+    return await getOne(sql, [platform, platformCategoryId]);
   }
 
   /**
@@ -331,22 +331,20 @@ class CategoryMapper {
    * 매핑되지 않은 카테고리 목록
    * @returns {Promise<Array>}
    */
-  getUnmappedCategories() {
-    return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT pc.*
-        FROM platform_categories pc
-        LEFT JOIN category_game_mappings cgm
-          ON pc.platform = cgm.platform AND pc.platform_category_id = cgm.platform_category_id
-        WHERE cgm.id IS NULL AND pc.is_active = 1
-        ORDER BY pc.viewer_count DESC
-      `;
+  async getUnmappedCategories() {
+    // Cross-database boolean comparison
+    const isActiveValue = isPostgres() ? 'TRUE' : '1';
 
-      this.db.all(sql, [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
+    const sql = `
+      SELECT pc.*
+      FROM platform_categories pc
+      LEFT JOIN category_game_mappings cgm
+        ON pc.platform = cgm.platform AND pc.platform_category_id = cgm.platform_category_id
+      WHERE cgm.id IS NULL AND pc.is_active = ${isActiveValue}
+      ORDER BY pc.viewer_count DESC
+    `;
+
+    return await getAll(sql, []);
   }
 
   /**
@@ -354,23 +352,22 @@ class CategoryMapper {
    * @param {number} threshold
    * @returns {Promise<Array>}
    */
-  getLowConfidenceMappings(threshold = 0.9) {
-    return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT pc.*, cgm.confidence, cgm.is_manual, ug.name as unified_name
-        FROM platform_categories pc
-        JOIN category_game_mappings cgm
-          ON pc.platform = cgm.platform AND pc.platform_category_id = cgm.platform_category_id
-        JOIN unified_games ug ON cgm.unified_game_id = ug.id
-        WHERE cgm.confidence < ? AND cgm.is_manual = 0 AND pc.is_active = 1
-        ORDER BY pc.viewer_count DESC
-      `;
+  async getLowConfidenceMappings(threshold = 0.9) {
+    // Cross-database boolean comparison
+    const isActiveValue = isPostgres() ? 'TRUE' : '1';
+    const isManualFalse = isPostgres() ? 'FALSE' : '0';
 
-      this.db.all(sql, [threshold], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
+    const sql = `
+      SELECT pc.*, cgm.confidence, cgm.is_manual, ug.name as unified_name
+      FROM platform_categories pc
+      JOIN category_game_mappings cgm
+        ON pc.platform = cgm.platform AND pc.platform_category_id = cgm.platform_category_id
+      JOIN unified_games ug ON cgm.unified_game_id = ug.id
+      WHERE cgm.confidence < ${p(1)} AND cgm.is_manual = ${isManualFalse} AND pc.is_active = ${isActiveValue}
+      ORDER BY pc.viewer_count DESC
+    `;
+
+    return await getAll(sql, [threshold]);
   }
 
   /**

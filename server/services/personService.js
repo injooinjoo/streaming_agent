@@ -3,12 +3,21 @@
  *
  * persons 테이블에 대한 CRUD를 담당합니다.
  * NOTE: 채팅/후원 통계는 persons 테이블에 저장하지 않고 EVENTS에서 집계합니다.
+ *
+ * Uses cross-database compatible helpers from connections.js
  */
 
+const { getOne, getAll, runQuery, runReturning, isPostgres } = require("../db/connections");
 const { db: dbLogger } = require("./logger");
+
+/**
+ * Get placeholder for parameterized queries
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
 
 class PersonService {
   constructor(db) {
+    // db parameter kept for backward compatibility but not used
     this.db = db;
   }
 
@@ -37,22 +46,22 @@ class PersonService {
       subscriberCount,
     } = data;
 
-    const db = this.db;
+    try {
+      // Use cross-database compatible UPSERT with appropriate EXCLUDED syntax
+      const excludedPrefix = isPostgres() ? 'EXCLUDED' : 'excluded';
 
-    return new Promise((resolve, reject) => {
-      // Use atomic INSERT ... ON CONFLICT to avoid race conditions
-      db.run(
+      await runQuery(
         `INSERT INTO persons (
           platform, platform_user_id, nickname, profile_image_url,
           channel_id, channel_description, follower_count, subscriber_count
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)})
         ON CONFLICT(platform, platform_user_id) DO UPDATE SET
-          nickname = COALESCE(excluded.nickname, nickname),
-          profile_image_url = COALESCE(excluded.profile_image_url, profile_image_url),
-          channel_id = COALESCE(excluded.channel_id, channel_id),
-          channel_description = COALESCE(excluded.channel_description, channel_description),
-          follower_count = CASE WHEN excluded.follower_count > 0 THEN excluded.follower_count ELSE follower_count END,
-          subscriber_count = CASE WHEN excluded.subscriber_count > 0 THEN excluded.subscriber_count ELSE subscriber_count END,
+          nickname = COALESCE(${excludedPrefix}.nickname, nickname),
+          profile_image_url = COALESCE(${excludedPrefix}.profile_image_url, profile_image_url),
+          channel_id = COALESCE(${excludedPrefix}.channel_id, channel_id),
+          channel_description = COALESCE(${excludedPrefix}.channel_description, channel_description),
+          follower_count = CASE WHEN ${excludedPrefix}.follower_count > 0 THEN ${excludedPrefix}.follower_count ELSE follower_count END,
+          subscriber_count = CASE WHEN ${excludedPrefix}.subscriber_count > 0 THEN ${excludedPrefix}.subscriber_count ELSE subscriber_count END,
           last_seen_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP`,
         [
@@ -64,32 +73,21 @@ class PersonService {
           channelDescription || null,
           followerCount || 0,
           subscriberCount || 0,
-        ],
-        function (err) {
-          if (err) {
-            dbLogger.error("PersonService.upsertPerson error", { error: err.message });
-            reject(err);
-            return;
-          }
-
-          // UPSERT 후 항상 SELECT로 정확한 ID 조회
-          // (this.lastID는 UPDATE 시 이전 INSERT의 ID를 반환할 수 있음)
-          db.get(
-            `SELECT id FROM persons WHERE platform = ? AND platform_user_id = ?`,
-            [platform, platformUserId],
-            (selectErr, row) => {
-              if (selectErr || !row) {
-                dbLogger.error("PersonService.upsertPerson fetch id error", { error: selectErr?.message });
-                resolve(null);
-              } else {
-                dbLogger.debug("Person upserted");
-                resolve(row.id);
-              }
-            }
-          );
-        }
+        ]
       );
-    });
+
+      // UPSERT 후 항상 SELECT로 정확한 ID 조회
+      const row = await getOne(
+        `SELECT id FROM persons WHERE platform = ${p(1)} AND platform_user_id = ${p(2)}`,
+        [platform, platformUserId]
+      );
+
+      dbLogger.debug("Person upserted");
+      return row?.id || null;
+    } catch (err) {
+      dbLogger.error("PersonService.upsertPerson error", { error: err.message });
+      throw err;
+    }
   }
 
   /**
@@ -98,15 +96,7 @@ class PersonService {
    * @returns {Promise<Object|null>}
    */
   async findById(id) {
-    return new Promise((resolve, reject) => {
-      this.db.get(`SELECT * FROM persons WHERE id = ?`, [id], (err, row) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve(row || null);
-        }
-      });
-    });
+    return await getOne(`SELECT * FROM persons WHERE id = ${p(1)}`, [id]);
   }
 
   /**
@@ -116,19 +106,10 @@ class PersonService {
    * @returns {Promise<Object|null>}
    */
   async findByPlatformId(platform, platformUserId) {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        `SELECT * FROM persons WHERE platform = ? AND platform_user_id = ?`,
-        [platform, platformUserId],
-        (err, row) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(row || null);
-          }
-        }
-      );
-    });
+    return await getOne(
+      `SELECT * FROM persons WHERE platform = ${p(1)} AND platform_user_id = ${p(2)}`,
+      [platform, platformUserId]
+    );
   }
 
   /**
@@ -138,19 +119,10 @@ class PersonService {
    * @returns {Promise<Object|null>}
    */
   async findBroadcasterByChannel(platform, channelId) {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        `SELECT * FROM persons WHERE platform = ? AND channel_id = ?`,
-        [platform, channelId],
-        (err, row) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(row || null);
-          }
-        }
-      );
-    });
+    return await getOne(
+      `SELECT * FROM persons WHERE platform = ${p(1)} AND channel_id = ${p(2)}`,
+      [platform, channelId]
+    );
   }
 
   /**
@@ -160,23 +132,14 @@ class PersonService {
    * @returns {Promise<void>}
    */
   async addBroadcastMinutes(personId, minutes) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `UPDATE persons
-         SET total_broadcast_minutes = total_broadcast_minutes + ?,
-             last_broadcast_at = CURRENT_TIMESTAMP,
-             updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [minutes, personId],
-        (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve();
-          }
-        }
-      );
-    });
+    await runQuery(
+      `UPDATE persons
+       SET total_broadcast_minutes = total_broadcast_minutes + ${p(1)},
+           last_broadcast_at = CURRENT_TIMESTAMP,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ${p(2)}`,
+      [minutes, personId]
+    );
   }
 
   /**
@@ -185,40 +148,17 @@ class PersonService {
    * @returns {Promise<Object>}
    */
   async getPersonStats(personId) {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        `SELECT
-           COUNT(*) FILTER (WHERE event_type = 'chat') as total_chat_count,
-           COUNT(*) FILTER (WHERE event_type = 'donation') as total_donation_count,
-           COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as total_donation_amount
-         FROM events
-         WHERE actor_person_id = ?`,
-        [personId],
-        (err, row) => {
-          if (err) {
-            // SQLite doesn't support FILTER, use CASE WHEN instead
-            this.db.get(
-              `SELECT
-                 SUM(CASE WHEN event_type = 'chat' THEN 1 ELSE 0 END) as total_chat_count,
-                 SUM(CASE WHEN event_type = 'donation' THEN 1 ELSE 0 END) as total_donation_count,
-                 COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as total_donation_amount
-               FROM events
-               WHERE actor_person_id = ?`,
-              [personId],
-              (err2, row2) => {
-                if (err2) {
-                  reject(err2);
-                } else {
-                  resolve(row2 || { total_chat_count: 0, total_donation_count: 0, total_donation_amount: 0 });
-                }
-              }
-            );
-          } else {
-            resolve(row || { total_chat_count: 0, total_donation_count: 0, total_donation_amount: 0 });
-          }
-        }
-      );
-    });
+    // Use CASE WHEN which works in both SQLite and PostgreSQL
+    const row = await getOne(
+      `SELECT
+         SUM(CASE WHEN event_type = 'chat' THEN 1 ELSE 0 END) as total_chat_count,
+         SUM(CASE WHEN event_type = 'donation' THEN 1 ELSE 0 END) as total_donation_count,
+         COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as total_donation_amount
+       FROM events
+       WHERE actor_person_id = ${p(1)}`,
+      [personId]
+    );
+    return row || { total_chat_count: 0, total_donation_count: 0, total_donation_amount: 0 };
   }
 
   /**
@@ -239,25 +179,17 @@ class PersonService {
    * @returns {Promise<Object>}
    */
   async getStatsSummary() {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        `SELECT
-           platform,
-           SUM(CASE WHEN channel_id IS NOT NULL THEN 1 ELSE 0 END) as broadcasters,
-           SUM(CASE WHEN channel_id IS NULL THEN 1 ELSE 0 END) as viewers,
-           COUNT(*) as total
-         FROM persons
-         GROUP BY platform`,
-        [],
-        (err, row) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(row || {});
-          }
-        }
-      );
-    });
+    const row = await getOne(
+      `SELECT
+         platform,
+         SUM(CASE WHEN channel_id IS NOT NULL THEN 1 ELSE 0 END) as broadcasters,
+         SUM(CASE WHEN channel_id IS NULL THEN 1 ELSE 0 END) as viewers,
+         COUNT(*) as total
+       FROM persons
+       GROUP BY platform`,
+      []
+    );
+    return row || {};
   }
 
   /**
@@ -265,25 +197,16 @@ class PersonService {
    * @returns {Promise<Array>}
    */
   async getStatsByPlatform() {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        `SELECT
-           platform,
-           SUM(CASE WHEN channel_id IS NOT NULL THEN 1 ELSE 0 END) as broadcasters,
-           SUM(CASE WHEN channel_id IS NULL THEN 1 ELSE 0 END) as viewers,
-           COUNT(*) as total
-         FROM persons
-         GROUP BY platform`,
-        [],
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows || []);
-          }
-        }
-      );
-    });
+    return await getAll(
+      `SELECT
+         platform,
+         SUM(CASE WHEN channel_id IS NOT NULL THEN 1 ELSE 0 END) as broadcasters,
+         SUM(CASE WHEN channel_id IS NULL THEN 1 ELSE 0 END) as viewers,
+         COUNT(*) as total
+       FROM persons
+       GROUP BY platform`,
+      []
+    );
   }
 
   /**
@@ -293,28 +216,19 @@ class PersonService {
    * @returns {Promise<Array>}
    */
   async getTopDonators(targetChannelId, limit = 10) {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        `SELECT
-           p.id, p.nickname, p.platform, p.profile_image_url,
-           COUNT(*) as donation_count,
-           SUM(e.amount) as total_amount
-         FROM events e
-         JOIN persons p ON e.actor_person_id = p.id
-         WHERE e.event_type = 'donation' AND e.target_channel_id = ?
-         GROUP BY e.actor_person_id
-         ORDER BY total_amount DESC
-         LIMIT ?`,
-        [targetChannelId, limit],
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows || []);
-          }
-        }
-      );
-    });
+    return await getAll(
+      `SELECT
+         p.id, p.nickname, p.platform, p.profile_image_url,
+         COUNT(*) as donation_count,
+         SUM(e.amount) as total_amount
+       FROM events e
+       JOIN persons p ON e.actor_person_id = p.id
+       WHERE e.event_type = 'donation' AND e.target_channel_id = ${p(1)}
+       GROUP BY e.actor_person_id, p.id, p.nickname, p.platform, p.profile_image_url
+       ORDER BY total_amount DESC
+       LIMIT ${p(2)}`,
+      [targetChannelId, limit]
+    );
   }
 
   /**
@@ -324,27 +238,18 @@ class PersonService {
    * @returns {Promise<Array>}
    */
   async getTopChatters(targetChannelId, limit = 10) {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        `SELECT
-           p.id, p.nickname, p.platform, p.profile_image_url,
-           COUNT(*) as chat_count
-         FROM events e
-         JOIN persons p ON e.actor_person_id = p.id
-         WHERE e.event_type = 'chat' AND e.target_channel_id = ?
-         GROUP BY e.actor_person_id
-         ORDER BY chat_count DESC
-         LIMIT ?`,
-        [targetChannelId, limit],
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows || []);
-          }
-        }
-      );
-    });
+    return await getAll(
+      `SELECT
+         p.id, p.nickname, p.platform, p.profile_image_url,
+         COUNT(*) as chat_count
+       FROM events e
+       JOIN persons p ON e.actor_person_id = p.id
+       WHERE e.event_type = 'chat' AND e.target_channel_id = ${p(1)}
+       GROUP BY e.actor_person_id, p.id, p.nickname, p.platform, p.profile_image_url
+       ORDER BY chat_count DESC
+       LIMIT ${p(2)}`,
+      [targetChannelId, limit]
+    );
   }
 
   // ===== Backward Compatibility Methods =====
@@ -358,13 +263,10 @@ class PersonService {
   async incrementChatCount(personId) {
     dbLogger.debug("incrementChatCount is deprecated - stats now tracked via EVENTS");
     // Update last_seen_at only
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `UPDATE persons SET last_seen_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        [personId],
-        (err) => (err ? reject(err) : resolve())
-      );
-    });
+    await runQuery(
+      `UPDATE persons SET last_seen_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ${p(1)}`,
+      [personId]
+    );
   }
 
   /**
@@ -374,13 +276,10 @@ class PersonService {
   async incrementDonation(personId, amount) {
     dbLogger.debug("incrementDonation is deprecated - stats now tracked via EVENTS");
     // Update last_seen_at only
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `UPDATE persons SET last_seen_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?`,
-        [personId],
-        (err) => (err ? reject(err) : resolve())
-      );
-    });
+    await runQuery(
+      `UPDATE persons SET last_seen_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ${p(1)}`,
+      [personId]
+    );
   }
 }
 

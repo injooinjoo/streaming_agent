@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, User, Mail, Calendar, Users } from 'lucide-react';
+import { API_URL } from '../../config/api';
 
 const AdminStreamers = ({ onStreamerSelect }) => {
   const [loading, setLoading] = useState(true);
@@ -27,7 +28,7 @@ const AdminStreamers = ({ onStreamerSelect }) => {
         limit: limit.toString()
       });
 
-      const response = await fetch(`http://localhost:3001/api/streamers?${params}`);
+      const response = await fetch(`${API_URL}/api/streamers?${params}`);
       const data = await response.json();
 
       setStreamers(data.streamers || []);

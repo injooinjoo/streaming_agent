@@ -1,10 +1,17 @@
 /**
  * Overlay Routes
  * Public overlay access via hash and overlay URL management
+ * Uses cross-database compatible helpers from connections.js
  */
 
 const express = require("express");
 const crypto = require("crypto");
+const { getOne, runQuery, isPostgres } = require("../db/connections");
+
+/**
+ * Get placeholder for parameterized queries
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
 
 /**
  * Generate 16-character overlay hash
@@ -16,7 +23,7 @@ const generateOverlayHash = () => {
 
 /**
  * Create overlay router
- * @param {sqlite3.Database} db - Database instance
+ * @param {Object} db - Database instance (not used directly, for backward compatibility)
  * @param {Server} io - Socket.io server instance
  * @param {Function} authenticateToken - Auth middleware
  * @returns {express.Router}
@@ -32,32 +39,32 @@ const createOverlayRouter = (db, io, authenticateToken) => {
    * GET /api/overlay/:hash/settings/:key
    * Get settings by overlay hash (public - for OBS browser source)
    */
-  router.get("/overlay/:hash/settings/:key", (req, res) => {
-    const { hash, key } = req.params;
+  router.get("/overlay/:hash/settings/:key", async (req, res) => {
+    try {
+      const { hash, key } = req.params;
 
-    // Find user by overlay hash
-    db.get("SELECT id FROM users WHERE overlay_hash = ?", [hash], (err, user) => {
-      if (err) return res.status(500).json({ error: err.message });
-      if (!user) return res.status(404).json({ error: "오버레이를 찾을 수 없습니다." });
+      // Find user by overlay hash
+      const user = await getOne(`SELECT id FROM users WHERE overlay_hash = ${p(1)}`, [hash]);
+      if (!user) {
+        return res.status(404).json({ error: "오버레이를 찾을 수 없습니다." });
+      }
 
       // Get user-specific setting
-      db.get(
-        "SELECT setting_value FROM user_settings WHERE user_id = ? AND setting_key = ?",
-        [user.id, key],
-        (err, row) => {
-          if (err) return res.status(500).json({ error: err.message });
-          if (!row) {
-            // Fallback to global setting (legacy support)
-            db.get("SELECT value FROM settings WHERE key = ?", [key], (err, globalRow) => {
-              if (err) return res.status(500).json({ error: err.message });
-              return res.json({ value: globalRow ? globalRow.value : "{}" });
-            });
-            return;
-          }
-          res.json({ value: row.setting_value });
-        }
+      const row = await getOne(
+        `SELECT setting_value FROM user_settings WHERE user_id = ${p(1)} AND setting_key = ${p(2)}`,
+        [user.id, key]
       );
-    });
+
+      if (!row) {
+        // Fallback to global setting (legacy support)
+        const globalRow = await getOne(`SELECT value FROM settings WHERE key = ${p(1)}`, [key]);
+        return res.json({ value: globalRow ? globalRow.value : "{}" });
+      }
+
+      res.json({ value: row.setting_value });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
   });
 
   // ===== Authenticated Overlay Management =====
@@ -66,11 +73,11 @@ const createOverlayRouter = (db, io, authenticateToken) => {
    * GET /api/overlay/urls
    * Get user's overlay URLs (requires auth)
    */
-  router.get("/overlay/urls", authenticateToken, (req, res) => {
-    const userId = req.user.id;
+  router.get("/overlay/urls", authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user.id;
 
-    db.get("SELECT overlay_hash FROM users WHERE id = ?", [userId], (err, user) => {
-      if (err) return res.status(500).json({ error: err.message });
+      const user = await getOne(`SELECT overlay_hash FROM users WHERE id = ${p(1)}`, [userId]);
       if (!user || !user.overlay_hash) {
         return res.status(404).json({ error: "오버레이 해시가 없습니다." });
       }
@@ -92,26 +99,30 @@ const createOverlayRouter = (db, io, authenticateToken) => {
           credits: `${baseUrl}/credits`,
         },
       });
-    });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
   });
 
   /**
    * POST /api/overlay/regenerate-hash
    * Regenerate overlay hash (requires auth)
    */
-  router.post("/overlay/regenerate-hash", authenticateToken, (req, res) => {
-    const userId = req.user.id;
-    const newHash = generateOverlayHash();
+  router.post("/overlay/regenerate-hash", authenticateToken, async (req, res) => {
+    try {
+      const userId = req.user.id;
+      const newHash = generateOverlayHash();
 
-    db.run("UPDATE users SET overlay_hash = ? WHERE id = ?", [newHash, userId], function (err) {
-      if (err) return res.status(500).json({ error: err.message });
+      await runQuery(`UPDATE users SET overlay_hash = ${p(1)} WHERE id = ${p(2)}`, [newHash, userId]);
 
       res.json({
         success: true,
         hash: newHash,
         message: "오버레이 해시가 재생성되었습니다. 기존 OBS 브라우저 소스 URL을 업데이트해주세요.",
       });
-    });
+    } catch (err) {
+      return res.status(500).json({ error: err.message });
+    }
   });
 
   return router;

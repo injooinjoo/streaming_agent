@@ -5,6 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import LoadingSpinner from '../shared/LoadingSpinner';
+import { API_URL } from '../../config/api';
 
 const PLATFORM_COLORS = {
   soop: '#0066ff',
@@ -35,9 +36,9 @@ const AdminPlatforms = () => {
     setLoading(true);
     try {
       const [eventsRes, donationsRes, connectionsRes] = await Promise.all([
-        fetch('http://localhost:3001/api/stats/events/by-platform'),
-        fetch('http://localhost:3001/api/stats/donations'),
-        fetch('http://localhost:3001/api/connections/status')
+        fetch(`${API_URL}/api/stats/events/by-platform`),
+        fetch(`${API_URL}/api/stats/donations`),
+        fetch(`${API_URL}/api/connections/status`)
       ]);
 
       const events = await eventsRes.json();

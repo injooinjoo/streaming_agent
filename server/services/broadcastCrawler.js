@@ -6,10 +6,18 @@
  *
  * NOTE: 카테고리 정보는 broadcast_segments 테이블에서 관리됩니다.
  * 카테고리 변경 시 새 세그먼트가 생성됩니다.
+ *
+ * Uses cross-database compatible helpers from connections.js
  */
 
 const { broadcast: broadcastLogger } = require("./logger");
 const PersonService = require("./personService");
+const { getOne, getAll, runQuery, runReturning, isPostgres } = require("../db/connections");
+
+/**
+ * Get placeholder for parameterized queries
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
 
 // Rate limit 설정
 const RATE_LIMITS = {
@@ -268,111 +276,128 @@ class BroadcastCrawler {
    * @returns {Promise<number>} - Broadcast ID
    */
   async upsertBroadcast(broadcast, broadcasterPersonId) {
-    return new Promise((resolve, reject) => {
+    try {
       // 기존 방송 조회 (UNIQUE: platform, channel_id, broadcast_id)
-      this.db.get(
+      const row = await getOne(
         `SELECT id, peak_viewer_count, viewer_sum, snapshot_count
          FROM broadcasts
-         WHERE platform = ? AND channel_id = ? AND broadcast_id = ?`,
-        [broadcast.platform, broadcast.channelId, broadcast.broadcastId],
-        async (err, row) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          if (row) {
-            // 기존 방송 업데이트
-            const newPeak = Math.max(row.peak_viewer_count, broadcast.viewerCount);
-            const newSum = row.viewer_sum + broadcast.viewerCount;
-            const newCount = row.snapshot_count + 1;
-            const newAvg = Math.round(newSum / newCount);
-
-            this.db.run(
-              `UPDATE broadcasts
-               SET title = ?,
-                   thumbnail_url = ?,
-                   current_viewer_count = ?,
-                   peak_viewer_count = ?,
-                   avg_viewer_count = ?,
-                   viewer_sum = ?,
-                   snapshot_count = ?,
-                   is_live = 1,
-                   updated_at = CURRENT_TIMESTAMP
-               WHERE id = ?`,
-              [
-                broadcast.title,
-                broadcast.thumbnailUrl,
-                broadcast.viewerCount,
-                newPeak,
-                newAvg,
-                newSum,
-                newCount,
-                row.id,
-              ],
-              async (updateErr) => {
-                if (updateErr) {
-                  reject(updateErr);
-                } else {
-                  // 카테고리 변경 확인 및 세그먼트 관리
-                  await this.handleCategoryChange(row.id, broadcast);
-                  // Insert viewer snapshot
-                  const segmentId = await this.getCurrentSegmentId(row.id);
-                  this.insertViewerSnapshot(row.id, broadcast, segmentId);
-                  resolve(row.id);
-                }
-              }
-            );
-          } else {
-            // 새 방송 생성
-            const self = this;
-            this.db.run(
-              `INSERT INTO broadcasts (
-                platform, channel_id, broadcast_id, broadcaster_person_id,
-                title, thumbnail_url,
-                current_viewer_count, peak_viewer_count, avg_viewer_count,
-                viewer_sum, snapshot_count, is_live, started_at
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)`,
-              [
-                broadcast.platform,
-                broadcast.channelId,
-                broadcast.broadcastId,
-                broadcasterPersonId,
-                broadcast.title,
-                broadcast.thumbnailUrl,
-                broadcast.viewerCount,
-                broadcast.viewerCount, // peak = current initially
-                broadcast.viewerCount, // avg = current initially
-                broadcast.viewerCount, // sum = current initially
-                1, // snapshot count = 1
-                broadcast.startedAt || new Date().toISOString(),
-              ],
-              async function (insertErr) {
-                if (insertErr) {
-                  reject(insertErr);
-                } else {
-                  const broadcastDbId = this.lastID;
-                  broadcastLogger.debug("New broadcast session", {
-                    platform: broadcast.platform,
-                    channelId: broadcast.channelId,
-                    category: broadcast.categoryName,
-                    title: broadcast.title?.substring(0, 30),
-                    viewers: broadcast.viewerCount,
-                  });
-
-                  // 첫 번째 세그먼트 생성
-                  const segmentId = await self.createSegment(broadcastDbId, broadcast);
-
-                  // Insert first viewer snapshot
-                  self.insertViewerSnapshot(broadcastDbId, broadcast, segmentId);
-                  resolve(broadcastDbId);
-                }
-              }
-            );
-          }
-        }
+         WHERE platform = ${p(1)} AND channel_id = ${p(2)} AND broadcast_id = ${p(3)}`,
+        [broadcast.platform, broadcast.channelId, broadcast.broadcastId]
       );
-    });
+
+      if (row) {
+        // 기존 방송 업데이트
+        const newPeak = Math.max(row.peak_viewer_count, broadcast.viewerCount);
+        const newSum = row.viewer_sum + broadcast.viewerCount;
+        const newCount = row.snapshot_count + 1;
+        const newAvg = Math.round(newSum / newCount);
+
+        const isLiveValue = isPostgres() ? 'TRUE' : '1';
+        await runQuery(
+          `UPDATE broadcasts
+           SET title = ${p(1)},
+               thumbnail_url = ${p(2)},
+               current_viewer_count = ${p(3)},
+               peak_viewer_count = ${p(4)},
+               avg_viewer_count = ${p(5)},
+               viewer_sum = ${p(6)},
+               snapshot_count = ${p(7)},
+               is_live = ${isLiveValue},
+               updated_at = CURRENT_TIMESTAMP
+           WHERE id = ${p(8)}`,
+          [
+            broadcast.title,
+            broadcast.thumbnailUrl,
+            broadcast.viewerCount,
+            newPeak,
+            newAvg,
+            newSum,
+            newCount,
+            row.id,
+          ]
+        );
+
+        // 카테고리 변경 확인 및 세그먼트 관리
+        await this.handleCategoryChange(row.id, broadcast);
+        // Insert viewer snapshot
+        const segmentId = await this.getCurrentSegmentId(row.id);
+        await this.insertViewerSnapshot(row.id, broadcast, segmentId);
+        return row.id;
+      } else {
+        // 새 방송 생성
+        let broadcastDbId;
+        const isLiveValue = isPostgres() ? 'TRUE' : '1';
+
+        if (isPostgres()) {
+          const result = await runReturning(
+            `INSERT INTO broadcasts (
+              platform, channel_id, broadcast_id, broadcaster_person_id,
+              title, thumbnail_url,
+              current_viewer_count, peak_viewer_count, avg_viewer_count,
+              viewer_sum, snapshot_count, is_live, started_at
+            ) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)}, ${p(9)}, ${p(10)}, ${p(11)}, ${isLiveValue}, ${p(12)})
+            RETURNING id`,
+            [
+              broadcast.platform,
+              broadcast.channelId,
+              broadcast.broadcastId,
+              broadcasterPersonId,
+              broadcast.title,
+              broadcast.thumbnailUrl,
+              broadcast.viewerCount,
+              broadcast.viewerCount, // peak = current initially
+              broadcast.viewerCount, // avg = current initially
+              broadcast.viewerCount, // sum = current initially
+              1, // snapshot count = 1
+              broadcast.startedAt || new Date().toISOString(),
+            ]
+          );
+          broadcastDbId = result?.id;
+        } else {
+          const result = await runQuery(
+            `INSERT INTO broadcasts (
+              platform, channel_id, broadcast_id, broadcaster_person_id,
+              title, thumbnail_url,
+              current_viewer_count, peak_viewer_count, avg_viewer_count,
+              viewer_sum, snapshot_count, is_live, started_at
+            ) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)}, ${p(9)}, ${p(10)}, ${p(11)}, 1, ${p(12)})`,
+            [
+              broadcast.platform,
+              broadcast.channelId,
+              broadcast.broadcastId,
+              broadcasterPersonId,
+              broadcast.title,
+              broadcast.thumbnailUrl,
+              broadcast.viewerCount,
+              broadcast.viewerCount,
+              broadcast.viewerCount,
+              broadcast.viewerCount,
+              1,
+              broadcast.startedAt || new Date().toISOString(),
+            ]
+          );
+          broadcastDbId = result?.lastID;
+        }
+
+        broadcastLogger.debug("New broadcast session", {
+          platform: broadcast.platform,
+          channelId: broadcast.channelId,
+          category: broadcast.categoryName,
+          title: broadcast.title?.substring(0, 30),
+          viewers: broadcast.viewerCount,
+        });
+
+        // 첫 번째 세그먼트 생성
+        const segmentId = await this.createSegment(broadcastDbId, broadcast);
+
+        // Insert first viewer snapshot
+        await this.insertViewerSnapshot(broadcastDbId, broadcast, segmentId);
+        return broadcastDbId;
+      }
+    } catch (err) {
+      broadcastLogger.error("upsertBroadcast error", { error: err.message });
+      throw err;
+    }
   }
 
   /**
@@ -382,38 +407,58 @@ class BroadcastCrawler {
    * @returns {Promise<number>} - Segment ID
    */
   async createSegment(broadcastDbId, broadcast) {
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `INSERT INTO broadcast_segments (
-          broadcast_id, platform, channel_id,
-          category_id, category_name,
-          segment_started_at, peak_viewer_count, avg_viewer_count
-        ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?, ?)`,
-        [
-          broadcastDbId,
-          broadcast.platform,
-          broadcast.channelId,
-          broadcast.categoryId,
-          broadcast.categoryName,
-          broadcast.viewerCount,
-          broadcast.viewerCount,
-        ],
-        function (err) {
-          if (err) {
-            broadcastLogger.error("Segment create error", { error: err.message });
-            reject(err);
-          } else {
-            const segmentId = this.lastID;
-            broadcastLogger.debug("New segment created", {
-              broadcastId: broadcastDbId,
-              segmentId,
-              category: broadcast.categoryName,
-            });
-            resolve(segmentId);
-          }
-        }
-      );
-    });
+    try {
+      let segmentId;
+
+      if (isPostgres()) {
+        const result = await runReturning(
+          `INSERT INTO broadcast_segments (
+            broadcast_id, platform, channel_id,
+            category_id, category_name,
+            segment_started_at, peak_viewer_count, avg_viewer_count
+          ) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, CURRENT_TIMESTAMP, ${p(6)}, ${p(7)})
+          RETURNING id`,
+          [
+            broadcastDbId,
+            broadcast.platform,
+            broadcast.channelId,
+            broadcast.categoryId,
+            broadcast.categoryName,
+            broadcast.viewerCount,
+            broadcast.viewerCount,
+          ]
+        );
+        segmentId = result?.id;
+      } else {
+        const result = await runQuery(
+          `INSERT INTO broadcast_segments (
+            broadcast_id, platform, channel_id,
+            category_id, category_name,
+            segment_started_at, peak_viewer_count, avg_viewer_count
+          ) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, CURRENT_TIMESTAMP, ${p(6)}, ${p(7)})`,
+          [
+            broadcastDbId,
+            broadcast.platform,
+            broadcast.channelId,
+            broadcast.categoryId,
+            broadcast.categoryName,
+            broadcast.viewerCount,
+            broadcast.viewerCount,
+          ]
+        );
+        segmentId = result?.lastID;
+      }
+
+      broadcastLogger.debug("New segment created", {
+        broadcastId: broadcastDbId,
+        segmentId,
+        category: broadcast.categoryName,
+      });
+      return segmentId;
+    } catch (err) {
+      broadcastLogger.error("Segment create error", { error: err.message });
+      throw err;
+    }
   }
 
   /**
@@ -422,18 +467,13 @@ class BroadcastCrawler {
    * @returns {Promise<number|null>}
    */
   async getCurrentSegmentId(broadcastDbId) {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        `SELECT id FROM broadcast_segments
-         WHERE broadcast_id = ? AND segment_ended_at IS NULL
-         ORDER BY segment_started_at DESC LIMIT 1`,
-        [broadcastDbId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row ? row.id : null);
-        }
-      );
-    });
+    const row = await getOne(
+      `SELECT id FROM broadcast_segments
+       WHERE broadcast_id = ${p(1)} AND segment_ended_at IS NULL
+       ORDER BY segment_started_at DESC LIMIT 1`,
+      [broadcastDbId]
+    );
+    return row ? row.id : null;
   }
 
   /**
@@ -442,66 +482,51 @@ class BroadcastCrawler {
    * @param {Object} broadcast - 방송 데이터
    */
   async handleCategoryChange(broadcastDbId, broadcast) {
-    return new Promise((resolve, reject) => {
+    try {
       // 현재 활성 세그먼트 조회
-      this.db.get(
+      const currentSegment = await getOne(
         `SELECT id, category_id, peak_viewer_count FROM broadcast_segments
-         WHERE broadcast_id = ? AND segment_ended_at IS NULL
+         WHERE broadcast_id = ${p(1)} AND segment_ended_at IS NULL
          ORDER BY segment_started_at DESC LIMIT 1`,
-        [broadcastDbId],
-        async (err, currentSegment) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          // 세그먼트가 없으면 생성
-          if (!currentSegment) {
-            await this.createSegment(broadcastDbId, broadcast);
-            resolve();
-            return;
-          }
-
-          // 카테고리가 변경되었는지 확인
-          const categoryChanged = currentSegment.category_id !== broadcast.categoryId;
-
-          if (categoryChanged) {
-            broadcastLogger.info("Category changed, creating new segment", {
-              broadcastId: broadcastDbId,
-              from: currentSegment.category_id,
-              to: broadcast.categoryId,
-            });
-
-            // 이전 세그먼트 종료
-            this.db.run(
-              `UPDATE broadcast_segments SET segment_ended_at = CURRENT_TIMESTAMP WHERE id = ?`,
-              [currentSegment.id],
-              async (updateErr) => {
-                if (updateErr) {
-                  broadcastLogger.error("Segment end error", { error: updateErr.message });
-                }
-                // 새 세그먼트 생성
-                await this.createSegment(broadcastDbId, broadcast);
-                resolve();
-              }
-            );
-          } else {
-            // 카테고리 동일 - 세그먼트 통계만 업데이트
-            const newPeak = Math.max(currentSegment.peak_viewer_count, broadcast.viewerCount);
-            this.db.run(
-              `UPDATE broadcast_segments SET peak_viewer_count = ? WHERE id = ?`,
-              [newPeak, currentSegment.id],
-              (updateErr) => {
-                if (updateErr) {
-                  broadcastLogger.error("Segment update error", { error: updateErr.message });
-                }
-                resolve();
-              }
-            );
-          }
-        }
+        [broadcastDbId]
       );
-    });
+
+      // 세그먼트가 없으면 생성
+      if (!currentSegment) {
+        await this.createSegment(broadcastDbId, broadcast);
+        return;
+      }
+
+      // 카테고리가 변경되었는지 확인
+      const categoryChanged = currentSegment.category_id !== broadcast.categoryId;
+
+      if (categoryChanged) {
+        broadcastLogger.info("Category changed, creating new segment", {
+          broadcastId: broadcastDbId,
+          from: currentSegment.category_id,
+          to: broadcast.categoryId,
+        });
+
+        // 이전 세그먼트 종료
+        await runQuery(
+          `UPDATE broadcast_segments SET segment_ended_at = CURRENT_TIMESTAMP WHERE id = ${p(1)}`,
+          [currentSegment.id]
+        );
+
+        // 새 세그먼트 생성
+        await this.createSegment(broadcastDbId, broadcast);
+      } else {
+        // 카테고리 동일 - 세그먼트 통계만 업데이트
+        const newPeak = Math.max(currentSegment.peak_viewer_count, broadcast.viewerCount);
+        await runQuery(
+          `UPDATE broadcast_segments SET peak_viewer_count = ${p(1)} WHERE id = ${p(2)}`,
+          [newPeak, currentSegment.id]
+        );
+      }
+    } catch (err) {
+      broadcastLogger.error("handleCategoryChange error", { error: err.message });
+      throw err;
+    }
   }
 
   /**
@@ -510,17 +535,16 @@ class BroadcastCrawler {
    * @param {Object} broadcast - 방송 데이터
    * @param {number|null} segmentId - 세그먼트 ID
    */
-  insertViewerSnapshot(broadcastDbId, broadcast, segmentId = null) {
-    this.db.run(
-      `INSERT INTO viewer_snapshots (platform, channel_id, broadcast_id, segment_id, viewer_count, snapshot_at)
-       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)`,
-      [broadcast.platform, broadcast.channelId, broadcastDbId, segmentId, broadcast.viewerCount],
-      (err) => {
-        if (err) {
-          broadcastLogger.error("Viewer snapshot insert error", { error: err.message });
-        }
-      }
-    );
+  async insertViewerSnapshot(broadcastDbId, broadcast, segmentId = null) {
+    try {
+      await runQuery(
+        `INSERT INTO viewer_snapshots (platform, channel_id, broadcast_id, segment_id, viewer_count, snapshot_at)
+         VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, CURRENT_TIMESTAMP)`,
+        [broadcast.platform, broadcast.channelId, broadcastDbId, segmentId, broadcast.viewerCount]
+      );
+    } catch (err) {
+      broadcastLogger.error("Viewer snapshot insert error", { error: err.message });
+    }
   }
 
   /**
@@ -530,43 +554,41 @@ class BroadcastCrawler {
    * @returns {Promise<number>} - 종료 처리된 방송 수
    */
   async detectEndedBroadcasts(platform, currentBroadcastIds) {
-    return new Promise((resolve, reject) => {
+    try {
+      const isLiveValue = isPostgres() ? 'TRUE' : '1';
       // 현재 라이브인 방송 중 목록에 없는 것 찾기
-      this.db.all(
+      const rows = await getAll(
         `SELECT id, broadcast_id, channel_id, started_at
          FROM broadcasts
-         WHERE platform = ? AND is_live = 1`,
-        [platform],
-        async (err, rows) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          let endedCount = 0;
-
-          for (const row of rows) {
-            if (!currentBroadcastIds.has(row.broadcast_id)) {
-              // 방송 종료 처리
-              await this.markBroadcastEnded(row.id, row.started_at);
-              endedCount++;
-
-              broadcastLogger.info("Broadcast ended", {
-                platform,
-                broadcastId: row.broadcast_id,
-                channelId: row.channel_id,
-              });
-            }
-          }
-
-          if (endedCount > 0) {
-            broadcastLogger.info(`${platform}: ${endedCount} broadcasts ended`);
-          }
-
-          resolve(endedCount);
-        }
+         WHERE platform = ${p(1)} AND is_live = ${isLiveValue}`,
+        [platform]
       );
-    });
+
+      let endedCount = 0;
+
+      for (const row of rows) {
+        if (!currentBroadcastIds.has(row.broadcast_id)) {
+          // 방송 종료 처리
+          await this.markBroadcastEnded(row.id, row.started_at);
+          endedCount++;
+
+          broadcastLogger.info("Broadcast ended", {
+            platform,
+            broadcastId: row.broadcast_id,
+            channelId: row.channel_id,
+          });
+        }
+      }
+
+      if (endedCount > 0) {
+        broadcastLogger.info(`${platform}: ${endedCount} broadcasts ended`);
+      }
+
+      return endedCount;
+    } catch (err) {
+      broadcastLogger.error("detectEndedBroadcasts error", { error: err.message });
+      throw err;
+    }
   }
 
   /**
@@ -575,53 +597,44 @@ class BroadcastCrawler {
    * @param {string} startedAt - 방송 시작 시간
    */
   async markBroadcastEnded(broadcastId, startedAt) {
-    return new Promise((resolve, reject) => {
+    try {
       const endedAt = new Date().toISOString();
       const startDate = new Date(startedAt);
       const endDate = new Date(endedAt);
       const durationMinutes = Math.round((endDate - startDate) / (1000 * 60));
+      const isLiveValue = isPostgres() ? 'FALSE' : '0';
 
       // 방송 종료
-      this.db.run(
+      await runQuery(
         `UPDATE broadcasts
-         SET is_live = 0,
-             ended_at = ?,
-             duration_minutes = ?,
+         SET is_live = ${isLiveValue},
+             ended_at = ${p(1)},
+             duration_minutes = ${p(2)},
              updated_at = CURRENT_TIMESTAMP
-         WHERE id = ?`,
-        [endedAt, durationMinutes, broadcastId],
-        async (err) => {
-          if (err) {
-            reject(err);
-            return;
-          }
-
-          // 열린 세그먼트 종료
-          this.db.run(
-            `UPDATE broadcast_segments
-             SET segment_ended_at = ?
-             WHERE broadcast_id = ? AND segment_ended_at IS NULL`,
-            [endedAt, broadcastId],
-            async (segErr) => {
-              if (segErr) {
-                broadcastLogger.error("Segment end error", { error: segErr.message });
-              }
-
-              // 방송자의 총 방송 시간 업데이트
-              const broadcast = await this.getBroadcastById(broadcastId);
-              if (broadcast && broadcast.broadcaster_person_id) {
-                await this.personService.addBroadcastMinutes(
-                  broadcast.broadcaster_person_id,
-                  durationMinutes
-                );
-              }
-
-              resolve();
-            }
-          );
-        }
+         WHERE id = ${p(3)}`,
+        [endedAt, durationMinutes, broadcastId]
       );
-    });
+
+      // 열린 세그먼트 종료
+      await runQuery(
+        `UPDATE broadcast_segments
+         SET segment_ended_at = ${p(1)}
+         WHERE broadcast_id = ${p(2)} AND segment_ended_at IS NULL`,
+        [endedAt, broadcastId]
+      );
+
+      // 방송자의 총 방송 시간 업데이트
+      const broadcast = await this.getBroadcastById(broadcastId);
+      if (broadcast && broadcast.broadcaster_person_id) {
+        await this.personService.addBroadcastMinutes(
+          broadcast.broadcaster_person_id,
+          durationMinutes
+        );
+      }
+    } catch (err) {
+      broadcastLogger.error("markBroadcastEnded error", { error: err.message });
+      throw err;
+    }
   }
 
   /**
@@ -630,12 +643,7 @@ class BroadcastCrawler {
    * @returns {Promise<Object|null>}
    */
   async getBroadcastById(id) {
-    return new Promise((resolve, reject) => {
-      this.db.get(`SELECT * FROM broadcasts WHERE id = ?`, [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(row || null);
-      });
-    });
+    return await getOne(`SELECT * FROM broadcasts WHERE id = ${p(1)}`, [id]);
   }
 
   /**
@@ -644,18 +652,12 @@ class BroadcastCrawler {
    * @returns {Promise<Object|null>}
    */
   async getBroadcastCurrentCategory(broadcastId) {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        `SELECT category_id, category_name FROM broadcast_segments
-         WHERE broadcast_id = ?
-         ORDER BY segment_started_at DESC LIMIT 1`,
-        [broadcastId],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row || null);
-        }
-      );
-    });
+    return await getOne(
+      `SELECT category_id, category_name FROM broadcast_segments
+       WHERE broadcast_id = ${p(1)}
+       ORDER BY segment_started_at DESC LIMIT 1`,
+      [broadcastId]
+    );
   }
 
   /**
@@ -744,22 +746,18 @@ class BroadcastCrawler {
    * @returns {Promise<Object>}
    */
   async getLiveStats() {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        `SELECT
-           platform,
-           COUNT(*) as live_count,
-           SUM(current_viewer_count) as total_viewers
-         FROM broadcasts
-         WHERE is_live = 1
-         GROUP BY platform`,
-        [],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row || {});
-        }
-      );
-    });
+    const isLiveValue = isPostgres() ? 'TRUE' : '1';
+    const row = await getOne(
+      `SELECT
+         platform,
+         COUNT(*) as live_count,
+         SUM(current_viewer_count) as total_viewers
+       FROM broadcasts
+       WHERE is_live = ${isLiveValue}
+       GROUP BY platform`,
+      []
+    );
+    return row || {};
   }
 
   /**
@@ -767,24 +765,19 @@ class BroadcastCrawler {
    * @returns {Promise<Array>}
    */
   async getLiveStatsByPlatform() {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        `SELECT
-           platform,
-           COUNT(*) as live_count,
-           SUM(current_viewer_count) as total_viewers,
-           AVG(current_viewer_count) as avg_viewers,
-           MAX(current_viewer_count) as max_viewers
-         FROM broadcasts
-         WHERE is_live = 1
-         GROUP BY platform`,
-        [],
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows || []);
-        }
-      );
-    });
+    const isLiveValue = isPostgres() ? 'TRUE' : '1';
+    return await getAll(
+      `SELECT
+         platform,
+         COUNT(*) as live_count,
+         SUM(current_viewer_count) as total_viewers,
+         AVG(current_viewer_count) as avg_viewers,
+         MAX(current_viewer_count) as max_viewers
+       FROM broadcasts
+       WHERE is_live = ${isLiveValue}
+       GROUP BY platform`,
+      []
+    );
   }
 
   /**
@@ -943,21 +936,16 @@ class BroadcastCrawler {
    * @returns {Promise<Object|null>}
    */
   async getBroadcastByApiId(platform, channelId, broadcastId) {
-    return new Promise((resolve, reject) => {
-      this.db.get(
+    try {
+      return await getOne(
         `SELECT id, broadcaster_person_id FROM broadcasts
-         WHERE platform = ? AND channel_id = ? AND broadcast_id = ?`,
-        [platform, channelId, broadcastId],
-        (err, row) => {
-          if (err) {
-            broadcastLogger.error("getBroadcastByApiId error", { error: err.message });
-            resolve(null);
-          } else {
-            resolve(row || null);
-          }
-        }
+         WHERE platform = ${p(1)} AND channel_id = ${p(2)} AND broadcast_id = ${p(3)}`,
+        [platform, channelId, broadcastId]
       );
-    });
+    } catch (err) {
+      broadcastLogger.error("getBroadcastByApiId error", { error: err.message });
+      return null;
+    }
   }
 
   /**

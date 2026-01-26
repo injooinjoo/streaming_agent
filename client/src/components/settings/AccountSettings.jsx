@@ -8,6 +8,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_URL } from '../../config/api';
 import './AccountSettings.css';
 
 const AccountSettings = () => {
@@ -29,7 +30,7 @@ const AccountSettings = () => {
   const fetchConnectionStatus = async () => {
     setLoadingConnections(true);
     try {
-      const response = await fetch('http://localhost:3001/api/connections/status');
+      const response = await fetch(`${API_URL}/api/connections/status`);
       const data = await response.json();
       setConnectionStatus(data);
     } catch (error) {

@@ -2,13 +2,21 @@
  * Monitor Routes
  * API endpoints for streaming data monitoring dashboard
  *
- * Uses unified database (unified.db) combining:
+ * Uses unified database combining:
  * - Streaming data (events, viewer stats, categories)
  * - Overlay settings (users, settings, ads, marketplace)
+ *
+ * Uses cross-database compatible helpers from connections.js
  */
 
 const express = require("express");
 const { api: apiLogger } = require("../services/logger");
+const { getOne, getAll, isPostgres } = require("../db/connections");
+
+/**
+ * Get placeholder for parameterized queries
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
 
 /**
  * Schema metadata with descriptions and constraints
@@ -231,35 +239,14 @@ const SCHEMA_METADATA = {
 
 /**
  * Create monitor router
- * @param {sqlite3.Database} db - Unified database instance
+ * @param {Object} db - Database instance (kept for backward compatibility)
  * @returns {express.Router}
  */
 const createMonitorRouter = (db) => {
   const router = express.Router();
 
-  /**
-   * Helper: Promisify db.get
-   */
-  const dbGet = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.get(sql, params, (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-  };
-
-  /**
-   * Helper: Promisify db.all
-   */
-  const dbAll = (sql, params = []) => {
-    return new Promise((resolve, reject) => {
-      db.all(sql, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
-  };
+  // Use cross-database compatible helpers from connections.js
+  // getOne → getOne, getAll → getAll
 
   /**
    * GET /api/monitor/stats
@@ -282,8 +269,10 @@ const createMonitorRouter = (db) => {
         'MapleStory', 'Dungeon_Fighter_Online', 'FC_Online', 'Sudden_Attack',
         'KartRider', 'Mabinogi', 'The_First_Descendant', 'V4'
       ];
-      const nexonSoopPlaceholders = nexonSoopCategoryIds.map(() => '?').join(',');
-      const nexonChzzkPlaceholders = nexonChzzkCategoryIds.map(() => '?').join(',');
+      // Generate cross-database compatible placeholders for IN clause
+      const nexonSoopPlaceholders = nexonSoopCategoryIds.map((_, i) => p(i + 1)).join(',');
+      const nexonChzzkPlaceholders = nexonChzzkCategoryIds.map((_, i) => p(i + 1)).join(',');
+      const isLiveVal = isPostgres() ? 'TRUE' : '1';
 
       // Execute all stats queries in parallel
       const [
@@ -304,33 +293,33 @@ const createMonitorRouter = (db) => {
         nexonChzzkStats,
       ] = await Promise.all([
         // Live broadcasts count (50+ viewers only)
-        dbGet(`SELECT COUNT(*) as count FROM broadcasts WHERE is_live = 1 AND current_viewer_count >= 50`),
+        getOne(`SELECT COUNT(*) as count FROM broadcasts WHERE is_live = ${isLiveVal} AND current_viewer_count >= 50`),
         // Total viewers from live broadcasts (50+ viewers only)
-        dbGet(`SELECT COALESCE(SUM(current_viewer_count), 0) as total FROM broadcasts WHERE is_live = 1 AND current_viewer_count >= 50`),
+        getOne(`SELECT COALESCE(SUM(current_viewer_count), 0) as total FROM broadcasts WHERE is_live = ${isLiveVal} AND current_viewer_count >= 50`),
         // Total persons
-        dbGet(`SELECT COUNT(*) as count FROM persons`),
+        getOne(`SELECT COUNT(*) as count FROM persons`),
         // Total donation amount (from events table)
-        dbGet(`SELECT COALESCE(SUM(amount), 0) as total FROM events WHERE event_type = 'donation'`),
+        getOne(`SELECT COALESCE(SUM(amount), 0) as total FROM events WHERE event_type = 'donation'`),
         // Total viewer snapshots
-        dbGet(`SELECT COUNT(*) as count FROM viewer_snapshots`),
+        getOne(`SELECT COUNT(*) as count FROM viewer_snapshots`),
         // Total engagement records
-        dbGet(`SELECT COUNT(*) as count FROM viewer_engagement`),
+        getOne(`SELECT COUNT(*) as count FROM viewer_engagement`),
         // Total events
-        dbGet(`SELECT COUNT(*) as count FROM events`),
+        getOne(`SELECT COUNT(*) as count FROM events`),
         // Total broadcast segments
-        dbGet(`SELECT COUNT(*) as count FROM broadcast_segments`),
+        getOne(`SELECT COUNT(*) as count FROM broadcast_segments`),
         // SOOP stats (50+ viewers only)
-        dbGet(`SELECT
+        getOne(`SELECT
           COUNT(*) as broadcasts,
           COALESCE(SUM(current_viewer_count), 0) as viewers
-          FROM broadcasts WHERE is_live = 1 AND platform = 'soop' AND current_viewer_count >= 50`),
+          FROM broadcasts WHERE is_live = ${isLiveVal} AND platform = 'soop' AND current_viewer_count >= 50`),
         // Chzzk stats (50+ viewers only)
-        dbGet(`SELECT
+        getOne(`SELECT
           COUNT(*) as broadcasts,
           COALESCE(SUM(current_viewer_count), 0) as viewers
-          FROM broadcasts WHERE is_live = 1 AND platform = 'chzzk' AND current_viewer_count >= 50`),
+          FROM broadcasts WHERE is_live = ${isLiveVal} AND platform = 'chzzk' AND current_viewer_count >= 50`),
         // Nexon games stats - SOOP (50+ viewers only)
-        dbGet(`SELECT
+        getOne(`SELECT
           COUNT(*) as broadcasts,
           COALESCE(SUM(b.current_viewer_count), 0) as viewers
           FROM broadcasts b
@@ -339,10 +328,10 @@ const createMonitorRouter = (db) => {
             ROW_NUMBER() OVER (PARTITION BY broadcast_id ORDER BY segment_started_at DESC) as rn
             FROM broadcast_segments
           ) seg ON b.id = seg.broadcast_id AND seg.rn = 1
-          WHERE b.is_live = 1 AND b.platform = 'soop' AND b.current_viewer_count >= 50 AND seg.category_id IN (${nexonSoopPlaceholders})`,
+          WHERE b.is_live = ${isLiveVal} AND b.platform = 'soop' AND b.current_viewer_count >= 50 AND seg.category_id IN (${nexonSoopPlaceholders})`,
           nexonSoopCategoryIds),
         // Nexon games stats - Chzzk (50+ viewers only)
-        dbGet(`SELECT
+        getOne(`SELECT
           COUNT(*) as broadcasts,
           COALESCE(SUM(b.current_viewer_count), 0) as viewers
           FROM broadcasts b
@@ -351,7 +340,7 @@ const createMonitorRouter = (db) => {
             ROW_NUMBER() OVER (PARTITION BY broadcast_id ORDER BY segment_started_at DESC) as rn
             FROM broadcast_segments
           ) seg ON b.id = seg.broadcast_id AND seg.rn = 1
-          WHERE b.is_live = 1 AND b.platform = 'chzzk' AND b.current_viewer_count >= 50 AND seg.category_id IN (${nexonChzzkPlaceholders})`,
+          WHERE b.is_live = ${isLiveVal} AND b.platform = 'chzzk' AND b.current_viewer_count >= 50 AND seg.category_id IN (${nexonChzzkPlaceholders})`,
           nexonChzzkCategoryIds),
       ]);
 
@@ -401,43 +390,57 @@ const createMonitorRouter = (db) => {
     try {
       const hours = Math.min(168, Math.max(1, parseInt(req.query.hours) || 24));
 
+      // Cross-database date formatting and interval
+      const hourFormat = isPostgres()
+        ? `to_char(snapshot_at, 'YYYY-MM-DD HH24:00:00')`
+        : `strftime('%Y-%m-%d %H:00:00', snapshot_at)`;
+      const eventHourFormat = isPostgres()
+        ? `to_char(event_timestamp, 'YYYY-MM-DD HH24:00:00')`
+        : `strftime('%Y-%m-%d %H:00:00', event_timestamp)`;
+      const broadcastHourFormat = isPostgres()
+        ? `to_char(updated_at, 'YYYY-MM-DD HH24:00:00')`
+        : `strftime('%Y-%m-%d %H:00:00', updated_at)`;
+      const hoursAgo = isPostgres()
+        ? `NOW() - INTERVAL '${hours} hours'`
+        : `datetime('now', '-${hours} hours')`;
+
       // Get viewer snapshots aggregated by hour
-      const viewerTimeseries = await dbAll(`
+      const viewerTimeseries = await getAll(`
         SELECT
-          strftime('%Y-%m-%d %H:00:00', snapshot_at) as hour,
+          ${hourFormat} as hour,
           platform,
           SUM(viewer_count) as total_viewers,
           COUNT(DISTINCT channel_id) as broadcast_count
         FROM viewer_snapshots
-        WHERE snapshot_at >= datetime('now', '-${hours} hours')
-        GROUP BY hour, platform
+        WHERE snapshot_at >= ${hoursAgo}
+        GROUP BY ${hourFormat}, platform
         ORDER BY hour ASC
       `);
 
       // Get events aggregated by hour
-      const eventTimeseries = await dbAll(`
+      const eventTimeseries = await getAll(`
         SELECT
-          strftime('%Y-%m-%d %H:00:00', event_timestamp) as hour,
+          ${eventHourFormat} as hour,
           event_type,
           COUNT(*) as count,
           COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as total_amount
         FROM events
-        WHERE event_timestamp >= datetime('now', '-${hours} hours')
-        GROUP BY hour, event_type
+        WHERE event_timestamp >= ${hoursAgo}
+        GROUP BY ${eventHourFormat}, event_type
         ORDER BY hour ASC
       `);
 
       // Get broadcast activity by hour
-      const broadcastTimeseries = await dbAll(`
+      const broadcastTimeseries = await getAll(`
         SELECT
-          strftime('%Y-%m-%d %H:00:00', updated_at) as hour,
+          ${broadcastHourFormat} as hour,
           platform,
           COUNT(*) as active_broadcasts,
           COALESCE(SUM(current_viewer_count), 0) as total_viewers,
           COALESCE(AVG(current_viewer_count), 0) as avg_viewers
         FROM broadcasts
-        WHERE updated_at >= datetime('now', '-${hours} hours')
-        GROUP BY hour, platform
+        WHERE updated_at >= ${hoursAgo}
+        GROUP BY ${broadcastHourFormat}, platform
         ORDER BY hour ASC
       `);
 
@@ -471,9 +474,11 @@ const createMonitorRouter = (db) => {
         ]
       };
 
+      const isLiveValue = isPostgres() ? 'TRUE' : '1';
+
       // Get SOOP Nexon broadcasts
-      const soopPlaceholders = nexonCategories.soop.map(() => '?').join(',');
-      const soopNexon = await dbAll(`
+      const soopPlaceholders = nexonCategories.soop.map((_, i) => p(i + 1)).join(',');
+      const soopNexon = await getAll(`
         SELECT
           seg.category_id,
           c.category_name,
@@ -486,14 +491,14 @@ const createMonitorRouter = (db) => {
           FROM broadcast_segments
         ) seg ON b.id = seg.broadcast_id AND seg.rn = 1
         LEFT JOIN categories c ON seg.category_id = c.category_id AND b.platform = c.platform
-        WHERE b.is_live = 1 AND b.platform = 'soop' AND seg.category_id IN (${soopPlaceholders})
-        GROUP BY seg.category_id
+        WHERE b.is_live = ${isLiveValue} AND b.platform = 'soop' AND seg.category_id IN (${soopPlaceholders})
+        GROUP BY seg.category_id, c.category_name
         ORDER BY total_viewers DESC
       `, nexonCategories.soop);
 
       // Get Chzzk Nexon broadcasts
-      const chzzkPlaceholders = nexonCategories.chzzk.map(() => '?').join(',');
-      const chzzkNexon = await dbAll(`
+      const chzzkPlaceholders = nexonCategories.chzzk.map((_, i) => p(i + 1)).join(',');
+      const chzzkNexon = await getAll(`
         SELECT
           seg.category_id,
           c.category_name,
@@ -506,8 +511,8 @@ const createMonitorRouter = (db) => {
           FROM broadcast_segments
         ) seg ON b.id = seg.broadcast_id AND seg.rn = 1
         LEFT JOIN categories c ON seg.category_id = c.category_id AND b.platform = c.platform
-        WHERE b.is_live = 1 AND b.platform = 'chzzk' AND seg.category_id IN (${chzzkPlaceholders})
-        GROUP BY seg.category_id
+        WHERE b.is_live = ${isLiveValue} AND b.platform = 'chzzk' AND seg.category_id IN (${chzzkPlaceholders})
+        GROUP BY seg.category_id, c.category_name
         ORDER BY total_viewers DESC
       `, nexonCategories.chzzk);
 
@@ -556,16 +561,17 @@ const createMonitorRouter = (db) => {
       const offset = (page - 1) * limit;
       const liveOnly = req.query.live_only === "true";
 
-      const whereClause = liveOnly ? "WHERE b.is_live = 1" : "";
+      const isLiveValue = isPostgres() ? 'TRUE' : '1';
+      const whereClause = liveOnly ? `WHERE b.is_live = ${isLiveValue}` : "";
 
       // Get total count
-      const countResult = await dbGet(
+      const countResult = await getOne(
         `SELECT COUNT(*) as total FROM broadcasts b ${whereClause}`
       );
       const total = countResult?.total || 0;
 
       // Get broadcasts with latest segment category and computed stats from events
-      const broadcasts = await dbAll(
+      const broadcasts = await getAll(
         `SELECT
           b.id,
           b.platform,
@@ -605,7 +611,7 @@ const createMonitorRouter = (db) => {
         ) donation_stats ON donation_stats.broadcast_id = b.id
         ${whereClause}
         ORDER BY b.is_live DESC, b.current_viewer_count DESC, b.updated_at DESC
-        LIMIT ? OFFSET ?`,
+        LIMIT ${p(1)} OFFSET ${p(2)}`,
         [limit, offset]
       );
 
@@ -644,13 +650,13 @@ const createMonitorRouter = (db) => {
       }
 
       // Get total count
-      const countResult = await dbGet(
+      const countResult = await getOne(
         `SELECT COUNT(*) as total FROM persons p ${whereClause}`
       );
       const total = countResult?.total || 0;
 
       // Get persons with stats computed from events
-      const persons = await dbAll(
+      const persons = await getAll(
         `SELECT
           p.id,
           p.platform,
@@ -679,7 +685,7 @@ const createMonitorRouter = (db) => {
         ) donation_stats ON donation_stats.actor_person_id = p.id
         ${whereClause}
         ORDER BY p.last_seen_at DESC, COALESCE(donation_stats.donation_amount, 0) DESC
-        LIMIT ? OFFSET ?`,
+        LIMIT ${p(1)} OFFSET ${p(2)}`,
         [limit, offset]
       );
 
@@ -711,12 +717,12 @@ const createMonitorRouter = (db) => {
       }
 
       // Get person basic info
-      const person = await dbGet(
+      const person = await getOne(
         `SELECT
           id, platform, platform_user_id, nickname, profile_image_url,
           channel_id, channel_description, follower_count, subscriber_count,
           total_broadcast_minutes, last_broadcast_at, first_seen_at, last_seen_at
-        FROM persons WHERE id = ?`,
+        FROM persons WHERE id = ${p(1)}`,
         [personId]
       );
 
@@ -725,12 +731,12 @@ const createMonitorRouter = (db) => {
       }
 
       // Get stats from events table
-      const stats = await dbGet(
+      const stats = await getOne(
         `SELECT
           COALESCE(SUM(CASE WHEN event_type = 'chat' THEN 1 ELSE 0 END), 0) as total_chat_count,
           COALESCE(SUM(CASE WHEN event_type = 'donation' THEN 1 ELSE 0 END), 0) as total_donation_count,
           COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as total_donation_amount
-        FROM events WHERE actor_person_id = ?`,
+        FROM events WHERE actor_person_id = ${p(1)}`,
         [personId]
       );
 
@@ -741,7 +747,7 @@ const createMonitorRouter = (db) => {
 
       if (isBroadcaster) {
         // Get recent broadcasts (last 10)
-        broadcasts = await dbAll(
+        broadcasts = await getAll(
           `SELECT
             b.id, b.title, b.started_at, b.ended_at, b.duration_minutes,
             b.peak_viewer_count, b.avg_viewer_count, b.is_live,
@@ -754,14 +760,14 @@ const createMonitorRouter = (db) => {
               SELECT MAX(id) FROM broadcast_segments GROUP BY broadcast_id
             )
           ) seg ON seg.broadcast_id = b.id
-          WHERE b.broadcaster_person_id = ?
+          WHERE b.broadcaster_person_id = ${p(1)}
           ORDER BY b.started_at DESC
           LIMIT 10`,
           [personId]
         );
 
         // Get top viewers for this broadcaster (based on engagement)
-        topViewers = await dbAll(
+        topViewers = await getAll(
           `SELECT
             p.id as person_id,
             p.nickname,
@@ -772,14 +778,14 @@ const createMonitorRouter = (db) => {
             ve.last_seen_at
           FROM viewer_engagement ve
           JOIN persons p ON ve.person_id = p.id
-          WHERE ve.broadcaster_person_id = ?
+          WHERE ve.broadcaster_person_id = ${p(1)}
           ORDER BY ve.total_donation_amount DESC, ve.chat_count DESC
           LIMIT 10`,
           [personId]
         );
       } else {
         // Get engagement by channel for this viewer
-        engagementByChannel = await dbAll(
+        engagementByChannel = await getAll(
           `SELECT
             bp.id as broadcaster_id,
             bp.nickname as broadcaster_nickname,
@@ -792,7 +798,7 @@ const createMonitorRouter = (db) => {
             ve.last_seen_at
           FROM viewer_engagement ve
           JOIN persons bp ON ve.broadcaster_person_id = bp.id
-          WHERE ve.person_id = ?
+          WHERE ve.person_id = ${p(1)}
           ORDER BY ve.total_donation_amount DESC, ve.chat_count DESC
           LIMIT 20`,
           [personId]
@@ -800,14 +806,14 @@ const createMonitorRouter = (db) => {
       }
 
       // Get recent events (last 20)
-      const recentEvents = await dbAll(
+      const recentEvents = await getAll(
         `SELECT
           e.id, e.event_type, e.message, e.amount, e.currency, e.donation_type,
           e.event_timestamp, e.actor_role,
           tp.nickname as target_nickname
         FROM events e
         LEFT JOIN persons tp ON e.target_person_id = tp.id
-        WHERE e.actor_person_id = ?
+        WHERE e.actor_person_id = ${p(1)}
         ORDER BY e.event_timestamp DESC
         LIMIT 20`,
         [personId]
@@ -840,7 +846,7 @@ const createMonitorRouter = (db) => {
       const offset = (page - 1) * limit;
 
       // Get total count of unique viewer-broadcaster pairs
-      const countResult = await dbGet(
+      const countResult = await getOne(
         `SELECT COUNT(*) as total FROM (
           SELECT DISTINCT person_id, broadcaster_person_id FROM viewer_engagement
         )`
@@ -848,7 +854,11 @@ const createMonitorRouter = (db) => {
       const total = countResult?.total || 0;
 
       // Get engagement records aggregated by viewer + broadcaster
-      const engagement = await dbAll(
+      // GROUP_CONCAT (SQLite) vs STRING_AGG (PostgreSQL)
+      const groupConcatFunc = isPostgres()
+        ? `STRING_AGG(DISTINCT c.category_name, ',')`
+        : `GROUP_CONCAT(DISTINCT c.category_name)`;
+      const engagement = await getAll(
         `SELECT
           ve.platform,
           ve.person_id as viewer_person_id,
@@ -861,14 +871,14 @@ const createMonitorRouter = (db) => {
           MIN(ve.first_seen_at) as first_seen_at,
           MAX(ve.last_seen_at) as last_seen_at,
           COUNT(DISTINCT ve.category_id) as category_count,
-          GROUP_CONCAT(DISTINCT c.category_name) as categories
+          ${groupConcatFunc} as categories
         FROM viewer_engagement ve
         LEFT JOIN persons vp ON ve.person_id = vp.id
         LEFT JOIN persons bp ON ve.broadcaster_person_id = bp.id
         LEFT JOIN categories c ON ve.category_id = c.category_id AND ve.platform = c.platform
-        GROUP BY ve.person_id, ve.broadcaster_person_id
+        GROUP BY ve.person_id, ve.broadcaster_person_id, ve.platform, vp.nickname, bp.nickname
         ORDER BY MAX(ve.last_seen_at) DESC, SUM(ve.total_donation_amount) DESC
-        LIMIT ? OFFSET ?`,
+        LIMIT ${p(1)} OFFSET ${p(2)}`,
         [limit, offset]
       );
 
@@ -893,17 +903,61 @@ const createMonitorRouter = (db) => {
    */
   router.get("/monitor/schema", async (req, res) => {
     try {
-      // Get all tables from sqlite_master
-      const tables = await dbAll(
-        `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
-      );
+      // Get all tables - cross-database compatible
+      let tables;
+      if (isPostgres()) {
+        tables = await getAll(
+          `SELECT table_name as name FROM information_schema.tables
+           WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+           ORDER BY table_name`
+        );
+      } else {
+        tables = await getAll(
+          `SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name`
+        );
+      }
 
       const schema = [];
       for (const table of tables) {
-        // Get column info using PRAGMA
-        const columns = await dbAll(`PRAGMA table_info("${table.name}")`);
+        let columns;
+        if (isPostgres()) {
+          // PostgreSQL: use information_schema.columns
+          const rawColumns = await getAll(
+            `SELECT
+               column_name as name,
+               data_type as type,
+               is_nullable,
+               column_default as dflt_value,
+               ordinal_position
+             FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = ${p(1)}
+             ORDER BY ordinal_position`,
+            [table.name]
+          );
+          // Get primary key columns
+          const pkColumns = await getAll(
+            `SELECT a.attname as column_name
+             FROM pg_index i
+             JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+             WHERE i.indrelid = ${p(1)}::regclass AND i.indisprimary`,
+            [table.name]
+          );
+          const pkSet = new Set(pkColumns.map(pk => pk.column_name));
+
+          columns = rawColumns.map(col => ({
+            name: col.name,
+            type: col.type,
+            notnull: col.is_nullable === 'NO' ? 1 : 0,
+            dflt_value: col.dflt_value,
+            pk: pkSet.has(col.name) ? 1 : 0
+          }));
+        } else {
+          // SQLite: use PRAGMA table_info
+          columns = await getAll(`PRAGMA table_info("${table.name}")`);
+        }
+
         // Get row count for the table
-        const countResult = await dbAll(`SELECT COUNT(*) as count FROM "${table.name}"`);
+        const countResult = await getAll(`SELECT COUNT(*) as count FROM "${table.name}"`);
         const rowCount = countResult[0]?.count || 0;
 
         // Get metadata for this table
@@ -980,21 +1034,25 @@ const createMonitorRouter = (db) => {
       const broadcastId = req.query.broadcast_id;
 
       let whereClause = "";
-      let params = [limit, offset];
+      let params;
       if (broadcastId) {
-        whereClause = "WHERE bs.broadcast_id = ?";
+        whereClause = `WHERE bs.broadcast_id = ${p(1)}`;
         params = [broadcastId, limit, offset];
+      } else {
+        params = [limit, offset];
       }
 
       // Get total count
       const countSql = broadcastId
-        ? `SELECT COUNT(*) as total FROM broadcast_segments WHERE broadcast_id = ?`
+        ? `SELECT COUNT(*) as total FROM broadcast_segments WHERE broadcast_id = ${p(1)}`
         : `SELECT COUNT(*) as total FROM broadcast_segments`;
-      const countResult = await dbGet(countSql, broadcastId ? [broadcastId] : []);
+      const countResult = await getOne(countSql, broadcastId ? [broadcastId] : []);
       const total = countResult?.total || 0;
 
       // Get segments with broadcast info
-      const segments = await dbAll(
+      const limitPlaceholder = broadcastId ? p(2) : p(1);
+      const offsetPlaceholder = broadcastId ? p(3) : p(2);
+      const segments = await getAll(
         `SELECT
           bs.id,
           bs.broadcast_id,
@@ -1013,7 +1071,7 @@ const createMonitorRouter = (db) => {
         LEFT JOIN persons p ON b.broadcaster_person_id = p.id
         ${whereClause}
         ORDER BY bs.segment_started_at DESC
-        LIMIT ? OFFSET ?`,
+        LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`,
         params
       );
 
@@ -1045,7 +1103,7 @@ const createMonitorRouter = (db) => {
       const type = req.query.type;
 
       let whereClause = "";
-      let params = [limit, offset];
+      let params;
       let countParams = [];
 
       if (type === "no_chat") {
@@ -1054,9 +1112,11 @@ const createMonitorRouter = (db) => {
         params = [limit, offset];
       } else if (type && type !== "all") {
         // Specific type filter
-        whereClause = "WHERE e.event_type = ?";
+        whereClause = `WHERE e.event_type = ${p(1)}`;
         params = [type, limit, offset];
         countParams = [type];
+      } else {
+        params = [limit, offset];
       }
 
       // Get total count
@@ -1064,13 +1124,15 @@ const createMonitorRouter = (db) => {
       if (type === "no_chat") {
         countSql = `SELECT COUNT(*) as total FROM events WHERE event_type != 'chat'`;
       } else if (type && type !== "all") {
-        countSql = `SELECT COUNT(*) as total FROM events WHERE event_type = ?`;
+        countSql = `SELECT COUNT(*) as total FROM events WHERE event_type = ${p(1)}`;
       }
-      const countResult = await dbGet(countSql, countParams);
+      const countResult = await getOne(countSql, countParams);
       const total = countResult?.total || 0;
 
       // Get events with actor info
-      const events = await dbAll(
+      const limitPlaceholder = (type && type !== "all" && type !== "no_chat") ? p(2) : p(1);
+      const offsetPlaceholder = (type && type !== "all" && type !== "no_chat") ? p(3) : p(2);
+      const events = await getAll(
         `SELECT
           e.id,
           e.event_type,
@@ -1089,7 +1151,7 @@ const createMonitorRouter = (db) => {
         LEFT JOIN persons p ON e.actor_person_id = p.id
         ${whereClause}
         ORDER BY e.event_timestamp DESC
-        LIMIT ? OFFSET ?`,
+        LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`,
         params
       );
 
@@ -1120,22 +1182,27 @@ const createMonitorRouter = (db) => {
       const offset = (page - 1) * limit;
       const platform = req.query.platform;
 
-      let whereClause = "WHERE is_active = 1";
-      let params = [limit, offset];
+      const isActiveValue = isPostgres() ? 'TRUE' : '1';
+      let whereClause = `WHERE is_active = ${isActiveValue}`;
+      let params;
       if (platform && platform !== "all") {
-        whereClause = "WHERE is_active = 1 AND platform = ?";
+        whereClause = `WHERE is_active = ${isActiveValue} AND platform = ${p(1)}`;
         params = [platform, limit, offset];
+      } else {
+        params = [limit, offset];
       }
 
       // Get total count
       const countSql = platform && platform !== "all"
-        ? `SELECT COUNT(*) as total FROM platform_categories WHERE is_active = 1 AND platform = ?`
-        : `SELECT COUNT(*) as total FROM platform_categories WHERE is_active = 1`;
-      const countResult = await dbGet(countSql, platform && platform !== "all" ? [platform] : []);
+        ? `SELECT COUNT(*) as total FROM platform_categories WHERE is_active = ${isActiveValue} AND platform = ${p(1)}`
+        : `SELECT COUNT(*) as total FROM platform_categories WHERE is_active = ${isActiveValue}`;
+      const countResult = await getOne(countSql, platform && platform !== "all" ? [platform] : []);
       const total = countResult?.total || 0;
 
       // Get categories from platform_categories table
-      const categories = await dbAll(
+      const limitPlaceholder = (platform && platform !== "all") ? p(2) : p(1);
+      const offsetPlaceholder = (platform && platform !== "all") ? p(3) : p(2);
+      const categories = await getAll(
         `SELECT
           id,
           platform,
@@ -1150,7 +1217,7 @@ const createMonitorRouter = (db) => {
         FROM platform_categories
         ${whereClause}
         ORDER BY viewer_count DESC, platform_category_name ASC
-        LIMIT ? OFFSET ?`,
+        LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`,
         params
       );
 
@@ -1182,21 +1249,25 @@ const createMonitorRouter = (db) => {
       const broadcastId = req.query.broadcast_id;
 
       let whereClause = "";
-      let params = [limit, offset];
+      let params;
       if (broadcastId) {
-        whereClause = "WHERE vs.broadcast_id = ?";
+        whereClause = `WHERE vs.broadcast_id = ${p(1)}`;
         params = [broadcastId, limit, offset];
+      } else {
+        params = [limit, offset];
       }
 
       // Get total count
       const countSql = broadcastId
-        ? `SELECT COUNT(*) as total FROM viewer_snapshots WHERE broadcast_id = ?`
+        ? `SELECT COUNT(*) as total FROM viewer_snapshots WHERE broadcast_id = ${p(1)}`
         : `SELECT COUNT(*) as total FROM viewer_snapshots`;
-      const countResult = await dbGet(countSql, broadcastId ? [broadcastId] : []);
+      const countResult = await getOne(countSql, broadcastId ? [broadcastId] : []);
       const total = countResult?.total || 0;
 
       // Get snapshots with broadcast info
-      const snapshots = await dbAll(
+      const limitPlaceholder = broadcastId ? p(2) : p(1);
+      const offsetPlaceholder = broadcastId ? p(3) : p(2);
+      const snapshots = await getAll(
         `SELECT
           vs.id,
           vs.platform,
@@ -1213,7 +1284,7 @@ const createMonitorRouter = (db) => {
         LEFT JOIN persons p ON b.broadcaster_person_id = p.id
         ${whereClause}
         ORDER BY vs.snapshot_at DESC
-        LIMIT ? OFFSET ?`,
+        LIMIT ${limitPlaceholder} OFFSET ${offsetPlaceholder}`,
         params
       );
 

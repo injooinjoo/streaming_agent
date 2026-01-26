@@ -1,7 +1,16 @@
 /**
  * Socket.io Event Handlers
  * Centralized WebSocket event management for overlays
+ *
+ * Uses cross-database compatible helpers from connections.js
  */
+
+const { getOne, isPostgres } = require("../db/connections");
+
+/**
+ * Get placeholder for parameterized queries
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
 
 // 활성 오버레이 어댑터 관리 (userHash → adapter)
 const overlayAdapters = new Map();
@@ -10,26 +19,19 @@ const overlayAdapters = new Map();
  * Setup Socket.io event handlers
  * @param {Server} io - Socket.io server instance
  * @param {Object} options - Dependencies
- * @param {Object} options.db - Database instance
+ * @param {Object} options.db - Database instance (kept for backward compatibility)
  * @param {Function} options.ChzzkAdapter - Chzzk adapter class
  * @param {Function} options.SoopAdapter - Soop adapter class
  */
 const setupSocketHandlers = (io, options = {}) => {
-  const { db, ChzzkAdapter, SoopAdapter } = options;
+  const { ChzzkAdapter, SoopAdapter } = options;
 
   // Helper: Find user by overlay hash
-  const findUserByOverlayHash = (hash) => {
-    return new Promise((resolve, reject) => {
-      if (!db) return resolve(null);
-      db.get(
-        "SELECT id, platform, channel_id FROM users WHERE overlay_hash = ?",
-        [hash],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row);
-        }
-      );
-    });
+  const findUserByOverlayHash = async (hash) => {
+    return await getOne(
+      `SELECT id, platform, channel_id FROM users WHERE overlay_hash = ${p(1)}`,
+      [hash]
+    );
   };
 
   io.on("connection", (socket) => {
@@ -47,7 +49,7 @@ const setupSocketHandlers = (io, options = {}) => {
       console.log(`Socket ${socket.id} joined room overlay:${hash}`);
 
       // Skip auto-connect if adapters not configured
-      if (!db || !ChzzkAdapter || !SoopAdapter) {
+      if (!ChzzkAdapter || !SoopAdapter) {
         return;
       }
 

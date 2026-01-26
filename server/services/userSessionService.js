@@ -4,14 +4,20 @@
  * SOOP: 실제 입장/퇴장 패킷 기반 정확한 세션 추적
  * Chzzk: 채팅 활동 기반 추정 + 통계 보정
  *
- * Supports both SQLite (development) and PostgreSQL (production/Supabase)
+ * Uses cross-database compatible helpers from connections.js
  */
 
+const { getOne, getAll, runQuery, runReturning, isPostgres } = require("../db/connections");
 const { db: dbLogger } = require("./logger");
-const { getSQLHelpers, isPostgres } = require("../config/database.config");
+
+/**
+ * Get placeholder for parameterized queries
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
 
 class UserSessionService {
   constructor(db) {
+    // db parameter kept for backward compatibility but not used
     this.db = db;
     // 활성 세션 메모리 캐시 (성능 최적화)
     // Key: platform:channel_id:person_id
@@ -49,39 +55,51 @@ class UserSessionService {
       return this.activeSessions.get(sessionKey).sessionId;
     }
 
-    return new Promise((resolve, reject) => {
-      this.db.run(
-        `INSERT INTO user_sessions (
-          platform, channel_id, broadcast_id, person_id, user_nickname,
-          session_started_at, category_id
-        ) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, ?)`,
-        [platform, channelId, broadcastId, personId, nickname, categoryId],
-        function (err) {
-          if (err) {
-            dbLogger.error("handleUserEnter error", { error: err.message, data });
-            reject(err);
-          } else {
-            const sessionId = this.lastID;
+    try {
+      let sessionId;
 
-            // 메모리 캐시에 추가
-            this.activeSessions.set(sessionKey, {
-              sessionId,
-              startTime: Date.now(),
-              broadcastId,
-            });
+      if (isPostgres()) {
+        // PostgreSQL: Use RETURNING
+        const result = await runReturning(
+          `INSERT INTO user_sessions (
+            platform, channel_id, broadcast_id, person_id, user_nickname,
+            session_started_at, category_id
+          ) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, CURRENT_TIMESTAMP, ${p(6)})
+          RETURNING id`,
+          [platform, channelId, broadcastId, personId, nickname, categoryId]
+        );
+        sessionId = result?.id;
+      } else {
+        // SQLite: Use lastID from runQuery result
+        const result = await runQuery(
+          `INSERT INTO user_sessions (
+            platform, channel_id, broadcast_id, person_id, user_nickname,
+            session_started_at, category_id
+          ) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, CURRENT_TIMESTAMP, ${p(6)})`,
+          [platform, channelId, broadcastId, personId, nickname, categoryId]
+        );
+        sessionId = result?.lastID;
+      }
 
-            dbLogger.debug("User session started", {
-              sessionId,
-              nickname,
-              channelId,
-              platform,
-            });
+      // 메모리 캐시에 추가
+      this.activeSessions.set(sessionKey, {
+        sessionId,
+        startTime: Date.now(),
+        broadcastId,
+      });
 
-            resolve(sessionId);
-          }
-        }.bind(this)
-      );
-    });
+      dbLogger.debug("User session started", {
+        sessionId,
+        nickname,
+        channelId,
+        platform,
+      });
+
+      return sessionId;
+    } catch (err) {
+      dbLogger.error("handleUserEnter error", { error: err.message, data });
+      throw err;
+    }
   }
 
   /**
@@ -106,31 +124,27 @@ class UserSessionService {
     // 세션 duration 계산
     const durationSeconds = Math.floor((Date.now() - session.startTime) / 1000);
 
-    return new Promise((resolve, reject) => {
-      this.db.run(
+    try {
+      await runQuery(
         `UPDATE user_sessions
          SET session_ended_at = CURRENT_TIMESTAMP,
-             session_duration_seconds = ?
-         WHERE id = ?`,
-        [durationSeconds, session.sessionId],
-        (err) => {
-          if (err) {
-            dbLogger.error("handleUserExit error", { error: err.message, sessionKey });
-            reject(err);
-          } else {
-            dbLogger.debug("User session ended", {
-              sessionId: session.sessionId,
-              durationSeconds,
-              channelId,
-            });
-
-            // 메모리에서 제거
-            this.activeSessions.delete(sessionKey);
-            resolve();
-          }
-        }
+             session_duration_seconds = ${p(1)}
+         WHERE id = ${p(2)}`,
+        [durationSeconds, session.sessionId]
       );
-    });
+
+      dbLogger.debug("User session ended", {
+        sessionId: session.sessionId,
+        durationSeconds,
+        channelId,
+      });
+
+      // 메모리에서 제거
+      this.activeSessions.delete(sessionKey);
+    } catch (err) {
+      dbLogger.error("handleUserExit error", { error: err.message, sessionKey });
+      throw err;
+    }
   }
 
   /**
@@ -139,21 +153,13 @@ class UserSessionService {
    * @returns {Promise<number>}
    */
   async getUniqueViewers(broadcastId) {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        `SELECT COUNT(DISTINCT person_id) as total
-         FROM user_sessions
-         WHERE broadcast_id = ?`,
-        [broadcastId],
-        (err, row) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(row?.total || 0);
-          }
-        }
-      );
-    });
+    const row = await getOne(
+      `SELECT COUNT(DISTINCT person_id) as total
+       FROM user_sessions
+       WHERE broadcast_id = ${p(1)}`,
+      [broadcastId]
+    );
+    return row?.total || 0;
   }
 
   /**
@@ -162,21 +168,13 @@ class UserSessionService {
    * @returns {Promise<number>} - 평균 초 단위
    */
   async getAverageWatchTime(broadcastId) {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        `SELECT AVG(session_duration_seconds) as avg_seconds
-         FROM user_sessions
-         WHERE broadcast_id = ? AND session_ended_at IS NOT NULL`,
-        [broadcastId],
-        (err, row) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(row?.avg_seconds || 0);
-          }
-        }
-      );
-    });
+    const row = await getOne(
+      `SELECT AVG(session_duration_seconds) as avg_seconds
+       FROM user_sessions
+       WHERE broadcast_id = ${p(1)} AND session_ended_at IS NOT NULL`,
+      [broadcastId]
+    );
+    return row?.avg_seconds || 0;
   }
 
   /**
@@ -190,38 +188,34 @@ class UserSessionService {
       ? `EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - session_started_at))::INTEGER`
       : `strftime('%s', CURRENT_TIMESTAMP) - strftime('%s', session_started_at)`;
 
-    return new Promise((resolve, reject) => {
-      // DB에서 세션 종료
-      this.db.run(
+    try {
+      const result = await runQuery(
         `UPDATE user_sessions
          SET session_ended_at = CURRENT_TIMESTAMP,
              session_duration_seconds = (${durationCalc})
-         WHERE broadcast_id = ? AND session_ended_at IS NULL`,
-        [broadcastId],
-        function (err) {
-          if (err) {
-            dbLogger.error("closeAllSessions error", { error: err.message, broadcastId });
-            reject(err);
-          } else {
-            const closedCount = this.changes;
-
-            // 메모리 캐시에서 해당 방송 세션 제거
-            for (const [key, value] of this.activeSessions.entries()) {
-              if (value.broadcastId === broadcastId) {
-                this.activeSessions.delete(key);
-              }
-            }
-
-            dbLogger.info("All sessions closed for broadcast", {
-              broadcastId,
-              closedCount,
-            });
-
-            resolve(closedCount);
-          }
-        }.bind(this)
+         WHERE broadcast_id = ${p(1)} AND session_ended_at IS NULL`,
+        [broadcastId]
       );
-    });
+
+      const closedCount = result.changes || result.rowCount || 0;
+
+      // 메모리 캐시에서 해당 방송 세션 제거
+      for (const [key, value] of this.activeSessions.entries()) {
+        if (value.broadcastId === broadcastId) {
+          this.activeSessions.delete(key);
+        }
+      }
+
+      dbLogger.info("All sessions closed for broadcast", {
+        broadcastId,
+        closedCount,
+      });
+
+      return closedCount;
+    } catch (err) {
+      dbLogger.error("closeAllSessions error", { error: err.message, broadcastId });
+      throw err;
+    }
   }
 
   /**
@@ -238,29 +232,27 @@ class UserSessionService {
       ? `NOW() - INTERVAL '1 hour'`
       : `datetime('now', '-1 hour')`;
 
-    return new Promise((resolve, reject) => {
-      this.db.run(
+    try {
+      const result = await runQuery(
         `UPDATE user_sessions
          SET session_ended_at = ${endedAtCalc},
              session_duration_seconds = 3600
          WHERE session_ended_at IS NULL
            AND session_started_at < ${oneHourAgo}`,
-        function (err) {
-          if (err) {
-            dbLogger.error("cleanupStaleSessions error", { error: err.message });
-            reject(err);
-          } else {
-            const cleanedCount = this.changes;
-
-            if (cleanedCount > 0) {
-              dbLogger.info("Stale sessions cleaned up", { cleanedCount });
-            }
-
-            resolve(cleanedCount);
-          }
-        }
+        []
       );
-    });
+
+      const cleanedCount = result.changes || result.rowCount || 0;
+
+      if (cleanedCount > 0) {
+        dbLogger.info("Stale sessions cleaned up", { cleanedCount });
+      }
+
+      return cleanedCount;
+    } catch (err) {
+      dbLogger.error("cleanupStaleSessions error", { error: err.message });
+      throw err;
+    }
   }
 
   /**
@@ -271,28 +263,19 @@ class UserSessionService {
    * @returns {Promise<Array>}
    */
   async getViewerHistory(personId, channelId, platform) {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        `SELECT
-           id,
-           session_started_at,
-           session_ended_at,
-           session_duration_seconds,
-           category_id
-         FROM user_sessions
-         WHERE person_id = ? AND channel_id = ? AND platform = ?
-         ORDER BY session_started_at DESC
-         LIMIT 100`,
-        [personId, channelId, platform],
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows || []);
-          }
-        }
-      );
-    });
+    return await getAll(
+      `SELECT
+         id,
+         session_started_at,
+         session_ended_at,
+         session_duration_seconds,
+         category_id
+       FROM user_sessions
+       WHERE person_id = ${p(1)} AND channel_id = ${p(2)} AND platform = ${p(3)}
+       ORDER BY session_started_at DESC
+       LIMIT 100`,
+      [personId, channelId, platform]
+    );
   }
 
   /**

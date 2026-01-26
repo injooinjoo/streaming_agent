@@ -6,13 +6,19 @@
  * Uses Redis for caching when available, falls back to in-memory.
  *
  * Supports both SQLite (development) and PostgreSQL (production/Supabase)
+ * Uses cross-database compatible helpers from connections.js
  */
 
 const CategoryCrawler = require("./categoryCrawler");
 const CategoryMapper = require("./categoryMapper");
 const { category: categoryLogger } = require("./logger");
 const { getRedisService } = require("./redisService");
-const { isPostgres } = require("../config/database.config");
+const { getOne, getAll, isPostgres } = require("../db/connections");
+
+/**
+ * Get placeholder for parameterized queries
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
 
 // 스케줄 간격 (밀리초)
 const SCHEDULE = {
@@ -260,80 +266,73 @@ class CategoryService {
     const isActiveCheck = isPostgres() ? `pc.is_active = TRUE` : `pc.is_active = 1`;
 
     // 이미지 우선순위: SOOP 카테고리 이미지 > Chzzk 포스터 이미지 > unified_games 이미지
-    return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT
-          ug.id,
-          ug.name,
-          ug.name_kr,
-          ug.genre,
-          ug.genre_kr,
-          ug.developer,
-          ug.release_date,
-          ug.description,
-          ug.image_url,
-          ug.is_verified,
-          ug.created_at,
-          COALESCE(SUM(pc.viewer_count), 0) as total_viewers,
-          COALESCE(SUM(pc.streamer_count), 0) as total_streamers,
-          ${concatPlatforms} as platforms,
-          MAX(CASE WHEN pc.platform = 'soop' THEN pc.thumbnail_url END) as soop_thumbnail,
-          MAX(CASE WHEN pc.platform = 'chzzk' THEN pc.thumbnail_url END) as chzzk_thumbnail
-        FROM unified_games ug
-        LEFT JOIN category_game_mappings cgm ON ug.id = cgm.unified_game_id
-        LEFT JOIN platform_categories pc ON cgm.platform = pc.platform
-          AND cgm.platform_category_id = pc.platform_category_id
-          AND ${isActiveCheck}
-        GROUP BY ug.id
-        ORDER BY total_viewers DESC
-      `;
+    const sql = `
+      SELECT
+        ug.id,
+        ug.name,
+        ug.name_kr,
+        ug.genre,
+        ug.genre_kr,
+        ug.developer,
+        ug.release_date,
+        ug.description,
+        ug.image_url,
+        ug.is_verified,
+        ug.created_at,
+        COALESCE(SUM(pc.viewer_count), 0) as total_viewers,
+        COALESCE(SUM(pc.streamer_count), 0) as total_streamers,
+        ${concatPlatforms} as platforms,
+        MAX(CASE WHEN pc.platform = 'soop' THEN pc.thumbnail_url END) as soop_thumbnail,
+        MAX(CASE WHEN pc.platform = 'chzzk' THEN pc.thumbnail_url END) as chzzk_thumbnail
+      FROM unified_games ug
+      LEFT JOIN category_game_mappings cgm ON ug.id = cgm.unified_game_id
+      LEFT JOIN platform_categories pc ON cgm.platform = pc.platform
+        AND cgm.platform_category_id = pc.platform_category_id
+        AND ${isActiveCheck}
+      GROUP BY ug.id
+      ORDER BY total_viewers DESC
+    `;
 
-      this.db.all(sql, [], async (err, rows) => {
-        if (err) {
-          reject(err);
-          return;
-        }
+    const rows = await getAll(sql, []);
 
-        const games = (rows || []).map((row) => ({
-          id: row.id,
-          name: row.name,
-          nameKr: row.name_kr,
-          genre: row.genre,
-          genreKr: row.genre_kr,
-          developer: row.developer,
-          releaseDate: row.release_date,
-          description: row.description,
-          imageUrl: row.soop_thumbnail || row.chzzk_thumbnail || row.image_url || null,
-          isVerified: row.is_verified === 1,
-          totalViewers: row.total_viewers,
-          totalStreamers: row.total_streamers,
-          platforms: row.platforms ? row.platforms.split(",") : [],
-          createdAt: row.created_at,
-          // 자동 fetch를 위한 플랫폼 정보 (내부용)
-          _soopThumbnail: row.soop_thumbnail,
-          _chzzkThumbnail: row.chzzk_thumbnail,
-        }));
+    const games = (rows || []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      nameKr: row.name_kr,
+      genre: row.genre,
+      genreKr: row.genre_kr,
+      developer: row.developer,
+      releaseDate: row.release_date,
+      description: row.description,
+      imageUrl: row.soop_thumbnail || row.chzzk_thumbnail || row.image_url || null,
+      isVerified: row.is_verified === 1,
+      totalViewers: row.total_viewers,
+      totalStreamers: row.total_streamers,
+      platforms: row.platforms ? row.platforms.split(",") : [],
+      createdAt: row.created_at,
+      // 자동 fetch를 위한 플랫폼 정보 (내부용)
+      _soopThumbnail: row.soop_thumbnail,
+      _chzzkThumbnail: row.chzzk_thumbnail,
+    }));
 
-        // 캐시 업데이트 (Redis and memory)
-        await this.setCached("games", games);
+    // 캐시 업데이트 (Redis and memory)
+    await this.setCached("games", games);
 
-        // 이미지가 없는 게임들 백그라운드에서 자동 fetch (응답 차단 안함)
-        const gamesWithoutImages = games.filter(g => !g.imageUrl && g.platforms.length > 0);
-        if (gamesWithoutImages.length > 0) {
-          categoryLogger.debug("이미지 없는 게임 발견, 백그라운드 fetch 시작", {
-            count: gamesWithoutImages.length,
-            games: gamesWithoutImages.slice(0, 5).map(g => g.nameKr || g.name)
-          });
-
-          // 비동기로 이미지 fetch (응답 기다리지 않음)
-          this.fetchMissingImagesBackground(gamesWithoutImages).catch(err => {
-            categoryLogger.error("백그라운드 이미지 fetch 실패", { error: err.message });
-          });
-        }
-
-        resolve(this.filterAndSortGames(games, { sort, order, limit, genre, search }));
+    // 이미지가 없는 게임들 백그라운드에서 자동 fetch (응답 차단 안함)
+    const gamesWithoutImages = games.filter(g => !g.imageUrl && g.platforms.length > 0);
+    if (gamesWithoutImages.length > 0) {
+      categoryLogger.debug("이미지 없는 게임 발견, 백그라운드 fetch 시작", {
+        count: gamesWithoutImages.length,
+        games: gamesWithoutImages.slice(0, 5).map(g => g.nameKr || g.name)
       });
-    });
+
+      // 비동기로 이미지 fetch (응답 기다리지 않음)
+      this.fetchMissingImagesBackground(gamesWithoutImages).catch(err => {
+        categoryLogger.error("백그라운드 이미지 fetch 실패", { error: err.message });
+      });
+    }
+
+    return this.filterAndSortGames(games, { sort, order, limit, genre, search });
   }
 
   /**
@@ -381,21 +380,19 @@ class CategoryService {
    * @param {number} gameId
    * @returns {Promise<Array>}
    */
-  getGamePlatformInfo(gameId) {
-    return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT pc.platform, pc.platform_category_id, pc.category_type, pc.thumbnail_url
-        FROM platform_categories pc
-        JOIN category_game_mappings cgm
-          ON pc.platform = cgm.platform AND pc.platform_category_id = cgm.platform_category_id
-        WHERE cgm.unified_game_id = ? AND pc.is_active = 1
-      `;
+  async getGamePlatformInfo(gameId) {
+    // Cross-database boolean comparison
+    const isActiveValue = isPostgres() ? 'TRUE' : '1';
 
-      this.db.all(sql, [gameId], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
+    const sql = `
+      SELECT pc.platform, pc.platform_category_id, pc.category_type, pc.thumbnail_url
+      FROM platform_categories pc
+      JOIN category_game_mappings cgm
+        ON pc.platform = cgm.platform AND pc.platform_category_id = cgm.platform_category_id
+      WHERE cgm.unified_game_id = ${p(1)} AND pc.is_active = ${isActiveValue}
+    `;
+
+    return await getAll(sql, [gameId]);
   }
 
   /**
@@ -445,97 +442,85 @@ class CategoryService {
    * @returns {Promise<Object|null>}
    */
   async getGameDetail(gameId) {
-    return new Promise((resolve, reject) => {
-      // 게임 기본 정보
-      const gameSql = `SELECT * FROM unified_games WHERE id = ?`;
+    // 게임 기본 정보
+    const game = await getOne(`SELECT * FROM unified_games WHERE id = ${p(1)}`, [gameId]);
 
-      this.db.get(gameSql, [gameId], async (err, game) => {
-        if (err) {
-          reject(err);
-          return;
-        }
+    if (!game) {
+      return null;
+    }
 
-        if (!game) {
-          resolve(null);
-          return;
-        }
+    // Cross-database boolean comparison
+    const isActiveValue = isPostgres() ? 'TRUE' : '1';
 
-        // 플랫폼별 카테고리 정보
-        const platformsSql = `
-          SELECT pc.*, cgm.confidence, cgm.is_manual
-          FROM platform_categories pc
-          JOIN category_game_mappings cgm
-            ON pc.platform = cgm.platform AND pc.platform_category_id = cgm.platform_category_id
-          WHERE cgm.unified_game_id = ? AND pc.is_active = 1
-        `;
+    // 플랫폼별 카테고리 정보
+    const platformsSql = `
+      SELECT pc.*, cgm.confidence, cgm.is_manual
+      FROM platform_categories pc
+      JOIN category_game_mappings cgm
+        ON pc.platform = cgm.platform AND pc.platform_category_id = cgm.platform_category_id
+      WHERE cgm.unified_game_id = ${p(1)} AND pc.is_active = ${isActiveValue}
+    `;
 
-        this.db.all(platformsSql, [gameId], async (err2, platforms) => {
-          if (err2) {
-            reject(err2);
-            return;
+    const platforms = await getAll(platformsSql, [gameId]);
+
+    // 이미지 우선순위: SOOP 썸네일 > Chzzk 썸네일 > 기본 이미지
+    const soopPlatform = (platforms || []).find(pl => pl.platform === 'soop');
+    const chzzkPlatform = (platforms || []).find(pl => pl.platform === 'chzzk');
+    let imageUrl = soopPlatform?.thumbnail_url || chzzkPlatform?.thumbnail_url || game.image_url || null;
+
+    // 이미지가 없으면 자동으로 가져오기 시도
+    if (!imageUrl && platforms && platforms.length > 0) {
+      categoryLogger.debug("이미지 없음, 자동 fetch 시도", { gameId, gameName: game.name });
+
+      for (const platform of platforms) {
+        try {
+          const fetchedUrl = await this.crawler.fetchAndSavePosterImage(
+            platform.platform,
+            platform.platform_category_id,
+            platform.category_type || "GAME"
+          );
+          if (fetchedUrl) {
+            imageUrl = fetchedUrl;
+            // 캐시 무효화 (다음 조회 시 새 이미지 반영)
+            await this.invalidateCache();
+            break;
           }
-
-          // 이미지 우선순위: SOOP 썸네일 > Chzzk 썸네일 > 기본 이미지
-          const soopPlatform = (platforms || []).find(p => p.platform === 'soop');
-          const chzzkPlatform = (platforms || []).find(p => p.platform === 'chzzk');
-          let imageUrl = soopPlatform?.thumbnail_url || chzzkPlatform?.thumbnail_url || game.image_url || null;
-
-          // 이미지가 없으면 자동으로 가져오기 시도
-          if (!imageUrl && platforms && platforms.length > 0) {
-            categoryLogger.debug("이미지 없음, 자동 fetch 시도", { gameId, gameName: game.name });
-
-            for (const platform of platforms) {
-              try {
-                const fetchedUrl = await this.crawler.fetchAndSavePosterImage(
-                  platform.platform,
-                  platform.platform_category_id,
-                  platform.category_type || "GAME"
-                );
-                if (fetchedUrl) {
-                  imageUrl = fetchedUrl;
-                  // 캐시 무효화 (다음 조회 시 새 이미지 반영)
-                  await this.invalidateCache();
-                  break;
-                }
-              } catch (fetchError) {
-                categoryLogger.debug("자동 이미지 fetch 실패", {
-                  platform: platform.platform,
-                  error: fetchError.message
-                });
-              }
-            }
-          }
-
-          resolve({
-            id: game.id,
-            name: game.name,
-            nameKr: game.name_kr,
-            genre: game.genre,
-            genreKr: game.genre_kr,
-            developer: game.developer,
-            releaseDate: game.release_date,
-            description: game.description,
-            imageUrl: imageUrl,
-            isVerified: game.is_verified === 1,
-            createdAt: game.created_at,
-            updatedAt: game.updated_at,
-            platforms: (platforms || []).map((p) => ({
-              platform: p.platform,
-              categoryId: p.platform_category_id,
-              categoryName: p.platform_category_name,
-              categoryType: p.category_type,
-              thumbnailUrl: p.thumbnail_url,
-              viewerCount: p.viewer_count,
-              streamerCount: p.streamer_count,
-              confidence: p.confidence,
-              isManual: p.is_manual === 1,
-            })),
-            totalViewers: (platforms || []).reduce((sum, p) => sum + (p.viewer_count || 0), 0),
-            totalStreamers: (platforms || []).reduce((sum, p) => sum + (p.streamer_count || 0), 0),
+        } catch (fetchError) {
+          categoryLogger.debug("자동 이미지 fetch 실패", {
+            platform: platform.platform,
+            error: fetchError.message
           });
-        });
-      });
-    });
+        }
+      }
+    }
+
+    return {
+      id: game.id,
+      name: game.name,
+      nameKr: game.name_kr,
+      genre: game.genre,
+      genreKr: game.genre_kr,
+      developer: game.developer,
+      releaseDate: game.release_date,
+      description: game.description,
+      imageUrl: imageUrl,
+      isVerified: game.is_verified === 1,
+      createdAt: game.created_at,
+      updatedAt: game.updated_at,
+      platforms: (platforms || []).map((pl) => ({
+        platform: pl.platform,
+        categoryId: pl.platform_category_id,
+        categoryName: pl.platform_category_name,
+        categoryType: pl.category_type,
+        thumbnailUrl: pl.thumbnail_url,
+        viewerCount: pl.viewer_count,
+        streamerCount: pl.streamer_count,
+        confidence: pl.confidence,
+        isManual: pl.is_manual === 1,
+      })),
+      totalViewers: (platforms || []).reduce((sum, pl) => sum + (pl.viewer_count || 0), 0),
+      totalStreamers: (platforms || []).reduce((sum, pl) => sum + (pl.streamer_count || 0), 0),
+    };
   }
 
   /**
@@ -563,26 +548,21 @@ class CategoryService {
       ? `NOW() - INTERVAL '${periodMapPostgres[period] || "24 hours"}'`
       : `datetime('now', '${periodMapSQLite[period] || "-24 hours"}')`;
 
-    return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT
-          cs.recorded_at,
-          SUM(cs.viewer_count) as total_viewers,
-          SUM(cs.streamer_count) as total_streamers
-        FROM category_stats cs
-        JOIN category_game_mappings cgm
-          ON cs.platform = cgm.platform AND cs.platform_category_id = cgm.platform_category_id
-        WHERE cgm.unified_game_id = ?
-          AND cs.recorded_at >= ${timeFilter}
-        GROUP BY cs.recorded_at
-        ORDER BY cs.recorded_at ASC
-      `;
+    const sql = `
+      SELECT
+        cs.recorded_at,
+        SUM(cs.viewer_count) as total_viewers,
+        SUM(cs.streamer_count) as total_streamers
+      FROM category_stats cs
+      JOIN category_game_mappings cgm
+        ON cs.platform = cgm.platform AND cs.platform_category_id = cgm.platform_category_id
+      WHERE cgm.unified_game_id = ${p(1)}
+        AND cs.recorded_at >= ${timeFilter}
+      GROUP BY cs.recorded_at
+      ORDER BY cs.recorded_at ASC
+    `;
 
-      this.db.all(sql, [gameId], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
+    return await getAll(sql, [gameId]);
   }
 
   /**
@@ -591,22 +571,20 @@ class CategoryService {
    * @returns {Promise<Array>}
    */
   async getPlatformCategories(platform) {
-    return new Promise((resolve, reject) => {
-      const sql = `
-        SELECT pc.*, ug.name as unified_name, ug.name_kr as unified_name_kr
-        FROM platform_categories pc
-        LEFT JOIN category_game_mappings cgm
-          ON pc.platform = cgm.platform AND pc.platform_category_id = cgm.platform_category_id
-        LEFT JOIN unified_games ug ON cgm.unified_game_id = ug.id
-        WHERE pc.platform = ? AND pc.is_active = 1
-        ORDER BY pc.viewer_count DESC
-      `;
+    // Cross-database boolean comparison
+    const isActiveValue = isPostgres() ? 'TRUE' : '1';
 
-      this.db.all(sql, [platform], (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
+    const sql = `
+      SELECT pc.*, ug.name as unified_name, ug.name_kr as unified_name_kr
+      FROM platform_categories pc
+      LEFT JOIN category_game_mappings cgm
+        ON pc.platform = cgm.platform AND pc.platform_category_id = cgm.platform_category_id
+      LEFT JOIN unified_games ug ON cgm.unified_game_id = ug.id
+      WHERE pc.platform = ${p(1)} AND pc.is_active = ${isActiveValue}
+      ORDER BY pc.viewer_count DESC
+    `;
+
+    return await getAll(sql, [platform]);
   }
 
   /**
@@ -614,35 +592,35 @@ class CategoryService {
    * @returns {Promise<Object>}
    */
   async getCatalogStats() {
-    return new Promise((resolve, reject) => {
-      // 활성 방송이 있는 카테고리만 카운트 (viewer_count > 0 OR streamer_count > 0)
-      // 각 플랫폼별로 독립적으로 카운트 (중복 게임은 양쪽에 모두 카운트됨)
-      const sql = `
-        SELECT
-          (SELECT COUNT(*) FROM unified_games) as total_games,
-          (SELECT COUNT(*) FROM unified_games WHERE is_verified = 1) as verified_games,
-          (SELECT COUNT(*) FROM platform_categories WHERE is_active = 1 AND (viewer_count > 0 OR streamer_count > 0)) as total_categories,
-          (SELECT COUNT(*) FROM platform_categories WHERE platform = 'soop' AND is_active = 1 AND (viewer_count > 0 OR streamer_count > 0)) as soop_categories,
-          (SELECT COUNT(*) FROM platform_categories WHERE platform = 'chzzk' AND is_active = 1 AND (viewer_count > 0 OR streamer_count > 0)) as chzzk_categories,
-          (SELECT COALESCE(SUM(viewer_count), 0) FROM platform_categories WHERE is_active = 1) as total_viewers,
-          (SELECT COALESCE(SUM(streamer_count), 0) FROM platform_categories WHERE is_active = 1) as total_streamers,
-          (SELECT COUNT(DISTINCT cgm1.unified_game_id)
-           FROM category_game_mappings cgm1
-           JOIN category_game_mappings cgm2 ON cgm1.unified_game_id = cgm2.unified_game_id
-           JOIN platform_categories pc1 ON cgm1.platform = pc1.platform AND cgm1.platform_category_id = pc1.platform_category_id
-           JOIN platform_categories pc2 ON cgm2.platform = pc2.platform AND cgm2.platform_category_id = pc2.platform_category_id
-           WHERE cgm1.platform = 'soop' AND cgm2.platform = 'chzzk'
-             AND pc1.is_active = 1 AND pc2.is_active = 1
-             AND (pc1.viewer_count > 0 OR pc1.streamer_count > 0)
-             AND (pc2.viewer_count > 0 OR pc2.streamer_count > 0)
-          ) as shared_categories
-      `;
+    // Cross-database boolean comparison
+    const isActiveValue = isPostgres() ? 'TRUE' : '1';
+    const isVerifiedValue = isPostgres() ? 'TRUE' : '1';
 
-      this.db.get(sql, [], (err, row) => {
-        if (err) reject(err);
-        else resolve(row || {});
-      });
-    });
+    // 활성 방송이 있는 카테고리만 카운트 (viewer_count > 0 OR streamer_count > 0)
+    // 각 플랫폼별로 독립적으로 카운트 (중복 게임은 양쪽에 모두 카운트됨)
+    const sql = `
+      SELECT
+        (SELECT COUNT(*) FROM unified_games) as total_games,
+        (SELECT COUNT(*) FROM unified_games WHERE is_verified = ${isVerifiedValue}) as verified_games,
+        (SELECT COUNT(*) FROM platform_categories WHERE is_active = ${isActiveValue} AND (viewer_count > 0 OR streamer_count > 0)) as total_categories,
+        (SELECT COUNT(*) FROM platform_categories WHERE platform = 'soop' AND is_active = ${isActiveValue} AND (viewer_count > 0 OR streamer_count > 0)) as soop_categories,
+        (SELECT COUNT(*) FROM platform_categories WHERE platform = 'chzzk' AND is_active = ${isActiveValue} AND (viewer_count > 0 OR streamer_count > 0)) as chzzk_categories,
+        (SELECT COALESCE(SUM(viewer_count), 0) FROM platform_categories WHERE is_active = ${isActiveValue}) as total_viewers,
+        (SELECT COALESCE(SUM(streamer_count), 0) FROM platform_categories WHERE is_active = ${isActiveValue}) as total_streamers,
+        (SELECT COUNT(DISTINCT cgm1.unified_game_id)
+         FROM category_game_mappings cgm1
+         JOIN category_game_mappings cgm2 ON cgm1.unified_game_id = cgm2.unified_game_id
+         JOIN platform_categories pc1 ON cgm1.platform = pc1.platform AND cgm1.platform_category_id = pc1.platform_category_id
+         JOIN platform_categories pc2 ON cgm2.platform = pc2.platform AND cgm2.platform_category_id = pc2.platform_category_id
+         WHERE cgm1.platform = 'soop' AND cgm2.platform = 'chzzk'
+           AND pc1.is_active = ${isActiveValue} AND pc2.is_active = ${isActiveValue}
+           AND (pc1.viewer_count > 0 OR pc1.streamer_count > 0)
+           AND (pc2.viewer_count > 0 OR pc2.streamer_count > 0)
+        ) as shared_categories
+    `;
+
+    const row = await getOne(sql, []);
+    return row || {};
   }
 
   /**

@@ -7,12 +7,21 @@
  * - total_donation_amount: 후원 금액
  *
  * Schema: viewer_engagement (person_id, platform, channel_id, category_id unique)
+ *
+ * Uses cross-database compatible helpers from connections.js
  */
 
+const { getOne, getAll, runQuery, isPostgres } = require("../db/connections");
 const { db: dbLogger } = require("./logger");
+
+/**
+ * Get placeholder for parameterized queries
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
 
 class ViewerEngagementService {
   constructor(db) {
+    // db parameter kept for backward compatibility but not used
     this.db = db;
   }
 
@@ -42,17 +51,19 @@ class ViewerEngagementService {
     const chatIncrement = eventType === "chat" ? 1 : 0;
     const donationIncrement = eventType === "donation" ? 1 : 0;
 
-    return new Promise((resolve, reject) => {
+    try {
       // UPSERT 패턴: INSERT 시도 후 충돌하면 UPDATE
-      this.db.run(
+      const excludedPrefix = isPostgres() ? 'EXCLUDED' : 'excluded';
+
+      const result = await runQuery(
         `INSERT INTO viewer_engagement (
           person_id, platform, channel_id, broadcaster_person_id,
           category_id, chat_count, donation_count, total_donation_amount
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)})
         ON CONFLICT(person_id, channel_id, platform, category_id) DO UPDATE SET
-          chat_count = chat_count + excluded.chat_count,
-          donation_count = donation_count + excluded.donation_count,
-          total_donation_amount = total_donation_amount + excluded.total_donation_amount,
+          chat_count = viewer_engagement.chat_count + ${excludedPrefix}.chat_count,
+          donation_count = viewer_engagement.donation_count + ${excludedPrefix}.donation_count,
+          total_donation_amount = viewer_engagement.total_donation_amount + ${excludedPrefix}.total_donation_amount,
           last_seen_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP`,
         [
@@ -64,25 +75,22 @@ class ViewerEngagementService {
           chatIncrement,
           donationIncrement,
           donationAmount,
-        ],
-        function (err) {
-          if (err) {
-            dbLogger.error("ViewerEngagementService.recordEngagement error", { error: err.message });
-            reject(err);
-          } else {
-            if (this.changes > 0) {
-              dbLogger.debug("Viewer engagement recorded", {
-                personId,
-                channelId,
-                categoryId,
-                lastID: this.lastID,
-              });
-            }
-            resolve(this.lastID || 0);
-          }
-        }
+        ]
       );
-    });
+
+      const changes = result.changes || result.rowCount || 0;
+      if (changes > 0) {
+        dbLogger.debug("Viewer engagement recorded", {
+          personId,
+          channelId,
+          categoryId,
+        });
+      }
+      return 0; // ID not available in cross-db manner
+    } catch (err) {
+      dbLogger.error("ViewerEngagementService.recordEngagement error", { error: err.message });
+      throw err;
+    }
   }
 
   /**
@@ -91,23 +99,14 @@ class ViewerEngagementService {
    * @returns {Promise<Array>}
    */
   async getViewerEngagements(personId) {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        `SELECT ve.*, p.nickname as broadcaster_nickname
-         FROM viewer_engagement ve
-         LEFT JOIN persons p ON ve.broadcaster_person_id = p.id
-         WHERE ve.person_id = ?
-         ORDER BY ve.last_seen_at DESC`,
-        [personId],
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows || []);
-          }
-        }
-      );
-    });
+    return await getAll(
+      `SELECT ve.*, p.nickname as broadcaster_nickname
+       FROM viewer_engagement ve
+       LEFT JOIN persons p ON ve.broadcaster_person_id = p.id
+       WHERE ve.person_id = ${p(1)}
+       ORDER BY ve.last_seen_at DESC`,
+      [personId]
+    );
   }
 
   /**
@@ -117,23 +116,14 @@ class ViewerEngagementService {
    * @returns {Promise<Array>}
    */
   async getBroadcasterViewerEngagements(channelId, platform) {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        `SELECT ve.*, p.nickname as viewer_nickname
-         FROM viewer_engagement ve
-         LEFT JOIN persons p ON ve.person_id = p.id
-         WHERE ve.channel_id = ? AND ve.platform = ?
-         ORDER BY ve.total_donation_amount DESC, ve.chat_count DESC`,
-        [channelId, platform],
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows || []);
-          }
-        }
-      );
-    });
+    return await getAll(
+      `SELECT ve.*, p.nickname as viewer_nickname
+       FROM viewer_engagement ve
+       LEFT JOIN persons p ON ve.person_id = p.id
+       WHERE ve.channel_id = ${p(1)} AND ve.platform = ${p(2)}
+       ORDER BY ve.total_donation_amount DESC, ve.chat_count DESC`,
+      [channelId, platform]
+    );
   }
 
   /**
@@ -142,28 +132,19 @@ class ViewerEngagementService {
    * @returns {Promise<Array>}
    */
   async getViewerCategorySummary(personId) {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        `SELECT
-           category_id,
-           COUNT(DISTINCT channel_id) as broadcaster_count,
-           SUM(chat_count) as total_chats,
-           SUM(donation_count) as total_donations,
-           SUM(total_donation_amount) as total_donation_amount
-         FROM viewer_engagement
-         WHERE person_id = ?
-         GROUP BY category_id
-         ORDER BY total_donation_amount DESC`,
-        [personId],
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows || []);
-          }
-        }
-      );
-    });
+    return await getAll(
+      `SELECT
+         category_id,
+         COUNT(DISTINCT channel_id) as broadcaster_count,
+         SUM(chat_count) as total_chats,
+         SUM(donation_count) as total_donations,
+         SUM(total_donation_amount) as total_donation_amount
+       FROM viewer_engagement
+       WHERE person_id = ${p(1)}
+       GROUP BY category_id
+       ORDER BY total_donation_amount DESC`,
+      [personId]
+    );
   }
 
   /**
@@ -174,32 +155,23 @@ class ViewerEngagementService {
    * @returns {Promise<Array>}
    */
   async getTopViewers(channelId, platform, limit = 10) {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        `SELECT
-           ve.person_id,
-           p.nickname,
-           p.profile_image_url,
-           SUM(ve.chat_count) as total_chats,
-           SUM(ve.donation_count) as total_donations,
-           SUM(ve.total_donation_amount) as total_donation_amount,
-           MAX(ve.last_seen_at) as last_seen_at
-         FROM viewer_engagement ve
-         LEFT JOIN persons p ON ve.person_id = p.id
-         WHERE ve.channel_id = ? AND ve.platform = ?
-         GROUP BY ve.person_id
-         ORDER BY total_donation_amount DESC, total_chats DESC
-         LIMIT ?`,
-        [channelId, platform, limit],
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows || []);
-          }
-        }
-      );
-    });
+    return await getAll(
+      `SELECT
+         ve.person_id,
+         p.nickname,
+         p.profile_image_url,
+         SUM(ve.chat_count) as total_chats,
+         SUM(ve.donation_count) as total_donations,
+         SUM(ve.total_donation_amount) as total_donation_amount,
+         MAX(ve.last_seen_at) as last_seen_at
+       FROM viewer_engagement ve
+       LEFT JOIN persons p ON ve.person_id = p.id
+       WHERE ve.channel_id = ${p(1)} AND ve.platform = ${p(2)}
+       GROUP BY ve.person_id, p.nickname, p.profile_image_url
+       ORDER BY total_donation_amount DESC, total_chats DESC
+       LIMIT ${p(3)}`,
+      [channelId, platform, limit]
+    );
   }
 
   /**
@@ -209,30 +181,21 @@ class ViewerEngagementService {
    * @returns {Promise<Array>}
    */
   async getCategoryActiveViewers(categoryId, limit = 20) {
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        `SELECT
-           ve.person_id,
-           p.nickname,
-           COUNT(DISTINCT ve.channel_id) as channels_watched,
-           SUM(ve.chat_count) as total_chats,
-           SUM(ve.total_donation_amount) as total_donation_amount
-         FROM viewer_engagement ve
-         LEFT JOIN persons p ON ve.person_id = p.id
-         WHERE ve.category_id = ?
-         GROUP BY ve.person_id
-         ORDER BY total_donation_amount DESC
-         LIMIT ?`,
-        [categoryId, limit],
-        (err, rows) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(rows || []);
-          }
-        }
-      );
-    });
+    return await getAll(
+      `SELECT
+         ve.person_id,
+         p.nickname,
+         COUNT(DISTINCT ve.channel_id) as channels_watched,
+         SUM(ve.chat_count) as total_chats,
+         SUM(ve.total_donation_amount) as total_donation_amount
+       FROM viewer_engagement ve
+       LEFT JOIN persons p ON ve.person_id = p.id
+       WHERE ve.category_id = ${p(1)}
+       GROUP BY ve.person_id, p.nickname
+       ORDER BY total_donation_amount DESC
+       LIMIT ${p(2)}`,
+      [categoryId, limit]
+    );
   }
 
   /**
@@ -243,27 +206,18 @@ class ViewerEngagementService {
    * @returns {Promise<Object|null>}
    */
   async getViewerChannelStats(personId, channelId, platform) {
-    return new Promise((resolve, reject) => {
-      this.db.get(
-        `SELECT
-           SUM(chat_count) as total_chats,
-           SUM(donation_count) as total_donations,
-           SUM(total_donation_amount) as total_donation_amount,
-           MIN(first_seen_at) as first_seen_at,
-           MAX(last_seen_at) as last_seen_at,
-           COUNT(DISTINCT category_id) as categories_watched
-         FROM viewer_engagement
-         WHERE person_id = ? AND channel_id = ? AND platform = ?`,
-        [personId, channelId, platform],
-        (err, row) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(row || null);
-          }
-        }
-      );
-    });
+    return await getOne(
+      `SELECT
+         SUM(chat_count) as total_chats,
+         SUM(donation_count) as total_donations,
+         SUM(total_donation_amount) as total_donation_amount,
+         MIN(first_seen_at) as first_seen_at,
+         MAX(last_seen_at) as last_seen_at,
+         COUNT(DISTINCT category_id) as categories_watched
+       FROM viewer_engagement
+       WHERE person_id = ${p(1)} AND channel_id = ${p(2)} AND platform = ${p(3)}`,
+      [personId, channelId, platform]
+    );
   }
 
   // ===== Backward Compatibility Methods =====

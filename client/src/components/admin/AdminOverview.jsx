@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Users, DollarSign, Megaphone, Activity, TrendingUp, Calendar, RefreshCw, Wifi } from 'lucide-react';
 import LoadingSpinner from '../shared/LoadingSpinner';
+import { API_URL } from '../../config/api';
 
 const AdminOverview = () => {
   const [loading, setLoading] = useState(true);
@@ -20,10 +21,10 @@ const AdminOverview = () => {
     setLoading(true);
     try {
       const [eventsRes, donationsRes, connectionsRes, trendRes] = await Promise.all([
-        fetch('http://localhost:3001/api/stats/events/count'),
-        fetch('http://localhost:3001/api/stats/donations'),
-        fetch('http://localhost:3001/api/connections/status'),
-        fetch('http://localhost:3001/api/stats/donations/trend')
+        fetch(`${API_URL}/api/stats/events/count`),
+        fetch(`${API_URL}/api/stats/donations`),
+        fetch(`${API_URL}/api/connections/status`),
+        fetch(`${API_URL}/api/stats/donations/trend`)
       ]);
 
       const events = await eventsRes.json();

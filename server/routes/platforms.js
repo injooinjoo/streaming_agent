@@ -2,7 +2,8 @@
  * Platform Routes
  * Chzzk and SOOP platform connection management
  *
- * SQLite-only data storage (Snowflake removed)
+ * Supports both SQLite (development) and PostgreSQL (production/Cloud Run)
+ * Uses cross-database compatible helpers from connections.js
  *
  * Collects:
  * - Events (chat, donation, subscribe, viewer-update)
@@ -15,6 +16,12 @@ const { getDiscoveryService } = require("../services/liveDiscoveryService");
 const PersonService = require("../services/personService");
 const ViewerEngagementService = require("../services/viewerEngagementService");
 const UserSessionService = require("../services/userSessionService");
+const { getAll, runQuery, isPostgres } = require("../db/connections");
+
+/**
+ * Get placeholder for parameterized queries
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
 
 /**
  * Create platforms router
@@ -107,14 +114,13 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
 
     const overlayHash = req.body.overlayHash;
 
-    // Save to SQLite (using canonical schema)
+    // Save to database (using canonical schema)
     const legacyEvent = normalizer.toEventsFormat(event);
-    if (db) {
-      db.run(
-        `INSERT INTO events (id, event_type, platform, actor_nickname, target_channel_id, message, amount, event_timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [event.id, event.type, event.platform, event.sender.nickname, event.metadata.channelId || 'manual', event.content.message, event.content.amount, event.metadata.timestamp]
-      );
-    }
+    // Use connections.js helper for cross-database compatibility
+    runQuery(
+      `INSERT INTO events (id, event_type, platform, actor_nickname, target_channel_id, message, amount, event_timestamp) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)})`,
+      [event.id, event.type, event.platform, event.sender.nickname, event.metadata.channelId || 'manual', event.content.message, event.content.amount, event.metadata.timestamp]
+    ).catch(err => console.error("[events] Insert error:", err.message));
 
     // Emit to overlays
     if (overlayHash) {
@@ -128,17 +134,13 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
 
   /**
    * GET /api/events
-   * Get historical events from SQLite
+   * Get historical events from database
    * Query params:
    *   - channelId: Filter events by target channel (e.g., 'devil0108')
    *   - limit: Number of events to return (default: 50)
    */
   router.get("/events", async (req, res) => {
     try {
-      if (!db) {
-        return res.json([]);
-      }
-
       const channelId = req.query.channelId || null;
       const limit = parseInt(req.query.limit, 10) || 50;
 
@@ -155,22 +157,18 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
         FROM events
       `;
       const params = [];
+      let paramIndex = 1;
 
       if (channelId) {
-        query += ` WHERE target_channel_id = ?`;
+        query += ` WHERE target_channel_id = ${p(paramIndex++)}`;
         params.push(channelId);
       }
 
-      query += ` ORDER BY event_timestamp DESC LIMIT ?`;
+      query += ` ORDER BY event_timestamp DESC LIMIT ${p(paramIndex)}`;
       params.push(limit);
 
-      db.all(query, params, (err, rows) => {
-        if (err) {
-          console.error("[events] SQLite query error:", err.message);
-          return res.json([]);
-        }
-        res.json(rows || []);
-      });
+      const rows = await getAll(query, params);
+      res.json(rows || []);
     } catch (err) {
       console.error("[events] Query error:", err.message);
       res.json([]);
@@ -215,10 +213,10 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
           categoryName: broadcastInfo.categoryName || event.metadata?.categoryName,
         });
 
-        // Save to SQLite (using canonical schema)
-        if (db && event.type) {
-          db.run(
-            `INSERT INTO events (id, event_type, platform, actor_nickname, actor_person_id, target_channel_id, message, amount, event_timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        // Save to database (using canonical schema)
+        if (event.type) {
+          runQuery(
+            `INSERT INTO events (id, event_type, platform, actor_nickname, actor_person_id, target_channel_id, message, amount, event_timestamp) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)}, ${p(9)})`,
             [
               event.id || require("uuid").v4(),
               event.type,
@@ -230,7 +228,7 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
               event.content?.amount || 0,
               event.metadata?.timestamp || new Date().toISOString(),
             ]
-          );
+          ).catch(err => console.error("[chzzk] Event insert error:", err.message));
         }
 
         // Emit to overlays
@@ -435,10 +433,10 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
           categoryName: broadcastInfo.categoryName || event.metadata?.categoryName,
         });
 
-        // Save to SQLite (using canonical schema)
-        if (db && event.type) {
-          db.run(
-            `INSERT INTO events (id, event_type, platform, actor_nickname, actor_person_id, target_channel_id, message, amount, event_timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        // Save to database (using canonical schema)
+        if (event.type) {
+          runQuery(
+            `INSERT INTO events (id, event_type, platform, actor_nickname, actor_person_id, target_channel_id, message, amount, event_timestamp) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)}, ${p(9)})`,
             [
               event.id || require("uuid").v4(),
               event.type,
@@ -450,7 +448,7 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
               event.content?.amount || 0,
               event.metadata?.timestamp || new Date().toISOString(),
             ]
-          );
+          ).catch(err => console.error("[soop] Event insert error:", err.message));
         }
 
         // Emit to overlays

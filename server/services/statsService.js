@@ -9,6 +9,12 @@ const { getOne, getAll } = require("../db/connections");
 const { getSQLHelpers, isPostgres } = require("../config/database.config");
 
 /**
+ * Get placeholder for parameterized queries
+ * SQLite uses ?, PostgreSQL uses $1, $2, etc.
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
+
+/**
  * Create Stats Service
  * @returns {Object} Stats service methods
  */
@@ -27,18 +33,19 @@ const createStatsService = () => {
   const streamingDbAll = dbAll;
 
   // Helper to build channel/platform filter conditions
-  const buildChannelFilter = (channelId, platform) => {
+  const buildChannelFilter = (channelId, platform, startIndex = 1) => {
     const conditions = [];
     const params = [];
+    let idx = startIndex;
     if (channelId) {
-      conditions.push('target_channel_id = ?');
+      conditions.push(`target_channel_id = ${p(idx++)}`);
       params.push(channelId);
     }
     if (platform) {
-      conditions.push('platform = ?');
+      conditions.push(`platform = ${p(idx++)}`);
       params.push(platform);
     }
-    return { conditions, params };
+    return { conditions, params, nextIndex: idx };
   };
 
   return {
@@ -56,8 +63,8 @@ const createStatsService = () => {
       startDate.setDate(startDate.getDate() - days);
       const startDateStr = startDate.toISOString().split("T")[0];
 
-      const filter = buildChannelFilter(channelId, platform);
-      const whereConditions = ["event_type = 'donation'", "DATE(event_timestamp) >= ?", ...filter.conditions];
+      const filter = buildChannelFilter(channelId, platform, 2);
+      const whereConditions = ["event_type = 'donation'", `DATE(event_timestamp) >= ${p(1)}`, ...filter.conditions];
       const params = [startDateStr, ...filter.params];
 
       const row = await streamingDbGet(
@@ -190,7 +197,7 @@ const createStatsService = () => {
         WHERE event_type = 'donation' AND actor_nickname IS NOT NULL AND actor_nickname != ''
         GROUP BY actor_nickname
         ORDER BY totalRevenue DESC
-        LIMIT ?`,
+        LIMIT ${p(1)}`,
         [limit]
       );
 
@@ -218,9 +225,10 @@ const createStatsService = () => {
 
       let whereClause = "";
       const params = [];
+      let paramIndex = 1;
 
       if (search) {
-        whereClause = "WHERE actor_nickname LIKE ?";
+        whereClause = isPostgres() ? `WHERE actor_nickname ILIKE ${p(paramIndex++)}` : `WHERE actor_nickname LIKE ${p(paramIndex++)}`;
         params.push(`%${search}%`);
       }
 
@@ -243,7 +251,7 @@ const createStatsService = () => {
         ${whereClause}
         GROUP BY actor_nickname
         ORDER BY ${sortColumn} ${order}
-        LIMIT ? OFFSET ?`,
+        LIMIT ${p(paramIndex++)} OFFSET ${p(paramIndex++)}`,
         [...params, limit, offset]
       );
 
@@ -516,7 +524,7 @@ const createStatsService = () => {
         FROM events
         WHERE event_type IN ('donation', 'subscribe', 'follow', 'subscription')
         ORDER BY event_timestamp DESC
-        LIMIT ?`,
+        LIMIT ${p(1)}`,
         [limit]
       );
 
@@ -553,7 +561,7 @@ const createStatsService = () => {
           MAX(event_timestamp) as lastEvent
         FROM events
         WHERE event_type IN ('donation', 'subscribe', 'subscription', 'follow')
-          AND DATE(event_timestamp) = ?`,
+          AND DATE(event_timestamp) = ${p(1)}`,
         [dateStr]
       );
 
@@ -1277,7 +1285,7 @@ const createStatsService = () => {
       // Get viewer basic info
       const viewerInfo = await streamingDbGet(
         `SELECT id, nickname, profile_image_url, platform, first_seen_at, last_seen_at
-         FROM persons WHERE id = ?`,
+         FROM persons WHERE id = ${p(1)}`,
         [personId]
       );
 
@@ -1297,7 +1305,7 @@ const createStatsService = () => {
           MAX(us.session_started_at) as last_visit
         FROM user_sessions us
         LEFT JOIN persons bp ON bp.channel_id = us.channel_id AND bp.platform = us.platform
-        WHERE us.person_id = ?
+        WHERE us.person_id = ${p(1)}
         GROUP BY us.channel_id, us.platform, bp.nickname, bp.profile_image_url
         ORDER BY watch_seconds DESC
       `;
@@ -1313,7 +1321,7 @@ const createStatsService = () => {
           COUNT(DISTINCT us.channel_id) as streamers_watched
         FROM user_sessions us
         LEFT JOIN platform_categories pc ON us.category_id = pc.platform_category_id AND us.platform = pc.platform
-        WHERE us.person_id = ? AND us.category_id IS NOT NULL
+        WHERE us.person_id = ${p(1)} AND us.category_id IS NOT NULL
         GROUP BY us.category_id, pc.category_name, pc.platform_category_name, pc.thumbnail_url
         ORDER BY watch_seconds DESC
       `;
@@ -1332,7 +1340,7 @@ const createStatsService = () => {
           ve.last_seen_at
         FROM viewer_engagement ve
         LEFT JOIN persons bp ON bp.channel_id = ve.channel_id AND bp.platform = ve.platform
-        WHERE ve.person_id = ?
+        WHERE ve.person_id = ${p(1)}
         ORDER BY ve.total_donation_amount DESC, ve.chat_count DESC
       `;
       const engagement = await streamingDbAll(engagementQuery, [personId]);
@@ -1344,7 +1352,7 @@ const createStatsService = () => {
           COALESCE(SUM(donation_count), 0) as total_donations,
           COALESCE(SUM(total_donation_amount), 0) as total_amount
         FROM viewer_engagement
-        WHERE person_id = ?
+        WHERE person_id = ${p(1)}
       `;
       const totals = await streamingDbGet(totalsQuery, [personId]);
 
@@ -1352,7 +1360,7 @@ const createStatsService = () => {
       const watchTimeQuery = `
         SELECT COALESCE(SUM(session_duration_seconds), 0) as total_watch_time
         FROM user_sessions
-        WHERE person_id = ?
+        WHERE person_id = ${p(1)}
       `;
       const watchTime = await streamingDbGet(watchTimeQuery, [personId]);
 
@@ -1369,7 +1377,7 @@ const createStatsService = () => {
           us.session_duration_seconds
         FROM user_sessions us
         LEFT JOIN persons bp ON bp.channel_id = us.channel_id AND bp.platform = us.platform
-        WHERE us.person_id = ?
+        WHERE us.person_id = ${p(1)}
         ORDER BY us.session_started_at DESC
         LIMIT 20
       `;

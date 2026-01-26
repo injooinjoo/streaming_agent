@@ -3,11 +3,16 @@
  *
  * SOOP과 Chzzk 플랫폼에서 게임/카테고리 목록을 수집합니다.
  *
- * Supports both SQLite (development) and PostgreSQL (production/Supabase)
+ * Uses cross-database compatible helpers from connections.js
  */
 
+const { getOne, getAll, runQuery, isPostgres } = require("../db/connections");
 const { category: categoryLogger } = require("./logger");
-const { isPostgres } = require("../config/database.config");
+
+/**
+ * Get placeholder for parameterized queries
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
 
 /**
  * 플랫폼 카테고리 스키마
@@ -38,6 +43,7 @@ const RATE_LIMITS = {
 
 class CategoryCrawler {
   constructor(db) {
+    // db parameter kept for backward compatibility but not used
     this.db = db;
     this.defaultHeaders = {
       "User-Agent":
@@ -420,14 +426,12 @@ class CategoryCrawler {
    * @param {string} platformCategoryId
    * @returns {Promise<boolean>}
    */
-  checkCategoryExists(platform, platformCategoryId) {
-    return new Promise((resolve) => {
-      this.db.get(
-        `SELECT 1 FROM platform_categories WHERE platform = ? AND platform_category_id = ?`,
-        [platform, platformCategoryId],
-        (err, row) => resolve(!!row)
-      );
-    });
+  async checkCategoryExists(platform, platformCategoryId) {
+    const row = await getOne(
+      `SELECT 1 FROM platform_categories WHERE platform = ${p(1)} AND platform_category_id = ${p(2)}`,
+      [platform, platformCategoryId]
+    );
+    return !!row;
   }
 
   /**
@@ -451,24 +455,23 @@ class CategoryCrawler {
       });
     }
 
-    return new Promise((resolve, reject) => {
-      const sql = `
-        INSERT INTO platform_categories
+    try {
+      const excludedPrefix = isPostgres() ? 'EXCLUDED' : 'excluded';
+      const trueValue = isPostgres() ? 'TRUE' : '1';
+
+      await runQuery(
+        `INSERT INTO platform_categories
           (platform, platform_category_id, platform_category_name, category_type,
            thumbnail_url, viewer_count, streamer_count, last_seen_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, CURRENT_TIMESTAMP)
         ON CONFLICT(platform, platform_category_id) DO UPDATE SET
-          platform_category_name = excluded.platform_category_name,
-          category_type = excluded.category_type,
-          thumbnail_url = COALESCE(excluded.thumbnail_url, platform_categories.thumbnail_url),
-          viewer_count = excluded.viewer_count,
-          streamer_count = excluded.streamer_count,
+          platform_category_name = ${excludedPrefix}.platform_category_name,
+          category_type = ${excludedPrefix}.category_type,
+          thumbnail_url = COALESCE(${excludedPrefix}.thumbnail_url, platform_categories.thumbnail_url),
+          viewer_count = ${excludedPrefix}.viewer_count,
+          streamer_count = ${excludedPrefix}.streamer_count,
           last_seen_at = CURRENT_TIMESTAMP,
-          is_active = 1
-      `;
-
-      this.db.run(
-        sql,
+          is_active = ${trueValue}`,
         [
           category.platform,
           category.platformCategoryId,
@@ -477,76 +480,51 @@ class CategoryCrawler {
           category.thumbnailUrl,
           category.viewerCount,
           category.streamerCount,
-        ],
-        (err) => {
-          if (err) {
-            categoryLogger.error("Upsert failed", {
-              category: category.platformCategoryName,
-              error: err.message,
-            });
-            reject(err);
-          } else {
-            resolve();
-          }
-        }
+        ]
       );
-    });
+    } catch (err) {
+      categoryLogger.error("Upsert failed", {
+        category: category.platformCategoryName,
+        error: err.message,
+      });
+      throw err;
+    }
   }
 
   /**
    * 시청자 수만 업데이트
    * @param {PlatformCategory} category
    */
-  updateCategoryViewers(category) {
-    return new Promise((resolve, reject) => {
-      const sql = `
-        UPDATE platform_categories
-        SET viewer_count = ?, streamer_count = ?, last_seen_at = CURRENT_TIMESTAMP
-        WHERE platform = ? AND platform_category_id = ?
-      `;
-
-      this.db.run(
-        sql,
-        [
-          category.viewerCount,
-          category.streamerCount,
-          category.platform,
-          category.platformCategoryId,
-        ],
-        (err) => {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
+  async updateCategoryViewers(category) {
+    await runQuery(
+      `UPDATE platform_categories
+       SET viewer_count = ${p(1)}, streamer_count = ${p(2)}, last_seen_at = CURRENT_TIMESTAMP
+       WHERE platform = ${p(3)} AND platform_category_id = ${p(4)}`,
+      [
+        category.viewerCount,
+        category.streamerCount,
+        category.platform,
+        category.platformCategoryId,
+      ]
+    );
   }
 
   /**
    * 통계 기록
    * @param {PlatformCategory} category
    */
-  recordStats(category) {
-    return new Promise((resolve, reject) => {
-      const sql = `
-        INSERT INTO category_stats
-          (platform, platform_category_id, viewer_count, streamer_count)
-        VALUES (?, ?, ?, ?)
-      `;
-
-      this.db.run(
-        sql,
-        [
-          category.platform,
-          category.platformCategoryId,
-          category.viewerCount,
-          category.streamerCount,
-        ],
-        (err) => {
-          if (err) reject(err);
-          else resolve();
-        }
-      );
-    });
+  async recordStats(category) {
+    await runQuery(
+      `INSERT INTO category_stats
+        (platform, platform_category_id, viewer_count, streamer_count)
+      VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)})`,
+      [
+        category.platform,
+        category.platformCategoryId,
+        category.viewerCount,
+        category.streamerCount,
+      ]
+    );
   }
 
   /**
@@ -555,37 +533,29 @@ class CategoryCrawler {
   async recordAllStats() {
     categoryLogger.debug("Recording statistics...");
 
-    return new Promise((resolve, reject) => {
-      this.db.all(
-        "SELECT * FROM platform_categories WHERE is_active = 1",
-        [],
-        async (err, rows) => {
-          if (err) {
-            reject(err);
-            return;
-          }
+    const isActiveCheck = isPostgres() ? 'is_active = TRUE' : 'is_active = 1';
+    const rows = await getAll(
+      `SELECT * FROM platform_categories WHERE ${isActiveCheck}`,
+      []
+    );
 
-          for (const row of rows) {
-            try {
-              await this.recordStats({
-                platform: row.platform,
-                platformCategoryId: row.platform_category_id,
-                viewerCount: row.viewer_count,
-                streamerCount: row.streamer_count,
-              });
-            } catch (error) {
-              categoryLogger.error("Stats record failed", {
-                category: row.platform_category_name,
-                error: error.message,
-              });
-            }
-          }
+    for (const row of rows) {
+      try {
+        await this.recordStats({
+          platform: row.platform,
+          platformCategoryId: row.platform_category_id,
+          viewerCount: row.viewer_count,
+          streamerCount: row.streamer_count,
+        });
+      } catch (error) {
+        categoryLogger.error("Stats record failed", {
+          category: row.platform_category_name,
+          error: error.message,
+        });
+      }
+    }
 
-          categoryLogger.debug("Recorded stats", { count: rows.length });
-          resolve();
-        }
-      );
-    });
+    categoryLogger.debug("Recorded stats", { count: rows.length });
   }
 
   /**
@@ -628,16 +598,10 @@ class CategoryCrawler {
 
       // DB에 이미지 URL 저장
       if (posterUrl) {
-        await new Promise((resolve, reject) => {
-          this.db.run(
-            `UPDATE platform_categories SET thumbnail_url = ? WHERE platform = ? AND platform_category_id = ?`,
-            [posterUrl, platform, platformCategoryId],
-            (err) => {
-              if (err) reject(err);
-              else resolve();
-            }
-          );
-        });
+        await runQuery(
+          `UPDATE platform_categories SET thumbnail_url = ${p(1)} WHERE platform = ${p(2)} AND platform_category_id = ${p(3)}`,
+          [posterUrl, platform, platformCategoryId]
+        );
 
         categoryLogger.info("포스터 이미지 저장 완료", {
           platform,
@@ -667,24 +631,23 @@ class CategoryCrawler {
       : `datetime('now', '-7 days')`;
     const falseValue = isPostgres() ? `FALSE` : `0`;
 
-    return new Promise((resolve, reject) => {
-      const sql = `
-        UPDATE platform_categories
-        SET is_active = ${falseValue}
-        WHERE last_seen_at < ${sevenDaysAgo}
-      `;
+    try {
+      const result = await runQuery(
+        `UPDATE platform_categories
+         SET is_active = ${falseValue}
+         WHERE last_seen_at < ${sevenDaysAgo}`,
+        []
+      );
 
-      this.db.run(sql, [], function (err) {
-        if (err) {
-          reject(err);
-        } else {
-          if (this.changes > 0) {
-            categoryLogger.info("Deactivated stale categories", { count: this.changes });
-          }
-          resolve(this.changes);
-        }
-      });
-    });
+      const changes = result.changes || result.rowCount || 0;
+      if (changes > 0) {
+        categoryLogger.info("Deactivated stale categories", { count: changes });
+      }
+      return changes;
+    } catch (err) {
+      categoryLogger.error("deactivateStaleCategories error", { error: err.message });
+      throw err;
+    }
   }
 }
 
