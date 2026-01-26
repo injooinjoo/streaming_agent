@@ -180,15 +180,29 @@ const closeDatabases = closeDatabase;
 // ============================================
 
 /**
+ * Convert SQLite-style ? placeholders to PostgreSQL-style $1, $2, etc.
+ * @param {string} sql - SQL query with ? placeholders
+ * @returns {string} - SQL query with $1, $2 placeholders for PostgreSQL
+ */
+const convertPlaceholders = (sql) => {
+  if (!isPostgres()) return sql;
+
+  let index = 0;
+  return sql.replace(/\?/g, () => `$${++index}`);
+};
+
+/**
  * Run database query with promise wrapper
  * Works with both SQLite and PostgreSQL
+ * Automatically converts ? placeholders to $1, $2 for PostgreSQL
  * @param {string} sql - SQL query
  * @param {Array} params - Query parameters
  * @returns {Promise<{lastID?: number, changes?: number, rowCount?: number}>}
  */
 const runQuery = async (sql, params = []) => {
   if (isPostgres()) {
-    const result = await pool.query(sql, params);
+    const pgSql = convertPlaceholders(sql);
+    const result = await pool.query(pgSql, params);
     return {
       lastID: result.rows[0]?.id,
       changes: result.rowCount,
@@ -207,13 +221,15 @@ const runQuery = async (sql, params = []) => {
 /**
  * Get single row from database
  * Works with both SQLite and PostgreSQL
+ * Automatically converts ? placeholders to $1, $2 for PostgreSQL
  * @param {string} sql - SQL query
  * @param {Array} params - Query parameters
  * @returns {Promise<any>}
  */
 const getOne = async (sql, params = []) => {
   if (isPostgres()) {
-    const result = await pool.query(sql, params);
+    const pgSql = convertPlaceholders(sql);
+    const result = await pool.query(pgSql, params);
     return result.rows[0] || null;
   } else {
     return new Promise((resolve, reject) => {
@@ -228,13 +244,15 @@ const getOne = async (sql, params = []) => {
 /**
  * Get all rows from database
  * Works with both SQLite and PostgreSQL
+ * Automatically converts ? placeholders to $1, $2 for PostgreSQL
  * @param {string} sql - SQL query
  * @param {Array} params - Query parameters
  * @returns {Promise<Array>}
  */
 const getAll = async (sql, params = []) => {
   if (isPostgres()) {
-    const result = await pool.query(sql, params);
+    const pgSql = convertPlaceholders(sql);
+    const result = await pool.query(pgSql, params);
     return result.rows || [];
   } else {
     return new Promise((resolve, reject) => {
@@ -248,14 +266,16 @@ const getAll = async (sql, params = []) => {
 
 /**
  * Execute query with RETURNING clause (PostgreSQL) or get lastID (SQLite)
+ * Automatically converts ? placeholders to $1, $2 for PostgreSQL
  * @param {string} sql - SQL query (should include RETURNING for PostgreSQL)
  * @param {Array} params - Query parameters
  * @returns {Promise<any>} - Returns the inserted/updated row
  */
 const runReturning = async (sql, params = []) => {
   if (isPostgres()) {
-    // PostgreSQL: Use RETURNING clause
-    const result = await pool.query(sql, params);
+    // PostgreSQL: Use RETURNING clause with converted placeholders
+    const pgSql = convertPlaceholders(sql);
+    const result = await pool.query(pgSql, params);
     return result.rows[0] || null;
   } else {
     // SQLite: Run query and fetch the row by lastID
