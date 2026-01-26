@@ -934,55 +934,58 @@ const createStatsService = () => {
     async getDashboardSummary(channelId = null, platform = null) {
       const currentMonth = new Date().toISOString().slice(0, 7); // '2025-01' 형식
 
-      // Build dynamic WHERE conditions for events table
-      const buildEventConditions = (baseCondition, params) => {
+      // Build dynamic WHERE conditions for events table (uses p() for cross-DB compatibility)
+      const buildEventConditions = (baseCondition, params, startIndex = params.length + 1) => {
         let conditions = [baseCondition];
         let queryParams = [...params];
+        let idx = startIndex;
         if (channelId) {
-          conditions.push('target_channel_id = ?');
+          conditions.push(`target_channel_id = ${p(idx++)}`);
           queryParams.push(channelId);
         }
         if (platform) {
-          conditions.push('platform = ?');
+          conditions.push(`platform = ${p(idx++)}`);
           queryParams.push(platform);
         }
         return { where: conditions.join(' AND '), params: queryParams };
       };
 
       // Build dynamic WHERE conditions for viewer_stats table
-      const buildViewerConditions = (baseCondition, params) => {
+      const buildViewerConditions = (baseCondition, params, startIndex = params.length + 1) => {
         let conditions = [baseCondition];
         let queryParams = [...params];
+        let idx = startIndex;
         if (channelId) {
-          conditions.push('channel_id = ?');
+          conditions.push(`channel_id = ${p(idx++)}`);
           queryParams.push(channelId);
         }
         if (platform) {
-          conditions.push('platform = ?');
+          conditions.push(`platform = ${p(idx++)}`);
           queryParams.push(platform);
         }
         return { where: conditions.join(' AND '), params: queryParams };
       };
 
-      const donationCond = buildEventConditions(`event_type = 'donation' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${isPostgres() ? '$1' : '?'}`, [currentMonth]);
-      const subscribeCond = buildEventConditions(`event_type = 'subscribe' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${isPostgres() ? '$1' : '?'}`, [currentMonth]);
-      const activityCond = buildEventConditions(`event_timestamp >= ${sql.dateSubtract(7, 'days')}`, []);
+      const donationCond = buildEventConditions(`event_type = 'donation' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
+      const subscribeCond = buildEventConditions(`event_type = 'subscribe' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
+      const activityCond = buildEventConditions(`event_timestamp >= ${sql.dateSubtract(7, 'days')}`, [], 1);
 
       // Build conditions for broadcast_segments (peak viewers)
-      const buildSegmentConditions = (baseCondition, params) => {
+      const buildSegmentConditions = (baseCondition, params, startIndex = params.length + 1) => {
         let conditions = [baseCondition];
         let queryParams = [...params];
+        let idx = startIndex;
         if (channelId) {
-          conditions.push('channel_id = ?');
+          conditions.push(`channel_id = ${p(idx++)}`);
           queryParams.push(channelId);
         }
         if (platform) {
-          conditions.push('platform = ?');
+          conditions.push(`platform = ${p(idx++)}`);
           queryParams.push(platform);
         }
         return { where: conditions.join(' AND '), params: queryParams };
       };
-      const segmentCond = buildSegmentConditions(`${sql.formatDate('segment_started_at', 'YYYY-MM')} = ${isPostgres() ? '$1' : '?'}`, [currentMonth]);
+      const segmentCond = buildSegmentConditions(`${sql.formatDate('segment_started_at', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
 
       const [todayStats, peakViewers, subscribeCount, platformStats] = await Promise.all([
         // Today's donation stats (filtered by channelId if provided)

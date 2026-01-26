@@ -560,6 +560,127 @@ const createAdminRouter = (db, authenticateAdmin, developerLogin) => {
     }
   });
 
+  /**
+   * POST /api/admin/run-migration
+   * Run database schema migration (fixes events table columns)
+   * Only available in PostgreSQL mode
+   */
+  router.post("/admin/run-migration", authenticateAdmin, async (req, res) => {
+    if (!isPostgres()) {
+      return res.json({
+        success: true,
+        message: "Migration not needed for SQLite",
+        migrated: false,
+      });
+    }
+
+    try {
+      // Check current schema
+      const schemaResult = await getAll(`
+        SELECT column_name, data_type
+        FROM information_schema.columns
+        WHERE table_name = 'events'
+        ORDER BY ordinal_position
+      `);
+
+      const columns = schemaResult.map((r) => r.column_name);
+      const hasEventType = columns.includes("event_type");
+      const hasType = columns.includes("type");
+
+      if (hasEventType) {
+        return res.json({
+          success: true,
+          message: "Schema is already up to date",
+          migrated: false,
+          columns,
+        });
+      }
+
+      if (!hasType) {
+        return res.json({
+          success: false,
+          message: "Cannot migrate: neither 'type' nor 'event_type' column found",
+          columns,
+        });
+      }
+
+      // Run migration - get direct db connection for DDL
+      const { Pool } = require("pg");
+      const pool = new Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false },
+      });
+
+      const client = await pool.connect();
+
+      try {
+        // Step 1: Rename columns
+        const columnsToRename = [
+          { old: "type", new: "event_type" },
+          { old: "sender", new: "actor_nickname" },
+          { old: "timestamp", new: "event_timestamp" },
+        ];
+
+        for (const col of columnsToRename) {
+          if (columns.includes(col.old)) {
+            await client.query(`ALTER TABLE events RENAME COLUMN ${col.old} TO ${col.new}`);
+          }
+        }
+
+        // Step 2: Add missing columns
+        const columnsToAdd = [
+          { name: "actor_person_id", type: "INTEGER" },
+          { name: "actor_role", type: "VARCHAR(50)" },
+          { name: "target_person_id", type: "INTEGER" },
+          { name: "target_channel_id", type: "VARCHAR(255)" },
+          { name: "broadcast_id", type: "INTEGER" },
+          { name: "original_amount", type: "INTEGER" },
+          { name: "currency", type: "VARCHAR(10)" },
+          { name: "donation_type", type: "VARCHAR(50)" },
+          { name: "ingested_at", type: "TIMESTAMPTZ DEFAULT NOW()" },
+        ];
+
+        for (const col of columnsToAdd) {
+          if (!columns.includes(col.name)) {
+            await client.query(`ALTER TABLE events ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
+          }
+        }
+
+        // Step 3: Update indexes
+        await client.query("DROP INDEX IF EXISTS idx_events_timestamp");
+        await client.query("CREATE INDEX IF NOT EXISTS idx_events_event_timestamp ON events(event_timestamp)");
+        await client.query("CREATE INDEX IF NOT EXISTS idx_events_target_channel ON events(target_channel_id)");
+        await client.query("CREATE INDEX IF NOT EXISTS idx_events_target_type ON events(target_channel_id, event_type)");
+
+        // Get final schema
+        const finalSchema = await client.query(`
+          SELECT column_name FROM information_schema.columns WHERE table_name = 'events'
+        `);
+
+        client.release();
+        await pool.end();
+
+        return res.json({
+          success: true,
+          message: "Migration completed successfully",
+          migrated: true,
+          columnsRenamed: columnsToRename.filter((c) => columns.includes(c.old)).map((c) => `${c.old} → ${c.new}`),
+          columnsAdded: columnsToAdd.filter((c) => !columns.includes(c.name)).map((c) => c.name),
+          finalColumns: finalSchema.rows.map((r) => r.column_name),
+        });
+      } catch (err) {
+        client.release();
+        throw err;
+      }
+    } catch (err) {
+      console.error("[admin] Migration error:", err);
+      res.status(500).json({
+        success: false,
+        error: err.message,
+      });
+    }
+  });
+
   return router;
 };
 

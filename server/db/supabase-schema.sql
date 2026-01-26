@@ -5,17 +5,37 @@
 -- ===== Core Tables =====
 
 CREATE TABLE IF NOT EXISTS events (
-  id BIGSERIAL PRIMARY KEY,
-  type VARCHAR(255),
-  sender VARCHAR(255),
-  amount INTEGER,
+  id TEXT PRIMARY KEY,
+  event_type VARCHAR(50) NOT NULL,
+  platform VARCHAR(50) NOT NULL CHECK (platform IN ('soop', 'chzzk', 'twitch', 'youtube')),
+
+  -- Actor (who performed the action)
+  actor_person_id INTEGER REFERENCES persons(id),
+  actor_nickname VARCHAR(255),
+  actor_role VARCHAR(50) CHECK (actor_role IN ('streamer', 'manager', 'vip', 'fan', 'regular', 'system')),
+
+  -- Target (broadcaster receiving the event)
+  target_person_id INTEGER REFERENCES persons(id),
+  target_channel_id VARCHAR(255) NOT NULL,
+
+  -- Broadcast context
+  broadcast_id INTEGER REFERENCES broadcasts(id),
+
+  -- Event content
   message TEXT,
-  platform VARCHAR(255),
-  timestamp TIMESTAMPTZ DEFAULT NOW()
+  amount INTEGER,
+  original_amount INTEGER,
+  currency VARCHAR(10),
+  donation_type VARCHAR(50),
+
+  event_timestamp TIMESTAMPTZ NOT NULL,
+  ingested_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events(timestamp);
+CREATE INDEX IF NOT EXISTS idx_events_event_timestamp ON events(event_timestamp);
 CREATE INDEX IF NOT EXISTS idx_events_platform ON events(platform);
+CREATE INDEX IF NOT EXISTS idx_events_target_channel ON events(target_channel_id);
+CREATE INDEX IF NOT EXISTS idx_events_target_type ON events(target_channel_id, event_type);
 
 CREATE TABLE IF NOT EXISTS settings (
   key VARCHAR(255) PRIMARY KEY,
