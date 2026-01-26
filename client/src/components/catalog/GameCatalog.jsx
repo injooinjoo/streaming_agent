@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Gamepad2, Eye, Users, TrendingUp, TrendingDown,
+  Layers, Eye, Users, TrendingUp, TrendingDown,
   RefreshCw, Trophy, Search, AlertCircle
 } from 'lucide-react';
 import { formatNumber } from '../../utils/formatters';
+import { API_URL } from '../../config/api';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './GameCatalog.css';
-
-const API_BASE = 'http://localhost:3001';
 
 const GameCatalog = ({ onGameSelect }) => {
   const [loading, setLoading] = useState(true);
@@ -23,8 +23,8 @@ const GameCatalog = ({ onGameSelect }) => {
     try {
       // 병렬로 게임 목록과 통계 조회
       const [gamesRes, statsRes] = await Promise.all([
-        fetch(`${API_BASE}/api/categories?limit=100`),
-        fetch(`${API_BASE}/api/categories/stats`)
+        fetch(`${API_URL}/api/categories?limit=100`),
+        fetch(`${API_URL}/api/categories/stats`)
       ]);
 
       if (!gamesRes.ok || !statsRes.ok) {
@@ -76,10 +76,7 @@ const GameCatalog = ({ onGameSelect }) => {
   if (loading) {
     return (
       <div className="game-catalog">
-        <div className="game-catalog-loading">
-          <RefreshCw size={32} className="spinning" />
-          <span>불러오는 중...</span>
-        </div>
+        <LoadingSpinner />
       </div>
     );
   }
@@ -105,10 +102,10 @@ const GameCatalog = ({ onGameSelect }) => {
       {/* 헤더 */}
       <div className="game-catalog-header">
         <div className="game-catalog-header__title">
-          <Gamepad2 size={28} />
+          <Layers size={28} />
           <div>
-            <h1>게임 카탈로그</h1>
-            <p>인기 게임과 스트리머 정보를 확인하세요</p>
+            <h1>카테고리</h1>
+            <p>인기 카테고리와 스트리머 정보를 확인하세요</p>
           </div>
         </div>
         <button onClick={fetchCatalog} className="refresh-button" title="새로고침">
@@ -146,12 +143,12 @@ const GameCatalog = ({ onGameSelect }) => {
           </div>
         </div>
         <div className="game-catalog-stat glass-premium">
-          <Gamepad2 size={20} />
+          <Layers size={20} />
           <div className="game-catalog-stat__content">
             <span className="game-catalog-stat__value">
               {stats?.total_games || games.length}
             </span>
-            <span className="game-catalog-stat__label">총 게임 수</span>
+            <span className="game-catalog-stat__label">총 카테고리</span>
           </div>
         </div>
       </div>
@@ -162,6 +159,12 @@ const GameCatalog = ({ onGameSelect }) => {
           <img src="/assets/logos/soop.png" alt="SOOP" />
           <span>{stats?.soop_categories || 0} 카테고리</span>
         </div>
+        {stats?.shared_categories > 0 && (
+          <div className="platform-badge shared" title="양 플랫폼에 모두 있는 카테고리">
+            <Layers size={16} />
+            <span>{stats.shared_categories} 공유</span>
+          </div>
+        )}
         <div className="platform-badge chzzk">
           <img src="/assets/logos/chzzk.png" alt="Chzzk" />
           <span>{stats?.chzzk_categories || 0} 카테고리</span>
@@ -173,7 +176,7 @@ const GameCatalog = ({ onGameSelect }) => {
         <Search size={18} />
         <input
           type="text"
-          placeholder="게임 이름, 장르로 검색..."
+          placeholder="카테고리 이름, 장르로 검색..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -195,7 +198,7 @@ const GameCatalog = ({ onGameSelect }) => {
                 <img src={game.imageUrl} alt={game.nameKr || game.name} />
               ) : (
                 <div className="game-catalog-card__placeholder">
-                  <Gamepad2 size={32} />
+                  <Layers size={32} />
                 </div>
               )}
               {game.genre && (
@@ -235,7 +238,7 @@ const GameCatalog = ({ onGameSelect }) => {
       {/* 검색 결과 없음 */}
       {filteredGames.length === 0 && (
         <div className="game-catalog-empty">
-          <Gamepad2 size={48} />
+          <Layers size={48} />
           <h3>검색 결과가 없습니다</h3>
           <p>다른 검색어를 시도해보세요</p>
         </div>

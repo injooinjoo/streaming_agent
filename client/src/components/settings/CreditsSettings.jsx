@@ -8,6 +8,7 @@ import { API_URL } from '../../config/api';
 import socket from '../../config/socket';
 import { OverlayPreviewWrapper } from './shared';
 import CreditsOverlay from '../CreditsOverlay';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './CreditsSettings.css';
 
 const defaultSettings = {
@@ -207,10 +208,7 @@ const CreditsSettings = () => {
   if (loading) {
     return (
       <div className="settings-panel">
-        <div className="loading-state">
-          <RefreshCw className="spin" size={24} />
-          <span>불러오는 중...</span>
-        </div>
+        <LoadingSpinner />
       </div>
     );
   }

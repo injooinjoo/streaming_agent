@@ -127,15 +127,65 @@ const GoalOverlay = ({
     }
 
     if (graphType === 'heart' || graphType === 'star') {
-      // Simple fill effect for shapes
+      // Fill effect for shapes using clip mask
       const Icon = graphType === 'heart' ? Heart : Star;
       return (
-        <div className="goal-shape" style={{ color: barColor }}>
-          <Icon size={140} strokeWidth={1} className="goal-icon-bg" />
-          <div className="goal-shape-fill" style={{ height: `${percentage}%`, background: barColor }}>
-            <Icon size={140} strokeWidth={1} className="goal-icon-fill" />
+        <div className="goal-shape">
+          {/* 배경 아이콘 (희미한 외곽선) */}
+          <Icon
+            size={140}
+            strokeWidth={1.5}
+            className="goal-icon-bg"
+            fill="rgba(255,255,255,0.05)"
+          />
+          {/* 채워지는 부분 */}
+          <div className="goal-shape-fill" style={{ height: `${percentage}%` }}>
+            <Icon
+              size={140}
+              strokeWidth={1.5}
+              className="goal-icon-fill"
+              fill={barColor}
+              color={barColor}
+            />
           </div>
+          {/* 퍼센트 표시 */}
           <div className="goal-percent absolute-center text-stroke">
+            {percentage.toFixed(0)}%
+          </div>
+        </div>
+      );
+    }
+
+    if (graphType === 'semi') {
+      // 반원 프로그레스
+      const radius = 70;
+      const circumference = Math.PI * radius; // 반원이므로 PI만 사용
+      const offset = circumference - (percentage / 100) * circumference;
+
+      return (
+        <div className="goal-semi">
+          <svg width="160" height="90" viewBox="0 0 160 90" className="progress-semi">
+            {/* 배경 반원 */}
+            <path
+              d="M 10 80 A 70 70 0 0 1 150 80"
+              fill="none"
+              stroke="rgba(255,255,255,0.1)"
+              strokeWidth={thickness}
+              strokeLinecap="round"
+            />
+            {/* 진행 반원 */}
+            <path
+              d="M 10 80 A 70 70 0 0 1 150 80"
+              fill="none"
+              stroke={barColor}
+              strokeWidth={thickness}
+              strokeLinecap="round"
+              strokeDasharray={`${circumference} ${circumference}`}
+              strokeDashoffset={offset}
+              className="progress-semi__arc"
+            />
+          </svg>
+          <div className="goal-percent semi-percent">
             {percentage.toFixed(0)}%
           </div>
         </div>

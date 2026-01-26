@@ -1,0 +1,114 @@
+/* 통일된 로딩 스피너 스타일 */
+
+.loading-spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+}
+
+.loading-spinner-container.loading-spinner--full-height {
+  height: 400px;
+}
+
+/* 스피너 애니메이션 */
+.loading-spinner {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.loading-spinner__circle {
+  position: absolute;
+  border: 3px solid transparent;
+  border-top-color: var(--primary-color, #6366f1);
+  border-radius: 50%;
+  animation: loading-spin 1s linear infinite;
+}
+
+.loading-spinner__circle--delayed {
+  border-top-color: transparent;
+  border-right-color: var(--primary-color, #6366f1);
+  opacity: 0.4;
+  animation-delay: 0.15s;
+}
+
+/* 사이즈 변형 */
+.loading-spinner--small .loading-spinner {
+  width: 20px;
+  height: 20px;
+}
+
+.loading-spinner--small .loading-spinner__circle {
+  width: 20px;
+  height: 20px;
+  border-width: 2px;
+}
+
+.loading-spinner--medium .loading-spinner {
+  width: 32px;
+  height: 32px;
+}
+
+.loading-spinner--medium .loading-spinner__circle {
+  width: 32px;
+  height: 32px;
+  border-width: 3px;
+}
+
+.loading-spinner--large .loading-spinner {
+  width: 48px;
+  height: 48px;
+}
+
+.loading-spinner--large .loading-spinner__circle {
+  width: 48px;
+  height: 48px;
+  border-width: 4px;
+}
+
+/* 텍스트 스타일 */
+.loading-spinner__text {
+  font-size: 14px;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 500;
+}
+
+.loading-spinner--small .loading-spinner__text {
+  font-size: 12px;
+}
+
+.loading-spinner--large .loading-spinner__text {
+  font-size: 16px;
+}
+
+/* 애니메이션 키프레임 */
+@keyframes loading-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 기존 .loading-state 클래스 호환성 (점진적 마이그레이션용) */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px;
+  gap: 12px;
+}
+
+.loading-state p {
+  margin: 0;
+  color: var(--text-muted, #94a3b8);
+  font-size: 14px;
+}
+
+/* 기존 .spin 클래스 제거용 - 더 이상 사용하지 않음 */

@@ -528,31 +528,74 @@ class ChzzkAdapter extends BaseAdapter {
   }
 
   /**
-   * 모든 Chzzk 카테고리 조회 (여러 페이지)
+   * 모든 Chzzk 카테고리 조회 (여러 페이지) - 중복 방송 체크 포함
    * @param {number} pages - 조회할 페이지 수 (기본: 10)
    * @returns {Promise<Array>} 전체 카테고리 목록
    */
   static async getAllCategories(pages = 10) {
     const categoryMap = new Map();
+    const seenBroadcasts = new Set(); // 중복 방송 체크용
     const pageSize = 100;
 
+    const headers = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    };
+
     for (let page = 0; page < pages; page++) {
-      const offset = page * pageSize;
-      const categories = await ChzzkAdapter.discoverCategories(pageSize, offset);
+      try {
+        const offset = page * pageSize;
+        const response = await fetch(
+          `https://api.chzzk.naver.com/service/v1/home/lives?size=${pageSize}&offset=${offset}`,
+          { headers }
+        );
+        const data = await response.json();
 
-      for (const category of categories) {
-        if (!categoryMap.has(category.categoryId)) {
-          categoryMap.set(category.categoryId, { ...category });
-        } else {
-          // 시청자/스트리머 수 합산
-          const existing = categoryMap.get(category.categoryId);
-          existing.viewerCount += category.viewerCount;
-          existing.streamerCount += category.streamerCount;
+        if (!data || !data.content || !data.content.data) {
+          break;
         }
-      }
 
-      // Rate limiting: 200ms delay between requests
-      await new Promise((resolve) => setTimeout(resolve, 200));
+        const lives = data.content.data;
+        if (lives.length === 0) break;
+
+        let newBroadcasts = 0;
+        for (const live of lives) {
+          if (live.liveCategory && live.liveCategoryValue) {
+            // 방송 고유 ID로 중복 체크
+            const broadcastId = live.channel?.channelId || live.liveId || live.channelId;
+            if (!broadcastId || seenBroadcasts.has(broadcastId)) {
+              continue;
+            }
+            seenBroadcasts.add(broadcastId);
+            newBroadcasts++;
+
+            const categoryId = live.liveCategory;
+
+            if (!categoryMap.has(categoryId)) {
+              categoryMap.set(categoryId, {
+                categoryId,
+                categoryName: live.liveCategoryValue,
+                categoryType: live.categoryType || "GAME",
+                thumbnailUrl: null,
+                viewerCount: 0,
+                streamerCount: 0,
+              });
+            }
+
+            const category = categoryMap.get(categoryId);
+            category.viewerCount += live.concurrentUserCount || 0;
+            category.streamerCount += 1;
+          }
+        }
+
+        // 새 방송이 없으면 중단
+        if (newBroadcasts === 0) break;
+
+        // Rate limiting: 200ms delay between requests
+        await new Promise((resolve) => setTimeout(resolve, 200));
+      } catch (error) {
+        console.error("[chzzk] getAllCategories page error:", error.message);
+        break;
+      }
     }
 
     return Array.from(categoryMap.values());

@@ -5,6 +5,7 @@
 
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import LoadingSpinner from '../shared/LoadingSpinner';
 
 /**
  * ProtectedRoute - Wraps routes that require authentication
@@ -23,29 +24,7 @@ const ProtectedRoute = ({
 
   // Show loading state while checking auth
   if (isLoading) {
-    return (
-      <div style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        background: 'var(--bg-main)',
-        color: 'var(--text-main)'
-      }}>
-        <div style={{ textAlign: 'center' }}>
-          <div className="loading-spinner" style={{
-            width: '40px',
-            height: '40px',
-            border: '3px solid var(--border-light)',
-            borderTopColor: 'var(--primary-color)',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            margin: '0 auto 16px'
-          }} />
-          <p>인증 확인 중...</p>
-        </div>
-      </div>
-    );
+    return <LoadingSpinner fullHeight />;
   }
 
   // Not authenticated - redirect to login

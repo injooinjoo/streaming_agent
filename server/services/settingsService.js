@@ -73,7 +73,9 @@ const createSettingsService = (db, io) => {
       );
 
       // Notify overlays to refresh
-      io.emit("settings-updated", { key });
+      if (io) {
+        io.emit("settings-updated", { key });
+      }
     },
 
     // ===== User-Specific Settings =====

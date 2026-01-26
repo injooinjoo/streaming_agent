@@ -17,6 +17,7 @@ import {
   Subtitles
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './MarketplacePage.css';
 
 const categories = [
@@ -219,10 +220,7 @@ const MarketplacePage = () => {
       {/* 디자인 그리드 */}
       <div className={`designs-grid ${viewMode}`}>
         {loading ? (
-          <div className="loading-state">
-            <RefreshCw size={32} className="spin" />
-            <p>불러오는 중...</p>
-          </div>
+          <LoadingSpinner />
         ) : sortedDesigns.length === 0 ? (
           <div className="empty-state">
             <Filter size={48} />

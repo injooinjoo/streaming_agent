@@ -567,6 +567,48 @@ const createStatsRouter = (
     }
   });
 
+  // ===== Viewer Journey Statistics (Admin) =====
+
+  /**
+   * GET /api/stats/viewers/list
+   * Get list of viewers with engagement stats (requires authentication)
+   * Query params: search, sortBy, sortOrder, page, limit
+   */
+  router.get("/stats/viewers/list", authenticateToken, async (req, res) => {
+    try {
+      const result = await statsService.getViewersList({
+        search: req.query.search || "",
+        sortBy: req.query.sortBy || "total_chats",
+        sortOrder: req.query.sortOrder || "desc",
+        page: parseInt(req.query.page, 10) || 1,
+        limit: parseInt(req.query.limit, 10) || 50,
+      });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/viewers/:personId/journey
+   * Get detailed viewer journey data (requires authentication)
+   */
+  router.get("/stats/viewers/:personId/journey", authenticateToken, async (req, res) => {
+    try {
+      const personId = parseInt(req.params.personId, 10);
+      if (isNaN(personId)) {
+        return res.status(400).json({ error: "Invalid personId" });
+      }
+      const result = await statsService.getViewerJourney(personId);
+      if (!result) {
+        return res.status(404).json({ error: "Viewer not found" });
+      }
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ===== Connection Status =====
 
   /**

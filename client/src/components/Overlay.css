@@ -191,6 +191,17 @@
 .platform-badge.chzzk { background: #00ffa3; color: black; }
 .platform-badge.soop { background: #007bff; color: white; }
 
+/* 플랫폼 로고 이미지 */
+.platform-logo {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  margin-right: 6px;
+  vertical-align: middle;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
 .sender {
   font-weight: 700;
   white-space: nowrap;
@@ -199,6 +210,15 @@
 .message-text {
   color: inherit;
   word-break: break-all;
+}
+
+/* 채팅 이모티콘 */
+.chat-emoticon {
+  height: 1.5em;
+  width: auto;
+  vertical-align: middle;
+  margin: 0 2px;
+  display: inline-block;
 }
 
 /* Alert Overlay */
@@ -499,10 +519,19 @@
   100% { transform: translateX(100%); }
 }
 
-.goal-circle, .goal-shape {
+.goal-circle {
   position: relative;
   display: flex;
   justify-content: center;
+}
+
+.goal-shape {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 140px;
+  height: 140px;
 }
 
 .progress-ring__circle {
@@ -526,18 +555,48 @@
   left: 0;
   width: 100%;
   overflow: hidden;
+  transition: height 0.3s ease;
+}
+
+.goal-shape .goal-icon-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  color: rgba(255,255,255,0.15);
+}
+
+.goal-shape-fill .goal-icon-fill {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+
+.text-stroke {
+  color: white;
+  text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+  z-index: 10;
+}
+
+/* 반원 그래프 */
+.goal-semi {
+  position: relative;
   display: flex;
-  align-items: flex-end;
+  flex-direction: column;
+  align-items: center;
   justify-content: center;
 }
 
-.goal-icon-bg {
-  color: rgba(255,255,255,0.1);
+.progress-semi__arc {
+  transition: stroke-dashoffset 0.5s ease-in-out;
 }
-.goal-icon-fill {
-  color: inherit;
-}
-.text-stroke {
+
+.semi-percent {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-weight: bold;
+  font-size: 24px;
   color: white;
   text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
 }
@@ -680,21 +739,41 @@
 
 /* Chat Overlay - Preview Mode */
 .chat-overlay.preview-mode {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   width: 100%;
   height: 100%;
-  padding: 10px;
+  min-height: auto;
+  max-height: none;
+  padding: 15px;
+  justify-content: flex-end;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transform: none;
 }
 
 .chat-overlay.preview-mode .messages-container {
   max-width: 100%;
-  gap: 6px;
+  width: auto;
+  gap: 8px;
+  flex: 0 1 auto;
+  max-height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .chat-overlay.preview-mode .chat-message-item {
-  padding: 6px 12px;
+  padding: 8px 14px;
   min-height: auto;
-  font-size: 12px;
+  /* fontSize, fontWeight, color은 인라인 스타일로 적용됨 */
+  opacity: 1;
+  visibility: visible;
+  border-radius: 8px;
 }
 
 /* ===========================================

@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
 import socket from '../../config/socket';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './BotSettings.css';
 
 const defaultCommands = [
@@ -178,10 +179,7 @@ const BotSettings = () => {
   if (loading) {
     return (
       <div className="settings-panel">
-        <div className="loading-state">
-          <RefreshCw className="spin" size={24} />
-          <span>불러오는 중...</span>
-        </div>
+        <LoadingSpinner />
       </div>
     );
   }

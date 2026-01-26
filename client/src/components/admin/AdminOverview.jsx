@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, DollarSign, Megaphone, Activity, TrendingUp, Calendar, RefreshCw, Wifi } from 'lucide-react';
+import LoadingSpinner from '../shared/LoadingSpinner';
 
 const AdminOverview = () => {
   const [loading, setLoading] = useState(true);
@@ -75,12 +76,7 @@ const AdminOverview = () => {
   };
 
   if (loading) {
-    return (
-      <div className="admin-loading-section">
-        <RefreshCw size={24} className="spin" />
-        <p>데이터 로딩 중...</p>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   // 플랫폼별 후원금 계산

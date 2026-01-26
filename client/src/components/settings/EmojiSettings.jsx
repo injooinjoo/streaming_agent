@@ -8,6 +8,7 @@ import { API_URL } from '../../config/api';
 import socket from '../../config/socket';
 import { OverlayPreviewWrapper } from './shared';
 import EmojiOverlay from '../EmojiOverlay';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './EmojiSettings.css';
 
 const defaultEmojis = ['❤️', '🔥', '👏', '😂', '🎉', '💪', '👍', '🙌'];
@@ -217,10 +218,7 @@ const EmojiSettings = () => {
   if (loading) {
     return (
       <div className="settings-panel">
-        <div className="loading-state">
-          <RefreshCw className="spin" size={24} />
-          <span>불러오는 중...</span>
-        </div>
+        <LoadingSpinner />
       </div>
     );
   }

@@ -8,6 +8,7 @@ import {
   Hash, AtSign, MapPin, Sparkles, ChevronDown, Heart
 } from 'lucide-react';
 import { API_URL } from '../../config/api';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './ChannelPage.css';
 
 const ChannelPage = () => {
@@ -123,10 +124,7 @@ const ChannelPage = () => {
   if (loading) {
     return (
       <div className="channel-page">
-        <div className="channel-loading">
-          <RefreshCw size={32} className="spin" />
-          <p>불러오는 중...</p>
-        </div>
+        <LoadingSpinner fullHeight />
       </div>
     );
   }

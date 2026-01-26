@@ -920,3 +920,40 @@
   background: var(--bg-hover);
   border-color: var(--border-light);
 }
+
+/* Demo Divider */
+.demo-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 16px 0 12px;
+}
+
+.demo-divider::before,
+.demo-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+}
+
+.demo-divider span {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Gamst Demo Button */
+.oauth-button.gamst {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+  border-color: rgba(139, 92, 246, 0.5);
+  color: white;
+}
+
+.oauth-button.gamst:hover {
+  background: linear-gradient(135deg, #7c7ff5 0%, #9d6ff9 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+}

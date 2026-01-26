@@ -8,6 +8,7 @@ import { useTheme } from '../../contexts/ThemeContext';
 import AnalyticsCard from './shared/AnalyticsCard';
 import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './AnalyticsPage.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -157,10 +158,7 @@ const ContentAnalytics = () => {
   if (loading) {
     return (
       <div className="analytics-page">
-        <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-          <RefreshCw className="animate-spin" size={32} />
-          <span style={{ marginLeft: '12px' }}>불러오는 중...</span>
-        </div>
+        <LoadingSpinner fullHeight />
       </div>
     );
   }

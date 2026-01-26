@@ -615,15 +615,27 @@ class CategoryService {
    */
   async getCatalogStats() {
     return new Promise((resolve, reject) => {
+      // 활성 방송이 있는 카테고리만 카운트 (viewer_count > 0 OR streamer_count > 0)
+      // 각 플랫폼별로 독립적으로 카운트 (중복 게임은 양쪽에 모두 카운트됨)
       const sql = `
         SELECT
           (SELECT COUNT(*) FROM unified_games) as total_games,
           (SELECT COUNT(*) FROM unified_games WHERE is_verified = 1) as verified_games,
-          (SELECT COUNT(*) FROM platform_categories WHERE is_active = 1) as total_categories,
-          (SELECT COUNT(*) FROM platform_categories WHERE platform = 'soop' AND is_active = 1) as soop_categories,
-          (SELECT COUNT(*) FROM platform_categories WHERE platform = 'chzzk' AND is_active = 1) as chzzk_categories,
+          (SELECT COUNT(*) FROM platform_categories WHERE is_active = 1 AND (viewer_count > 0 OR streamer_count > 0)) as total_categories,
+          (SELECT COUNT(*) FROM platform_categories WHERE platform = 'soop' AND is_active = 1 AND (viewer_count > 0 OR streamer_count > 0)) as soop_categories,
+          (SELECT COUNT(*) FROM platform_categories WHERE platform = 'chzzk' AND is_active = 1 AND (viewer_count > 0 OR streamer_count > 0)) as chzzk_categories,
           (SELECT COALESCE(SUM(viewer_count), 0) FROM platform_categories WHERE is_active = 1) as total_viewers,
-          (SELECT COALESCE(SUM(streamer_count), 0) FROM platform_categories WHERE is_active = 1) as total_streamers
+          (SELECT COALESCE(SUM(streamer_count), 0) FROM platform_categories WHERE is_active = 1) as total_streamers,
+          (SELECT COUNT(DISTINCT cgm1.unified_game_id)
+           FROM category_game_mappings cgm1
+           JOIN category_game_mappings cgm2 ON cgm1.unified_game_id = cgm2.unified_game_id
+           JOIN platform_categories pc1 ON cgm1.platform = pc1.platform AND cgm1.platform_category_id = pc1.platform_category_id
+           JOIN platform_categories pc2 ON cgm2.platform = pc2.platform AND cgm2.platform_category_id = pc2.platform_category_id
+           WHERE cgm1.platform = 'soop' AND cgm2.platform = 'chzzk'
+             AND pc1.is_active = 1 AND pc2.is_active = 1
+             AND (pc1.viewer_count > 0 OR pc1.streamer_count > 0)
+             AND (pc2.viewer_count > 0 OR pc2.streamer_count > 0)
+          ) as shared_categories
       `;
 
       this.db.get(sql, [], (err, row) => {

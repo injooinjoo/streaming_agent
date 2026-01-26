@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './AdSettings.css';
 
 const CANVAS_WIDTH = 1920;
@@ -613,10 +614,7 @@ const AdSettings = () => {
               </div>
 
               {loading ? (
-                <div className="loading-state">
-                  <RefreshCw size={24} className="spin" />
-                  <p>로딩 중...</p>
-                </div>
+                <LoadingSpinner />
               ) : slots.length === 0 ? (
                 <div className="empty-state">
                   <DollarSign size={48} />

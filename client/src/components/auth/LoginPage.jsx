@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, MessageSquare, Bell, Target, Newspaper, Subtitles, Code, Mail, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
+import { LogIn, MessageSquare, Bell, Target, Newspaper, Subtitles, Mail, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
 import './AuthForm.css';
@@ -82,18 +82,10 @@ const LoginPage = () => {
 
   const navigate = useNavigate();
   const loginSectionRef = useRef(null);
-  const { login } = useAuth();
-
-  const handleGuestAccess = () => {
-    navigate('/');
-  };
+  const { login, loginAsGamst } = useAuth();
 
   const scrollToLogin = () => {
     loginSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleDeveloperMode = () => {
-    navigate('/admin-dashboard');
   };
 
   const handleOAuthLogin = (provider) => {
@@ -120,19 +112,6 @@ const LoginPage = () => {
       {/* Header */}
       <header className="landing-header">
         <div className="header-logo">StreamAgent</div>
-        <div className="header-actions">
-          <button
-            className="dev-mode-toggle"
-            onClick={handleDeveloperMode}
-            title="관리자 대시보드"
-          >
-            <Code size={18} />
-          </button>
-          <button className="header-login-btn" onClick={scrollToLogin}>
-            <LogIn size={18} />
-            로그인
-          </button>
-        </div>
       </header>
 
       {/* Hero Section */}
@@ -147,7 +126,7 @@ const LoginPage = () => {
             채팅, 알림, 목표, 전광판, 자막까지<br />
             모든 오버레이를 한 곳에서 관리하세요
           </p>
-          <button className="hero-cta" onClick={handleGuestAccess}>
+          <button className="hero-cta" onClick={scrollToLogin}>
             지금 시작하기
           </button>
         </div>
@@ -221,6 +200,21 @@ const LoginPage = () => {
               이메일로 로그인
               {showEmailForm ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
             </button>
+
+            <div className="demo-divider">
+              <span>데모 체험</span>
+            </div>
+
+            <button
+              className="oauth-button gamst"
+              onClick={async () => {
+                await loginAsGamst();
+                navigate('/');
+              }}
+            >
+              <img src="/assets/logos/soop.png" alt="SOOP" style={{ height: '20px', borderRadius: '4px' }} />
+              감스트로 살기
+            </button>
           </div>
 
           {/* Email Login Form */}
@@ -268,14 +262,6 @@ const LoginPage = () => {
               </form>
             </>
           )}
-
-          <div className="auth-divider">
-            <span>또는</span>
-          </div>
-
-          <button className="guest-button" onClick={handleGuestAccess}>
-            로그인 없이 둘러보기
-          </button>
 
           <div className="auth-footer">
             계정이 없으신가요?

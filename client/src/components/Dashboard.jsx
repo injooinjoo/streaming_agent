@@ -42,17 +42,38 @@ const Dashboard = () => {
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [feedTab, setFeedTab] = useState('recent');
   const [selectedGameId, setSelectedGameId] = useState(null);
-  const [dashboardData, setDashboardData] = useState({
+
+  // 캐시에서 초기값 로드
+  const getCachedDashboardData = () => {
+    try {
+      const cached = localStorage.getItem('dashboardData');
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        // 5분 이내의 캐시만 사용
+        if (Date.now() - timestamp < 5 * 60 * 1000) {
+          return data;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load cached dashboard data', e);
+    }
+    return null;
+  };
+
+  const defaultDashboardData = {
     todayDonation: 0,
+    donationCount: 0,
     peakViewers: 0,
     newSubs: 0,
     insights: [],
     myCategories: [],
     topCategories: []
-  });
-  const [dashboardLoading, setDashboardLoading] = useState(true);
+  };
 
-  const { user, isAuthenticated, logout } = useAuth();
+  const [dashboardData, setDashboardData] = useState(() => getCachedDashboardData() || defaultDashboardData);
+  const [dashboardLoading, setDashboardLoading] = useState(!getCachedDashboardData());
+
+  const { user, isAuthenticated, logout, loading: authLoading } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { isStreamingMode, toggleStreamingMode } = useStreamingMode();
   const navigate = useNavigate();
@@ -149,7 +170,10 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     console.log('[Dashboard] fetchDashboardData called, user:', { channelId: user?.channelId, platform: user?.platform });
     try {
-      setDashboardLoading(true);
+      // 캐시가 없을 때만 로딩 표시
+      if (!getCachedDashboardData()) {
+        setDashboardLoading(true);
+      }
       // 로그인된 사용자의 channelId와 platform을 쿼리 파라미터로 전달
       const params = new URLSearchParams();
       if (user?.channelId) params.set('channelId', user.channelId);
@@ -163,6 +187,15 @@ const Dashboard = () => {
         const data = await res.json();
         console.log('[Dashboard] API Response:', { myCategories: data.myCategories, topCategories: data.topCategories?.length });
         setDashboardData(data);
+        // 캐시에 저장
+        try {
+          localStorage.setItem('dashboardData', JSON.stringify({
+            data,
+            timestamp: Date.now()
+          }));
+        } catch (e) {
+          console.error('Failed to cache dashboard data', e);
+        }
       }
     } catch (e) {
       console.error('[Dashboard] Failed to fetch dashboard data', e);
@@ -172,6 +205,9 @@ const Dashboard = () => {
   };
 
   useEffect(() => {
+    // AuthContext 로딩이 완료될 때까지 대기
+    if (authLoading) return;
+
     fetchEvents();
     fetchDashboardData();
     const eventsInterval = setInterval(fetchEvents, 3000);
@@ -180,7 +216,7 @@ const Dashboard = () => {
       clearInterval(eventsInterval);
       clearInterval(dashboardInterval);
     };
-  }, [user?.channelId, user?.platform]);
+  }, [authLoading, user?.channelId, user?.platform]);
 
   const renderContent = () => {
     if (activeTab === 'dashboard') {
@@ -603,56 +639,73 @@ const Dashboard = () => {
             </div>
           )}
 
-          {feedTab === 'stats' && (
-            <div className="table-container">
-              <div className="stats-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', padding: '24px' }}>
-                <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 채팅 수</div>
-                  <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                    {events.filter(ev => ev.type === 'chat').length}
+          {feedTab === 'stats' && (() => {
+            // 채팅 이벤트 필터 (분당 채팅 수 계산용)
+            const chatEvents = events.filter(ev => ev.type === 'chat');
+
+            // 분당 채팅 수 계산 (최근 이벤트 기준)
+            const calcChatPerMinute = () => {
+              if (chatEvents.length < 2) return chatEvents.length;
+              const timestamps = chatEvents.map(ev => new Date(ev.timestamp).getTime()).sort((a, b) => a - b);
+              const timeDiffMinutes = (timestamps[timestamps.length - 1] - timestamps[0]) / (1000 * 60);
+              if (timeDiffMinutes < 1) return chatEvents.length;
+              return Math.round(chatEvents.length / timeDiffMinutes);
+            };
+
+            // 평균 후원 금액 (서버에서 받은 데이터 기반)
+            const avgDonation = dashboardData.donationCount > 0
+              ? Math.round(dashboardData.todayDonation / dashboardData.donationCount)
+              : 0;
+
+            return (
+              <div className="table-container">
+                <div className="stats-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', padding: '24px' }}>
+                  <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>분당 채팅 수</div>
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
+                      {calcChatPerMinute()}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>최근 기준</div>
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>오늘 누적</div>
-                </div>
-                <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 후원 수</div>
-                  <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                    {events.filter(ev => ev.type === 'donation').length}
+                  <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 후원 수</div>
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
+                      {dashboardData.donationCount}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>이번 달</div>
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>오늘 누적</div>
-                </div>
-                <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 후원 금액</div>
-                  <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--primary-color)' }}>
-                    ₩{events.filter(ev => ev.type === 'donation').reduce((acc, curr) => acc + (curr.amount || 0), 0).toLocaleString()}
+                  <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 후원 금액</div>
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--primary-color)' }}>
+                      ₩{dashboardData.todayDonation.toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>이번 달</div>
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>오늘 누적</div>
-                </div>
-                <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>평균 후원 금액</div>
-                  <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                    ₩{events.filter(ev => ev.type === 'donation').length > 0
-                      ? Math.round(events.filter(ev => ev.type === 'donation').reduce((acc, curr) => acc + (curr.amount || 0), 0) / events.filter(ev => ev.type === 'donation').length).toLocaleString()
-                      : 0}
+                  <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>평균 후원 금액</div>
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
+                      ₩{avgDonation.toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>후원당 평균</div>
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>후원당 평균</div>
-                </div>
-                <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>최고 시청자</div>
-                  <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                    {dashboardData.peakViewers.toLocaleString()}
+                  <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>최고 시청자</div>
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
+                      {dashboardData.peakViewers.toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>이번 달</div>
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>오늘 기준</div>
-                </div>
-                <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>신규 구독</div>
-                  <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                    {dashboardData.newSubs}
+                  <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
+                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>신규 구독</div>
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
+                      {dashboardData.newSubs}
+                    </div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>이번 달</div>
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>오늘 기준</div>
                 </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       );
     }
@@ -730,17 +783,15 @@ const Dashboard = () => {
       )}
 
       <aside className={`chatgpt-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-        {/* 모바일 닫기 버튼 */}
-        <button className="mobile-close-btn" onClick={() => setMobileMenuOpen(false)}>
-          <X size={24} />
-        </button>
-        <div className="sidebar-top">
-          <div className="app-logo">
-            <div className="logo-icon">S</div>
-            <span className="logo-text">StreamAgent</span>
-          </div>
-        </div>
-
+        {/* 닫기 버튼 - 모바일에서만 표시 */}
+        {mobileMenuOpen && (
+          <button
+            className="sidebar-close-btn"
+            onClick={() => setMobileMenuOpen(false)}
+          >
+            <X size={24} />
+          </button>
+        )}
         <nav className="sidebar-nav">
           {menuGroups.map((group) => {
             const isCollapsed = collapsedGroups[group.label];
@@ -798,8 +849,11 @@ const Dashboard = () => {
 
       <main className="chatgpt-main">
         <header className="top-nav">
-          {/* 모바일 햄버거 메뉴 버튼 */}
-          <button className="mobile-menu-btn" onClick={() => setMobileMenuOpen(true)}>
+          {/* 모바일 햄버거 버튼 */}
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(true)}
+          >
             <Menu size={24} />
           </button>
           <div className="search-container hide-mobile">

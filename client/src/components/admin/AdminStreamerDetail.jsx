@@ -9,6 +9,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
+import LoadingSpinner from '../shared/LoadingSpinner';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -153,12 +154,7 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
   };
 
   if (loading) {
-    return (
-      <div className="admin-loading-section">
-        <RefreshCw size={24} className="spin" />
-        <p>스트리머 정보 로딩 중...</p>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   if (!streamer) return null;

@@ -8,6 +8,7 @@ import { API_URL } from '../../config/api';
 import socket from '../../config/socket';
 import { OverlayPreviewWrapper } from './shared';
 import VotingOverlay from '../VotingOverlay';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './VotingSettings.css';
 
 const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -200,10 +201,7 @@ const VotingSettings = () => {
   if (loading) {
     return (
       <div className="settings-panel">
-        <div className="loading-state">
-          <RefreshCw className="spin" size={24} />
-          <span>불러오는 중...</span>
-        </div>
+        <LoadingSpinner />
       </div>
     );
   }

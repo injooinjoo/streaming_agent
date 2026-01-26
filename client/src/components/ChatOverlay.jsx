@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { API_URL } from "../config/api";
 import socket from "../config/socket";
 import "./Overlay.css";
@@ -100,6 +100,88 @@ const playAlertSound = () => {
   oscillator.stop(audioContext.currentTime + 0.3);
 };
 
+// SOOP 이모티콘 파싱 - {:emoteName:} 패턴을 이미지로 변환
+const parseEmoticons = (message) => {
+  if (!message || typeof message !== 'string') return message;
+
+  // {:emoteName:} 패턴 매칭
+  const emoticonRegex = /\{:([a-zA-Z0-9_]+):\}/g;
+  const parts = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = emoticonRegex.exec(message)) !== null) {
+    // 이모티콘 앞의 텍스트 추가
+    if (match.index > lastIndex) {
+      parts.push({
+        type: 'text',
+        content: message.slice(lastIndex, match.index)
+      });
+    }
+
+    // 이모티콘 추가
+    const emoteName = match[1];
+    parts.push({
+      type: 'emoticon',
+      name: emoteName,
+      // SOOP 이모티콘 CDN URL (기본 이모티콘)
+      url: `https://stimg.sooplive.co.kr/emoticon/default/${emoteName}.png`
+    });
+
+    lastIndex = match.index + match[0].length;
+  }
+
+  // 마지막 텍스트 추가
+  if (lastIndex < message.length) {
+    parts.push({
+      type: 'text',
+      content: message.slice(lastIndex)
+    });
+  }
+
+  // 이모티콘이 없으면 원본 반환
+  if (parts.length === 0) return message;
+
+  return parts;
+};
+
+// 메시지 렌더링 컴포넌트 (이모티콘 포함)
+const MessageContent = ({ message }) => {
+  const parsed = parseEmoticons(message);
+
+  // 문자열이면 그대로 반환
+  if (typeof parsed === 'string') {
+    return <>{parsed}</>;
+  }
+
+  // 파싱된 배열이면 각 파트 렌더링
+  return (
+    <>
+      {parsed.map((part, index) => {
+        if (part.type === 'text') {
+          return <span key={index}>{part.content}</span>;
+        }
+        if (part.type === 'emoticon') {
+          return (
+            <img
+              key={index}
+              src={part.url}
+              alt={part.name}
+              className="chat-emoticon"
+              onError={(e) => {
+                // 이미지 로드 실패 시 원본 텍스트로 대체
+                e.target.style.display = 'none';
+                e.target.insertAdjacentText('afterend', `{:${part.name}:}`);
+              }}
+            />
+          );
+        }
+        return null;
+      })}
+    </>
+  );
+};
+
 // ===== 메인 컴포넌트 =====
 
 const ChatOverlay = ({
@@ -108,6 +190,8 @@ const ChatOverlay = ({
   previewMessages = null
 }) => {
   const { userHash } = useParams();
+  const [searchParams] = useSearchParams();
+  const isObsMode = searchParams.get('obs') === '1' || searchParams.get('layer') === '1';
   const [messages, setMessages] = useState([]);
   const [settings, setSettings] = useState({
     theme: 'default',
@@ -234,6 +318,11 @@ const ChatOverlay = ({
     const senderId = msg.senderId?.toLowerCase() || '';
     const message = msg.message || '';
 
+    // 후원 메시지 필터링
+    if (settings.donationMessageFilter && (msg.type === 'donation' || msg.isDonation)) {
+      return { filter: true, reason: 'donation' };
+    }
+
     // 봇 필터링
     if (settings.botFilter) {
       if (KNOWN_BOTS.some(bot => sender.includes(bot) || senderId.includes(bot))) {
@@ -275,7 +364,7 @@ const ChatOverlay = ({
     }
 
     return { filter: false };
-  }, [settings.filterEnabled, settings.botFilter, settings.userFilter, settings.wordFilter,
+  }, [settings.filterEnabled, settings.donationMessageFilter, settings.botFilter, settings.userFilter, settings.wordFilter,
       settings.profanityFilter, settings.profanityFilterLevel, settings.profanityFilterAction]);
 
   // 메시지 마스킹
@@ -832,11 +921,11 @@ const ChatOverlay = ({
       )}
 
       {/* 공지 위젯 - 상단 */}
-      {activeSettings.notice?.enabled && activeSettings.notice?.position === 'top' && noticeContent && (
+      {activeSettings.notice?.enabled && activeSettings.notice?.position === 'top' && (activeSettings.notice?.content || noticeContent) && (
         <div className={`notice-widget top theme-${activeSettings.notice.theme || 'default'}`}>
           <div className="notice-content">
             <span className="notice-icon">📢</span>
-            <span className="notice-text">{noticeContent}</span>
+            <span className="notice-text">{activeSettings.notice?.content || noticeContent}</span>
           </div>
         </div>
       )}
@@ -858,8 +947,8 @@ const ChatOverlay = ({
         </div>
       )}
 
-      {/* 호버 컨트롤 패널 */}
-      {!previewMode && activeSettings.showHoverPanel && (
+      {/* 호버 컨트롤 패널 - OBS 모드에서는 숨김 */}
+      {!previewMode && !isObsMode && activeSettings.showHoverPanel && (
         <div className="overlay-hover-panel">
           <div className="hover-controls">
             <button
@@ -951,7 +1040,7 @@ const ChatOverlay = ({
                   {msg.sender}
                 </span>
                 <span className="message-text" style={{ color: roleColors.message }}>
-                  {msg.message}
+                  <MessageContent message={msg.message} />
                 </span>
               </div>
             );
@@ -964,7 +1053,8 @@ const ChatOverlay = ({
         className={`messages-container ${getSortTypeClass()}`}
         ref={messagesContainerRef}
         style={{
-          overflowY: activeSettings.useScroll ? 'auto' : 'hidden'
+          overflowY: activeSettings.useScroll ? 'auto' : 'hidden',
+          alignItems: activeSettings.direction === 'center' ? 'center' : activeSettings.direction === 'right' ? 'flex-end' : 'flex-start'
         }}
       >
         {activeMessages.map((msg, index) => {
@@ -986,9 +1076,11 @@ const ChatOverlay = ({
               }}
             >
               {activeSettings.showIcons && msg.platform && (
-                <span className={`platform-badge ${msg.platform}`}>
-                  {msg.platform}
-                </span>
+                <img
+                  src={`/assets/logos/${msg.platform}.png`}
+                  alt={msg.platform}
+                  className="platform-logo"
+                />
               )}
               {activeSettings.showNickname && (
                 <span className="sender" style={{ color: roleColors.nick }}>
@@ -1000,7 +1092,7 @@ const ChatOverlay = ({
                 </span>
               )}
               <span className="message-text">
-                {msg.message}
+                <MessageContent message={msg.message} />
               </span>
             </div>
           );
@@ -1008,11 +1100,11 @@ const ChatOverlay = ({
       </div>
 
       {/* 공지 위젯 - 하단 */}
-      {activeSettings.notice?.enabled && activeSettings.notice?.position === 'bottom' && noticeContent && (
+      {activeSettings.notice?.enabled && activeSettings.notice?.position === 'bottom' && (activeSettings.notice?.content || noticeContent) && (
         <div className={`notice-widget bottom theme-${activeSettings.notice.theme || 'default'}`}>
           <div className="notice-content">
             <span className="notice-icon">📢</span>
-            <span className="notice-text">{noticeContent}</span>
+            <span className="notice-text">{activeSettings.notice?.content || noticeContent}</span>
           </div>
         </div>
       )}

@@ -4,9 +4,9 @@ import {
   Building2, RefreshCw, Tag, Crown, AlertCircle
 } from 'lucide-react';
 import { formatNumber, formatFullNumber } from '../../utils/formatters';
+import { API_URL } from '../../config/api';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './GameCatalog.css';
-
-const API_BASE = 'http://localhost:3001';
 
 const PLATFORM_COLORS = {
   soop: '#1e3a5f',
@@ -27,8 +27,8 @@ const GameDetail = ({ gameId, onBack }) => {
     setError(null);
 
     try {
-      console.log('[GameDetail] Fetching:', `${API_BASE}/api/categories/${gameId}`);
-      const response = await fetch(`${API_BASE}/api/categories/${gameId}`);
+      console.log('[GameDetail] Fetching:', `${API_URL}/api/categories/${gameId}`);
+      const response = await fetch(`${API_URL}/api/categories/${gameId}`);
 
       if (!response.ok) {
         throw new Error('불러오기 실패');
@@ -60,10 +60,7 @@ const GameDetail = ({ gameId, onBack }) => {
   if (loading) {
     return (
       <div className="game-detail">
-        <div className="game-catalog-loading">
-          <RefreshCw size={32} className="spinning" />
-          <span>불러오는 중...</span>
-        </div>
+        <LoadingSpinner />
       </div>
     );
   }

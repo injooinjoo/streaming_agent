@@ -4,10 +4,14 @@ import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import LoadingSpinner from '../shared/LoadingSpinner';
+import { useAuth } from '../../contexts/AuthContext';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 const AdminRevenue = () => {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('month');
   const [data, setData] = useState({
@@ -38,13 +42,18 @@ const AdminRevenue = () => {
     setLoading(true);
     try {
       const days = getDaysFromTimeRange();
+      const token = localStorage.getItem('token');
+      const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+      };
 
       const [revenueRes, trendRes, platformRes, monthlyRes, topRes] = await Promise.all([
-        fetch(`http://localhost:3001/api/stats/revenue?days=${days}`),
-        fetch(`http://localhost:3001/api/stats/revenue/trend?days=${days}`),
-        fetch('http://localhost:3001/api/stats/revenue/by-platform'),
-        fetch('http://localhost:3001/api/stats/revenue/monthly?months=6'),
-        fetch('http://localhost:3001/api/stats/revenue/top-streamers?limit=10')
+        fetch(`${API_URL}/api/stats/revenue?days=${days}`, { headers }),
+        fetch(`${API_URL}/api/stats/revenue/trend?days=${days}`, { headers }),
+        fetch(`${API_URL}/api/stats/revenue/by-platform`, { headers }),
+        fetch(`${API_URL}/api/stats/revenue/monthly?months=6`, { headers }),
+        fetch(`${API_URL}/api/stats/revenue/top-streamers?limit=10`, { headers })
       ]);
 
       const revenue = await revenueRes.json();
@@ -57,10 +66,10 @@ const AdminRevenue = () => {
         totalRevenue: revenue.totalRevenue || 0,
         adRevenue: revenue.adRevenue || 0,
         donationRevenue: revenue.donationRevenue || 0,
-        revenueTrend: trend || [],
-        platformRevenue: platform || [],
-        monthlyComparison: monthly || [],
-        topStreamers: top || []
+        revenueTrend: Array.isArray(trend) ? trend : [],
+        platformRevenue: Array.isArray(platform) ? platform : [],
+        monthlyComparison: Array.isArray(monthly) ? monthly : [],
+        topStreamers: Array.isArray(top) ? top : []
       });
     } catch (error) {
       console.error('Failed to fetch revenue data:', error);
@@ -100,15 +109,10 @@ const AdminRevenue = () => {
   };
 
   if (loading) {
-    return (
-      <div className="admin-loading-section">
-        <RefreshCw size={24} className="spin" />
-        <p>데이터 로딩 중...</p>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
-  const hasData = data.totalRevenue > 0 || data.revenueTrend.some(t => t.donations > 0);
+  const hasData = data.totalRevenue > 0 || (Array.isArray(data.revenueTrend) && data.revenueTrend.some(t => t.donations > 0));
 
   return (
     <div className="admin-revenue">
@@ -185,7 +189,7 @@ const AdminRevenue = () => {
             <h3>수익 트렌드</h3>
           </div>
           <div className="chart-body">
-            {data.revenueTrend.some(t => t.donations > 0) ? (
+            {Array.isArray(data.revenueTrend) && data.revenueTrend.some(t => t.donations > 0) ? (
               <ResponsiveContainer width="100%" height={300}>
                 <LineChart data={data.revenueTrend}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />

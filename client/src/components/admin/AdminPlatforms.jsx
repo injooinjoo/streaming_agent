@@ -4,6 +4,7 @@ import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
+import LoadingSpinner from '../shared/LoadingSpinner';
 
 const PLATFORM_COLORS = {
   soop: '#0066ff',
@@ -87,12 +88,7 @@ const AdminPlatforms = () => {
   };
 
   if (loading) {
-    return (
-      <div className="admin-loading-section">
-        <RefreshCw size={24} className="spin" />
-        <p>데이터 로딩 중...</p>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   // 차트 데이터 생성

@@ -6,6 +6,7 @@ import {
 import { DollarSign, Eye, MousePointerClick, Percent, Download, RefreshCw } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import AnalyticsCard from './shared/AnalyticsCard';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
 import './AnalyticsPage.css';
@@ -146,10 +147,7 @@ const AdAnalytics = () => {
   if (loading) {
     return (
       <div className="analytics-page">
-        <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-          <RefreshCw className="animate-spin" size={32} />
-          <span style={{ marginLeft: '12px' }}>불러오는 중...</span>
-        </div>
+        <LoadingSpinner fullHeight />
       </div>
     );
   }

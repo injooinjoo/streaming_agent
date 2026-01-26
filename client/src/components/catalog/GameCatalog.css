@@ -190,6 +190,15 @@
   border-color: rgba(0, 200, 83, 0.3);
 }
 
+.platform-badge.shared {
+  border-color: rgba(139, 92, 246, 0.3);
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(139, 92, 246, 0.05));
+}
+
+.platform-badge.shared svg {
+  color: var(--primary);
+}
+
 /* Search */
 .game-catalog-search {
   display: flex;

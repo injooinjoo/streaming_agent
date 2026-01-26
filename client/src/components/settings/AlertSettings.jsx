@@ -70,7 +70,7 @@ const defaultSettings = {
   fontOutlineColor: '#000000dd',
   fontOutlineSize: 2,
   useBgColor: false,
-  bgColor: '#00000000',
+  bgColor: '#000000ff',
   bgImage: '',
   bgImageMode: 'cover'
 };

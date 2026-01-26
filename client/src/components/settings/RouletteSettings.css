@@ -1,5 +1,47 @@
 /* Roulette Settings Styles */
 
+/* Two-column layout container */
+.roulette-settings-container {
+  display: flex;
+  gap: 24px;
+  width: 100%;
+  position: relative;
+  align-items: flex-start;
+}
+
+.roulette-settings-main {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.roulette-settings-preview-aside {
+  width: 480px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: fit-content;
+}
+
+/* Responsive - 모바일에서 세로 배치 */
+@media (max-width: 1280px) {
+  .roulette-settings-container {
+    flex-direction: column;
+  }
+
+  .roulette-settings-preview-aside {
+    width: 100%;
+    position: static;
+    max-height: 500px;
+  }
+}
+
 .loading-state {
   display: flex;
   align-items: center;

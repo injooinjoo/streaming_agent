@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './GameSettings.css';
 
 // 기본 설정
@@ -427,10 +428,7 @@ const GameSettings = () => {
   if (loading) {
     return (
       <div className="settings-panel">
-        <div className="loading-state">
-          <RefreshCw className="spin" size={24} />
-          <span>불러오는 중...</span>
-        </div>
+        <LoadingSpinner />
       </div>
     );
   }

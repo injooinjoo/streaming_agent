@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { Activity, Clock, Users, TrendingUp, DollarSign, Heart, UserPlus, Gift, RefreshCw, LogIn, Monitor } from 'lucide-react';
+import { Clock, Users, TrendingUp, DollarSign, RefreshCw, LogIn, Monitor, Gamepad2 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './ViewershipDashboard.css';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const ViewershipDashboard = () => {
   const [loading, setLoading] = useState(true);
-  const [platformStats, setPlatformStats] = useState({ platforms: [] });
   const [activeTab, setActiveTab] = useState('viewers'); // viewers | channels | chats
   const [realtimeSummary, setRealtimeSummary] = useState(null);
   const [realtimeTrend, setRealtimeTrend] = useState([]);
@@ -27,7 +27,7 @@ const ViewershipDashboard = () => {
     donationCount: 0
   });
   const [viewerTrend, setViewerTrend] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [authError, setAuthError] = useState(false);
 
   const { isAuthenticated, accessToken } = useAuth();
@@ -75,46 +75,32 @@ const ViewershipDashboard = () => {
     };
 
     try {
-      const [platformRes, yesterdayRes, trendRes, activityRes, realtimeSummaryRes, realtimeTrendRes] = await Promise.all([
-        fetch(`${API_BASE}/api/stats/platforms`, { headers }),
+      const [yesterdayRes, trendRes, categoriesRes, realtimeSummaryRes, realtimeTrendRes] = await Promise.all([
         fetch(`${API_BASE}/api/stats/yesterday`, { headers }),
         fetch(`${API_BASE}/api/stats/hourly-by-platform`, { headers }),
-        fetch(`${API_BASE}/api/stats/activity/recent?limit=10`, { headers }),
+        fetch(`${API_BASE}/api/categories?limit=10`, { headers }),
         fetch(`${API_BASE}/api/stats/realtime/summary`, { headers }),
         fetch(`${API_BASE}/api/stats/realtime/trend?type=${activeTab}`, { headers })
       ]);
 
       // Check if any request requires auth
-      if ([platformRes, yesterdayRes, trendRes, activityRes].some(res => res.status === 401)) {
+      if ([yesterdayRes, trendRes].some(res => res.status === 401)) {
         setAuthError(true);
         setLoading(false);
         return;
       }
 
-      const [platforms, yesterday, trend, activity, realtimeSummaryData, realtimeTrendData] = await Promise.all([
-        platformRes.ok ? platformRes.json() : { platforms: [] },
+      const [yesterday, trend, categoriesData, realtimeSummaryData, realtimeTrendData] = await Promise.all([
         yesterdayRes.ok ? yesterdayRes.json() : {},
         trendRes.ok ? trendRes.json() : [],
-        activityRes.ok ? activityRes.json() : [],
+        categoriesRes.ok ? categoriesRes.json() : { data: [] },
         realtimeSummaryRes.ok ? realtimeSummaryRes.json() : null,
         realtimeTrendRes.ok ? realtimeTrendRes.json() : []
       ]);
 
-      // Transform platform data for ranking display
-      const platformRanking = (platforms.platforms || []).map(p => ({
-        platform: p.platform,
-        name: p.platform === 'soop' ? 'SOOP' : p.platform === 'chzzk' ? '치지직' : p.platform,
-        viewers: p.total_events || 0,
-        channels: 1,
-        peak: p.donation_amount || 0,
-        donations: p.donations || 0,
-        chats: p.chats || 0
-      })).sort((a, b) => b.viewers - a.viewers);
-
-      setPlatformStats({ platforms: platformRanking });
       setYesterdaySummary(yesterday);
       setViewerTrend(trend);
-      setRecentActivity(activity);
+      setCategories(categoriesData.data || []);
       setRealtimeSummary(realtimeSummaryData);
       setRealtimeTrend(realtimeTrendData);
     } catch (err) {
@@ -123,8 +109,6 @@ const ViewershipDashboard = () => {
       setLoading(false);
     }
   };
-
-  const totalEvents = platformStats.platforms.reduce((sum, p) => sum + p.viewers, 0);
 
   const getPlatformLogo = (platform) => {
     const logos = {
@@ -136,26 +120,14 @@ const ViewershipDashboard = () => {
     return logos[platform] || null;
   };
 
-  const getActivityIcon = (type) => {
-    switch (type) {
-      case 'donation': return <Gift size={16} />;
-      case 'subscribe': return <Heart size={16} />;
-      case 'follow': return <UserPlus size={16} />;
-      default: return <Activity size={16} />;
+  const formatNumber = (num) => {
+    if (num >= 10000) {
+      return `${(num / 10000).toFixed(1)}만`;
     }
-  };
-
-  const getActivityText = (activity) => {
-    switch (activity.type) {
-      case 'donation':
-        return `${activity.user}님이 ₩${(activity.amount || 0).toLocaleString()} 후원`;
-      case 'subscribe':
-        return `${activity.user}님이 구독`;
-      case 'follow':
-        return `${activity.user}님이 팔로우`;
-      default:
-        return `${activity.user}님`;
+    if (num >= 1000) {
+      return `${(num / 1000).toFixed(1)}천`;
     }
+    return num.toLocaleString();
   };
 
   const now = new Date();
@@ -164,10 +136,7 @@ const ViewershipDashboard = () => {
   if (loading) {
     return (
       <div className="viewership-dashboard analytics-page">
-        <div className="loading-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '400px' }}>
-          <RefreshCw className="animate-spin" size={32} />
-          <span style={{ marginLeft: '12px' }}>불러오는 중...</span>
-        </div>
+        <LoadingSpinner fullHeight />
       </div>
     );
   }
@@ -327,61 +296,6 @@ const ViewershipDashboard = () => {
         </div>
       </section>
 
-      {/* 플랫폼 랭킹 섹션 */}
-      <div className="viewership-header-section">
-        <div className="viewership-total-card">
-          <div className="viewership-total-label">
-            <Activity size={16} />
-            플랫폼 활동 현황
-          </div>
-          <div className="viewership-total-value sensitive-blur">
-            {totalEvents.toLocaleString()}
-          </div>
-          <div className="viewership-total-unit">
-            전체 플랫폼 총 이벤트 수
-          </div>
-          <div className="viewership-update-time">
-            {updateTime}
-          </div>
-        </div>
-
-        <div className="platform-ranking-card">
-          <div className="platform-ranking-title">
-            <TrendingUp size={18} />
-            플랫폼별 활동
-          </div>
-          <div className="platform-ranking-list">
-            {platformStats.platforms.length > 0 ? platformStats.platforms.map((platform, index) => (
-              <div key={platform.platform} className="platform-ranking-item">
-                <div className={`platform-rank rank-${index + 1}`}>
-                  {index + 1}
-                </div>
-                <img
-                  src={getPlatformLogo(platform.platform)}
-                  alt={platform.name}
-                  className="platform-logo"
-                />
-                <div className="platform-info">
-                  <div className="platform-name">{platform.name}</div>
-                  <div className="platform-channels">채팅 <span className="sensitive-blur">{platform.chats.toLocaleString()}</span>개</div>
-                </div>
-                <div className="platform-viewers">
-                  <div>
-                    <span className="platform-viewers-value sensitive-blur">{platform.viewers.toLocaleString()}</span>
-                    <span className="platform-viewers-unit">이벤트</span>
-                  </div>
-                  <div className="platform-peak">후원 <span className="sensitive-blur">{platform.donations}</span>건</div>
-                </div>
-              </div>
-            )) : (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>
-                플랫폼 데이터가 없습니다
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
       {/* 어제 방송 요약 */}
       <div className="yesterday-summary-section">
         <div className="section-title">
@@ -492,42 +406,48 @@ const ViewershipDashboard = () => {
         </div>
       </div>
 
-      {/* 최근 활동 피드 */}
-      <div className="activity-feed-section">
+      {/* 인기 카테고리 */}
+      <div className="categories-section">
         <div className="section-title">
-          <Activity size={18} />
-          최근 활동
+          <Gamepad2 size={18} />
+          인기 카테고리
         </div>
-        <div className="activity-feed-card">
-          <div className="activity-feed-list">
-            {recentActivity.length > 0 ? recentActivity.map((activity) => (
-              <div key={activity.id} className={`activity-feed-item ${activity.type}`}>
-                <img
-                  src={getPlatformLogo(activity.platform)}
-                  alt={activity.platform}
-                  className="activity-platform-logo"
-                />
-                <div className="activity-content">
-                  <div className="activity-user">
-                    {getActivityIcon(activity.type)}
-                    {' '}
-                    {getActivityText(activity)}
+        <div className="categories-grid">
+          {categories.length > 0 ? categories.slice(0, 10).map((category, index) => (
+            <div key={category.id} className="category-card" onClick={() => navigate(`/game-catalog/${category.id}`)}>
+              <div className="category-rank">{index + 1}</div>
+              <div className="category-image">
+                {category.imageUrl ? (
+                  <img src={category.imageUrl} alt={category.nameKr || category.name} />
+                ) : (
+                  <div className="category-placeholder">
+                    <Gamepad2 size={24} />
                   </div>
-                  {activity.message && (
-                    <div className="activity-message">{activity.message}</div>
-                  )}
-                </div>
-                <div className="activity-time">{activity.time}</div>
-                {activity.amount > 0 && (
-                  <div className="activity-amount sensitive-blur">₩{activity.amount.toLocaleString()}</div>
                 )}
               </div>
-            )) : (
-              <div style={{ padding: '20px', textAlign: 'center', color: '#94a3b8' }}>
-                최근 활동 데이터가 없습니다
+              <div className="category-info">
+                <div className="category-name">{category.nameKr || category.name}</div>
+                <div className="category-stats">
+                  <span className="category-viewers">
+                    <Users size={14} />
+                    {formatNumber(category.totalViewers || 0)}
+                  </span>
+                  <div className="category-platforms">
+                    {category.platforms?.includes('soop') && (
+                      <img src="/assets/logos/soop.png" alt="SOOP" />
+                    )}
+                    {category.platforms?.includes('chzzk') && (
+                      <img src="/assets/logos/chzzk.png" alt="Chzzk" />
+                    )}
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
+          )) : (
+            <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8', gridColumn: '1 / -1' }}>
+              카테고리 데이터가 없습니다
+            </div>
+          )}
         </div>
       </div>
     </div>

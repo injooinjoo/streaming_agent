@@ -92,17 +92,62 @@ const AlertOverlay = ({
   const activeSettings = previewMode && previewSettings ? previewSettings : settings;
   const displayAlert = previewMode ? previewEvent : activeAlert;
 
+  // 폰트 외곽선 스타일 헬퍼
+  const getOutlineStyle = () => {
+    if (activeSettings.fontOutlineSize > 0) {
+      const size = activeSettings.fontOutlineSize;
+      const color = activeSettings.fontOutlineColor || '#000000dd';
+      return {
+        textShadow: `
+          -${size}px -${size}px 0 ${color},
+          ${size}px -${size}px 0 ${color},
+          -${size}px ${size}px 0 ${color},
+          ${size}px ${size}px 0 ${color},
+          0 -${size}px 0 ${color},
+          0 ${size}px 0 ${color},
+          -${size}px 0 0 ${color},
+          ${size}px 0 0 ${color}
+        `
+      };
+    }
+    return {};
+  };
+
   if (!displayAlert) return null;
 
   return (
-    <div className={`alert-overlay theme-${activeSettings.theme} ${previewMode ? 'preview-mode' : ''}`}>
-      <div className={`alert-card glass animate-${activeSettings.animation}`}>
+    <div
+      className={`alert-overlay theme-${activeSettings.theme} ${previewMode ? 'preview-mode' : ''}`}
+      style={{
+        opacity: (activeSettings.transparency ?? 100) / 100,
+        fontFamily: activeSettings.fontFamily || 'Pretendard'
+      }}
+    >
+      <div
+        className={`alert-card glass animate-${activeSettings.animation}`}
+        style={{
+          fontSize: `${activeSettings.fontSize || 28}px`,
+          fontWeight: activeSettings.fontBold ? 'bold' : 'normal',
+          background: activeSettings.useBgColor ? activeSettings.bgColor : undefined,
+          backgroundImage: activeSettings.bgImage ? `url(${activeSettings.bgImage})` : undefined,
+          backgroundSize: activeSettings.bgImage ? (activeSettings.bgImageMode === 'repeat' ? 'auto' : (activeSettings.bgImageMode || 'cover')) : undefined,
+          backgroundRepeat: activeSettings.bgImage ? (activeSettings.bgImageMode === 'repeat' ? 'repeat' : 'no-repeat') : undefined,
+          backgroundPosition: activeSettings.bgImage ? 'center' : undefined,
+          ...getOutlineStyle()
+        }}
+      >
         <div className={`alert-header gradient-text animate-${activeSettings.textAnimation}`}>
           NEW DONATION!
         </div>
-        <div className="alert-sender">{displayAlert.sender}</div>
-        <div className="alert-amount">{(displayAlert.amount || 0).toLocaleString()} KRW</div>
-        <div className="alert-message">{displayAlert.message}</div>
+        <div className="alert-sender" style={{ color: activeSettings.nickColor || '#ffc247' }}>
+          {displayAlert.sender}
+        </div>
+        <div className="alert-amount" style={{ color: activeSettings.amountColor || '#ffc247' }}>
+          {(displayAlert.amount || 0).toLocaleString()} KRW
+        </div>
+        <div className="alert-message" style={{ color: activeSettings.fontColor || '#ffffff' }}>
+          {displayAlert.message}
+        </div>
       </div>
     </div>
   );

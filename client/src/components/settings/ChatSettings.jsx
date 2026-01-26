@@ -13,13 +13,23 @@ import { OverlayPreviewWrapper } from './shared';
 import ChatOverlay from '../ChatOverlay';
 import './ChatSettings.css';
 
-// 더미 채팅 메시지 (미리보기용)
-const dummyChatMessages = [
-  { id: 'preview-1', sender: '김스트리머', message: '안녕하세요! 오늘도 방송 시작합니다~', platform: 'soop', role: 'streamer' },
-  { id: 'preview-2', sender: '팬클럽장', message: '오늘 방송도 화이팅입니다!', platform: 'chzzk', role: 'fan' },
-  { id: 'preview-3', sender: '일반시청자', message: 'ㅋㅋㅋㅋ 재밌다', platform: 'youtube', role: 'regular' },
-  { id: 'preview-4', sender: 'VIP유저', message: '후원 감사합니다~', platform: 'soop', role: 'vip' },
-  { id: 'preview-5', sender: '매니저', message: '공지: 오늘 이벤트 진행중!', platform: 'chzzk', role: 'manager' },
+// 더미 채팅 메시지 풀 (미리보기 애니메이션용)
+const dummyChatPool = [
+  { sender: '김스트리머', message: '안녕하세요! 오늘도 방송 시작합니다~', platform: 'soop', role: 'streamer' },
+  { sender: '팬클럽장', message: '오늘 방송도 화이팅입니다!', platform: 'chzzk', role: 'fan' },
+  { sender: '일반시청자', message: 'ㅋㅋㅋㅋ 재밌다', platform: 'youtube', role: 'regular' },
+  { sender: 'VIP유저', message: '후원 감사합니다~', platform: 'soop', role: 'vip' },
+  { sender: '매니저', message: '공지: 오늘 이벤트 진행중!', platform: 'chzzk', role: 'manager' },
+  { sender: '열혈팬', message: '오늘 컨텐츠 뭐해요?', platform: 'soop', role: 'fan' },
+  { sender: '뉴비시청자', message: '처음 왔는데 여기 뭐하는 방송이에요?', platform: 'youtube', role: 'regular' },
+  { sender: '구독자123', message: '구독하고 갑니다~', platform: 'chzzk', role: 'subscriber' },
+  { sender: '단골손님', message: 'ㅎㅇㅎㅇ', platform: 'soop', role: 'regular' },
+  { sender: '치즈버거', message: '배고프다...', platform: 'youtube', role: 'regular' },
+  { sender: '웃긴닉네임', message: 'ㅋㅋㅋㅋㅋㅋㅋ', platform: 'chzzk', role: 'regular' },
+  { sender: '서포터즈', message: '항상 응원합니다!', platform: 'soop', role: 'supporter' },
+  { sender: '게임마스터', message: '이거 어떻게 깨요?', platform: 'youtube', role: 'regular' },
+  { sender: '밤샘시청자', message: '졸리다...', platform: 'chzzk', role: 'regular' },
+  { sender: '질문봇', message: '나이가 어떻게 되세요?', platform: 'soop', role: 'regular' },
 ];
 
 const defaultSettings = {
@@ -139,6 +149,40 @@ const ChatSettings = () => {
   });
   const [activePreviewAlert, setActivePreviewAlert] = useState(null);
   const [activeNav, setActiveNav] = useState('theme');
+
+  // 미리보기 애니메이션 메시지 상태
+  const [previewMessages, setPreviewMessages] = useState([]);
+  const previewMsgIdRef = useRef(0);
+
+  // 미리보기 채팅 애니메이션 효과
+  useEffect(() => {
+    // 초기 메시지 3개 추가
+    const initialMessages = dummyChatPool.slice(0, 3).map((msg, i) => ({
+      ...msg,
+      id: `preview-${previewMsgIdRef.current++}`
+    }));
+    setPreviewMessages(initialMessages);
+
+    // 1.5초마다 새 메시지 추가
+    const interval = setInterval(() => {
+      const randomMsg = dummyChatPool[Math.floor(Math.random() * dummyChatPool.length)];
+      const newMsg = {
+        ...randomMsg,
+        id: `preview-${previewMsgIdRef.current++}`
+      };
+
+      setPreviewMessages(prev => {
+        const updated = [...prev, newMsg];
+        // 최대 8개 메시지만 유지 (오래된 것 제거)
+        if (updated.length > 8) {
+          return updated.slice(-8);
+        }
+        return updated;
+      });
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Refs for scrolling
   const sectionRefs = {
@@ -1144,7 +1188,7 @@ const ChatSettings = () => {
             <ChatOverlay
               previewMode={true}
               previewSettings={settings}
-              previewMessages={dummyChatMessages}
+              previewMessages={previewMessages}
             />
           </OverlayPreviewWrapper>
 

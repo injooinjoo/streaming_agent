@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Users, DollarSign, Activity, BarChart3,
   LogOut, Shield, ArrowLeft, Monitor, Gamepad2, Search, Megaphone,
-  Menu, X, Radio
+  Menu, X, Radio, Footprints
 } from 'lucide-react';
 import AdminOverview from './AdminOverview';
 import AdminStreamers from './AdminStreamers';
@@ -15,6 +15,7 @@ import AdminGameAnalytics from './AdminGameAnalytics';
 import AdminNexonDiscovery from './AdminNexonDiscovery';
 import AdminNexonCampaign from './AdminNexonCampaign';
 import AdminMonitor from './AdminMonitor';
+import AdminViewerJourney from './AdminViewerJourney';
 import './AdminDashboard.css';
 
 const AdminDashboard = () => {
@@ -56,6 +57,7 @@ const AdminDashboard = () => {
       category: '데이터 모니터',
       items: [
         { id: 'monitor', label: '스트리밍 모니터', icon: <Radio size={18} /> },
+        { id: 'viewer-journey', label: '시청자 동선', icon: <Footprints size={18} /> },
       ]
     },
     {
@@ -76,6 +78,7 @@ const AdminDashboard = () => {
       case 'discovery': return <AdminNexonDiscovery onStreamerSelect={handleStreamerSelect} />;
       case 'campaign': return <AdminNexonCampaign />;
       case 'monitor': return <AdminMonitor />;
+      case 'viewer-journey': return <AdminViewerJourney />;
       case 'overview': return <AdminOverview />;
       case 'streamers': return <AdminStreamers onStreamerSelect={handleStreamerSelect} />;
       case 'revenue': return <AdminRevenue />;

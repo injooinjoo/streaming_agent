@@ -131,11 +131,12 @@ const RouletteOverlay = ({
     const segmentAngle = 360 / segments.length;
 
     return (
-      <div
+      <g
         ref={wheelRef}
         className="roulette-wheel"
         style={{
           transform: `rotate(${rotation}deg)`,
+          transformOrigin: '150px 150px',
           transition: isSpinning ? `transform ${activeSettings.spinDuration}ms cubic-bezier(0.17, 0.67, 0.12, 0.99)` : 'none'
         }}
       >
@@ -179,7 +180,7 @@ const RouletteOverlay = ({
             </g>
           );
         })}
-      </div>
+      </g>
     );
   };
 

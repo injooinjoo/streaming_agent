@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Link2, User, Shield, AlertCircle, Copy, Check,
   LogOut, Info, Key, Monitor, Lock, Smartphone,
@@ -6,9 +7,12 @@ import {
   Download, Upload, X, FileJson, AlertTriangle, CheckCircle2,
   RefreshCw
 } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import './AccountSettings.css';
 
 const AccountSettings = () => {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState('connection');
   const [memberId] = useState('jebMz9rAmmZraG2A487U1w');
   const [copied, setCopied] = useState(false);
@@ -656,6 +660,20 @@ const AccountSettings = () => {
           </div>
         </div>
       )}
+
+      {/* 로그아웃 섹션 */}
+      <div className="logout-section">
+        <button
+          className="logout-button"
+          onClick={() => {
+            logout();
+            navigate('/login');
+          }}
+        >
+          <LogOut size={18} />
+          로그아웃
+        </button>
+      </div>
     </div>
   );
 };

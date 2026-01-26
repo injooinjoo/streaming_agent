@@ -235,7 +235,29 @@ class CategoryCrawler {
   }
 
   /**
-   * Chzzk 카테고리 목록 크롤링 (라이브 방송에서 discover + 포스터 이미지)
+   * Chzzk 카테고리 상세 정보 조회 (openLiveCount, concurrentUserCount 포함)
+   * @param {string} categoryType - 카테고리 타입 (GAME, ETC)
+   * @param {string} categoryId - 카테고리 ID
+   * @returns {Promise<{openLiveCount: number, concurrentUserCount: number, posterImageUrl: string|null}>}
+   */
+  async fetchChzzkCategoryInfo(categoryType, categoryId) {
+    try {
+      const url = `https://api.chzzk.naver.com/service/v1/categories/${categoryType}/${categoryId}/info`;
+      const data = await this.fetchWithRetry("chzzk", url);
+      const content = data?.content || {};
+      return {
+        openLiveCount: content.openLiveCount || 0,
+        concurrentUserCount: content.concurrentUserCount || 0,
+        posterImageUrl: content.posterImageUrl || null,
+      };
+    } catch (error) {
+      categoryLogger.debug("Chzzk category info fetch failed", { categoryId, error: error.message });
+      return { openLiveCount: 0, concurrentUserCount: 0, posterImageUrl: null };
+    }
+  }
+
+  /**
+   * Chzzk 카테고리 목록 크롤링 (홈페이지에서 카테고리 발견 + 상세 API로 정확한 수치 조회)
    * @returns {Promise<PlatformCategory[]>}
    */
   async fetchChzzkCategories() {
@@ -243,9 +265,9 @@ class CategoryCrawler {
 
     const categoryMap = new Map();
 
-    // 여러 페이지의 라이브 방송에서 카테고리 수집
-    const pagesToFetch = 60;
-    const pageSize = 100;
+    // Step 1: 홈페이지 라이브 목록에서 활성 카테고리 발견
+    const pagesToFetch = 10; // 카테고리 발견용으로는 10페이지면 충분
+    const pageSize = 50;
 
     for (let page = 0; page < pagesToFetch; page++) {
       try {
@@ -253,63 +275,60 @@ class CategoryCrawler {
         const url = `https://api.chzzk.naver.com/service/v1/home/lives?size=${pageSize}&offset=${offset}`;
         const data = await this.fetchWithRetry("chzzk", url);
 
-        // API 응답: { code: 200, content: { streamingLiveList: [...] } }
         if (!data || !data.content) {
-          categoryLogger.debug("Chzzk: No content in response");
           break;
         }
 
-        // streamingLiveList 또는 data 필드 확인 (API 버전에 따라 다를 수 있음)
         const lives = data.content.streamingLiveList || data.content.data || [];
         if (!Array.isArray(lives) || lives.length === 0) {
-          categoryLogger.debug("Chzzk: No more live data", { page: page + 1 });
           break;
         }
 
         for (const live of lives) {
           if (live.liveCategory && live.liveCategoryValue) {
             const categoryId = live.liveCategory;
-
             if (!categoryMap.has(categoryId)) {
               categoryMap.set(categoryId, {
                 platform: "chzzk",
                 platformCategoryId: categoryId,
                 platformCategoryName: live.liveCategoryValue,
                 categoryType: live.categoryType || "GAME",
-                thumbnailUrl: null, // 포스터 이미지로 나중에 업데이트
+                thumbnailUrl: null,
                 viewerCount: 0,
                 streamerCount: 0,
               });
             }
-
-            // 시청자/스트리머 수 집계
-            const category = categoryMap.get(categoryId);
-            category.viewerCount += live.concurrentUserCount || 0;
-            category.streamerCount += 1;
           }
         }
 
-        categoryLogger.debug("Chzzk page fetched", { page: page + 1, livesCount: lives.length, uniqueCategories: categoryMap.size });
+        categoryLogger.debug("Chzzk discover page fetched", {
+          page: page + 1,
+          livesCount: lives.length,
+          uniqueCategories: categoryMap.size
+        });
       } catch (error) {
-        categoryLogger.error("Chzzk page failed", { page: page + 1, error: error.message });
+        categoryLogger.error("Chzzk discover page failed", { page: page + 1, error: error.message });
         break;
       }
     }
 
-    // 각 카테고리의 포스터 이미지 가져오기 (병렬 처리, 최대 10개씩)
+    // Step 2: 각 카테고리의 상세 정보 조회 (정확한 방송수/시청자수)
     const categories = Array.from(categoryMap.values());
-    const batchSize = 10;
+    const batchSize = 5; // API 부하 고려
 
     for (let i = 0; i < categories.length; i += batchSize) {
       const batch = categories.slice(i, i + batchSize);
       await Promise.all(
         batch.map(async (category) => {
-          const posterUrl = await this.fetchChzzkCategoryPoster(
+          const info = await this.fetchChzzkCategoryInfo(
             category.categoryType,
             category.platformCategoryId
           );
-          if (posterUrl) {
-            category.thumbnailUrl = posterUrl;
+          // 카테고리 상세 API에서 정확한 수치 사용
+          category.viewerCount = info.concurrentUserCount;
+          category.streamerCount = info.openLiveCount;
+          if (info.posterImageUrl) {
+            category.thumbnailUrl = info.posterImageUrl;
           }
         })
       );
@@ -318,8 +337,12 @@ class CategoryCrawler {
       });
     }
 
+    const totalViewers = categories.reduce((sum, c) => sum + c.viewerCount, 0);
+    const totalStreamers = categories.reduce((sum, c) => sum + c.streamerCount, 0);
     categoryLogger.info("Chzzk crawl complete", {
-      total: categories.length,
+      categories: categories.length,
+      totalStreamers,
+      totalViewers,
       withPoster: categories.filter(c => c.thumbnailUrl).length
     });
     return categories;

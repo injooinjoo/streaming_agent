@@ -7,6 +7,7 @@ import {
   AreaChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ComposedChart, Bar
 } from 'recharts';
+import LoadingSpinner from '../shared/LoadingSpinner';
 
 // Campaign Metrics
 const CAMPAIGN_METRICS = {
@@ -123,12 +124,7 @@ const AdminNexonCampaign = () => {
   };
 
   if (loading) {
-    return (
-      <div className="admin-loading-section">
-        <RefreshCw size={24} className="spin" />
-        <p>데이터 로딩 중...</p>
-      </div>
-    );
+    return <LoadingSpinner />;
   }
 
   return (

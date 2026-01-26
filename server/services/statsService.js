@@ -322,57 +322,86 @@ const createStatsService = () => {
       };
     },
 
-    // ===== Viewer/Chat Statistics (from streamingDb) =====
+    // ===== Viewer/Traffic Statistics (from streamingDb) =====
+    // Note: Traffic-based metrics using viewer_engagement and broadcast_segments tables
 
     /**
-     * Get chat activity summary
+     * Get viewer traffic summary (traffic-based, not donation-based)
      * @param {number} days - Days to look back
      * @returns {Promise<Object>}
      */
     async getChatActivitySummary(days = 7) {
+      // Use viewer_engagement for traffic metrics
       const summary = await streamingDbGet(
         `SELECT
-          COUNT(*) as totalChats,
-          COUNT(DISTINCT actor_nickname) as uniqueUsers,
-          COUNT(DISTINCT ${sql.dateOnly('event_timestamp')}) as activeDays
-        FROM events
-        WHERE event_type = 'chat' AND event_timestamp >= ${sql.dateSubtract(days, 'days')}`
+          COUNT(DISTINCT person_id) as uniqueViewers,
+          SUM(chat_count) as totalChats,
+          COUNT(*) as engagementRecords,
+          COUNT(DISTINCT channel_id) as activeChannels
+        FROM viewer_engagement
+        WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}`
       );
 
-      const peakChat = await streamingDbGet(
+      // Get peak hour from viewer_engagement activity
+      const peakActivity = await streamingDbGet(
         `SELECT
-          ${sql.formatDate('event_timestamp', 'HH24:00')} as hour,
-          COUNT(*) as count
-        FROM events
-        WHERE event_type = 'chat' AND event_timestamp >= ${sql.dateSubtract(days, 'days')}
-        GROUP BY ${sql.extractHour('event_timestamp')}
-        ORDER BY count DESC
+          ${sql.formatDate('last_seen_at', 'HH24:00')} as hour,
+          COUNT(DISTINCT person_id) as viewerCount,
+          SUM(chat_count) as chatCount
+        FROM viewer_engagement
+        WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}
+        GROUP BY ${sql.extractHour('last_seen_at')}
+        ORDER BY viewerCount DESC
         LIMIT 1`
       );
 
+      // Get peak viewers from broadcast_segments
+      const peakViewers = await streamingDbGet(
+        `SELECT MAX(peak_viewer_count) as peakViewers
+        FROM broadcast_segments
+        WHERE segment_started_at >= ${sql.dateSubtract(days, 'days')}`
+      );
+
+      // Count active days from viewer_engagement
+      const activeDaysResult = await streamingDbGet(
+        `SELECT COUNT(DISTINCT ${sql.dateOnly('last_seen_at')}) as activeDays
+        FROM viewer_engagement
+        WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}`
+      );
+
       return {
+        // Traffic-based metrics
+        uniqueViewers: summary?.uniqueViewers || 0,
         totalChats: summary?.totalChats || 0,
-        uniqueUsers: summary?.uniqueUsers || 0,
-        activeDays: summary?.activeDays || 0,
-        peakHour: peakChat?.hour || 'N/A',
-        peakChatCount: peakChat?.count || 0,
+        engagementRecords: summary?.engagementRecords || 0,
+        activeChannels: summary?.activeChannels || 0,
+        activeDays: activeDaysResult?.activeDays || 0,
+        peakHour: peakActivity?.hour || 'N/A',
+        peakViewerCount: peakActivity?.viewerCount || 0,
+        peakChatCount: peakActivity?.chatCount || 0,
+        peakBroadcastViewers: peakViewers?.peakViewers || 0,
+        // Legacy compatibility
+        totalDonations: 0,
+        totalAmount: 0,
+        uniqueDonors: 0,
+        uniqueUsers: summary?.uniqueViewers || 0,
       };
     },
 
     /**
-     * Get chat trend by hour
+     * Get viewer activity trend by hour (traffic-based)
      * @param {number} days - Days to look back
      * @returns {Promise<Array>}
      */
     async getChatTrendByHour(days = 7) {
       const rows = await streamingDbAll(
         `SELECT
-          ${sql.formatDate('event_timestamp', 'HH24:00')} as hour,
-          COUNT(*) as chats,
-          COUNT(DISTINCT actor_nickname) as users
-        FROM events
-        WHERE event_type = 'chat' AND event_timestamp >= ${sql.dateSubtract(days, 'days')}
-        GROUP BY ${sql.extractHour('event_timestamp')}
+          ${sql.formatDate('last_seen_at', 'HH24:00')} as hour,
+          COUNT(DISTINCT person_id) as viewers,
+          SUM(chat_count) as chats
+        FROM viewer_engagement
+        WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}
+        GROUP BY ${sql.extractHour('last_seen_at')}
         ORDER BY hour`
       );
 
@@ -383,15 +412,16 @@ const createStatsService = () => {
         const existing = rows?.find(r => r.hour === hourStr);
         hourlyData.push({
           hour: hourStr,
+          viewers: existing?.viewers || 0,
           chats: existing?.chats || 0,
-          users: existing?.users || 0
+          users: existing?.viewers || 0
         });
       }
       return hourlyData;
     },
 
     /**
-     * Get chat trend by day of week
+     * Get viewer activity trend by day of week (traffic-based)
      * @param {number} weeks - Weeks to look back
      * @returns {Promise<Array>}
      */
@@ -399,24 +429,28 @@ const createStatsService = () => {
       const days = weeks * 7;
       // Note: PostgreSQL EXTRACT(DOW) returns 0=Sunday like SQLite strftime('%w')
       const dayCase = isPostgres()
-        ? `CASE EXTRACT(DOW FROM event_timestamp)::INTEGER
+        ? `CASE EXTRACT(DOW FROM last_seen_at)::INTEGER
             WHEN 0 THEN '일' WHEN 1 THEN '월' WHEN 2 THEN '화'
             WHEN 3 THEN '수' WHEN 4 THEN '목' WHEN 5 THEN '금' WHEN 6 THEN '토'
           END`
-        : `CASE strftime('%w', event_timestamp)
+        : `CASE strftime('%w', last_seen_at)
             WHEN '0' THEN '일' WHEN '1' THEN '월' WHEN '2' THEN '화'
             WHEN '3' THEN '수' WHEN '4' THEN '목' WHEN '5' THEN '금' WHEN '6' THEN '토'
           END`;
 
+      const dayOfWeekExtract = isPostgres()
+        ? `EXTRACT(DOW FROM last_seen_at)::INTEGER`
+        : `CAST(strftime('%w', last_seen_at) AS INTEGER)`;
+
       const rows = await streamingDbAll(
         `SELECT
           ${dayCase} as day,
-          ${sql.extractDayOfWeek('event_timestamp')} as dayNum,
-          COUNT(*) as chats,
-          COUNT(DISTINCT actor_nickname) as users
-        FROM events
-        WHERE event_type = 'chat' AND event_timestamp >= ${sql.dateSubtract(days, 'days')}
-        GROUP BY ${sql.extractDayOfWeek('event_timestamp')}
+          ${dayOfWeekExtract} as dayNum,
+          COUNT(DISTINCT person_id) as viewers,
+          SUM(chat_count) as chats
+        FROM viewer_engagement
+        WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}
+        GROUP BY ${dayOfWeekExtract}
         ORDER BY dayNum`
       );
 
@@ -425,37 +459,40 @@ const createStatsService = () => {
         const existing = rows?.find(r => r.day === day);
         return {
           day,
+          viewers: existing?.viewers || 0,
           chats: existing?.chats || 0,
-          users: existing?.users || 0
+          users: existing?.viewers || 0
         };
       });
     },
 
     /**
-     * Get recent activity timeline
+     * Get viewer activity timeline (traffic-based)
      * @param {number} days - Days to look back
      * @returns {Promise<Array>}
      */
     async getActivityTimeline(days = 7) {
+      // Get daily viewer engagement stats
       const rows = await streamingDbAll(
         `SELECT
-          ${sql.dateOnly('event_timestamp')} as date,
-          COUNT(CASE WHEN event_type = 'chat' THEN 1 END) as chats,
-          COUNT(CASE WHEN event_type = 'donation' THEN 1 END) as donations,
-          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donationAmount,
-          COUNT(DISTINCT actor_nickname) as activeUsers
-        FROM events
-        WHERE event_timestamp >= ${sql.dateSubtract(days, 'days')}
-        GROUP BY ${sql.dateOnly('event_timestamp')}
+          ${sql.dateOnly('last_seen_at')} as date,
+          COUNT(DISTINCT person_id) as activeViewers,
+          SUM(chat_count) as totalChats,
+          COUNT(*) as engagementCount
+        FROM viewer_engagement
+        WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}
+        GROUP BY ${sql.dateOnly('last_seen_at')}
         ORDER BY date DESC`
       );
 
       return (rows || []).map(row => ({
         date: row.date,
-        chats: row.chats || 0,
-        donations: row.donations || 0,
-        donationAmount: row.donationAmount || 0,
-        activeUsers: row.activeUsers || 0
+        activeViewers: row.activeViewers || 0,
+        totalChats: row.totalChats || 0,
+        engagementCount: row.engagementCount || 0,
+        // Legacy compatibility
+        chats: row.totalChats || 0,
+        activeUsers: row.activeViewers || 0
       }));
     },
 
@@ -506,16 +543,17 @@ const createStatsService = () => {
       yesterday.setDate(yesterday.getDate() - 1);
       const dateStr = yesterday.toISOString().split('T')[0];
 
+      // Optimized: Only query non-chat events using IN clause (much faster with index)
       const summary = await streamingDbGet(
         `SELECT
-          COUNT(CASE WHEN event_type = 'chat' THEN 1 END) as chatCount,
           COUNT(CASE WHEN event_type = 'donation' THEN 1 END) as donationCount,
           COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donationAmount,
           COUNT(DISTINCT actor_nickname) as uniqueUsers,
           MIN(event_timestamp) as firstEvent,
           MAX(event_timestamp) as lastEvent
         FROM events
-        WHERE DATE(event_timestamp) = ?`,
+        WHERE event_type IN ('donation', 'subscribe', 'subscription', 'follow')
+          AND DATE(event_timestamp) = ?`,
         [dateStr]
       );
 
@@ -546,7 +584,7 @@ const createStatsService = () => {
         duration: hours > 0 ? `${hours}시간 ${minutes}분` : `${minutes}분`,
         avgViewers: summary.uniqueUsers || 0,
         peakViewers: summary.uniqueUsers || 0,
-        chatCount: summary.chatCount || 0,
+        chatCount: 0, // Chat counts disabled for performance
         donationAmount: summary.donationAmount || 0,
         donationCount: summary.donationCount || 0
       };
@@ -558,13 +596,15 @@ const createStatsService = () => {
      * @returns {Promise<Array>}
      */
     async getHourlyActivityByPlatform(hours = 24) {
+      // Optimized: Use IN clause for much faster index utilization
       const rows = await streamingDbAll(
         `SELECT
           ${sql.formatDate('event_timestamp', 'HH24:00')} as time,
           platform,
           COUNT(*) as count
         FROM events
-        WHERE event_timestamp >= ${sql.dateSubtract(hours, 'hours')}
+        WHERE event_type IN ('donation', 'subscribe', 'subscription', 'follow')
+          AND event_timestamp >= ${sql.dateSubtract(hours, 'hours')}
         GROUP BY ${sql.extractHour('event_timestamp')}, platform
         ORDER BY time`
       );
@@ -601,31 +641,42 @@ const createStatsService = () => {
      * @returns {Promise<Object>}
      */
     async getPlatformStats() {
-      const [eventsByPlatform, recentTrend] = await Promise.all([
+      // Optimized: Use IN clause for much faster index utilization (~3s vs ~30s)
+      // Chat counts should use a separate summary table in the future
+      const [donationStats, recentTrend] = await Promise.all([
+        // Non-chat events only (donations, subscriptions, follows) - ~70K total
         streamingDbAll(`
           SELECT platform,
             COUNT(*) as total_events,
             SUM(CASE WHEN event_type = 'donation' THEN 1 ELSE 0 END) as donations,
-            SUM(CASE WHEN event_type = 'chat' THEN 1 ELSE 0 END) as chats,
             SUM(CASE WHEN event_type = 'subscription' THEN 1 ELSE 0 END) as subscriptions,
             SUM(CASE WHEN event_type = 'follow' THEN 1 ELSE 0 END) as follows,
             COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount
           FROM events
+          WHERE event_type IN ('donation', 'subscribe', 'subscription', 'follow')
           GROUP BY platform
         `),
+        // Trend data - non-chat events only
         streamingDbAll(`
           SELECT platform,
             ${sql.formatDate('event_timestamp', 'YYYY-MM-DD')} as date,
             COUNT(*) as events
           FROM events
-          WHERE event_timestamp > ${sql.dateSubtract(7, 'days')}
+          WHERE event_type IN ('donation', 'subscribe', 'subscription', 'follow')
+            AND event_timestamp > ${sql.dateSubtract(7, 'days')}
           GROUP BY platform, ${sql.formatDate('event_timestamp', 'YYYY-MM-DD')}
           ORDER BY date
         `),
       ]);
 
+      // Add placeholder for chats (to be implemented with summary table)
+      const platforms = (donationStats || []).map(row => ({
+        ...row,
+        chats: 0 // TODO: Use summary table for chat counts
+      }));
+
       return {
-        platforms: eventsByPlatform || [],
+        platforms,
         trend: recentTrend || [],
       };
     },
@@ -681,14 +732,47 @@ const createStatsService = () => {
       `);
 
       // Get peak viewers for each platform in last 24h
-      const peakData = await streamingDbAll(`
-        SELECT
-          platform,
-          MAX(viewer_count) as peak_viewers
-        FROM category_stats
-        WHERE recorded_at >= ${sql.dateSubtract(24, 'hours')}
-        GROUP BY platform
-      `);
+      // FIX: Use MAX per category per hour to deduplicate multiple crawler snapshots,
+      // then SUM across categories for each hour, then get MAX of those hourly totals
+      const peakData = await streamingDbAll(
+        isPostgres()
+          ? `
+            SELECT platform, MAX(hourly_total) as peak_viewers
+            FROM (
+              SELECT platform, snapshot_hour, SUM(max_category_viewers) as hourly_total
+              FROM (
+                SELECT
+                  platform,
+                  TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00') as snapshot_hour,
+                  platform_category_id,
+                  MAX(viewer_count) as max_category_viewers
+                FROM category_stats
+                WHERE recorded_at >= NOW() - INTERVAL '24 hours'
+                GROUP BY platform, TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00'), platform_category_id
+              ) per_category
+              GROUP BY platform, snapshot_hour
+            ) hourly_sums
+            GROUP BY platform
+          `
+          : `
+            SELECT platform, MAX(hourly_total) as peak_viewers
+            FROM (
+              SELECT platform, snapshot_hour, SUM(max_category_viewers) as hourly_total
+              FROM (
+                SELECT
+                  platform,
+                  strftime('%Y-%m-%d %H:00', recorded_at) as snapshot_hour,
+                  platform_category_id,
+                  MAX(viewer_count) as max_category_viewers
+                FROM category_stats
+                WHERE recorded_at >= datetime('now', '-24 hours')
+                GROUP BY platform, strftime('%Y-%m-%d %H:00', recorded_at), platform_category_id
+              ) per_category
+              GROUP BY platform, snapshot_hour
+            ) hourly_sums
+            GROUP BY platform
+          `
+      );
 
       const peakMap = {};
       (peakData || []).forEach(row => {
@@ -728,50 +812,56 @@ const createStatsService = () => {
       const hours = 24;
 
       if (type === 'chats') {
-        // Get chat count by hour from events table
-        const chatData = await streamingDbAll(`
-          SELECT
-            ${sql.formatDate('event_timestamp', 'HH24:00')} as time,
-            platform,
-            COUNT(*) as count
-          FROM events
-          WHERE event_type = 'chat'
-            AND event_timestamp >= ${sql.dateSubtract(hours, 'hours')}
-          GROUP BY ${sql.extractHour('event_timestamp')}, platform
-          ORDER BY time
-        `);
-
-        const hourlyMap = {};
-        (chatData || []).forEach(row => {
-          if (!hourlyMap[row.time]) {
-            hourlyMap[row.time] = { time: row.time, chzzk: 0, soop: 0, twitch: 0 };
-          }
-          if (row.platform === 'chzzk') hourlyMap[row.time].chzzk = row.count;
-          else if (row.platform === 'soop') hourlyMap[row.time].soop = row.count;
-          else if (row.platform === 'twitch') hourlyMap[row.time].twitch = row.count;
-        });
-
-        // Fill all hours
+        // Chat data is too large to query in realtime (13M+ rows)
+        // Return placeholder - use summary table in future
         const result = [];
         for (let i = 0; i < 24; i++) {
           const hourStr = String(i).padStart(2, '0') + ':00';
-          result.push(hourlyMap[hourStr] || { time: hourStr, chzzk: 0, soop: 0, twitch: 0 });
+          result.push({ time: hourStr, chzzk: 0, soop: 0, twitch: 0 });
         }
         return result;
       }
 
       // For viewers and channels, use category_stats
+      // FIX: Use MAX per category per hour to avoid duplicate snapshot summation
+      // The crawler may run multiple times per hour, so we need to deduplicate
       const field = type === 'channels' ? 'streamer_count' : 'viewer_count';
-      const trendData = await streamingDbAll(`
-        SELECT
-          ${sql.formatDate('recorded_at', 'HH24:00')} as time,
-          platform,
-          SUM(${field}) as total
-        FROM category_stats
-        WHERE recorded_at >= ${sql.dateSubtract(hours, 'hours')}
-        GROUP BY ${sql.extractHour('recorded_at')}, platform
-        ORDER BY time
-      `);
+
+      // Subquery: Get MAX value per category per hour to deduplicate multiple snapshots
+      // Then sum across all categories for each hour
+      const trendData = await streamingDbAll(
+        isPostgres()
+          ? `
+            SELECT time, platform, SUM(max_value) as total
+            FROM (
+              SELECT
+                TO_CHAR(recorded_at, 'HH24:00') as time,
+                platform,
+                platform_category_id,
+                MAX(${field}) as max_value
+              FROM category_stats
+              WHERE recorded_at >= NOW() - INTERVAL '${hours} hours'
+              GROUP BY TO_CHAR(recorded_at, 'HH24:00'), platform, platform_category_id
+            ) sub
+            GROUP BY time, platform
+            ORDER BY time
+          `
+          : `
+            SELECT time, platform, SUM(max_value) as total
+            FROM (
+              SELECT
+                strftime('%H:00', recorded_at) as time,
+                platform,
+                platform_category_id,
+                MAX(${field}) as max_value
+              FROM category_stats
+              WHERE recorded_at >= datetime('now', '-${hours} hours')
+              GROUP BY strftime('%H', recorded_at), platform, platform_category_id
+            ) sub
+            GROUP BY time, platform
+            ORDER BY time
+          `
+      );
 
       const hourlyMap = {};
       (trendData || []).forEach(row => {
@@ -1081,11 +1171,261 @@ const createStatsService = () => {
 
       return {
         todayDonation: todayStats?.todayDonation || 0,
+        donationCount: todayStats?.donationCount || 0,
         peakViewers: peakViewers?.peakViewers || 0,
         newSubs: subscribeCount?.newSubs || 0,
         insights,
         myCategories,
         topCategories,
+      };
+    },
+
+    // ===== Viewer Journey Statistics =====
+
+    /**
+     * Get list of viewers with engagement stats
+     * @param {Object} options - Query options
+     * @returns {Promise<Object>}
+     */
+    async getViewersList({ search = "", sortBy = "total_chats", sortOrder = "desc", page = 1, limit = 50 }) {
+      const offset = (page - 1) * limit;
+      const validSortColumns = ["total_chats", "total_donations", "total_amount", "last_activity", "total_watch_time"];
+      const sortColumn = validSortColumns.includes(sortBy) ? sortBy : "total_chats";
+      const order = sortOrder === "asc" ? "ASC" : "DESC";
+
+      // Build search condition
+      let searchCondition = "";
+      const params = [];
+      if (search) {
+        searchCondition = isPostgres()
+          ? `AND p.nickname ILIKE $1`
+          : `AND p.nickname LIKE ?`;
+        params.push(`%${search}%`);
+      }
+
+      // Count total viewers (persons without channel_id = viewers, not streamers)
+      const countQuery = `
+        SELECT COUNT(DISTINCT p.id) as total
+        FROM persons p
+        LEFT JOIN viewer_engagement ve ON p.id = ve.person_id
+        WHERE p.channel_id IS NULL
+        ${searchCondition}
+      `;
+      const countRow = await streamingDbGet(countQuery, params);
+      const totalCount = countRow?.total || 0;
+      const totalPages = Math.ceil(totalCount / limit);
+
+      // Get viewers with aggregated stats
+      const viewersQuery = `
+        SELECT
+          p.id,
+          p.nickname,
+          p.profile_image_url,
+          p.platform,
+          p.first_seen_at,
+          p.last_seen_at,
+          COALESCE(SUM(ve.chat_count), 0) as total_chats,
+          COALESCE(SUM(ve.donation_count), 0) as total_donations,
+          COALESCE(SUM(ve.total_donation_amount), 0) as total_amount,
+          MAX(ve.last_seen_at) as last_activity,
+          COALESCE((
+            SELECT SUM(us.session_duration_seconds)
+            FROM user_sessions us
+            WHERE us.person_id = p.id
+          ), 0) as total_watch_time,
+          COUNT(DISTINCT ve.channel_id) as channels_watched
+        FROM persons p
+        LEFT JOIN viewer_engagement ve ON p.id = ve.person_id
+        WHERE p.channel_id IS NULL
+        ${searchCondition}
+        GROUP BY p.id, p.nickname, p.profile_image_url, p.platform, p.first_seen_at, p.last_seen_at
+        HAVING COALESCE(SUM(ve.chat_count), 0) > 0 OR COALESCE(SUM(ve.donation_count), 0) > 0
+        ORDER BY ${sortColumn} ${order}
+        LIMIT ${isPostgres() ? `$${params.length + 1}` : '?'} OFFSET ${isPostgres() ? `$${params.length + 2}` : '?'}
+      `;
+
+      const viewers = await streamingDbAll(viewersQuery, [...params, limit, offset]);
+
+      return {
+        viewers: (viewers || []).map(v => ({
+          id: v.id,
+          nickname: v.nickname || '익명',
+          profileImage: v.profile_image_url,
+          platform: v.platform,
+          firstSeen: v.first_seen_at,
+          lastSeen: v.last_seen_at,
+          totalChats: v.total_chats || 0,
+          totalDonations: v.total_donations || 0,
+          totalAmount: v.total_amount || 0,
+          lastActivity: v.last_activity,
+          totalWatchTime: v.total_watch_time || 0,
+          channelsWatched: v.channels_watched || 0
+        })),
+        totalCount,
+        totalPages,
+        page,
+        limit
+      };
+    },
+
+    /**
+     * Get detailed viewer journey data
+     * @param {number} personId - Viewer's person ID
+     * @returns {Promise<Object>}
+     */
+    async getViewerJourney(personId) {
+      // Get viewer basic info
+      const viewerInfo = await streamingDbGet(
+        `SELECT id, nickname, profile_image_url, platform, first_seen_at, last_seen_at
+         FROM persons WHERE id = ?`,
+        [personId]
+      );
+
+      if (!viewerInfo) {
+        return null;
+      }
+
+      // Get channels watched with time
+      const channelsQuery = `
+        SELECT
+          us.channel_id,
+          us.platform,
+          bp.nickname as streamer_name,
+          bp.profile_image_url as streamer_image,
+          SUM(us.session_duration_seconds) as watch_seconds,
+          COUNT(*) as visit_count,
+          MAX(us.session_started_at) as last_visit
+        FROM user_sessions us
+        LEFT JOIN persons bp ON bp.channel_id = us.channel_id AND bp.platform = us.platform
+        WHERE us.person_id = ?
+        GROUP BY us.channel_id, us.platform, bp.nickname, bp.profile_image_url
+        ORDER BY watch_seconds DESC
+      `;
+      const channels = await streamingDbAll(channelsQuery, [personId]);
+
+      // Get categories watched with time
+      const categoriesQuery = `
+        SELECT
+          us.category_id,
+          COALESCE(pc.category_name, pc.platform_category_name, us.category_id) as category_name,
+          pc.thumbnail_url as category_image,
+          SUM(us.session_duration_seconds) as watch_seconds,
+          COUNT(DISTINCT us.channel_id) as streamers_watched
+        FROM user_sessions us
+        LEFT JOIN platform_categories pc ON us.category_id = pc.platform_category_id AND us.platform = pc.platform
+        WHERE us.person_id = ? AND us.category_id IS NOT NULL
+        GROUP BY us.category_id, pc.category_name, pc.platform_category_name, pc.thumbnail_url
+        ORDER BY watch_seconds DESC
+      `;
+      const categories = await streamingDbAll(categoriesQuery, [personId]);
+
+      // Get engagement stats per channel
+      const engagementQuery = `
+        SELECT
+          ve.channel_id,
+          ve.platform,
+          bp.nickname as streamer_name,
+          ve.chat_count,
+          ve.donation_count,
+          ve.total_donation_amount,
+          ve.first_seen_at,
+          ve.last_seen_at
+        FROM viewer_engagement ve
+        LEFT JOIN persons bp ON bp.channel_id = ve.channel_id AND bp.platform = ve.platform
+        WHERE ve.person_id = ?
+        ORDER BY ve.total_donation_amount DESC, ve.chat_count DESC
+      `;
+      const engagement = await streamingDbAll(engagementQuery, [personId]);
+
+      // Get total stats
+      const totalsQuery = `
+        SELECT
+          COALESCE(SUM(chat_count), 0) as total_chats,
+          COALESCE(SUM(donation_count), 0) as total_donations,
+          COALESCE(SUM(total_donation_amount), 0) as total_amount
+        FROM viewer_engagement
+        WHERE person_id = ?
+      `;
+      const totals = await streamingDbGet(totalsQuery, [personId]);
+
+      // Get total watch time
+      const watchTimeQuery = `
+        SELECT COALESCE(SUM(session_duration_seconds), 0) as total_watch_time
+        FROM user_sessions
+        WHERE person_id = ?
+      `;
+      const watchTime = await streamingDbGet(watchTimeQuery, [personId]);
+
+      // Get recent sessions (last 20)
+      const recentSessionsQuery = `
+        SELECT
+          us.id,
+          us.channel_id,
+          us.platform,
+          bp.nickname as streamer_name,
+          us.category_id,
+          us.session_started_at,
+          us.session_ended_at,
+          us.session_duration_seconds
+        FROM user_sessions us
+        LEFT JOIN persons bp ON bp.channel_id = us.channel_id AND bp.platform = us.platform
+        WHERE us.person_id = ?
+        ORDER BY us.session_started_at DESC
+        LIMIT 20
+      `;
+      const recentSessions = await streamingDbAll(recentSessionsQuery, [personId]);
+
+      return {
+        viewer: {
+          id: viewerInfo.id,
+          nickname: viewerInfo.nickname || '익명',
+          profileImage: viewerInfo.profile_image_url,
+          platform: viewerInfo.platform,
+          firstSeen: viewerInfo.first_seen_at,
+          lastSeen: viewerInfo.last_seen_at
+        },
+        totals: {
+          totalChats: totals?.total_chats || 0,
+          totalDonations: totals?.total_donations || 0,
+          totalAmount: totals?.total_amount || 0,
+          totalWatchTime: watchTime?.total_watch_time || 0
+        },
+        channels: (channels || []).map(c => ({
+          channelId: c.channel_id,
+          platform: c.platform,
+          streamerName: c.streamer_name || c.channel_id,
+          streamerImage: c.streamer_image,
+          watchSeconds: c.watch_seconds || 0,
+          visitCount: c.visit_count || 0,
+          lastVisit: c.last_visit
+        })),
+        categories: (categories || []).map(c => ({
+          categoryId: c.category_id,
+          categoryName: c.category_name || c.category_id,
+          categoryImage: c.category_image,
+          watchSeconds: c.watch_seconds || 0,
+          streamersWatched: c.streamers_watched || 0
+        })),
+        engagement: (engagement || []).map(e => ({
+          channelId: e.channel_id,
+          platform: e.platform,
+          streamerName: e.streamer_name || e.channel_id,
+          chatCount: e.chat_count || 0,
+          donationCount: e.donation_count || 0,
+          donationAmount: e.total_donation_amount || 0,
+          firstSeen: e.first_seen_at,
+          lastSeen: e.last_seen_at
+        })),
+        recentSessions: (recentSessions || []).map(s => ({
+          id: s.id,
+          channelId: s.channel_id,
+          platform: s.platform,
+          streamerName: s.streamer_name || s.channel_id,
+          categoryId: s.category_id,
+          startedAt: s.session_started_at,
+          endedAt: s.session_ended_at,
+          durationSeconds: s.session_duration_seconds || 0
+        }))
       };
     },
   };

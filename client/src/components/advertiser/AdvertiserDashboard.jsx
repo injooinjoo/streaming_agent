@@ -9,6 +9,7 @@ import { API_URL } from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
 import CampaignCreate from './CampaignCreate';
 import CampaignDetail from './CampaignDetail';
+import LoadingSpinner from '../shared/LoadingSpinner';
 import './Advertiser.css';
 
 const AdvertiserDashboard = () => {
@@ -438,12 +439,7 @@ const AdvertiserDashboard = () => {
         </header>
         <div className="advertiser-content">
           {loading && activeView === 'list' ? (
-            <div className="placeholder-view">
-              <div className="spin">
-                <Settings size={32} style={{ color: 'var(--primary)' }} />
-              </div>
-              <p style={{ marginTop: '16px' }}>불러오는 중...</p>
-            </div>
+            <LoadingSpinner />
           ) : (
             renderContent()
           )}
