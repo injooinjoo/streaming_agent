@@ -15,6 +15,12 @@ const { getOne, getAll, runQuery } = require("../db/connections");
 const { getSQLHelpers, isPostgres } = require("../config/database.config");
 
 /**
+ * Get placeholder for parameterized queries
+ * SQLite uses ?, PostgreSQL uses $1, $2, etc.
+ */
+const p = (index) => isPostgres() ? `$${index}` : '?';
+
+/**
  * Create Event Service
  * @param {Object} _db - Deprecated: Database instance (kept for backward compatibility)
  * @param {Server} io - Socket.io server instance
@@ -235,15 +241,17 @@ const createEventService = (_db, io) => {
      * @returns {Promise<Array>}
      */
     async getTopDonors(limit = 10, channelId = null, platform = null) {
-      // Build filter conditions
+      // Build filter conditions with cross-database placeholders
       const conditions = ["event_type = 'donation'", "actor_person_id IS NOT NULL"];
       const params = [];
+      let idx = 1;
+
       if (channelId) {
-        conditions.push('target_channel_id = ?');
+        conditions.push(`target_channel_id = ${p(idx++)}`);
         params.push(channelId);
       }
       if (platform) {
-        conditions.push('platform = ?');
+        conditions.push(`platform = ${p(idx++)}`);
         params.push(platform);
       }
       params.push(limit);
@@ -266,7 +274,7 @@ const createEventService = (_db, io) => {
         WHERE ${conditions.join(' AND ')}
         GROUP BY actor_person_id
         ORDER BY total DESC
-        LIMIT ?`,
+        LIMIT ${p(idx)}`,
         params
       );
     },

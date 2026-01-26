@@ -777,10 +777,6 @@ const Dashboard = () => {
           >
             <Menu size={24} />
           </button>
-          <div className="search-container hide-mobile">
-            <BarChart3 className="search-icon" size={16} />
-            <input type="text" placeholder="메뉴 검색..." />
-          </div>
           <button
             className="btn btn-onboarding"
             onClick={() => setActiveTab('account')}

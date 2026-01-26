@@ -89,13 +89,13 @@ const RevenueAnalytics = () => {
         summaryRes.json()
       ]);
 
-      // Transform trend data for charts
-      setRevenueData(trend.map(d => ({
+      // Transform trend data for charts (safely handle non-array responses)
+      setRevenueData(Array.isArray(trend) ? trend.map(d => ({
         date: d.date,
         donation: d.donations || 0,
         subscription: 0,
         ads: d.adRevenue || 0
-      })));
+      })) : []);
 
       // Platform colors
       const platformColors = {
@@ -109,20 +109,20 @@ const RevenueAnalytics = () => {
         twitch: '#9146ff'
       };
 
-      setPlatformData(platforms.map(p => ({
+      setPlatformData(Array.isArray(platforms) ? platforms.map(p => ({
         name: p.name,
         value: p.value || 0,
         color: platformColors[p.name] || '#666'
-      })));
+      })) : []);
 
-      // Transform donors
-      setTopDonors(donors.map((d, i) => ({
+      // Transform donors (safely handle non-array responses)
+      setTopDonors(Array.isArray(donors) ? donors.map((d, i) => ({
         rank: i + 1,
         name: d.sender || d.username || '익명',
         amount: d.total || d.totalRevenue || 0,
         count: d.count || d.donationCount || 0,
         platforms: [d.platform || 'unknown']
-      })));
+      })) : []);
 
       setSummary(sum);
     } catch (err) {

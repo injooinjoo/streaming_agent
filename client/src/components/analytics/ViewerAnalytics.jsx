@@ -3,8 +3,9 @@ import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
-import { Users, Heart, Clock, TrendingUp, Download, RefreshCw } from 'lucide-react';
+import { Users, Heart, Clock, TrendingUp, Download, RefreshCw, LogIn } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import AnalyticsCard from './shared/AnalyticsCard';
 import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
@@ -15,6 +16,7 @@ import './AnalyticsPage.css';
 const ViewerAnalytics = () => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
+  const { user, isAuthenticated, token } = useAuth();
 
   // 차트 다크모드 색상
   const chartColors = {
@@ -26,6 +28,7 @@ const ViewerAnalytics = () => {
 
   const [period, setPeriod] = useState('week');
   const [loading, setLoading] = useState(true);
+  const [authError, setAuthError] = useState(false);
   const [summary, setSummary] = useState({
     uniqueViewers: 0,
     totalChats: 0,
@@ -43,19 +46,33 @@ const ViewerAnalytics = () => {
   const periodDays = { day: 1, week: 7, month: 30, year: 365 };
 
   useEffect(() => {
-    fetchData();
-  }, [period]);
+    if (isAuthenticated) {
+      fetchData();
+    } else {
+      setLoading(false);
+      setAuthError(true);
+    }
+  }, [period, isAuthenticated]);
 
   const fetchData = async () => {
     setLoading(true);
+    setAuthError(false);
     const days = periodDays[period] || 7;
+
+    // Build query params with user filter
+    const params = new URLSearchParams();
+    params.set('days', days.toString());
+    if (user?.channelId) params.set('channelId', user.channelId);
+    if (user?.platform) params.set('platform', user.platform);
+
+    const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
     try {
       const [summaryRes, hourlyRes, dailyRes, timelineRes] = await Promise.all([
-        fetch(`${API_URL}/api/stats/chat/summary?days=${days}`),
-        fetch(`${API_URL}/api/stats/chat/hourly?days=${days}`),
-        fetch(`${API_URL}/api/stats/chat/daily?weeks=${Math.ceil(days / 7)}`),
-        fetch(`${API_URL}/api/stats/activity/timeline?days=${days}`)
+        fetch(`${API_URL}/api/stats/chat/summary?${params}`, { headers }),
+        fetch(`${API_URL}/api/stats/chat/hourly?${params}`, { headers }),
+        fetch(`${API_URL}/api/stats/chat/daily?weeks=${Math.ceil(days / 7)}&${params}`, { headers }),
+        fetch(`${API_URL}/api/stats/activity/timeline?${params}`, { headers })
       ]);
 
       const [summaryData, hourly, daily, timeline] = await Promise.all([
@@ -104,12 +121,37 @@ const ViewerAnalytics = () => {
     );
   }
 
+  if (authError) {
+    return (
+      <div className="analytics-page">
+        <div className="auth-required-message" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '60vh',
+          gap: '16px',
+          textAlign: 'center'
+        }}>
+          <LogIn size={48} style={{ color: 'var(--primary)', opacity: 0.7 }} />
+          <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>로그인이 필요합니다</h2>
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            시청자 분석을 확인하려면 먼저 로그인하세요.
+          </p>
+          <a href="/login" className="btn-primary" style={{ marginTop: '8px' }}>
+            로그인하기
+          </a>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="analytics-page">
       <header className="page-header">
         <div className="page-title">
           <h1>시청자 분석</h1>
-          <p>시청자 트래픽과 참여 활동을 분석합니다.</p>
+          <p>내 채널의 시청자 트래픽과 참여 활동을 분석합니다.</p>
         </div>
         <div className="header-actions" style={{ display: 'flex', gap: '12px' }}>
           <TimeRangeSelector value={period} onChange={setPeriod} />

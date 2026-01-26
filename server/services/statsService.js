@@ -1517,6 +1517,420 @@ const createStatsService = () => {
         }))
       };
     },
+
+    // ===== Content Analytics - Category-based Statistics =====
+
+    /**
+     * Get donations by category (for user's channel)
+     * @param {number} days - Days to look back
+     * @param {string} channelId - Channel ID filter
+     * @param {string} platform - Platform filter
+     * @returns {Promise<Array>}
+     */
+    async getCategoryDonations(days = 30, channelId = null, platform = null) {
+      const filter = buildChannelFilter(channelId, platform);
+      const whereConditions = [
+        "e.event_type = 'donation'",
+        `e.event_timestamp >= ${sql.dateSubtract(days, 'days')}`,
+        ...filter.conditions.map(c => c.replace('target_channel_id', 'e.target_channel_id').replace('platform', 'e.platform'))
+      ];
+
+      // Join with broadcast_segments to get category info
+      const rows = await streamingDbAll(
+        `SELECT
+          COALESCE(bs.category_name, '기타') as category_name,
+          COUNT(*) as donation_count,
+          COALESCE(SUM(e.amount), 0) as total_amount
+        FROM events e
+        LEFT JOIN broadcast_segments bs ON (
+          e.target_channel_id = bs.channel_id
+          AND e.event_timestamp BETWEEN bs.segment_started_at AND COALESCE(bs.segment_ended_at, ${sql.now()})
+        )
+        WHERE ${whereConditions.join(' AND ')}
+        GROUP BY bs.category_name
+        ORDER BY total_amount DESC
+        LIMIT 10`,
+        filter.params
+      );
+
+      const total = (rows || []).reduce((sum, r) => sum + (Number(r.total_amount) || 0), 0);
+      return (rows || []).map(row => ({
+        name: row.category_name || '기타',
+        value: Number(row.total_amount) || 0,
+        count: row.donation_count || 0,
+        percent: total > 0 ? Math.round((Number(row.total_amount) / total) * 100) : 0
+      }));
+    },
+
+    /**
+     * Get chat activity by category (for user's channel)
+     * @param {number} days - Days to look back
+     * @param {string} channelId - Channel ID filter
+     * @param {string} platform - Platform filter
+     * @returns {Promise<Array>}
+     */
+    async getCategoryChats(days = 30, channelId = null, platform = null) {
+      // Use viewer_engagement joined with broadcast_segments for category data
+      const filter = buildChannelFilter(channelId, platform);
+      const whereConditions = [
+        `ve.last_seen_at >= ${sql.dateSubtract(days, 'days')}`,
+        ...filter.conditions.map(c => c.replace('target_channel_id', 've.channel_id').replace('platform', 've.platform'))
+      ];
+
+      const rows = await streamingDbAll(
+        `SELECT
+          COALESCE(bs.category_name, '기타') as category_name,
+          SUM(ve.chat_count) as total_chats
+        FROM viewer_engagement ve
+        LEFT JOIN broadcast_segments bs ON (
+          ve.channel_id = bs.channel_id
+          AND ve.last_seen_at BETWEEN bs.segment_started_at AND COALESCE(bs.segment_ended_at, ${sql.now()})
+        )
+        WHERE ${whereConditions.join(' AND ')}
+        GROUP BY bs.category_name
+        ORDER BY total_chats DESC
+        LIMIT 10`,
+        filter.params
+      );
+
+      const total = (rows || []).reduce((sum, r) => sum + (Number(r.total_chats) || 0), 0);
+      return (rows || []).map(row => ({
+        name: row.category_name || '기타',
+        value: Number(row.total_chats) || 0,
+        percent: total > 0 ? Math.round((Number(row.total_chats) / total) * 100) : 0
+      }));
+    },
+
+    /**
+     * Get viewer growth by category (comparing two periods)
+     * @param {number} days - Days to look back for current period
+     * @param {string} channelId - Channel ID filter
+     * @param {string} platform - Platform filter
+     * @returns {Promise<Array>}
+     */
+    async getCategoryGrowth(days = 30, channelId = null, platform = null) {
+      const filter = buildChannelFilter(channelId, platform);
+      const channelCondition = filter.conditions.map(c => c.replace('target_channel_id', 'bs.channel_id').replace('platform', 'bs.platform'));
+
+      // Current period
+      const currentRows = await streamingDbAll(
+        `SELECT
+          bs.category_name,
+          AVG(bs.avg_viewer_count) as avg_viewers
+        FROM broadcast_segments bs
+        WHERE bs.segment_started_at >= ${sql.dateSubtract(days, 'days')}
+          AND bs.category_name IS NOT NULL
+          ${channelCondition.length > 0 ? 'AND ' + channelCondition.join(' AND ') : ''}
+        GROUP BY bs.category_name`,
+        filter.params
+      );
+
+      // Previous period (same length before current period)
+      const prevRows = await streamingDbAll(
+        `SELECT
+          bs.category_name,
+          AVG(bs.avg_viewer_count) as avg_viewers
+        FROM broadcast_segments bs
+        WHERE bs.segment_started_at >= ${sql.dateSubtract(days * 2, 'days')}
+          AND bs.segment_started_at < ${sql.dateSubtract(days, 'days')}
+          AND bs.category_name IS NOT NULL
+          ${channelCondition.length > 0 ? 'AND ' + channelCondition.join(' AND ') : ''}
+        GROUP BY bs.category_name`,
+        filter.params
+      );
+
+      // Build growth comparison
+      const prevMap = {};
+      (prevRows || []).forEach(r => {
+        prevMap[r.category_name] = Number(r.avg_viewers) || 0;
+      });
+
+      return (currentRows || []).map(row => {
+        const current = Number(row.avg_viewers) || 0;
+        const prev = prevMap[row.category_name] || 0;
+        const growth = prev > 0 ? Math.round(((current - prev) / prev) * 100) : (current > 0 ? 100 : 0);
+        return {
+          name: row.category_name,
+          current: Math.round(current),
+          previous: Math.round(prev),
+          growth
+        };
+      }).sort((a, b) => b.growth - a.growth).slice(0, 10);
+    },
+
+    /**
+     * Get hourly activity breakdown (donations and chats)
+     * @param {number} days - Days to look back
+     * @param {string} channelId - Channel ID filter
+     * @param {string} platform - Platform filter
+     * @returns {Promise<Array>}
+     */
+    async getHourlyByCategory(days = 30, channelId = null, platform = null) {
+      const filter = buildChannelFilter(channelId, platform);
+
+      // Get hourly donation data
+      const donationConditions = [
+        "event_type = 'donation'",
+        `event_timestamp >= ${sql.dateSubtract(days, 'days')}`,
+        ...filter.conditions
+      ];
+
+      const donationRows = await streamingDbAll(
+        `SELECT
+          ${sql.formatDate('event_timestamp', 'HH24:00')} as hour,
+          COALESCE(SUM(amount), 0) as donations
+        FROM events
+        WHERE ${donationConditions.join(' AND ')}
+        GROUP BY ${sql.extractHour('event_timestamp')}
+        ORDER BY hour`,
+        filter.params
+      );
+
+      // Get hourly chat data from viewer_engagement
+      const chatConditions = [
+        `last_seen_at >= ${sql.dateSubtract(days, 'days')}`,
+        ...filter.conditions.map(c => c.replace('target_channel_id', 'channel_id'))
+      ];
+
+      const chatRows = await streamingDbAll(
+        `SELECT
+          ${sql.formatDate('last_seen_at', 'HH24:00')} as hour,
+          SUM(chat_count) as chats
+        FROM viewer_engagement
+        WHERE ${chatConditions.join(' AND ')}
+        GROUP BY ${sql.extractHour('last_seen_at')}
+        ORDER BY hour`,
+        filter.params
+      );
+
+      // Merge donation and chat data
+      const donationMap = {};
+      (donationRows || []).forEach(r => {
+        donationMap[r.hour] = Math.round((Number(r.donations) || 0) / 10000); // Convert to 만원
+      });
+
+      const chatMap = {};
+      (chatRows || []).forEach(r => {
+        chatMap[r.hour] = Number(r.chats) || 0;
+      });
+
+      // Build 24-hour data
+      const result = [];
+      for (let i = 0; i < 24; i++) {
+        const hourStr = i.toString().padStart(2, '0') + ':00';
+        result.push({
+          hour: hourStr.replace(':00', '시'),
+          donations: donationMap[hourStr] || 0,
+          chats: chatMap[hourStr] || 0
+        });
+      }
+      return result;
+    },
+
+    /**
+     * Get chat activity summary with channel filtering
+     * @param {number} days - Days to look back
+     * @param {string} channelId - Channel ID filter
+     * @param {string} platform - Platform filter
+     * @returns {Promise<Object>}
+     */
+    async getChatActivitySummaryFiltered(days = 7, channelId = null, platform = null) {
+      const filter = buildChannelFilter(channelId, platform);
+      const conditions = [
+        `last_seen_at >= ${sql.dateSubtract(days, 'days')}`,
+        ...filter.conditions.map(c => c.replace('target_channel_id', 'channel_id'))
+      ];
+
+      const summary = await streamingDbGet(
+        `SELECT
+          COUNT(DISTINCT person_id) as uniqueViewers,
+          SUM(chat_count) as totalChats,
+          COUNT(*) as engagementRecords,
+          COUNT(DISTINCT channel_id) as activeChannels
+        FROM viewer_engagement
+        WHERE ${conditions.join(' AND ')}`,
+        filter.params
+      );
+
+      // Peak hour
+      const peakActivity = await streamingDbGet(
+        `SELECT
+          ${sql.formatDate('last_seen_at', 'HH24:00')} as hour,
+          COUNT(DISTINCT person_id) as viewerCount,
+          SUM(chat_count) as chatCount
+        FROM viewer_engagement
+        WHERE ${conditions.join(' AND ')}
+        GROUP BY ${sql.extractHour('last_seen_at')}
+        ORDER BY viewerCount DESC
+        LIMIT 1`,
+        filter.params
+      );
+
+      // Peak broadcast viewers
+      const broadcastFilter = buildChannelFilter(channelId, platform);
+      const broadcastConditions = [
+        `segment_started_at >= ${sql.dateSubtract(days, 'days')}`,
+        ...broadcastFilter.conditions
+      ];
+
+      const peakViewers = await streamingDbGet(
+        `SELECT MAX(peak_viewer_count) as peakViewers
+        FROM broadcast_segments
+        WHERE ${broadcastConditions.join(' AND ')}`,
+        broadcastFilter.params
+      );
+
+      const activeDaysResult = await streamingDbGet(
+        `SELECT COUNT(DISTINCT ${sql.dateOnly('last_seen_at')}) as activeDays
+        FROM viewer_engagement
+        WHERE ${conditions.join(' AND ')}`,
+        filter.params
+      );
+
+      return {
+        uniqueViewers: summary?.uniqueViewers || 0,
+        totalChats: summary?.totalChats || 0,
+        engagementRecords: summary?.engagementRecords || 0,
+        activeChannels: summary?.activeChannels || 0,
+        activeDays: activeDaysResult?.activeDays || 0,
+        peakHour: peakActivity?.hour || 'N/A',
+        peakViewerCount: peakActivity?.viewerCount || 0,
+        peakChatCount: peakActivity?.chatCount || 0,
+        peakBroadcastViewers: peakViewers?.peakViewers || 0,
+      };
+    },
+
+    /**
+     * Get viewer activity trend by hour with channel filtering
+     * @param {number} days - Days to look back
+     * @param {string} channelId - Channel ID filter
+     * @param {string} platform - Platform filter
+     * @returns {Promise<Array>}
+     */
+    async getChatTrendByHourFiltered(days = 7, channelId = null, platform = null) {
+      const filter = buildChannelFilter(channelId, platform);
+      const conditions = [
+        `last_seen_at >= ${sql.dateSubtract(days, 'days')}`,
+        ...filter.conditions.map(c => c.replace('target_channel_id', 'channel_id'))
+      ];
+
+      const rows = await streamingDbAll(
+        `SELECT
+          ${sql.formatDate('last_seen_at', 'HH24:00')} as hour,
+          COUNT(DISTINCT person_id) as viewers,
+          SUM(chat_count) as chats
+        FROM viewer_engagement
+        WHERE ${conditions.join(' AND ')}
+        GROUP BY ${sql.extractHour('last_seen_at')}
+        ORDER BY hour`,
+        filter.params
+      );
+
+      // Fill all hours
+      const hourlyData = [];
+      for (let i = 0; i < 24; i++) {
+        const hourStr = i.toString().padStart(2, '0') + ':00';
+        const existing = rows?.find(r => r.hour === hourStr);
+        hourlyData.push({
+          hour: hourStr,
+          viewers: existing?.viewers || 0,
+          chats: existing?.chats || 0,
+          users: existing?.viewers || 0
+        });
+      }
+      return hourlyData;
+    },
+
+    /**
+     * Get viewer activity trend by day of week with channel filtering
+     * @param {number} weeks - Weeks to look back
+     * @param {string} channelId - Channel ID filter
+     * @param {string} platform - Platform filter
+     * @returns {Promise<Array>}
+     */
+    async getChatTrendByDayOfWeekFiltered(weeks = 4, channelId = null, platform = null) {
+      const days = weeks * 7;
+      const filter = buildChannelFilter(channelId, platform);
+      const conditions = [
+        `last_seen_at >= ${sql.dateSubtract(days, 'days')}`,
+        ...filter.conditions.map(c => c.replace('target_channel_id', 'channel_id'))
+      ];
+
+      const dayCase = isPostgres()
+        ? `CASE EXTRACT(DOW FROM last_seen_at)::INTEGER
+            WHEN 0 THEN '일' WHEN 1 THEN '월' WHEN 2 THEN '화'
+            WHEN 3 THEN '수' WHEN 4 THEN '목' WHEN 5 THEN '금' WHEN 6 THEN '토'
+          END`
+        : `CASE strftime('%w', last_seen_at)
+            WHEN '0' THEN '일' WHEN '1' THEN '월' WHEN '2' THEN '화'
+            WHEN '3' THEN '수' WHEN '4' THEN '목' WHEN '5' THEN '금' WHEN '6' THEN '토'
+          END`;
+
+      const dayOfWeekExtract = isPostgres()
+        ? `EXTRACT(DOW FROM last_seen_at)::INTEGER`
+        : `CAST(strftime('%w', last_seen_at) AS INTEGER)`;
+
+      const rows = await streamingDbAll(
+        `SELECT
+          ${dayCase} as day,
+          ${dayOfWeekExtract} as dayNum,
+          COUNT(DISTINCT person_id) as viewers,
+          SUM(chat_count) as chats
+        FROM viewer_engagement
+        WHERE ${conditions.join(' AND ')}
+        GROUP BY ${dayOfWeekExtract}
+        ORDER BY dayNum`,
+        filter.params
+      );
+
+      const dayOrder = ['일', '월', '화', '수', '목', '금', '토'];
+      return dayOrder.map(day => {
+        const existing = rows?.find(r => r.day === day);
+        return {
+          day,
+          viewers: existing?.viewers || 0,
+          chats: existing?.chats || 0,
+          users: existing?.viewers || 0
+        };
+      });
+    },
+
+    /**
+     * Get activity timeline with channel filtering
+     * @param {number} days - Days to look back
+     * @param {string} channelId - Channel ID filter
+     * @param {string} platform - Platform filter
+     * @returns {Promise<Array>}
+     */
+    async getActivityTimelineFiltered(days = 7, channelId = null, platform = null) {
+      const filter = buildChannelFilter(channelId, platform);
+      const conditions = [
+        `last_seen_at >= ${sql.dateSubtract(days, 'days')}`,
+        ...filter.conditions.map(c => c.replace('target_channel_id', 'channel_id'))
+      ];
+
+      const rows = await streamingDbAll(
+        `SELECT
+          ${sql.dateOnly('last_seen_at')} as date,
+          COUNT(DISTINCT person_id) as activeViewers,
+          SUM(chat_count) as totalChats,
+          COUNT(*) as engagementCount
+        FROM viewer_engagement
+        WHERE ${conditions.join(' AND ')}
+        GROUP BY ${sql.dateOnly('last_seen_at')}
+        ORDER BY date DESC`,
+        filter.params
+      );
+
+      return (rows || []).map(row => ({
+        date: row.date,
+        activeViewers: row.activeViewers || 0,
+        totalChats: row.totalChats || 0,
+        engagementCount: row.engagementCount || 0,
+        chats: row.totalChats || 0,
+        activeUsers: row.activeViewers || 0
+      }));
+    },
   };
 };
 

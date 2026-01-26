@@ -253,11 +253,16 @@ const createStatsRouter = (
   /**
    * GET /api/stats/chat/summary
    * Get chat activity summary (requires authentication)
+   * Supports channel filtering via channelId and platform query params
    */
   router.get("/stats/chat/summary", authenticateToken, async (req, res) => {
     try {
       const days = parseInt(req.query.days, 10) || 7;
-      const result = await statsService.getChatActivitySummary(days);
+      const { channelId, platform } = req.query;
+      // Use filtered version if channel params provided
+      const result = channelId || platform
+        ? await statsService.getChatActivitySummaryFiltered(days, channelId, platform)
+        : await statsService.getChatActivitySummary(days);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -267,11 +272,15 @@ const createStatsRouter = (
   /**
    * GET /api/stats/chat/hourly
    * Get chat trend by hour (requires authentication)
+   * Supports channel filtering via channelId and platform query params
    */
   router.get("/stats/chat/hourly", authenticateToken, async (req, res) => {
     try {
       const days = parseInt(req.query.days, 10) || 7;
-      const result = await statsService.getChatTrendByHour(days);
+      const { channelId, platform } = req.query;
+      const result = channelId || platform
+        ? await statsService.getChatTrendByHourFiltered(days, channelId, platform)
+        : await statsService.getChatTrendByHour(days);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -281,11 +290,15 @@ const createStatsRouter = (
   /**
    * GET /api/stats/chat/daily
    * Get chat trend by day of week (requires authentication)
+   * Supports channel filtering via channelId and platform query params
    */
   router.get("/stats/chat/daily", authenticateToken, async (req, res) => {
     try {
       const weeks = parseInt(req.query.weeks, 10) || 4;
-      const result = await statsService.getChatTrendByDayOfWeek(weeks);
+      const { channelId, platform } = req.query;
+      const result = channelId || platform
+        ? await statsService.getChatTrendByDayOfWeekFiltered(weeks, channelId, platform)
+        : await statsService.getChatTrendByDayOfWeek(weeks);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -295,11 +308,77 @@ const createStatsRouter = (
   /**
    * GET /api/stats/activity/timeline
    * Get activity timeline (requires authentication)
+   * Supports channel filtering via channelId and platform query params
    */
   router.get("/stats/activity/timeline", authenticateToken, async (req, res) => {
     try {
       const days = parseInt(req.query.days, 10) || 7;
-      const result = await statsService.getActivityTimeline(days);
+      const { channelId, platform } = req.query;
+      const result = channelId || platform
+        ? await statsService.getActivityTimelineFiltered(days, channelId, platform)
+        : await statsService.getActivityTimeline(days);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ===== Content Analytics - Category-based Statistics (Protected) =====
+
+  /**
+   * GET /api/stats/content/category-donations
+   * Get donations by category for user's channel (requires authentication)
+   */
+  router.get("/stats/content/category-donations", authenticateToken, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days, 10) || 30;
+      const { channelId, platform } = req.query;
+      const result = await statsService.getCategoryDonations(days, channelId, platform);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/content/category-chats
+   * Get chat activity by category for user's channel (requires authentication)
+   */
+  router.get("/stats/content/category-chats", authenticateToken, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days, 10) || 30;
+      const { channelId, platform } = req.query;
+      const result = await statsService.getCategoryChats(days, channelId, platform);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/content/category-growth
+   * Get viewer growth by category (requires authentication)
+   */
+  router.get("/stats/content/category-growth", authenticateToken, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days, 10) || 30;
+      const { channelId, platform } = req.query;
+      const result = await statsService.getCategoryGrowth(days, channelId, platform);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * GET /api/stats/content/hourly-by-category
+   * Get hourly activity breakdown (donations and chats) (requires authentication)
+   */
+  router.get("/stats/content/hourly-by-category", authenticateToken, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days, 10) || 30;
+      const { channelId, platform } = req.query;
+      const result = await statsService.getHourlyByCategory(days, channelId, platform);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
