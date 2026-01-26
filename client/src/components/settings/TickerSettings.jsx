@@ -551,7 +551,7 @@ const TickerSettings = () => {
 
         <aside className="chat-settings-preview-aside">
           {/* 실시간 미리보기 */}
-          <OverlayPreviewWrapper title="전광판 미리보기" height={100}>
+          <OverlayPreviewWrapper title="전광판 미리보기" height={200}>
             <TickerOverlay
               previewMode={true}
               previewSettings={settings}

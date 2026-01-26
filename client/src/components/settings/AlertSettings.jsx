@@ -851,7 +851,7 @@ const AlertSettings = () => {
         </div>
 
         <aside className="chat-settings-preview-aside">
-          <OverlayPreviewWrapper title="후원 알림 미리보기" height={250}>
+          <OverlayPreviewWrapper title="후원 알림 미리보기" height={450}>
             <AlertOverlay
               previewMode={true}
               previewSettings={settings}

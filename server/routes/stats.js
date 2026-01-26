@@ -103,7 +103,8 @@ const createStatsRouter = (
   router.get("/stats/donations/top-donors", authenticateToken, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit, 10) || 10;
-      const rows = await eventService.getTopDonors(limit);
+      const { channelId, platform } = req.query;
+      const rows = await eventService.getTopDonors(limit, channelId, platform);
       res.json(rows || []);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -119,7 +120,8 @@ const createStatsRouter = (
   router.get("/stats/revenue", authenticateToken, async (req, res) => {
     try {
       const days = parseInt(req.query.days, 10) || 30;
-      const summary = await statsService.getRevenueSummary(days);
+      const { channelId, platform } = req.query;
+      const summary = await statsService.getRevenueSummary(days, channelId, platform);
       res.json(summary);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -133,7 +135,8 @@ const createStatsRouter = (
   router.get("/stats/revenue/trend", authenticateToken, async (req, res) => {
     try {
       const days = parseInt(req.query.days, 10) || 30;
-      const trend = await statsService.getRevenueTrend(days);
+      const { channelId, platform } = req.query;
+      const trend = await statsService.getRevenueTrend(days, channelId, platform);
       res.json(trend);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -146,7 +149,8 @@ const createStatsRouter = (
    */
   router.get("/stats/revenue/by-platform", authenticateToken, async (req, res) => {
     try {
-      const result = await statsService.getRevenueByPlatform();
+      const { channelId, platform } = req.query;
+      const result = await statsService.getRevenueByPlatform(channelId, platform);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -160,7 +164,8 @@ const createStatsRouter = (
   router.get("/stats/revenue/monthly", authenticateToken, async (req, res) => {
     try {
       const months = parseInt(req.query.months, 10) || 6;
-      const result = await statsService.getMonthlyRevenue(months);
+      const { channelId, platform } = req.query;
+      const result = await statsService.getMonthlyRevenue(months, channelId, platform);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });

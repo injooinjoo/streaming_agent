@@ -1140,7 +1140,7 @@ const ChatSettings = () => {
         {/* Sidebar remains sticky/fixed */}
         <aside className="chat-settings-preview-aside">
           {/* 실시간 채팅 미리보기 */}
-          <OverlayPreviewWrapper title="채팅 미리보기" height={280}>
+          <OverlayPreviewWrapper title="채팅 미리보기" height={500}>
             <ChatOverlay
               previewMode={true}
               previewSettings={settings}

@@ -6,7 +6,7 @@ const OverlayPreviewWrapper = ({
   title = '오버레이 미리보기',
   children,
   height = 300,
-  scale = 0.5,
+  scale = 0.7,
   showScale = false,
   onScaleChange,
   className = ''

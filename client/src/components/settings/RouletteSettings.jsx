@@ -398,7 +398,7 @@ const RouletteSettings = () => {
       </div>
 
       {/* 실시간 미리보기 */}
-      <OverlayPreviewWrapper title="룰렛 미리보기" height={350}>
+      <OverlayPreviewWrapper title="룰렛 미리보기" height={500}>
         <RouletteOverlay
           previewMode={true}
           previewSettings={settings}

@@ -610,7 +610,7 @@ const SubtitleSettings = () => {
 
         <aside className="chat-settings-preview-aside">
           {/* 실시간 미리보기 */}
-          <OverlayPreviewWrapper title="후원 자막 미리보기" height={150}>
+          <OverlayPreviewWrapper title="후원 자막 미리보기" height={300}>
             <SubtitleOverlay
               previewMode={true}
               previewSettings={settings}

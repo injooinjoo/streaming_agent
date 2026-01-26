@@ -255,7 +255,7 @@ const CreditsSettings = () => {
       </div>
 
       {/* 실시간 미리보기 */}
-      <OverlayPreviewWrapper title="크레딧 미리보기" height={300}>
+      <OverlayPreviewWrapper title="크레딧 미리보기" height={500}>
         <CreditsOverlay
           key={previewKey}
           previewMode={true}

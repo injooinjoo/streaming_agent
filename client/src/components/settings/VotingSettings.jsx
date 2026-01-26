@@ -248,7 +248,7 @@ const VotingSettings = () => {
       </div>
 
       {/* 실시간 미리보기 */}
-      <OverlayPreviewWrapper title="투표 미리보기" height={220}>
+      <OverlayPreviewWrapper title="투표 미리보기" height={400}>
         <VotingOverlay
           previewMode={true}
           previewSettings={settings}

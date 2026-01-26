@@ -1,0 +1,70 @@
+# This file specifies files that are *not* uploaded to Google Cloud
+# using gcloud. It follows the same syntax as .gitignore.
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Build artifacts
+dist/
+build/
+*.local
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# SQLite database files (not needed in Cloud Run - uses Supabase)
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+server/unified.db*
+server/*.db*
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test files
+__tests__/
+*.test.js
+*.spec.js
+coverage/
+
+# Git
+.git/
+.gitignore
+
+# Cloud SDK
+google-cloud-sdk/
+
+# Credentials
+gcs-key.json
+**/gcs-key.json
+*.pem
+*.key
+
+# Documentation (optional - can include if needed)
+# docs/
+
+# Client source (already built in server/public)
+client/src/
+client/node_modules/
+client/dist/
+
+# Other
+.playwright-mcp/
+*.tar.gz

@@ -640,7 +640,7 @@ const GoalSettings = () => {
         </div>
 
         <aside className="chat-settings-preview-aside">
-          <OverlayPreviewWrapper title="목표치 미리보기" height={200}>
+          <OverlayPreviewWrapper title="목표치 미리보기" height={350}>
             <GoalOverlay
               previewMode={true}
               previewSettings={settings}

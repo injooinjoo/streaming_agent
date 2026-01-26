@@ -35,7 +35,7 @@ const RevenueAnalytics = () => {
   const [summary, setSummary] = useState({ totalRevenue: 0, donationRevenue: 0, donationCount: 0 });
   const [authError, setAuthError] = useState(false);
 
-  const { isAuthenticated, accessToken } = useAuth();
+  const { isAuthenticated, accessToken, user } = useAuth();
   const navigate = useNavigate();
 
   const periodDays = { day: 1, week: 7, month: 30, year: 365 };
@@ -54,6 +54,13 @@ const RevenueAnalytics = () => {
     setAuthError(false);
     const days = periodDays[period] || 7;
 
+    // Build query params with user's channelId and platform
+    const params = new URLSearchParams();
+    params.set('days', days.toString());
+    if (user?.channelId) params.set('channelId', user.channelId);
+    if (user?.platform) params.set('platform', user.platform);
+    const queryString = params.toString();
+
     const headers = {
       'Content-Type': 'application/json',
       ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
@@ -61,10 +68,10 @@ const RevenueAnalytics = () => {
 
     try {
       const [trendRes, platformRes, donorsRes, summaryRes] = await Promise.all([
-        fetch(`${API_BASE}/api/stats/revenue/trend?days=${days}`, { headers }),
-        fetch(`${API_BASE}/api/stats/revenue/by-platform`, { headers }),
-        fetch(`${API_BASE}/api/stats/donations/top-donors?limit=5`, { headers }),
-        fetch(`${API_BASE}/api/stats/revenue?days=${days}`, { headers })
+        fetch(`${API_BASE}/api/stats/revenue/trend?${queryString}`, { headers }),
+        fetch(`${API_BASE}/api/stats/revenue/by-platform?${queryString}`, { headers }),
+        fetch(`${API_BASE}/api/stats/donations/top-donors?limit=5&${queryString.replace(/days=\d+&?/, '')}`, { headers }),
+        fetch(`${API_BASE}/api/stats/revenue?${queryString}`, { headers })
       ]);
 
       // Check if any request requires auth

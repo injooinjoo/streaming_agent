@@ -72,35 +72,21 @@ class PersonService {
             return;
           }
 
-          const lastID = this.lastID;
-          const changes = this.changes;
-
-          // If lastID > 0, it's either a new insert or we can use it
-          if (lastID > 0) {
-            if (changes > 0) {
-              dbLogger.debug("Person upserted", {
-                platform,
-                platformUserId,
-                nickname,
-                id: lastID,
-              });
-            }
-            resolve(lastID);
-          } else {
-            // Fallback: fetch the ID for updated rows
-            db.get(
-              `SELECT id FROM persons WHERE platform = ? AND platform_user_id = ?`,
-              [platform, platformUserId],
-              (selectErr, row) => {
-                if (selectErr || !row) {
-                  dbLogger.error("PersonService.upsertPerson fetch id error", { error: selectErr?.message });
-                  resolve(null);
-                } else {
-                  resolve(row.id);
-                }
+          // UPSERT 후 항상 SELECT로 정확한 ID 조회
+          // (this.lastID는 UPDATE 시 이전 INSERT의 ID를 반환할 수 있음)
+          db.get(
+            `SELECT id FROM persons WHERE platform = ? AND platform_user_id = ?`,
+            [platform, platformUserId],
+            (selectErr, row) => {
+              if (selectErr || !row) {
+                dbLogger.error("PersonService.upsertPerson fetch id error", { error: selectErr?.message });
+                resolve(null);
+              } else {
+                dbLogger.debug("Person upserted");
+                resolve(row.id);
               }
-            );
-          }
+            }
+          );
         }
       );
     });

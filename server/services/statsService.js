@@ -26,26 +26,47 @@ const createStatsService = () => {
   const streamingDbGet = dbGet;
   const streamingDbAll = dbAll;
 
+  // Helper to build channel/platform filter conditions
+  const buildChannelFilter = (channelId, platform) => {
+    const conditions = [];
+    const params = [];
+    if (channelId) {
+      conditions.push('target_channel_id = ?');
+      params.push(channelId);
+    }
+    if (platform) {
+      conditions.push('platform = ?');
+      params.push(platform);
+    }
+    return { conditions, params };
+  };
+
   return {
     // ===== Revenue Statistics (from streamingDb) =====
 
     /**
      * Get revenue summary
      * @param {number} days - Days to look back
+     * @param {string} channelId - Optional channel ID filter
+     * @param {string} platform - Optional platform filter
      * @returns {Promise<Object>}
      */
-    async getRevenueSummary(days = 30) {
+    async getRevenueSummary(days = 30, channelId = null, platform = null) {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
       const startDateStr = startDate.toISOString().split("T")[0];
+
+      const filter = buildChannelFilter(channelId, platform);
+      const whereConditions = ["event_type = 'donation'", "DATE(event_timestamp) >= ?", ...filter.conditions];
+      const params = [startDateStr, ...filter.params];
 
       const row = await streamingDbGet(
         `SELECT
           COUNT(*) as donationCount,
           COALESCE(SUM(amount), 0) as totalDonations
         FROM events
-        WHERE event_type = 'donation' AND DATE(event_timestamp) >= ?`,
-        [startDateStr]
+        WHERE ${whereConditions.join(' AND ')}`,
+        params
       );
 
       return {
@@ -60,18 +81,24 @@ const createStatsService = () => {
     /**
      * Get revenue trend (daily)
      * @param {number} days - Days to look back
+     * @param {string} channelId - Optional channel ID filter
+     * @param {string} platform - Optional platform filter
      * @returns {Promise<Array>}
      */
-    async getRevenueTrend(days = 30) {
+    async getRevenueTrend(days = 30, channelId = null, platform = null) {
+      const filter = buildChannelFilter(channelId, platform);
+      const whereConditions = ["event_type = 'donation'", `event_timestamp >= ${sql.dateSubtract(days, 'days')}`, ...filter.conditions];
+
       const rows = await streamingDbAll(
         `SELECT
           ${sql.dateOnly('event_timestamp')} as date,
           COUNT(*) as count,
           COALESCE(SUM(amount), 0) as donations
         FROM events
-        WHERE event_type = 'donation' AND event_timestamp >= ${sql.dateSubtract(days, 'days')}
+        WHERE ${whereConditions.join(' AND ')}
         GROUP BY ${sql.dateOnly('event_timestamp')}
-        ORDER BY date ASC`
+        ORDER BY date ASC`,
+        filter.params
       );
 
       // Fill in empty dates
@@ -93,16 +120,22 @@ const createStatsService = () => {
 
     /**
      * Get revenue by platform
+     * @param {string} channelId - Optional channel ID filter
+     * @param {string} platform - Optional platform filter
      * @returns {Promise<Array>}
      */
-    async getRevenueByPlatform() {
+    async getRevenueByPlatform(channelId = null, platform = null) {
+      const filter = buildChannelFilter(channelId, platform);
+      const whereConditions = ["event_type = 'donation'", ...filter.conditions];
+
       const rows = await streamingDbAll(
         `SELECT
           platform,
           COALESCE(SUM(amount), 0) as value
         FROM events
-        WHERE event_type = 'donation'
-        GROUP BY platform`
+        WHERE ${whereConditions.join(' AND ')}
+        GROUP BY platform`,
+        filter.params
       );
 
       return (rows || []).map((row) => ({
@@ -114,17 +147,23 @@ const createStatsService = () => {
     /**
      * Get monthly revenue comparison
      * @param {number} months - Months to look back
+     * @param {string} channelId - Optional channel ID filter
+     * @param {string} platform - Optional platform filter
      * @returns {Promise<Array>}
      */
-    async getMonthlyRevenue(months = 6) {
+    async getMonthlyRevenue(months = 6, channelId = null, platform = null) {
+      const filter = buildChannelFilter(channelId, platform);
+      const whereConditions = ["event_type = 'donation'", `event_timestamp >= ${sql.dateSubtract(months, 'months')}`, ...filter.conditions];
+
       const rows = await streamingDbAll(
         `SELECT
           ${sql.formatDate('event_timestamp', 'YYYY-MM')} as month,
           COALESCE(SUM(amount), 0) as revenue
         FROM events
-        WHERE event_type = 'donation' AND event_timestamp >= ${sql.dateSubtract(months, 'months')}
+        WHERE ${whereConditions.join(' AND ')}
         GROUP BY ${sql.formatDate('event_timestamp', 'YYYY-MM')}
-        ORDER BY month ASC`
+        ORDER BY month ASC`,
+        filter.params
       );
 
       return (rows || []).map((row) => {
@@ -828,9 +867,24 @@ const createStatsService = () => {
       };
 
       const donationCond = buildEventConditions(`event_type = 'donation' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${isPostgres() ? '$1' : '?'}`, [currentMonth]);
-      const viewerCond = buildViewerConditions(`${sql.formatDate('timestamp', 'YYYY-MM')} = ${isPostgres() ? '$1' : '?'}`, [currentMonth]);
       const subscribeCond = buildEventConditions(`event_type = 'subscribe' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${isPostgres() ? '$1' : '?'}`, [currentMonth]);
       const activityCond = buildEventConditions(`event_timestamp >= ${sql.dateSubtract(7, 'days')}`, []);
+
+      // Build conditions for broadcast_segments (peak viewers)
+      const buildSegmentConditions = (baseCondition, params) => {
+        let conditions = [baseCondition];
+        let queryParams = [...params];
+        if (channelId) {
+          conditions.push('channel_id = ?');
+          queryParams.push(channelId);
+        }
+        if (platform) {
+          conditions.push('platform = ?');
+          queryParams.push(platform);
+        }
+        return { where: conditions.join(' AND '), params: queryParams };
+      };
+      const segmentCond = buildSegmentConditions(`${sql.formatDate('segment_started_at', 'YYYY-MM')} = ${isPostgres() ? '$1' : '?'}`, [currentMonth]);
 
       const [todayStats, peakViewers, subscribeCount, platformStats] = await Promise.all([
         // Today's donation stats (filtered by channelId if provided)
@@ -842,12 +896,12 @@ const createStatsService = () => {
           WHERE ${donationCond.where}`,
           donationCond.params
         ),
-        // Peak viewers from viewer_stats (filtered by channelId if provided)
+        // Peak viewers from broadcast_segments (filtered by channelId if provided)
         streamingDbGet(
-          `SELECT MAX(viewer_count) as peakViewers
-           FROM viewer_stats
-           WHERE ${viewerCond.where}`,
-          viewerCond.params
+          `SELECT MAX(peak_viewer_count) as peakViewers
+           FROM broadcast_segments
+           WHERE ${segmentCond.where}`,
+          segmentCond.params
         ),
         // Today's subscribe count (filtered by channelId if provided)
         streamingDbGet(

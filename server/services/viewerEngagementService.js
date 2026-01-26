@@ -39,78 +39,46 @@ class ViewerEngagementService {
       donationAmount = 0,
     } = data;
 
+    const chatIncrement = eventType === "chat" ? 1 : 0;
+    const donationIncrement = eventType === "donation" ? 1 : 0;
+
     return new Promise((resolve, reject) => {
-      // 기존 레코드 조회 (같은 person + channel + platform + category)
-      this.db.get(
-        `SELECT id, chat_count, donation_count, total_donation_amount
-         FROM viewer_engagement
-         WHERE person_id = ? AND channel_id = ? AND platform = ? AND category_id IS ?`,
-        [personId, channelId, platform, categoryId || null],
-        (err, row) => {
+      // UPSERT 패턴: INSERT 시도 후 충돌하면 UPDATE
+      this.db.run(
+        `INSERT INTO viewer_engagement (
+          person_id, platform, channel_id, broadcaster_person_id,
+          category_id, chat_count, donation_count, total_donation_amount
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(person_id, channel_id, platform, category_id) DO UPDATE SET
+          chat_count = chat_count + excluded.chat_count,
+          donation_count = donation_count + excluded.donation_count,
+          total_donation_amount = total_donation_amount + excluded.total_donation_amount,
+          last_seen_at = CURRENT_TIMESTAMP,
+          updated_at = CURRENT_TIMESTAMP`,
+        [
+          personId,
+          platform,
+          channelId,
+          broadcasterPersonId || null,
+          categoryId || null,
+          chatIncrement,
+          donationIncrement,
+          donationAmount,
+        ],
+        function (err) {
           if (err) {
-            dbLogger.error("ViewerEngagementService.recordEngagement find error", { error: err.message });
+            dbLogger.error("ViewerEngagementService.recordEngagement error", { error: err.message });
             reject(err);
-            return;
-          }
-
-          if (row) {
-            // 기존 레코드 업데이트
-            const chatIncrement = eventType === "chat" ? 1 : 0;
-            const donationIncrement = eventType === "donation" ? 1 : 0;
-
-            this.db.run(
-              `UPDATE viewer_engagement
-               SET chat_count = chat_count + ?,
-                   donation_count = donation_count + ?,
-                   total_donation_amount = total_donation_amount + ?,
-                   last_seen_at = CURRENT_TIMESTAMP,
-                   updated_at = CURRENT_TIMESTAMP
-               WHERE id = ?`,
-              [chatIncrement, donationIncrement, donationAmount, row.id],
-              (updateErr) => {
-                if (updateErr) {
-                  dbLogger.error("ViewerEngagementService.recordEngagement update error", { error: updateErr.message });
-                  reject(updateErr);
-                } else {
-                  resolve(row.id);
-                }
-              }
-            );
           } else {
-            // 새 레코드 생성
-            const chatCount = eventType === "chat" ? 1 : 0;
-            const donationCount = eventType === "donation" ? 1 : 0;
-
-            this.db.run(
-              `INSERT INTO viewer_engagement (
-                person_id, platform, channel_id, broadcaster_person_id,
-                category_id, chat_count, donation_count, total_donation_amount
-              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-              [
+            if (this.changes > 0) {
+              dbLogger.debug("Viewer engagement recorded", {
                 personId,
-                platform,
                 channelId,
-                broadcasterPersonId || null,
-                categoryId || null,
-                chatCount,
-                donationCount,
-                donationAmount,
-              ],
-              function (insertErr) {
-                if (insertErr) {
-                  dbLogger.error("ViewerEngagementService.recordEngagement insert error", { error: insertErr.message });
-                  reject(insertErr);
-                } else {
-                  dbLogger.debug("New viewer engagement created", {
-                    personId,
-                    channelId,
-                    categoryId,
-                    id: this.lastID,
-                  });
-                  resolve(this.lastID);
-                }
-              }
-            );
+                categoryId,
+                lastID: this.lastID,
+              });
+            }
+            resolve(this.lastID || 0);
           }
         }
       );

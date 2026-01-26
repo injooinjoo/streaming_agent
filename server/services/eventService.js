@@ -230,9 +230,24 @@ const createEventService = (_db, io) => {
     /**
      * Get top donors
      * @param {number} limit - Max donors to return
+     * @param {string} channelId - Optional channel ID filter
+     * @param {string} platform - Optional platform filter
      * @returns {Promise<Array>}
      */
-    async getTopDonors(limit = 10) {
+    async getTopDonors(limit = 10, channelId = null, platform = null) {
+      // Build filter conditions
+      const conditions = ["event_type = 'donation'", "actor_person_id IS NOT NULL"];
+      const params = [];
+      if (channelId) {
+        conditions.push('target_channel_id = ?');
+        params.push(channelId);
+      }
+      if (platform) {
+        conditions.push('platform = ?');
+        params.push(platform);
+      }
+      params.push(limit);
+
       // Get top donors with their most frequent platform
       return dbAll(
         `SELECT
@@ -248,11 +263,11 @@ const createEventService = (_db, io) => {
             LIMIT 1
           ) as platform
         FROM events
-        WHERE event_type = 'donation' AND actor_person_id IS NOT NULL
+        WHERE ${conditions.join(' AND ')}
         GROUP BY actor_person_id
         ORDER BY total DESC
         LIMIT ?`,
-        [limit]
+        params
       );
     },
 

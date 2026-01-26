@@ -265,7 +265,7 @@ const EmojiSettings = () => {
       </div>
 
       {/* 실시간 미리보기 */}
-      <OverlayPreviewWrapper title="이모지 미리보기" height={200}>
+      <OverlayPreviewWrapper title="이모지 미리보기" height={400}>
         <EmojiOverlay
           previewMode={true}
           previewSettings={settings}
