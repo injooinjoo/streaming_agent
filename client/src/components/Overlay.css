@@ -730,11 +730,35 @@
   justify-content: center;
   align-items: flex-start;
   overflow: hidden;
+  border-radius: 8px;
 }
 
 .credits-overlay.preview-mode .credits-container {
-  transform: scale(0.7);
-  animation: none !important;
+  transform: translateX(-50%) scale(0.5);
+  /* 미리보기에서 애니메이션 활성화 - 빠른 속도로 */
+  animation-duration: 8s !important;
+}
+
+.credits-overlay.preview-mode .credits-title {
+  font-size: 28px;
+  margin-bottom: 30px;
+}
+
+.credits-overlay.preview-mode .section-title {
+  font-size: 16px;
+  margin-bottom: 8px;
+}
+
+.credits-overlay.preview-mode .credits-item {
+  font-size: 12px;
+}
+
+.credits-overlay.preview-mode .thanks-message {
+  font-size: 18px;
+}
+
+.credits-overlay.preview-mode .credits-footer {
+  margin-top: 40px;
 }
 
 /* Chat Overlay - Preview Mode */
