@@ -29,17 +29,18 @@ const ViewershipDashboard = () => {
   const [categories, setCategories] = useState([]);
   const [authError, setAuthError] = useState(false);
 
-  const { isAuthenticated, accessToken } = useAuth();
+  const { isAuthenticated, accessToken, loading: authLoading } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth to finish loading
     if (isAuthenticated) {
       fetchData();
     } else {
       setLoading(false);
       setAuthError(true);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, authLoading]);
 
   // Fetch trend data when tab changes
   useEffect(() => {
@@ -97,7 +98,9 @@ const ViewershipDashboard = () => {
         realtimeTrendRes.ok ? realtimeTrendRes.json() : []
       ]);
 
-      setYesterdaySummary(yesterday);
+      if (yesterday && yesterday.date) {
+        setYesterdaySummary(prev => ({ ...prev, ...yesterday }));
+      }
       setViewerTrend(trend);
       setCategories(categoriesData.data || []);
       setRealtimeSummary(realtimeSummaryData);
@@ -315,8 +318,8 @@ const ViewershipDashboard = () => {
               <Users size={20} />
             </div>
             <div className="summary-card-label">참여자</div>
-            <div className="summary-card-value sensitive-blur">{yesterdaySummary.avgViewers.toLocaleString()}명</div>
-            <div className="summary-card-sub">채팅 <span className="sensitive-blur">{yesterdaySummary.chatCount.toLocaleString()}</span>개</div>
+            <div className="summary-card-value sensitive-blur">{(yesterdaySummary.avgViewers || 0).toLocaleString()}명</div>
+            <div className="summary-card-sub">채팅 <span className="sensitive-blur">{(yesterdaySummary.chatCount || 0).toLocaleString()}</span>개</div>
           </div>
           <div className="summary-card">
             <div className="summary-card-icon peak">
@@ -331,7 +334,7 @@ const ViewershipDashboard = () => {
               <DollarSign size={20} />
             </div>
             <div className="summary-card-label">후원 금액</div>
-            <div className="summary-card-value sensitive-blur">₩{yesterdaySummary.donationAmount.toLocaleString()}</div>
+            <div className="summary-card-value sensitive-blur">₩{(yesterdaySummary.donationAmount || 0).toLocaleString()}</div>
             <div className="summary-card-sub"><span className="sensitive-blur">{(yesterdaySummary.donationCount || 0)}</span>건의 후원</div>
           </div>
         </div>
