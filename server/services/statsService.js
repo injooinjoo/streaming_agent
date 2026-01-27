@@ -1063,11 +1063,12 @@ const createStatsService = () => {
     async getDashboardSummary(channelId = null, platform = null) {
       const currentMonth = new Date().toISOString().slice(0, 7); // '2025-01' 형식
 
-      // 월 시작/끝 날짜 계산 (date range 비교용)
-      const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      const monthEnd = nextMonth.toISOString().split('T')[0];
+      // 월 시작/끝 날짜 계산 (UTC 기준 date range 비교용)
+      // currentMonth가 '2026-01' 형식이므로 직접 사용
+      const monthStart = `${currentMonth}-01`;
+      const [year, month] = currentMonth.split('-').map(Number);
+      const nextMonthDate = month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`;
+      const monthEnd = `${nextMonthDate}-01`;
 
       // Build dynamic WHERE conditions for events table (uses p() for cross-DB compatibility)
       const buildEventConditions = (baseCondition, params, startIndex = params.length + 1) => {
