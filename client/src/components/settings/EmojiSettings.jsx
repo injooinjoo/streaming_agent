@@ -29,12 +29,12 @@ const defaultSettings = {
 };
 
 const EmojiSettings = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [overlayHash, setOverlayHash] = useState(null);
+  const overlayHash = user?.userHash || null;
   const [newEmoji, setNewEmoji] = useState('');
 
   // Preview state
@@ -116,14 +116,6 @@ const EmojiSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const urlsRes = await fetch(`${API_URL}/api/overlay/urls`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (urlsRes.ok) {
-        const urlsData = await urlsRes.json();
-        setOverlayHash(urlsData.hash);
-      }
-
       const res = await fetch(`${API_URL}/api/user-settings/emoji`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });

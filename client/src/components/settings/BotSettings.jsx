@@ -30,7 +30,7 @@ const triggerTypeLabels = {
 };
 
 const BotSettings = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [settings, setSettings] = useState({
     botName: 'StreamBot',
     isActive: false,
@@ -39,20 +39,12 @@ const BotSettings = () => {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [overlayHash, setOverlayHash] = useState(null);
+  const overlayHash = user?.userHash || null;
   const [editingCommand, setEditingCommand] = useState(null);
   const [editingAutoMsg, setEditingAutoMsg] = useState(null);
 
   const fetchSettings = async () => {
     try {
-      const urlsRes = await fetch(`${API_URL}/api/overlay/urls`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (urlsRes.ok) {
-        const urlsData = await urlsRes.json();
-        setOverlayHash(urlsData.hash);
-      }
-
       const res = await fetch(`${API_URL}/api/user-settings/bot`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });

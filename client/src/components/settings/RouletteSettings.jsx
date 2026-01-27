@@ -38,7 +38,7 @@ const RouletteSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [overlayHash, setOverlayHash] = useState(null);
+  const overlayHash = user?.userHash || null;
   const [testSpinning, setTestSpinning] = useState(false);
 
   // Preview state
@@ -64,16 +64,6 @@ const RouletteSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      // Fetch overlay hash
-      const urlsRes = await fetch(`${API_URL}/api/overlay/urls`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (urlsRes.ok) {
-        const urlsData = await urlsRes.json();
-        setOverlayHash(urlsData.hash);
-      }
-
-      // Fetch roulette settings
       const res = await fetch(`${API_URL}/api/user-settings/roulette`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });

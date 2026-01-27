@@ -26,12 +26,12 @@ const defaultSettings = {
 };
 
 const CreditsSettings = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [settings, setSettings] = useState(defaultSettings);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [overlayHash, setOverlayHash] = useState(null);
+  const overlayHash = user?.userHash || null;
   const [isPlaying, setIsPlaying] = useState(false);
 
   // Preview state - 페이지 로드 시 자동 재생
@@ -70,14 +70,6 @@ const CreditsSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const urlsRes = await fetch(`${API_URL}/api/overlay/urls`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (urlsRes.ok) {
-        const urlsData = await urlsRes.json();
-        setOverlayHash(urlsData.hash);
-      }
-
       const res = await fetch(`${API_URL}/api/user-settings/credits`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });

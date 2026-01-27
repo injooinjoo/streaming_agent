@@ -14,7 +14,7 @@ import './ChatSettings.css';
 const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 const VotingSettings = () => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [settings, setSettings] = useState({
     showPercentage: true,
     showCount: true,
@@ -33,7 +33,7 @@ const VotingSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [overlayHash, setOverlayHash] = useState(null);
+  const overlayHash = user?.userHash || null;
 
   // Preview poll for demonstration
   const previewPoll = currentPoll || {
@@ -54,14 +54,6 @@ const VotingSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const urlsRes = await fetch(`${API_URL}/api/overlay/urls`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (urlsRes.ok) {
-        const urlsData = await urlsRes.json();
-        setOverlayHash(urlsData.hash);
-      }
-
       const res = await fetch(`${API_URL}/api/user-settings/voting`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
