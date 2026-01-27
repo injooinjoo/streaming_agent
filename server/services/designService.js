@@ -102,7 +102,7 @@ const createDesignService = (db, io) => {
          FROM designs d
          LEFT JOIN users u ON d.creator_id = u.id
          ${whereClause}
-         ORDER BY d.updated_at DESC
+         ORDER BY d.created_at DESC
          LIMIT ${getPlaceholder(paramIndex)} OFFSET ${getPlaceholder(paramIndex + 1)}`,
         [...params, limit, offset]
       );
@@ -140,7 +140,7 @@ const createDesignService = (db, io) => {
       const params = [];
       let paramIndex = 1;
 
-      const allowedFields = ['name', 'description', 'category', 'tags', 'design_data', 'custom_css', 'thumbnail_url'];
+      const allowedFields = ['name', 'description', 'category', 'tags', 'design_data', 'thumbnail_url'];
 
       for (const field of allowedFields) {
         if (data[field] !== undefined) {
@@ -159,12 +159,7 @@ const createDesignService = (db, io) => {
         updates.push(`status = ${getPlaceholder(paramIndex)}`);
         params.push('draft');
         paramIndex++;
-        updates.push('rejection_reason = NULL');
       }
-
-      updates.push(`updated_at = ${getPlaceholder(paramIndex)}`);
-      params.push(new Date().toISOString());
-      paramIndex++;
 
       params.push(id);
       params.push(userId);
@@ -227,13 +222,10 @@ const createDesignService = (db, io) => {
         throw new Error('임시저장 또는 거절된 디자인만 제출할 수 있습니다.');
       }
 
-      const p3 = getPlaceholder(3);
-      const p4 = getPlaceholder(4);
-
       await runQuery(
-        `UPDATE designs SET status = ${p1}, submitted_at = ${p2}, rejection_reason = NULL, updated_at = ${p3}
-         WHERE id = ${p4}`,
-        ['pending', new Date().toISOString(), new Date().toISOString(), id]
+        `UPDATE designs SET status = ${p1}
+         WHERE id = ${p2}`,
+        ['pending', id]
       );
 
       return this.getById(id);
@@ -255,14 +247,11 @@ const createDesignService = (db, io) => {
       }
 
       const p2 = getPlaceholder(2);
-      const p3 = getPlaceholder(3);
-      const p4 = getPlaceholder(4);
-      const p5 = getPlaceholder(5);
 
       await runQuery(
-        `UPDATE designs SET status = ${p1}, reviewed_at = ${p2}, reviewed_by = ${p3}, updated_at = ${p4}
-         WHERE id = ${p5}`,
-        ['approved', new Date().toISOString(), adminId, new Date().toISOString(), id]
+        `UPDATE designs SET status = ${p1}
+         WHERE id = ${p2}`,
+        ['approved', id]
       );
 
       // Create or update creator profile
@@ -297,15 +286,11 @@ const createDesignService = (db, io) => {
       }
 
       const p2 = getPlaceholder(2);
-      const p3 = getPlaceholder(3);
-      const p4 = getPlaceholder(4);
-      const p5 = getPlaceholder(5);
-      const p6 = getPlaceholder(6);
 
       await runQuery(
-        `UPDATE designs SET status = ${p1}, reviewed_at = ${p2}, reviewed_by = ${p3}, rejection_reason = ${p4}, updated_at = ${p5}
-         WHERE id = ${p6}`,
-        ['rejected', new Date().toISOString(), adminId, reason.trim(), new Date().toISOString(), id]
+        `UPDATE designs SET status = ${p1}
+         WHERE id = ${p2}`,
+        ['rejected', id]
       );
 
       // Notify user
@@ -338,7 +323,7 @@ const createDesignService = (db, io) => {
          FROM designs d
          LEFT JOIN users u ON d.creator_id = u.id
          ${whereClause}
-         ORDER BY d.submitted_at ASC
+         ORDER BY d.created_at ASC
          LIMIT ${getPlaceholder(paramIndex)} OFFSET ${getPlaceholder(paramIndex + 1)}`,
         [...params, limit, offset]
       );
@@ -496,8 +481,8 @@ const createDesignService = (db, io) => {
       if (!design) return null;
 
       await runQuery(
-        `UPDATE designs SET thumbnail_url = ${p1}, updated_at = ${p2} WHERE id = ${p3}`,
-        [thumbnailUrl, new Date().toISOString(), id]
+        `UPDATE designs SET thumbnail_url = ${p1} WHERE id = ${p2}`,
+        [thumbnailUrl, id]
       );
 
       return this.getById(id);
