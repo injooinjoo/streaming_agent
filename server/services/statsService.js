@@ -1106,10 +1106,9 @@ const createStatsService = () => {
       const subscribeCond = buildEventConditions(`event_type = 'subscribe' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
       const activityCond = buildEventConditions(`event_timestamp >= ${sql.dateSubtract(7, 'days')}`, [], 1);
 
-      // broadcasts 테이블: 날짜 범위로 비교 (TIMESTAMPTZ 캐스팅으로 정확한 비교)
-      const dateCast = isPostgres() ? '::TIMESTAMP' : '';
+      // broadcasts 테이블: 날짜 범위로 비교
       const broadcastCond = buildBroadcastConditions(
-        `updated_at >= ${p(1)}${dateCast} AND updated_at < ${p(2)}${dateCast}`,
+        `updated_at >= ${p(1)} AND updated_at < ${p(2)}`,
         [monthStart, monthEnd],
         3
       );
@@ -1118,22 +1117,22 @@ const createStatsService = () => {
         // Today's donation stats (filtered by channelId if provided)
         streamingDbGet(
           `SELECT
-            COALESCE(SUM(amount), 0) as todayDonation,
-            COUNT(*) as donationCount
+            COALESCE(SUM(amount), 0) as "todayDonation",
+            COUNT(*) as "donationCount"
           FROM events
           WHERE ${donationCond.where}`,
           donationCond.params
         ),
         // Peak viewers from broadcasts table (filtered by channelId if provided)
         streamingDbGet(
-          `SELECT MAX(peak_viewer_count) as peakViewers
+          `SELECT MAX(peak_viewer_count) as "peakViewers"
            FROM broadcasts
            WHERE ${broadcastCond.where}`,
           broadcastCond.params
         ),
         // Today's subscribe count (filtered by channelId if provided)
         streamingDbGet(
-          `SELECT COUNT(*) as newSubs
+          `SELECT COUNT(*) as "newSubs"
           FROM events
           WHERE ${subscribeCond.where}`,
           subscribeCond.params
