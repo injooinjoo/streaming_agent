@@ -1173,8 +1173,8 @@
 }
 
 .helper-text-alert {
-  background: #fee2e2;
-  color: #b91c1c;
+  background: var(--bg-hover);
+  color: #ef4444;
   padding: 6px 10px;
   border-radius: 8px;
   display: inline-block;

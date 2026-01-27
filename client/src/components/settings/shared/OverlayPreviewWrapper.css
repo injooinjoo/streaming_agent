@@ -129,8 +129,6 @@
 }
 
 /* Dark mode adjustments */
-@media (prefers-color-scheme: dark) {
-  .preview-viewport {
-    background: #0d0d1a;
-  }
+[data-theme="dark"] .preview-viewport {
+  background: #0d0d1a;
 }

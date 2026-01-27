@@ -20,7 +20,7 @@
 .review-header h2 {
   font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -38,12 +38,12 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: white;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
   border-radius: 8px;
   font-size: 14px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -71,7 +71,7 @@
   align-items: center;
   gap: 16px;
   padding: 20px;
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
 }
@@ -106,12 +106,12 @@
 .stat-value {
   font-size: 28px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .stat-label {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 /* 로딩/빈 상태 */
@@ -123,7 +123,7 @@
   justify-content: center;
   padding: 80px 40px;
   text-align: center;
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
 }
 
@@ -136,13 +136,13 @@
 .review-empty h3 {
   font-size: 18px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-main);
   margin-bottom: 8px;
 }
 
 .review-empty p {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 /* 리뷰 리스트 */
@@ -154,7 +154,7 @@
 
 /* 리뷰 카드 */
 .review-card {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   overflow: hidden;
@@ -209,7 +209,7 @@
 .review-title-row h3 {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -218,15 +218,15 @@
   align-items: center;
   gap: 4px;
   padding: 4px 10px;
-  background: #f1f5f9;
+  background: var(--bg-hover);
   border-radius: 20px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .review-description {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-muted);
   margin: 0 0 8px 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -256,10 +256,10 @@
 
 .tag {
   padding: 4px 8px;
-  background: #f1f5f9;
+  background: var(--bg-hover);
   border-radius: 4px;
   font-size: 12px;
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 /* 액션 버튼 */
@@ -284,13 +284,13 @@
 }
 
 .action-btn.preview {
-  background: #f1f5f9;
-  color: #64748b;
+  background: var(--bg-hover);
+  color: var(--text-muted);
   padding: 10px;
 }
 
 .action-btn.preview:hover {
-  background: #e2e8f0;
+  background: var(--border-medium);
   color: #3b82f6;
 }
 
@@ -304,7 +304,7 @@
 }
 
 .action-btn.reject {
-  background: white;
+  background: var(--bg-card);
   border: 1px solid #ef4444;
   color: #ef4444;
 }
@@ -320,22 +320,22 @@
 
 .expand-btn {
   padding: 10px;
-  background: #f1f5f9;
+  background: var(--bg-hover);
   border: none;
   border-radius: 8px;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .expand-btn:hover {
-  background: #e2e8f0;
+  background: var(--border-medium);
 }
 
 /* 상세 정보 */
 .review-card-detail {
   padding: 0 20px 20px 20px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border-medium);
   padding-top: 20px;
 }
 
@@ -350,7 +350,7 @@
 .detail-section h4 {
   font-size: 13px;
   font-weight: 600;
-  color: #64748b;
+  color: var(--text-muted);
   margin-bottom: 8px;
 }
 
@@ -384,7 +384,7 @@
 }
 
 .modal-content {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   width: 100%;
   max-height: 90vh;
@@ -405,13 +405,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-medium);
 }
 
 .modal-header h3 {
   font-size: 18px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -424,15 +424,15 @@
   background: none;
   border: none;
   font-size: 24px;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: 6px;
   transition: all 0.2s;
 }
 
 .modal-close:hover {
-  background: #f1f5f9;
-  color: #1e293b;
+  background: var(--bg-hover);
+  color: var(--text-main);
 }
 
 .modal-body {
@@ -445,7 +445,7 @@
 
 .reject-design-name strong {
   font-size: 16px;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .quick-reasons {
@@ -454,7 +454,7 @@
 
 .quick-reasons p {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted);
   margin-bottom: 10px;
 }
 
@@ -466,11 +466,11 @@
 
 .quick-reason-btn {
   padding: 8px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--bg-page);
+  border: 1px solid var(--border-medium);
   border-radius: 6px;
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
 }
@@ -494,14 +494,14 @@
   display: block;
   font-size: 13px;
   font-weight: 500;
-  color: #374151;
+  color: var(--text-main);
   margin-bottom: 8px;
 }
 
 .reason-input textarea {
   width: 100%;
   padding: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-medium);
   border-radius: 8px;
   font-size: 14px;
   resize: none;
@@ -527,7 +527,7 @@
   display: flex;
   gap: 12px;
   padding: 16px 24px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border-medium);
   justify-content: flex-end;
 }
 
@@ -545,13 +545,13 @@
 }
 
 .modal-btn.secondary {
-  background: white;
-  border: 1px solid #e2e8f0;
-  color: #64748b;
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  color: var(--text-muted);
 }
 
 .modal-btn.secondary:hover {
-  background: #f8fafc;
+  background: var(--bg-page);
   border-color: #cbd5e1;
 }
 

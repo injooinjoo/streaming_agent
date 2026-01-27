@@ -1,7 +1,7 @@
 /* My Designs Page */
 .my-designs-container {
   min-height: 100vh;
-  background: #f8fafc;
+  background: var(--bg-page);
 }
 
 /* 헤더 */
@@ -10,8 +10,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 24px 40px;
-  background: white;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-medium);
 }
 
 .header-left {
@@ -32,7 +32,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #64748b;
+  color: var(--text-muted);
   text-decoration: none;
   font-size: 14px;
   font-weight: 500;
@@ -46,13 +46,13 @@
 .page-title {
   font-size: 24px;
   font-weight: 700;
-  color: #1e293b;
+  color: var(--text-main);
   margin-bottom: 4px;
 }
 
 .page-subtitle {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-muted);
   margin: 0;
 }
 
@@ -82,8 +82,8 @@
   align-items: center;
   gap: 16px;
   padding: 20px 40px;
-  background: white;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-medium);
   flex-wrap: wrap;
 }
 
@@ -92,7 +92,7 @@
   align-items: center;
   gap: 12px;
   padding: 10px 16px;
-  background: #f1f5f9;
+  background: var(--bg-hover);
   border-radius: 8px;
   width: 280px;
 }
@@ -110,7 +110,7 @@
 }
 
 .search-bar svg {
-  color: #64748b;
+  color: var(--text-muted);
 }
 
 .filter-tabs {
@@ -125,18 +125,18 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: #f1f5f9;
+  background: var(--bg-hover);
   border: 1px solid transparent;
   border-radius: 20px;
   font-size: 13px;
   font-weight: 500;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .filter-tab:hover {
-  background: #e2e8f0;
+  background: var(--border-medium);
 }
 
 .filter-tab.active {
@@ -166,16 +166,16 @@
   justify-content: center;
   width: 40px;
   height: 40px;
-  background: #f1f5f9;
+  background: var(--bg-hover);
   border: none;
   border-radius: 8px;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   transition: all 0.2s;
 }
 
 .refresh-button:hover:not(:disabled) {
-  background: #e2e8f0;
+  background: var(--border-medium);
   color: #3b82f6;
 }
 
@@ -197,7 +197,7 @@
 
 /* 디자인 카드 */
 .design-card {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -292,13 +292,13 @@
 .design-name {
   font-size: 16px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main);
   margin: 0;
 }
 
 .design-description {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-muted);
   margin: 0;
   line-height: 1.5;
   display: -webkit-box;
@@ -347,7 +347,7 @@
 
 .view-reason-button {
   padding: 4px 8px;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid #fecaca;
   border-radius: 4px;
   font-size: 12px;
@@ -373,19 +373,19 @@
   justify-content: center;
   gap: 6px;
   padding: 8px 14px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--border-medium);
   border-radius: 6px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
-  background: white;
-  color: #64748b;
+  background: var(--bg-card);
+  color: var(--text-muted);
 }
 
 .action-button:hover {
   border-color: #cbd5e1;
-  background: #f8fafc;
+  background: var(--bg-page);
 }
 
 .action-button.edit {
@@ -446,13 +446,13 @@
 .empty-state h3 {
   font-size: 18px;
   font-weight: 600;
-  color: #374151;
+  color: var(--text-main);
   margin-bottom: 8px;
 }
 
 .empty-state p {
   font-size: 14px;
-  color: #64748b;
+  color: var(--text-muted);
   margin-bottom: 24px;
 }
 
@@ -492,7 +492,7 @@
 }
 
 .modal-content {
-  background: white;
+  background: var(--bg-card);
   border-radius: 12px;
   width: 100%;
   max-width: 480px;
@@ -506,13 +506,13 @@
   align-items: center;
   justify-content: space-between;
   padding: 20px 24px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid var(--border-medium);
 }
 
 .modal-header h3 {
   font-size: 18px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--text-main);
   margin: 0;
 }
 
@@ -525,15 +525,15 @@
   background: none;
   border: none;
   font-size: 24px;
-  color: #64748b;
+  color: var(--text-muted);
   cursor: pointer;
   border-radius: 6px;
   transition: all 0.2s;
 }
 
 .modal-close:hover {
-  background: #f1f5f9;
-  color: #1e293b;
+  background: var(--bg-hover);
+  color: var(--text-main);
 }
 
 .modal-body {
@@ -549,7 +549,7 @@
 
 .reject-design-info strong {
   font-size: 14px;
-  color: #1e293b;
+  color: var(--text-main);
 }
 
 .reject-date {
@@ -570,7 +570,7 @@
 
 .reject-help {
   font-size: 13px;
-  color: #64748b;
+  color: var(--text-muted);
   margin: 0;
 }
 
@@ -578,7 +578,7 @@
   display: flex;
   gap: 12px;
   padding: 16px 24px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid var(--border-medium);
   justify-content: flex-end;
 }
 
@@ -592,13 +592,13 @@
 }
 
 .modal-button.secondary {
-  background: white;
-  border: 1px solid #e2e8f0;
-  color: #64748b;
+  background: var(--bg-card);
+  border: 1px solid var(--border-medium);
+  color: var(--text-muted);
 }
 
 .modal-button.secondary:hover {
-  background: #f8fafc;
+  background: var(--bg-page);
   border-color: #cbd5e1;
 }
 

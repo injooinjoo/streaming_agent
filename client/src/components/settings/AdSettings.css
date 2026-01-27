@@ -699,7 +699,7 @@
   align-items: center;
   gap: 6px;
   padding: 10px 16px;
-  background: white;
+  background: var(--bg-card);
   border: 1px solid #fecaca;
   border-radius: 8px;
   color: #dc2626;
