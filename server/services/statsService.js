@@ -485,7 +485,7 @@ const createStatsService = () => {
           SUM(chat_count) as chatCount
         FROM viewer_engagement
         WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}
-        GROUP BY ${sql.extractHour('last_seen_at')}
+        GROUP BY ${sql.formatDate('last_seen_at', 'HH24:00')}
         ORDER BY viewerCount DESC
         LIMIT 1`
       );
@@ -536,7 +536,7 @@ const createStatsService = () => {
           SUM(chat_count) as chats
         FROM viewer_engagement
         WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}
-        GROUP BY ${sql.extractHour('last_seen_at')}
+        GROUP BY ${sql.formatDate('last_seen_at', 'HH24:00')}
         ORDER BY hour`
       );
 
@@ -585,7 +585,7 @@ const createStatsService = () => {
           SUM(chat_count) as chats
         FROM viewer_engagement
         WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}
-        GROUP BY ${dayOfWeekExtract}
+        GROUP BY ${dayOfWeekExtract}, ${dayCase}
         ORDER BY dayNum`
       );
 
@@ -740,7 +740,7 @@ const createStatsService = () => {
         FROM events
         WHERE event_type IN ('donation', 'subscribe', 'subscription', 'follow')
           AND event_timestamp >= ${sql.dateSubtract(hours, 'hours')}
-        GROUP BY ${sql.extractHour('event_timestamp')}, platform
+        GROUP BY ${sql.formatDate('event_timestamp', 'HH24:00')}, platform
         ORDER BY time`
       );
 
@@ -1029,13 +1029,12 @@ const createStatsService = () => {
 
       const peakRow = await streamingDbGet(
         `SELECT
-          MAX(viewer_count) as peakViewers,
-          ${sql.formatDate('timestamp', 'HH24:MI')} as peakTime,
-          platform
-        FROM viewer_stats
-        WHERE ${sql.dateOnly('timestamp')} = ${param}
-        GROUP BY platform
-        ORDER BY peakViewers DESC
+          vs.viewer_count as peakViewers,
+          ${sql.formatDate('vs.timestamp', 'HH24:MI')} as peakTime,
+          vs.platform
+        FROM viewer_stats vs
+        WHERE ${sql.dateOnly('vs.timestamp')} = ${param}
+        ORDER BY vs.viewer_count DESC
         LIMIT 1`,
         [today]
       );
@@ -1211,10 +1210,10 @@ const createStatsService = () => {
               MAX(bs.peak_viewer_count) as peak_viewers,
               AVG(bs.avg_viewer_count) as avg_viewers,
               MAX(bs.segment_started_at) as last_broadcast_at,
-              ug.image_url,
-              ug.genre_kr,
-              pc_soop.thumbnail_url as soop_thumbnail,
-              pc_chzzk.thumbnail_url as chzzk_thumbnail
+              MAX(ug.image_url) as image_url,
+              MAX(ug.genre_kr) as genre_kr,
+              MAX(pc_soop.thumbnail_url) as soop_thumbnail,
+              MAX(pc_chzzk.thumbnail_url) as chzzk_thumbnail
             FROM broadcast_segments bs
             INNER JOIN broadcasts b ON bs.broadcast_id = b.id
             LEFT JOIN unified_games ug ON (
@@ -1729,7 +1728,7 @@ const createStatsService = () => {
           COALESCE(SUM(amount), 0) as donations
         FROM events
         WHERE ${donationConditions.join(' AND ')}
-        GROUP BY ${sql.extractHour('event_timestamp')}
+        GROUP BY ${sql.formatDate('event_timestamp', 'HH24:00')}
         ORDER BY hour`,
         filter.params
       );
@@ -1746,7 +1745,7 @@ const createStatsService = () => {
           SUM(chat_count) as chats
         FROM viewer_engagement
         WHERE ${chatConditions.join(' AND ')}
-        GROUP BY ${sql.extractHour('last_seen_at')}
+        GROUP BY ${sql.formatDate('last_seen_at', 'HH24:00')}
         ORDER BY hour`,
         filter.params
       );
@@ -1808,7 +1807,7 @@ const createStatsService = () => {
           SUM(chat_count) as chatCount
         FROM viewer_engagement
         WHERE ${conditions.join(' AND ')}
-        GROUP BY ${sql.extractHour('last_seen_at')}
+        GROUP BY ${sql.formatDate('last_seen_at', 'HH24:00')}
         ORDER BY viewerCount DESC
         LIMIT 1`,
         filter.params
@@ -1869,7 +1868,7 @@ const createStatsService = () => {
           SUM(chat_count) as chats
         FROM viewer_engagement
         WHERE ${conditions.join(' AND ')}
-        GROUP BY ${sql.extractHour('last_seen_at')}
+        GROUP BY ${sql.formatDate('last_seen_at', 'HH24:00')}
         ORDER BY hour`,
         filter.params
       );
@@ -1926,7 +1925,7 @@ const createStatsService = () => {
           SUM(chat_count) as chats
         FROM viewer_engagement
         WHERE ${conditions.join(' AND ')}
-        GROUP BY ${dayOfWeekExtract}
+        GROUP BY ${dayOfWeekExtract}, ${dayCase}
         ORDER BY dayNum`,
         filter.params
       );

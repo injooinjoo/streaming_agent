@@ -26,7 +26,7 @@ const p = (index) => isPostgres() ? `$${index}` : '?';
  * @param {Server} io - Socket.io server instance
  * @returns {Object} Event service methods
  */
-const createEventService = (_db, io) => {
+const createEventService = (_db, io, statsCacheService = null) => {
   // Get cross-database SQL helpers
   const sql = getSQLHelpers();
 
@@ -111,6 +111,11 @@ const createEventService = (_db, io) => {
         io.to(`overlay:${overlayHash}`).emit("new-event", legacyEvent);
       } else {
         io.emit("new-event", legacyEvent);
+      }
+
+      // Invalidate stats cache on donation events
+      if (eventType === 'donation' && statsCacheService) {
+        statsCacheService.onDonationEvent().catch(() => {});
       }
 
       return savedEvent;
@@ -272,7 +277,7 @@ const createEventService = (_db, io) => {
           ) as platform
         FROM events
         WHERE ${conditions.join(' AND ')}
-        GROUP BY actor_person_id
+        GROUP BY actor_person_id, actor_nickname
         ORDER BY total DESC
         LIMIT ${p(idx)}`,
         params
