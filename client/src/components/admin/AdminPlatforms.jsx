@@ -48,22 +48,25 @@ const AdminPlatforms = () => {
         fetch(`${API_URL}/api/stats/top-streamers-by-viewers?sortBy=cumulative&limit=10`)
       ]);
 
-      const events = await eventsRes.json();
-      const donationsData = await donationsRes.json();
-      const connectionsData = await connectionsRes.json();
+      const events = eventsRes.ok ? await eventsRes.json() : [];
+      const donationsData = donationsRes.ok ? await donationsRes.json() : [];
+      const connectionsData = connectionsRes.ok ? await connectionsRes.json() : {};
       const peakData = peakRes.ok ? await peakRes.json() : [];
       const cumulativeData = cumulativeRes.ok ? await cumulativeRes.json() : [];
 
-      setEventsByPlatform(events);
-      setDonations(donationsData);
+      const eventsArr = Array.isArray(events) ? events : [];
+      const donationsArr = Array.isArray(donationsData) ? donationsData : [];
+
+      setEventsByPlatform(eventsArr);
+      setDonations(donationsArr);
       setConnections(connectionsData);
       setPeakStreamers(peakData);
       setCumulativeStreamers(cumulativeData);
 
       // 플랫폼 데이터 생성
       const platformData = ['soop', 'chzzk'].map(id => {
-        const eventData = events.find(e => e.platform === id);
-        const donationData = donationsData.find(d => d.platform === id);
+        const eventData = eventsArr.find(e => e.platform === id);
+        const donationData = donationsArr.find(d => d.platform === id);
         const connected = connectionsData[id]?.connected || false;
 
         return {

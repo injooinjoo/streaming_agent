@@ -30,16 +30,18 @@ const AdminOverview = () => {
         fetch(`${API_URL}/api/stats/donations/trend`, { headers })
       ]);
 
-      const events = await eventsRes.json();
-      const donations = await donationsRes.json();
-      const connections = await connectionsRes.json();
-      const trend = await trendRes.json();
+      const events = eventsRes.ok ? await eventsRes.json() : {};
+      const donations = donationsRes.ok ? await donationsRes.json() : [];
+      const connections = connectionsRes.ok ? await connectionsRes.json() : {};
+      const trend = trendRes.ok ? await trendRes.json() : [];
 
       // 총 후원금 계산
-      const totalDonations = donations.reduce((sum, d) => sum + (d.total || 0), 0);
+      const donationsArr = Array.isArray(donations) ? donations : [];
+      const totalDonations = donationsArr.reduce((sum, d) => sum + (d.total || 0), 0);
 
       // 최근 활동 생성 (트렌드 데이터 기반)
-      const recentActivity = trend.slice(-5).reverse().map(t => ({
+      const trendArr = Array.isArray(trend) ? trend : [];
+      const recentActivity = trendArr.slice(-5).reverse().map(t => ({
         text: `${t.date}: ${t.count}건의 후원, 총 ${formatCurrency(t.total)}`,
         time: new Date(t.date).toLocaleDateString('ko-KR'),
         color: '#10b981'
@@ -51,7 +53,7 @@ const AdminOverview = () => {
       setData({
         totalEvents: events.total || 0,
         totalDonations,
-        donationsByPlatform: donations,
+        donationsByPlatform: donationsArr,
         platformConnections: connections,
         connectedPlatforms,
         recentActivity: recentActivity.length > 0 ? recentActivity : [
