@@ -7,6 +7,7 @@
 const express = require("express");
 const { getOne, getAll, isPostgres } = require("../db/connections");
 const { getSQLHelpers } = require("../config/database.config");
+const { STATS_KEYS, TTL } = require("../services/statsCacheService");
 
 /**
  * Get placeholder for parameterized queries
@@ -21,7 +22,7 @@ const p = (index) => isPostgres() ? `$${index}` : '?';
  * @param {Object} designService - Design service instance (optional)
  * @returns {express.Router}
  */
-const createAdminRouter = (db, authenticateAdmin, developerLogin, designService = null) => {
+const createAdminRouter = (db, authenticateAdmin, developerLogin, designService = null, statsCacheService = null) => {
   const router = express.Router();
   const sql = getSQLHelpers();
 
@@ -39,37 +40,45 @@ const createAdminRouter = (db, authenticateAdmin, developerLogin, designService 
    */
   router.get("/admin/overview", authenticateAdmin, async (req, res) => {
     try {
-      const queries = {
-        totalStreamers: "SELECT COUNT(*) as count FROM users WHERE role IN ('user', 'creator')",
-        totalUsers: "SELECT COUNT(*) as count FROM users",
-        activeUsers: `SELECT COUNT(*) as count FROM users WHERE created_at > ${sql.dateSubtract(30, 'days')}`,
-        totalRevenue: "SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions",
-        monthlyRevenue: `SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions WHERE ${sql.formatDate('timestamp', 'YYYY-MM')} = ${sql.formatDate(sql.now(), 'YYYY-MM')}`,
-        activeCampaigns: "SELECT COUNT(*) as count FROM ad_campaigns WHERE status = 'active'",
-        totalEvents: "SELECT COUNT(*) as count FROM events",
-        totalDonations: "SELECT COALESCE(SUM(amount), 0) as total FROM events WHERE event_type = 'donation'",
+      const computeOverview = async () => {
+        const queries = {
+          totalStreamers: "SELECT COUNT(*) as count FROM users WHERE role IN ('user', 'creator')",
+          totalUsers: "SELECT COUNT(*) as count FROM users",
+          activeUsers: `SELECT COUNT(*) as count FROM users WHERE created_at > ${sql.dateSubtract(30, 'days')}`,
+          totalRevenue: "SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions",
+          monthlyRevenue: `SELECT COALESCE(SUM(revenue), 0) as total FROM ad_impressions WHERE ${sql.formatDate('timestamp', 'YYYY-MM')} = ${sql.formatDate(sql.now(), 'YYYY-MM')}`,
+          activeCampaigns: "SELECT COUNT(*) as count FROM ad_campaigns WHERE status = 'active'",
+          totalEvents: "SELECT COUNT(*) as count FROM events",
+          totalDonations: "SELECT COALESCE(SUM(amount), 0) as total FROM events WHERE event_type = 'donation'",
+        };
+
+        const results = {};
+        for (const [key, query] of Object.entries(queries)) {
+          try {
+            const row = await getOne(query);
+            results[key] = row?.count || row?.total || 0;
+          } catch {
+            results[key] = 0;
+          }
+        }
+
+        return {
+          totalStreamers: results.totalStreamers,
+          totalUsers: results.totalUsers,
+          activeUsers: results.activeUsers,
+          totalRevenue: Math.round(results.totalRevenue),
+          monthlyRevenue: Math.round(results.monthlyRevenue),
+          activeCampaigns: results.activeCampaigns,
+          totalEvents: results.totalEvents,
+          totalDonations: results.totalDonations,
+        };
       };
 
-      const results = {};
-      for (const [key, query] of Object.entries(queries)) {
-        try {
-          const row = await getOne(query);
-          results[key] = row?.count || row?.total || 0;
-        } catch {
-          results[key] = 0;
-        }
+      if (statsCacheService) {
+        const result = await statsCacheService.getOrCompute(STATS_KEYS.ADMIN_OVERVIEW, computeOverview, TTL.SLOW);
+        return res.json(result);
       }
-
-      res.json({
-        totalStreamers: results.totalStreamers,
-        totalUsers: results.totalUsers,
-        activeUsers: results.activeUsers,
-        totalRevenue: Math.round(results.totalRevenue),
-        monthlyRevenue: Math.round(results.monthlyRevenue),
-        activeCampaigns: results.activeCampaigns,
-        totalEvents: results.totalEvents,
-        totalDonations: results.totalDonations,
-      });
+      res.json(await computeOverview());
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

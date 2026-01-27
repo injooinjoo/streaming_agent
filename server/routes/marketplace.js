@@ -4,14 +4,16 @@
  */
 
 const express = require("express");
+const { STATS_KEYS, TTL } = require("../services/statsCacheService");
 
 /**
  * Create marketplace router
  * @param {Object} designService - Design service instance
  * @param {Function} authenticateToken - Auth middleware (optional for some routes)
+ * @param {Object} statsCacheService - Stats cache service instance (optional)
  * @returns {express.Router}
  */
-const createMarketplaceRouter = (designService, authenticateToken) => {
+const createMarketplaceRouter = (designService, authenticateToken, statsCacheService = null) => {
   const router = express.Router();
 
   // ===== Public Marketplace =====
@@ -118,11 +120,19 @@ const createMarketplaceRouter = (designService, authenticateToken) => {
    */
   router.get("/marketplace/stats", async (req, res) => {
     try {
-      const stats = await designService.getStats();
-      res.json({
-        totalDesigns: stats.approved,
-        totalDownloads: 0 // TODO: sum from all designs
-      });
+      const computeStats = async () => {
+        const stats = await designService.getStats();
+        return {
+          totalDesigns: stats.approved,
+          totalDownloads: 0 // TODO: sum from all designs
+        };
+      };
+
+      if (statsCacheService) {
+        const result = await statsCacheService.getOrCompute(STATS_KEYS.MARKETPLACE_STATS, computeStats, TTL.SLOW);
+        return res.json(result);
+      }
+      res.json(await computeStats());
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

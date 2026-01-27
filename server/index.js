@@ -184,6 +184,10 @@ const main = async () => {
     module.exports.db = db;
     module.exports.activeAdapters = activeAdapters;
 
+    // Get statsCacheService from app for lifecycle management
+    const statsCacheService = app.get("statsCacheService");
+    module.exports.statsCacheService = statsCacheService;
+
     // Start server FIRST (before slow initialization tasks)
     server.listen(PORT, '0.0.0.0', () => {
       logger.info("Server started", {
@@ -206,6 +210,17 @@ const main = async () => {
         broadcastCrawler.startScheduledCrawl();
         logger.info("Broadcast crawler started (5 min interval, auto-connect top 50)");
         module.exports.broadcastCrawler = broadcastCrawler;
+
+        // Warm up stats cache and start schedulers (after category service is ready)
+        if (statsCacheService) {
+          statsCacheService.warmUp().then(() => {
+            statsCacheService.startSchedulers();
+          }).catch((err) => {
+            logger.error("StatsCacheService warm-up error", { error: err.message });
+            // Start schedulers anyway even if warm-up fails
+            statsCacheService.startSchedulers();
+          });
+        }
       }).catch((err) => {
         logger.error("Category service initialization error", { error: err.message, stack: err.stack });
       });
@@ -227,6 +242,16 @@ const shutdown = async () => {
       logger.info("Broadcast crawler stopped");
     } catch (err) {
       logger.error("Error stopping broadcast crawler", { error: err.message });
+    }
+  }
+
+  // Stop stats cache schedulers
+  if (module.exports.statsCacheService) {
+    try {
+      module.exports.statsCacheService.shutdown();
+      logger.info("Stats cache service stopped");
+    } catch (err) {
+      logger.error("Error stopping stats cache service", { error: err.message });
     }
   }
 

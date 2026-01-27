@@ -43,6 +43,7 @@ const { createTokenService } = require("./services/tokenService");
 const { createDesignService } = require("./services/designService");
 const UserSessionService = require("./services/userSessionService");
 const ViewerEstimationService = require("./services/viewerEstimationService");
+const { StatsCacheService } = require("./services/statsCacheService");
 
 // Middleware
 const { authenticateToken, createAuthMiddleware } = require("./middleware/auth");
@@ -94,11 +95,18 @@ const createApp = ({
   const stateStore = createStateStoreService({ ttl: 5 * 60 * 1000 }); // 5 minute TTL for OAuth state
   const tokenService = createTokenService();
 
-  // Services using streamingDb (events)
-  const eventService = createEventService(streamingDb);
-
   // Stats service (uses unified database connection internally)
   const statsService = createStatsService();
+
+  // Stats cache service (pre-compute + cache for aggregate queries)
+  const statsCacheService = new StatsCacheService({
+    statsService,
+    categoryService,
+    designService,
+  });
+
+  // Services using streamingDb (events) — with cache invalidation on donations
+  const eventService = createEventService(streamingDb, null, statsCacheService);
 
   // Viewer session tracking services (using streamingDb)
   const userSessionService = new UserSessionService(streamingDb);
@@ -161,7 +169,7 @@ const createApp = ({
   app.use("/api", adsRouter);
 
   // Admin routes (dashboard, analytics, design review) - uses overlayDb
-  const adminRouter = createAdminRouter(overlayDb, authenticateAdmin, developerLogin, designService);
+  const adminRouter = createAdminRouter(overlayDb, authenticateAdmin, developerLogin, designService, statsCacheService);
   app.use("/api", adminRouter);
 
   // Designs routes (user design CRUD) - uses overlayDb
@@ -169,7 +177,7 @@ const createApp = ({
   app.use("/api", designsRouter);
 
   // Marketplace routes (public design browsing, install) - uses designService
-  const marketplaceRouter = createMarketplaceRouter(designService, authMiddleware);
+  const marketplaceRouter = createMarketplaceRouter(designService, authMiddleware, statsCacheService);
   app.use("/api", marketplaceRouter);
 
   // Stats routes (events, donations, revenue, viewer sessions) - uses both databases
@@ -179,7 +187,8 @@ const createApp = ({
     activeAdapters,
     authMiddleware,
     userSessionService,
-    viewerEstimationService
+    viewerEstimationService,
+    statsCacheService
   );
   app.use("/api", statsRouter);
 
@@ -199,7 +208,7 @@ const createApp = ({
   app.use("/api", gameStatsRouter);
 
   // Categories routes - uses streamingDb
-  const categoriesRouter = createCategoriesRouter(streamingDb, categoryService, authMiddleware);
+  const categoriesRouter = createCategoriesRouter(streamingDb, categoryService, authMiddleware, statsCacheService);
   app.use("/api", categoriesRouter);
 
   // ===== Health Check Routes =====
@@ -235,6 +244,9 @@ const createApp = ({
       error: err.message || "Internal server error",
     });
   });
+
+  // Expose statsCacheService for lifecycle management (warm-up, schedulers, shutdown)
+  app.set("statsCacheService", statsCacheService);
 
   return app;
 };

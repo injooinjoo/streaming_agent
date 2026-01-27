@@ -5,6 +5,7 @@
 
 const express = require("express");
 const { runQuery, getOne, getAll, isPostgres } = require("../db/connections");
+const { STATS_KEYS, TTL } = require("../services/statsCacheService");
 
 /**
  * Get placeholder for parameterized queries
@@ -19,6 +20,7 @@ const p = (index) => isPostgres() ? `$${index}` : '?';
  * @param {Function} authenticateToken - Auth middleware for protected routes
  * @param {Object} userSessionService - User session service instance
  * @param {Object} viewerEstimationService - Viewer estimation service instance
+ * @param {Object} statsCacheService - Stats cache service instance (optional)
  * @returns {express.Router}
  */
 const createStatsRouter = (
@@ -27,7 +29,8 @@ const createStatsRouter = (
   activeAdapters,
   authenticateToken,
   userSessionService,
-  viewerEstimationService
+  viewerEstimationService,
+  statsCacheService = null
 ) => {
   const router = express.Router();
 
@@ -127,6 +130,12 @@ const createStatsRouter = (
     try {
       const days = parseInt(req.query.days, 10) || 30;
       const { channelId, platform } = req.query;
+      // 글로벌 요청(채널 필터 없음)이고 기본 days일 때 캐시 사용
+      if (statsCacheService && !channelId && !platform) {
+        const key = statsCacheService.buildKey(STATS_KEYS.REVENUE_SUMMARY, { days });
+        const result = await statsCacheService.getOrCompute(key, () => statsService.getRevenueSummary(days), TTL.MEDIUM);
+        return res.json(result);
+      }
       const summary = await statsService.getRevenueSummary(days, channelId, platform);
       res.json(summary);
     } catch (err) {
@@ -142,6 +151,11 @@ const createStatsRouter = (
     try {
       const days = parseInt(req.query.days, 10) || 30;
       const { channelId, platform } = req.query;
+      if (statsCacheService && !channelId && !platform) {
+        const key = statsCacheService.buildKey(STATS_KEYS.REVENUE_TREND, { days });
+        const result = await statsCacheService.getOrCompute(key, () => statsService.getRevenueTrend(days), TTL.MEDIUM);
+        return res.json(result);
+      }
       const trend = await statsService.getRevenueTrend(days, channelId, platform);
       res.json(trend);
     } catch (err) {
@@ -185,6 +199,11 @@ const createStatsRouter = (
   router.get("/stats/revenue/top-streamers", authenticateToken, async (req, res) => {
     try {
       const limit = parseInt(req.query.limit, 10) || 10;
+      if (statsCacheService) {
+        const key = statsCacheService.buildKey(STATS_KEYS.TOP_STREAMERS_REVENUE, { limit });
+        const result = await statsCacheService.getOrCompute(key, () => statsService.getTopStreamersByRevenue(limit), TTL.MEDIUM);
+        return res.json(result);
+      }
       const result = await statsService.getTopStreamersByRevenue(limit);
       res.json(result);
     } catch (err) {
@@ -220,13 +239,20 @@ const createStatsRouter = (
    */
   router.get("/broadcasters", authenticateToken, async (req, res) => {
     try {
-      const result = await statsService.getBroadcasters({
+      const params = {
         search: req.query.search || "",
         sortBy: req.query.sortBy || "total_donations",
         sortOrder: req.query.sortOrder || "desc",
         page: parseInt(req.query.page, 10) || 1,
         limit: parseInt(req.query.limit, 10) || 20,
-      });
+      };
+      // 기본 파라미터(검색 없음, 첫 페이지)일 때 캐시 사용
+      if (statsCacheService && !params.search && params.page === 1) {
+        const key = statsCacheService.buildKey(STATS_KEYS.BROADCASTERS, { sortBy: params.sortBy, page: 1 });
+        const result = await statsCacheService.getOrCompute(key, () => statsService.getBroadcasters(params), TTL.MEDIUM);
+        return res.json(result);
+      }
+      const result = await statsService.getBroadcasters(params);
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -239,11 +265,15 @@ const createStatsRouter = (
    */
   router.get("/stats/top-streamers-by-viewers", async (req, res) => {
     try {
-      const result = await statsService.getTopStreamersByViewers({
-        sortBy: req.query.sortBy || "peak",
-        platform: req.query.platform || null,
-        limit: parseInt(req.query.limit, 10) || 10,
-      });
+      const sortBy = req.query.sortBy || "peak";
+      const platform = req.query.platform || null;
+      const limit = parseInt(req.query.limit, 10) || 10;
+      if (statsCacheService && !platform) {
+        const key = statsCacheService.buildKey(STATS_KEYS.TOP_STREAMERS_VIEWERS, { sortBy, limit });
+        const result = await statsCacheService.getOrCompute(key, () => statsService.getTopStreamersByViewers({ sortBy, limit }), TTL.MEDIUM);
+        return res.json(result);
+      }
+      const result = await statsService.getTopStreamersByViewers({ sortBy, platform, limit });
       res.json(result);
     } catch (err) {
       res.status(500).json({ error: err.message });
@@ -258,6 +288,10 @@ const createStatsRouter = (
    */
   router.get("/stats/platforms", authenticateToken, async (req, res) => {
     try {
+      if (statsCacheService) {
+        const result = await statsCacheService.getOrCompute(STATS_KEYS.PLATFORM_STATS, () => statsService.getPlatformStats(), TTL.MEDIUM);
+        return res.json(result);
+      }
       const result = await statsService.getPlatformStats();
       res.json(result);
     } catch (err) {
@@ -276,6 +310,12 @@ const createStatsRouter = (
     try {
       const days = parseInt(req.query.days, 10) || 7;
       const { channelId, platform } = req.query;
+      // 글로벌 요청일 때 캐시 사용
+      if (statsCacheService && !channelId && !platform) {
+        const key = statsCacheService.buildKey(STATS_KEYS.CHAT_SUMMARY, { days });
+        const result = await statsCacheService.getOrCompute(key, () => statsService.getChatActivitySummary(days), TTL.FAST);
+        return res.json(result);
+      }
       // Use filtered version if channel params provided
       const result = channelId || platform
         ? await statsService.getChatActivitySummaryFiltered(days, channelId, platform)
@@ -350,6 +390,12 @@ const createStatsRouter = (
     try {
       const days = parseInt(req.query.days, 10) || 30;
       const { channelId, platform } = req.query;
+      // 글로벌 요청일 때 캐시 사용
+      if (statsCacheService && !channelId && !platform) {
+        const key = statsCacheService.buildKey(STATS_KEYS.CATEGORY_DONATIONS, { days });
+        const result = await statsCacheService.getOrCompute(key, () => statsService.getCategoryDonations(days), TTL.MEDIUM);
+        return res.json(result);
+      }
       const result = await statsService.getCategoryDonations(days, channelId, platform);
       res.json(result);
     } catch (err) {
@@ -451,6 +497,10 @@ const createStatsRouter = (
    */
   router.get("/stats/realtime/summary", authenticateToken, async (req, res) => {
     try {
+      if (statsCacheService) {
+        const result = await statsCacheService.getOrCompute(STATS_KEYS.REALTIME_PLATFORM, () => statsService.getRealtimePlatformSummary(), TTL.FAST);
+        return res.json(result);
+      }
       const result = await statsService.getRealtimePlatformSummary();
       res.json(result);
     } catch (err) {
@@ -468,6 +518,11 @@ const createStatsRouter = (
       const type = req.query.type || 'viewers';
       if (!['viewers', 'channels', 'chats'].includes(type)) {
         return res.status(400).json({ error: 'Invalid type. Must be viewers, channels, or chats' });
+      }
+      if (statsCacheService) {
+        const key = statsCacheService.buildKey(STATS_KEYS.REALTIME_TREND, { type });
+        const result = await statsCacheService.getOrCompute(key, () => statsService.getRealtimeTrend(type), TTL.FAST);
+        return res.json(result);
       }
       const result = await statsService.getRealtimeTrend(type);
       res.json(result);
@@ -681,6 +736,11 @@ const createStatsRouter = (
         });
       }
 
+      // 글로벌 대시보드(채널 필터 없음)일 때 캐시 사용
+      if (statsCacheService && !channelId && !platform) {
+        const result = await statsCacheService.getOrCompute(STATS_KEYS.DASHBOARD_SUMMARY, () => statsService.getDashboardSummary(), TTL.FAST);
+        return res.json(result);
+      }
       // channelId가 있으면 해당 채널의 데이터만 조회
       const result = await statsService.getDashboardSummary(channelId, platform);
       res.json(result);

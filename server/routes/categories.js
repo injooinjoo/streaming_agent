@@ -5,15 +5,17 @@
  */
 
 const express = require("express");
+const { STATS_KEYS, TTL } = require("../services/statsCacheService");
 
 /**
  * 라우터 생성 팩토리
  * @param {Object} db - SQLite3 데이터베이스 인스턴스
  * @param {Object} categoryService - CategoryService 인스턴스
  * @param {Function} authenticateToken - JWT 인증 미들웨어
+ * @param {Object} statsCacheService - Stats cache service instance (optional)
  * @returns {express.Router}
  */
-function createCategoriesRouter(db, categoryService, authenticateToken) {
+function createCategoriesRouter(db, categoryService, authenticateToken, statsCacheService = null) {
   const router = express.Router();
 
   /**
@@ -56,6 +58,10 @@ function createCategoriesRouter(db, categoryService, authenticateToken) {
    */
   router.get("/categories/stats", async (req, res) => {
     try {
+      if (statsCacheService) {
+        const stats = await statsCacheService.getOrCompute(STATS_KEYS.CATALOG_STATS, () => categoryService.getCatalogStats(), TTL.SLOW);
+        return res.json({ success: true, data: stats });
+      }
       const stats = await categoryService.getCatalogStats();
 
       res.json({
@@ -81,6 +87,11 @@ function createCategoriesRouter(db, categoryService, authenticateToken) {
       const limit = Math.min(parseInt(req.query.limit, 10) || 20, 30);
       const days = Math.min(parseInt(req.query.days, 10) || 7, 30);
 
+      if (statsCacheService) {
+        const key = statsCacheService.buildKey(STATS_KEYS.CATALOG_TRENDS, { limit, days });
+        const trends = await statsCacheService.getOrCompute(key, () => categoryService.getTopCategoriesDailyTrend(limit, days), TTL.SLOW);
+        return res.json({ success: true, data: trends });
+      }
       const trends = await categoryService.getTopCategoriesDailyTrend(limit, days);
 
       res.json({
