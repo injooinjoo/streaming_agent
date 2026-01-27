@@ -1063,6 +1063,12 @@ const createStatsService = () => {
     async getDashboardSummary(channelId = null, platform = null) {
       const currentMonth = new Date().toISOString().slice(0, 7); // '2025-01' 형식
 
+      // 월 시작/끝 날짜 계산 (date range 비교용)
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+      const monthEnd = nextMonth.toISOString().split('T')[0];
+
       // Build dynamic WHERE conditions for events table (uses p() for cross-DB compatibility)
       const buildEventConditions = (baseCondition, params, startIndex = params.length + 1) => {
         let conditions = [baseCondition];
@@ -1079,8 +1085,8 @@ const createStatsService = () => {
         return { where: conditions.join(' AND '), params: queryParams };
       };
 
-      // Build dynamic WHERE conditions for viewer_stats table
-      const buildViewerConditions = (baseCondition, params, startIndex = params.length + 1) => {
+      // Build dynamic WHERE conditions for broadcasts table
+      const buildBroadcastConditions = (baseCondition, params, startIndex = params.length + 1) => {
         let conditions = [baseCondition];
         let queryParams = [...params];
         let idx = startIndex;
@@ -1099,22 +1105,8 @@ const createStatsService = () => {
       const subscribeCond = buildEventConditions(`event_type = 'subscribe' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
       const activityCond = buildEventConditions(`event_timestamp >= ${sql.dateSubtract(7, 'days')}`, [], 1);
 
-      // Build conditions for broadcasts table (peak viewers)
-      const buildBroadcastConditions = (baseCondition, params, startIndex = params.length + 1) => {
-        let conditions = [baseCondition];
-        let queryParams = [...params];
-        let idx = startIndex;
-        if (channelId) {
-          conditions.push(`channel_id = ${p(idx++)}`);
-          queryParams.push(channelId);
-        }
-        if (platform) {
-          conditions.push(`platform = ${p(idx++)}`);
-          queryParams.push(platform);
-        }
-        return { where: conditions.join(' AND '), params: queryParams };
-      };
-      const broadcastCond = buildBroadcastConditions(`${sql.formatDate('updated_at', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
+      // broadcasts 테이블: 날짜 범위로 비교 (TO_CHAR 대신 date range 사용)
+      const broadcastCond = buildBroadcastConditions(`updated_at >= ${p(1)} AND updated_at < ${p(2)}`, [monthStart, monthEnd], 3);
 
       const [todayStats, peakViewers, subscribeCount, platformStats] = await Promise.all([
         // Today's donation stats (filtered by channelId if provided)
