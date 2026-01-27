@@ -153,40 +153,15 @@ const TextSettings = () => {
             </div>
           </div>
           <div className="action-area">
+            <button className="btn-copy-url" onClick={copyUrl}>
+              {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? '복사됨' : 'URL 복사'}
+            </button>
             <button className="btn-setup-guide">
               <HelpCircle size={16} /> 설정 가이드
             </button>
             <button className="btn-external-view" onClick={() => window.open('/overlay/text', '_blank')}>
               <ExternalLink size={16} /> 새창으로 열기
             </button>
-          </div>
-        </div>
-
-        <div className="url-copy-section glass-premium">
-          <div className="url-label-row">
-            <span className="label">방송 프로그램 브라우저 주소</span>
-            <div className="label-status">
-              <span className="status-dot green"></span>
-              연결됨
-            </div>
-          </div>
-          <div className="url-copy-box">
-            <div className="url-input-group">
-              <Monitor className="url-icon" size={18} />
-              <input
-                type="text"
-                readOnly
-                value={`${window.location.origin}/overlay/text`}
-              />
-            </div>
-            <div className="url-actions">
-              <button className="url-action-btn primary" onClick={copyUrl}>
-                {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? '복사됨' : 'URL 복사'}
-              </button>
-              <button className="url-action-btn" onClick={fetchSettings}>
-                <RefreshCw size={15} /> 새로고침
-              </button>
-            </div>
           </div>
         </div>
       </div>

@@ -446,6 +446,14 @@ const GameSettings = () => {
             <span className="badge-test">테스트 모드</span>
           </div>
           <div className="action-area">
+            <button
+              className="btn-copy-url"
+              onClick={() => copyUrl(overlayUrl, 'main')}
+              disabled={!overlayUrl}
+            >
+              {copied === 'main' ? <Check size={16} /> : <Copy size={16} />}
+              {copied === 'main' ? '복사됨' : 'URL 복사'}
+            </button>
             <a
               href={overlayUrl}
               target="_blank"
@@ -455,32 +463,6 @@ const GameSettings = () => {
               <ExternalLink size={16} />
               새 창에서 보기
             </a>
-          </div>
-        </div>
-
-        <div className="url-copy-section glass-premium">
-          <div className="url-label-row">
-            <span className="label">오버레이 URL</span>
-            <span className="label-status">
-              <span className="status-dot green"></span>
-              연결됨
-            </span>
-          </div>
-          <div className="url-copy-box">
-            <input
-              type="text"
-              value={overlayUrl || '로그인이 필요합니다'}
-              readOnly
-              className="styled-input"
-            />
-            <button
-              className={`btn-copy ${copied === 'main' ? 'copied' : ''}`}
-              onClick={() => copyUrl(overlayUrl, 'main')}
-              disabled={!overlayUrl}
-            >
-              {copied === 'main' ? <Check size={16} /> : <Copy size={16} />}
-              {copied === 'main' ? '복사됨' : '복사'}
-            </button>
           </div>
         </div>
       </div>

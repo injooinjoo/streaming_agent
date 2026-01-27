@@ -172,51 +172,15 @@ const GoalSettings = () => {
             </div>
           </div>
           <div className="action-area">
+            <button className="btn-copy-url" onClick={copyUrl} disabled={!overlayHash}>
+              {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? '복사됨' : 'URL 복사'}
+            </button>
             <button className="btn-setup-guide">
               <HelpCircle size={16} /> 설정 가이드
             </button>
             <button className="btn-external-view" onClick={() => overlayHash && window.open(`/overlay/${overlayHash}/goals`, '_blank')} disabled={!overlayHash}>
               <ExternalLink size={16} /> 새창으로 열기
             </button>
-          </div>
-        </div>
-
-        <div className="url-copy-section glass-premium">
-          <div className="url-label-row">
-            <span className="label">방송 프로그램 브라우저 주소</span>
-            <div className="label-status">
-              <span className="status-dot green"></span>
-              연결됨
-            </div>
-          </div>
-          <div className="url-copy-box">
-            <div className="url-input-group">
-              <Monitor className="url-icon" size={18} />
-              <input
-                type="text"
-                readOnly
-                value={overlayHash ? overlayUrl : '로그인이 필요합니다'}
-              />
-            </div>
-            <div className="url-actions">
-              <button className={`url-action-btn primary ${copied ? 'copied' : ''}`} onClick={copyUrl} disabled={!overlayHash}>
-                {copied ? <Check size={15} /> : <Copy size={15} />}
-                {copied ? '복사됨' : 'URL 복사'}
-              </button>
-              <button className="url-action-btn" onClick={fetchSettings}>
-                <RefreshCw size={15} /> 새로고침
-              </button>
-              <button className="url-action-btn reset" onClick={resetSettings}>
-                <Trash2 size={15} /> 초기화
-              </button>
-            </div>
-          </div>
-          <div className="settings-info-text">
-            <Info size={16} />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <span>목표치 그래프는 생방송 연결 후 데이터를 자동으로 불러옵니다. 최대 일주일의 데이터를 불러오며, 목표치 시작일 설정 시 최대 한달 전의 데이터를 불러올 수 있습니다.</span>
-              <span>후원 내역이 초기화된 경우 목표치 시작일 설정에서 다시 불러올 수 있습니다.</span>
-            </div>
           </div>
         </div>
       </div>

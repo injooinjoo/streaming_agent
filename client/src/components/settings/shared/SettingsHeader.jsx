@@ -64,6 +64,14 @@ const SettingsHeader = ({
           )}
         </div>
         <div className="action-area">
+          <button
+            className="btn-copy-url"
+            onClick={handleCopy}
+            disabled={!overlayHash}
+          >
+            {copied ? <Check size={16} /> : <Copy size={16} />}
+            {copied ? '복사됨' : 'URL 복사'}
+          </button>
           {showGuideButton && (
             <button className="btn-setup-guide">
               <HelpCircle size={16} /> 설정 가이드
@@ -77,52 +85,6 @@ const SettingsHeader = ({
             <ExternalLink size={16} /> 새창으로 열기
           </button>
         </div>
-      </div>
-
-      <div className="url-copy-section glass-premium">
-        <div className="url-label-row">
-          <span className="label">방송 프로그램 브라우저 주소</span>
-          <div className="label-status">
-            <span className={`status-dot ${overlayHash ? 'green' : 'yellow'}`}></span>
-            {overlayHash ? '연결됨' : '로그인 필요'}
-          </div>
-        </div>
-        <div className="url-copy-box">
-          <div className="url-input-group">
-            <Monitor className="url-icon" size={18} />
-            <input
-              type="text"
-              readOnly
-              value={overlayUrl || '로그인이 필요합니다'}
-            />
-          </div>
-          <div className="url-actions">
-            <button
-              className="url-action-btn primary"
-              onClick={handleCopy}
-              disabled={!overlayHash}
-            >
-              {copied ? <Check size={15} /> : <Copy size={15} />}
-              {copied ? '복사됨' : 'URL 복사'}
-            </button>
-            {onRefresh && (
-              <button className="url-action-btn" onClick={onRefresh}>
-                <RefreshCw size={15} /> 새로고침
-              </button>
-            )}
-            {onReset && (
-              <button className="url-action-btn reset" onClick={onReset}>
-                <Trash2 size={15} /> 초기화
-              </button>
-            )}
-          </div>
-        </div>
-        {infoText && (
-          <div className="settings-info-text">
-            <Info size={16} />
-            <span>{infoText}</span>
-          </div>
-        )}
       </div>
     </div>
   );

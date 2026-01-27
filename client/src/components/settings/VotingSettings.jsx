@@ -218,28 +218,11 @@ const VotingSettings = () => {
             </div>
           </div>
           <div className="action-area">
+            <button className="btn-copy-url" onClick={copyUrl}>
+              {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? '복사됨' : 'URL 복사'}
+            </button>
             <button className="btn-external-view" onClick={() => window.open(overlayUrl, '_blank')}>
               <ExternalLink size={16} /> 오버레이 보기
-            </button>
-          </div>
-        </div>
-
-        <div className="url-copy-section glass-premium">
-          <div className="url-label-row">
-            <span className="label">오버레이 URL</span>
-            <span className="label-status">
-              <span className={`status-dot ${currentPoll ? 'green' : 'gray'}`}></span>
-              {currentPoll ? '투표 진행 중' : '대기 중'}
-            </span>
-          </div>
-          <div className="url-copy-box">
-            <div className="url-input-group">
-              <Vote size={18} className="url-icon" />
-              <input type="text" value={overlayUrl} readOnly onClick={(e) => e.target.select()} />
-            </div>
-            <button className={`url-action-btn primary ${copied ? 'copied' : ''}`} onClick={copyUrl}>
-              {copied ? <Check size={16} /> : <Copy size={16} />}
-              {copied ? '복사됨' : '복사'}
             </button>
           </div>
         </div>

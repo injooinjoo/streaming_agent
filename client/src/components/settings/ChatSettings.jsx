@@ -310,47 +310,15 @@ const ChatSettings = () => {
             </div>
           </div>
           <div className="action-area">
+            <button className="btn-copy-url" onClick={() => overlayHash && copyUrl(`${window.location.origin}/overlay/${overlayHash}/chat`)} disabled={!overlayHash}>
+              {copied ? <Check size={16} /> : <Copy size={16} />} {copied ? '복사됨' : 'URL 복사'}
+            </button>
             <button className="btn-setup-guide">
               <HelpCircle size={16} /> 설정 가이드
             </button>
             <button className="btn-external-view" onClick={() => overlayHash && window.open(`/overlay/${overlayHash}/chat`, '_blank')} disabled={!overlayHash}>
               <ExternalLink size={16} /> 새창으로 열기
             </button>
-          </div>
-        </div>
-
-        <div className="url-copy-section glass-premium">
-          <div className="url-label-row">
-            <span className="label">방송 프로그램 브라우저 주소</span>
-            <div className="label-status">
-              <span className="status-dot green"></span>
-              연결됨
-            </div>
-          </div>
-          <div className="url-copy-box">
-            <div className="url-input-group">
-              <Monitor className="url-icon" size={18} />
-              <input
-                type="text"
-                readOnly
-                value={overlayHash ? `${window.location.origin}/overlay/${overlayHash}/chat` : '로그인이 필요합니다'}
-              />
-            </div>
-            <div className="url-actions">
-              <button className="url-action-btn primary" onClick={() => overlayHash && copyUrl(`${window.location.origin}/overlay/${overlayHash}/chat`)} disabled={!overlayHash}>
-                {copied ? <Check size={15} /> : <Copy size={15} />} {copied ? '복사됨' : 'URL 복사'}
-              </button>
-              <button className="url-action-btn" onClick={fetchSettings}>
-                <RefreshCw size={15} /> 새로고침
-              </button>
-              <button className="url-action-btn reset" onClick={resetSettings}>
-                <Trash2 size={15} /> 초기화
-              </button>
-            </div>
-          </div>
-          <div className="settings-info-text">
-            <Info size={16} />
-            <span>생방송 시작 직후 1분이 지나도 채팅창이 연결되지 않을 경우 연결 주의사항 및 채팅 재연결을 눌러주세요.</span>
           </div>
         </div>
       </div>

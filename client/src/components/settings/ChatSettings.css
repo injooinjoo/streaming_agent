@@ -90,6 +90,29 @@
   gap: 12px;
 }
 
+.btn-copy-url {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--primary);
+  color: var(--bg-card);
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.btn-copy-url:hover:not(:disabled) {
+  background: var(--primary-dark);
+  transform: translateY(-2px);
+}
+
+.btn-copy-url:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btn-setup-guide {
   display: flex;
   align-items: center;

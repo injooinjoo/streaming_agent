@@ -1106,8 +1106,13 @@ const createStatsService = () => {
       const subscribeCond = buildEventConditions(`event_type = 'subscribe' AND ${sql.formatDate('event_timestamp', 'YYYY-MM')} = ${p(1)}`, [currentMonth], 2);
       const activityCond = buildEventConditions(`event_timestamp >= ${sql.dateSubtract(7, 'days')}`, [], 1);
 
-      // broadcasts 테이블: 날짜 범위로 비교 (TO_CHAR 대신 date range 사용)
-      const broadcastCond = buildBroadcastConditions(`updated_at >= ${p(1)} AND updated_at < ${p(2)}`, [monthStart, monthEnd], 3);
+      // broadcasts 테이블: 날짜 범위로 비교 (TIMESTAMPTZ 캐스팅으로 정확한 비교)
+      const dateCast = isPostgres() ? '::TIMESTAMP' : '';
+      const broadcastCond = buildBroadcastConditions(
+        `updated_at >= ${p(1)}${dateCast} AND updated_at < ${p(2)}${dateCast}`,
+        [monthStart, monthEnd],
+        3
+      );
 
       const [todayStats, peakViewers, subscribeCount, platformStats] = await Promise.all([
         // Today's donation stats (filtered by channelId if provided)
