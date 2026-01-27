@@ -193,12 +193,12 @@
 
 /* 플랫폼 로고 이미지 */
 .platform-logo {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   object-fit: contain;
   margin-right: 6px;
   vertical-align: middle;
-  border-radius: 3px;
+  border-radius: 4px;
   flex-shrink: 0;
 }
 

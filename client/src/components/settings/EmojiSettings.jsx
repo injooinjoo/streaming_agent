@@ -10,6 +10,7 @@ import { OverlayPreviewWrapper } from './shared';
 import EmojiOverlay from '../EmojiOverlay';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './ChatSettings.css';
+import './EmojiSettings.css';
 
 const defaultEmojis = ['❤️', '🔥', '👏', '😂', '🎉', '💪', '👍', '🙌'];
 
