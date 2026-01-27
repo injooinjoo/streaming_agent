@@ -53,6 +53,30 @@ function createCategoriesRouter(db, categoryService, authenticateToken, statsCac
   });
 
   /**
+   * GET /api/categories/unified-games
+   * 통합 게임 목록 조회 (Admin 게임 분석용)
+   *
+   * Query Parameters:
+   * - limit: 결과 수 제한 - 기본: 100
+   */
+  router.get("/categories/unified-games", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit, 10) : 100;
+
+      const games = await categoryService.getGameCatalog({
+        sort: "viewers",
+        order: "desc",
+        limit,
+      });
+
+      res.json({ games });
+    } catch (error) {
+      console.error("[categories] GET /categories/unified-games error:", error.message);
+      res.status(500).json({ games: [], error: error.message });
+    }
+  });
+
+  /**
    * GET /api/categories/stats
    * 카탈로그 통계 조회
    */

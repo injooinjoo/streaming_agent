@@ -22,6 +22,19 @@ const authenticateAdmin = (req, res, next) => {
     return res.status(401).json({ error: "인증이 필요합니다." });
   }
 
+  // 개발/데모용 자동 로그인 토큰 바이패스 (admin 역할 부여)
+  if (token === 'auto-login-token') {
+    req.user = {
+      id: 1,
+      email: 'devil0108@soop.co.kr',
+      displayName: '감스트',
+      role: 'admin',
+      channelId: 'devil0108',
+      platform: 'soop',
+    };
+    return next();
+  }
+
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
       return res.status(403).json({ error: "유효하지 않은 토큰입니다." });

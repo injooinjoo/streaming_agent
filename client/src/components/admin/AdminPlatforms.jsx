@@ -37,9 +37,12 @@ const AdminPlatforms = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
       const [eventsRes, donationsRes, connectionsRes, peakRes, cumulativeRes] = await Promise.all([
-        fetch(`${API_URL}/api/stats/events/by-platform`),
-        fetch(`${API_URL}/api/stats/donations`),
+        fetch(`${API_URL}/api/stats/events/by-platform`, { headers }),
+        fetch(`${API_URL}/api/stats/donations`, { headers }),
         fetch(`${API_URL}/api/connections/status`),
         fetch(`${API_URL}/api/stats/top-streamers-by-viewers?sortBy=peak&limit=10`),
         fetch(`${API_URL}/api/stats/top-streamers-by-viewers?sortBy=cumulative&limit=10`)

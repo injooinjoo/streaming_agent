@@ -69,8 +69,8 @@ const createStatsService = () => {
 
       const row = await streamingDbGet(
         `SELECT
-          COUNT(*) as donationCount,
-          COALESCE(SUM(amount), 0) as totalDonations
+          COUNT(*) as "donationCount",
+          COALESCE(SUM(amount), 0) as "totalDonations"
         FROM events
         WHERE ${whereConditions.join(' AND ')}`,
         params
@@ -191,12 +191,12 @@ const createStatsService = () => {
       const rows = await streamingDbAll(
         `SELECT
           actor_nickname as username,
-          COUNT(*) as donationCount,
-          COALESCE(SUM(amount), 0) as totalRevenue
+          COUNT(*) as "donationCount",
+          COALESCE(SUM(amount), 0) as "totalRevenue"
         FROM events
         WHERE event_type = 'donation' AND actor_nickname IS NOT NULL AND actor_nickname != ''
         GROUP BY actor_nickname
-        ORDER BY totalRevenue DESC
+        ORDER BY "totalRevenue" DESC
         LIMIT ${p(1)}`,
         [limit]
       );
@@ -469,10 +469,10 @@ const createStatsService = () => {
       // Use viewer_engagement for traffic metrics
       const summary = await streamingDbGet(
         `SELECT
-          COUNT(DISTINCT person_id) as uniqueViewers,
-          SUM(chat_count) as totalChats,
-          COUNT(*) as engagementRecords,
-          COUNT(DISTINCT channel_id) as activeChannels
+          COUNT(DISTINCT person_id) as "uniqueViewers",
+          SUM(chat_count) as "totalChats",
+          COUNT(*) as "engagementRecords",
+          COUNT(DISTINCT channel_id) as "activeChannels"
         FROM viewer_engagement
         WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}`
       );
@@ -481,25 +481,25 @@ const createStatsService = () => {
       const peakActivity = await streamingDbGet(
         `SELECT
           ${sql.formatDate('last_seen_at', 'HH24:00')} as hour,
-          COUNT(DISTINCT person_id) as viewerCount,
-          SUM(chat_count) as chatCount
+          COUNT(DISTINCT person_id) as "viewerCount",
+          SUM(chat_count) as "chatCount"
         FROM viewer_engagement
         WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}
         GROUP BY ${sql.formatDate('last_seen_at', 'HH24:00')}
-        ORDER BY viewerCount DESC
+        ORDER BY "viewerCount" DESC
         LIMIT 1`
       );
 
       // Get peak viewers from broadcast_segments
       const peakViewers = await streamingDbGet(
-        `SELECT MAX(peak_viewer_count) as peakViewers
+        `SELECT MAX(peak_viewer_count) as "peakViewers"
         FROM broadcast_segments
         WHERE segment_started_at >= ${sql.dateSubtract(days, 'days')}`
       );
 
       // Count active days from viewer_engagement
       const activeDaysResult = await streamingDbGet(
-        `SELECT COUNT(DISTINCT ${sql.dateOnly('last_seen_at')}) as activeDays
+        `SELECT COUNT(DISTINCT ${sql.dateOnly('last_seen_at')}) as "activeDays"
         FROM viewer_engagement
         WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}`
       );
@@ -580,13 +580,13 @@ const createStatsService = () => {
       const rows = await streamingDbAll(
         `SELECT
           ${dayCase} as day,
-          ${dayOfWeekExtract} as dayNum,
+          ${dayOfWeekExtract} as "dayNum",
           COUNT(DISTINCT person_id) as viewers,
           SUM(chat_count) as chats
         FROM viewer_engagement
         WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}
         GROUP BY ${dayOfWeekExtract}, ${dayCase}
-        ORDER BY dayNum`
+        ORDER BY "dayNum"`
       );
 
       const dayOrder = ['일', '월', '화', '수', '목', '금', '토'];
@@ -611,9 +611,9 @@ const createStatsService = () => {
       const rows = await streamingDbAll(
         `SELECT
           ${sql.dateOnly('last_seen_at')} as date,
-          COUNT(DISTINCT person_id) as activeViewers,
-          SUM(chat_count) as totalChats,
-          COUNT(*) as engagementCount
+          COUNT(DISTINCT person_id) as "activeViewers",
+          SUM(chat_count) as "totalChats",
+          COUNT(*) as "engagementCount"
         FROM viewer_engagement
         WHERE last_seen_at >= ${sql.dateSubtract(days, 'days')}
         GROUP BY ${sql.dateOnly('last_seen_at')}
@@ -681,11 +681,11 @@ const createStatsService = () => {
       // Optimized: Only query non-chat events using IN clause (much faster with index)
       const summary = await streamingDbGet(
         `SELECT
-          COUNT(CASE WHEN event_type = 'donation' THEN 1 END) as donationCount,
-          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donationAmount,
-          COUNT(DISTINCT actor_nickname) as uniqueUsers,
-          MIN(event_timestamp) as firstEvent,
-          MAX(event_timestamp) as lastEvent
+          COUNT(CASE WHEN event_type = 'donation' THEN 1 END) as "donationCount",
+          COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as "donationAmount",
+          COUNT(DISTINCT actor_nickname) as "uniqueUsers",
+          MIN(event_timestamp) as "firstEvent",
+          MAX(event_timestamp) as "lastEvent"
         FROM events
         WHERE event_type IN ('donation', 'subscribe', 'subscription', 'follow')
           AND DATE(event_timestamp) = ${p(1)}`,
@@ -1029,8 +1029,8 @@ const createStatsService = () => {
 
       const peakRow = await streamingDbGet(
         `SELECT
-          vs.viewer_count as peakViewers,
-          ${sql.formatDate('vs.timestamp', 'HH24:MI')} as peakTime,
+          vs.viewer_count as "peakViewers",
+          ${sql.formatDate('vs.timestamp', 'HH24:MI')} as "peakTime",
           vs.platform
         FROM viewer_stats vs
         WHERE ${sql.dateOnly('vs.timestamp')} = ${param}
@@ -1040,7 +1040,7 @@ const createStatsService = () => {
       );
 
       const totalPeak = await streamingDbGet(
-        `SELECT MAX(viewer_count) as peakViewers
+        `SELECT MAX(viewer_count) as "peakViewers"
         FROM viewer_stats
         WHERE ${sql.dateOnly('timestamp')} = ${param}`,
         [today]
@@ -1790,10 +1790,10 @@ const createStatsService = () => {
 
       const summary = await streamingDbGet(
         `SELECT
-          COUNT(DISTINCT person_id) as uniqueViewers,
-          SUM(chat_count) as totalChats,
-          COUNT(*) as engagementRecords,
-          COUNT(DISTINCT channel_id) as activeChannels
+          COUNT(DISTINCT person_id) as "uniqueViewers",
+          SUM(chat_count) as "totalChats",
+          COUNT(*) as "engagementRecords",
+          COUNT(DISTINCT channel_id) as "activeChannels"
         FROM viewer_engagement
         WHERE ${conditions.join(' AND ')}`,
         filter.params
@@ -1803,12 +1803,12 @@ const createStatsService = () => {
       const peakActivity = await streamingDbGet(
         `SELECT
           ${sql.formatDate('last_seen_at', 'HH24:00')} as hour,
-          COUNT(DISTINCT person_id) as viewerCount,
-          SUM(chat_count) as chatCount
+          COUNT(DISTINCT person_id) as "viewerCount",
+          SUM(chat_count) as "chatCount"
         FROM viewer_engagement
         WHERE ${conditions.join(' AND ')}
         GROUP BY ${sql.formatDate('last_seen_at', 'HH24:00')}
-        ORDER BY viewerCount DESC
+        ORDER BY "viewerCount" DESC
         LIMIT 1`,
         filter.params
       );
@@ -1821,14 +1821,14 @@ const createStatsService = () => {
       ];
 
       const peakViewers = await streamingDbGet(
-        `SELECT MAX(peak_viewer_count) as peakViewers
+        `SELECT MAX(peak_viewer_count) as "peakViewers"
         FROM broadcast_segments
         WHERE ${broadcastConditions.join(' AND ')}`,
         broadcastFilter.params
       );
 
       const activeDaysResult = await streamingDbGet(
-        `SELECT COUNT(DISTINCT ${sql.dateOnly('last_seen_at')}) as activeDays
+        `SELECT COUNT(DISTINCT ${sql.dateOnly('last_seen_at')}) as "activeDays"
         FROM viewer_engagement
         WHERE ${conditions.join(' AND ')}`,
         filter.params
@@ -1920,13 +1920,13 @@ const createStatsService = () => {
       const rows = await streamingDbAll(
         `SELECT
           ${dayCase} as day,
-          ${dayOfWeekExtract} as dayNum,
+          ${dayOfWeekExtract} as "dayNum",
           COUNT(DISTINCT person_id) as viewers,
           SUM(chat_count) as chats
         FROM viewer_engagement
         WHERE ${conditions.join(' AND ')}
         GROUP BY ${dayOfWeekExtract}, ${dayCase}
-        ORDER BY dayNum`,
+        ORDER BY "dayNum"`,
         filter.params
       );
 
@@ -1959,9 +1959,9 @@ const createStatsService = () => {
       const rows = await streamingDbAll(
         `SELECT
           ${sql.dateOnly('last_seen_at')} as date,
-          COUNT(DISTINCT person_id) as activeViewers,
-          SUM(chat_count) as totalChats,
-          COUNT(*) as engagementCount
+          COUNT(DISTINCT person_id) as "activeViewers",
+          SUM(chat_count) as "totalChats",
+          COUNT(*) as "engagementCount"
         FROM viewer_engagement
         WHERE ${conditions.join(' AND ')}
         GROUP BY ${sql.dateOnly('last_seen_at')}

@@ -20,6 +20,9 @@ const AdminStreamers = ({ onStreamerSelect }) => {
   const fetchStreamers = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
       const params = new URLSearchParams({
         search,
         sortBy,
@@ -28,7 +31,7 @@ const AdminStreamers = ({ onStreamerSelect }) => {
         limit: limit.toString()
       });
 
-      const response = await fetch(`${API_URL}/api/streamers?${params}`);
+      const response = await fetch(`${API_URL}/api/streamers?${params}`, { headers });
       const data = await response.json();
 
       setStreamers(data.streamers || []);

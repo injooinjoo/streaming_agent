@@ -32,8 +32,8 @@ const createDesignService = (db, io) => {
       const p = (...args) => args.map((_, i) => getPlaceholder(i + 1)).join(', ');
 
       const result = await runQuery(
-        `INSERT INTO designs (user_id, name, description, category, tags, design_data, custom_css, status, created_at, updated_at)
-         VALUES (${p(1,2,3,4,5,6,7,8,9,10)})`,
+        `INSERT INTO designs (creator_id, name, description, category, tags, design_data, status, created_at)
+         VALUES (${p(1,2,3,4,5,6,7,8)})`,
         [
           userId,
           data.name,
@@ -41,9 +41,7 @@ const createDesignService = (db, io) => {
           data.category,
           data.tags ? JSON.stringify(data.tags) : null,
           JSON.stringify(data.design_data),
-          data.custom_css || null,
           'draft',
-          new Date().toISOString(),
           new Date().toISOString()
         ]
       );
@@ -62,7 +60,7 @@ const createDesignService = (db, io) => {
       const design = await getOne(
         `SELECT d.*, u.display_name as creator_name, u.email as creator_email
          FROM designs d
-         LEFT JOIN users u ON d.user_id = u.id
+         LEFT JOIN users u ON d.creator_id = u.id
          WHERE d.id = ${p1}`,
         [id]
       );
@@ -84,7 +82,7 @@ const createDesignService = (db, io) => {
     async getByUser(userId, options = {}) {
       const { status, category, limit = 50, offset = 0 } = options;
       const params = [userId];
-      let whereClause = `WHERE d.user_id = ${getPlaceholder(1)}`;
+      let whereClause = `WHERE d.creator_id = ${getPlaceholder(1)}`;
       let paramIndex = 2;
 
       if (status) {
@@ -102,7 +100,7 @@ const createDesignService = (db, io) => {
       const designs = await getAll(
         `SELECT d.*, u.display_name as creator_name
          FROM designs d
-         LEFT JOIN users u ON d.user_id = u.id
+         LEFT JOIN users u ON d.creator_id = u.id
          ${whereClause}
          ORDER BY d.updated_at DESC
          LIMIT ${getPlaceholder(paramIndex)} OFFSET ${getPlaceholder(paramIndex + 1)}`,
@@ -129,7 +127,7 @@ const createDesignService = (db, io) => {
 
       // Check ownership and status
       const design = await getOne(
-        `SELECT * FROM designs WHERE id = ${p1} AND user_id = ${p2}`,
+        `SELECT * FROM designs WHERE id = ${p1} AND creator_id = ${p2}`,
         [id, userId]
       );
 
@@ -172,7 +170,7 @@ const createDesignService = (db, io) => {
       params.push(userId);
 
       await runQuery(
-        `UPDATE designs SET ${updates.join(', ')} WHERE id = ${getPlaceholder(paramIndex)} AND user_id = ${getPlaceholder(paramIndex + 1)}`,
+        `UPDATE designs SET ${updates.join(', ')} WHERE id = ${getPlaceholder(paramIndex)} AND creator_id = ${getPlaceholder(paramIndex + 1)}`,
         params
       );
 
@@ -190,7 +188,7 @@ const createDesignService = (db, io) => {
       const p2 = getPlaceholder(2);
 
       const design = await getOne(
-        `SELECT * FROM designs WHERE id = ${p1} AND user_id = ${p2}`,
+        `SELECT * FROM designs WHERE id = ${p1} AND creator_id = ${p2}`,
         [id, userId]
       );
 
@@ -200,7 +198,7 @@ const createDesignService = (db, io) => {
       }
 
       const result = await runQuery(
-        `DELETE FROM designs WHERE id = ${p1} AND user_id = ${p2}`,
+        `DELETE FROM designs WHERE id = ${p1} AND creator_id = ${p2}`,
         [id, userId]
       );
 
@@ -220,7 +218,7 @@ const createDesignService = (db, io) => {
       const p2 = getPlaceholder(2);
 
       const design = await getOne(
-        `SELECT * FROM designs WHERE id = ${p1} AND user_id = ${p2}`,
+        `SELECT * FROM designs WHERE id = ${p1} AND creator_id = ${p2}`,
         [id, userId]
       );
 
@@ -268,11 +266,11 @@ const createDesignService = (db, io) => {
       );
 
       // Create or update creator profile
-      await this._ensureCreatorProfile(design.user_id);
+      await this._ensureCreatorProfile(design.creator_id);
 
       // Notify user
       if (io) {
-        io.emit('design-approved', { designId: id, userId: design.user_id });
+        io.emit('design-approved', { designId: id, userId: design.creator_id });
       }
 
       return this.getById(id);
@@ -312,7 +310,7 @@ const createDesignService = (db, io) => {
 
       // Notify user
       if (io) {
-        io.emit('design-rejected', { designId: id, userId: design.user_id, reason: reason.trim() });
+        io.emit('design-rejected', { designId: id, userId: design.creator_id, reason: reason.trim() });
       }
 
       return this.getById(id);
@@ -338,7 +336,7 @@ const createDesignService = (db, io) => {
       const designs = await getAll(
         `SELECT d.*, u.display_name as creator_name, u.email as creator_email
          FROM designs d
-         LEFT JOIN users u ON d.user_id = u.id
+         LEFT JOIN users u ON d.creator_id = u.id
          ${whereClause}
          ORDER BY d.submitted_at ASC
          LIMIT ${getPlaceholder(paramIndex)} OFFSET ${getPlaceholder(paramIndex + 1)}`,
@@ -393,8 +391,8 @@ const createDesignService = (db, io) => {
       const designs = await getAll(
         `SELECT d.*, u.display_name as creator_name, c.verified as creator_verified
          FROM designs d
-         LEFT JOIN users u ON d.user_id = u.id
-         LEFT JOIN creators c ON d.user_id = c.user_id
+         LEFT JOIN users u ON d.creator_id = u.id
+         LEFT JOIN creators c ON d.creator_id = c.user_id
          ${whereClause}
          ${orderBy}
          LIMIT ${getPlaceholder(paramIndex)} OFFSET ${getPlaceholder(paramIndex + 1)}`,
@@ -491,7 +489,7 @@ const createDesignService = (db, io) => {
       const p4 = getPlaceholder(4);
 
       const design = await getOne(
-        `SELECT * FROM designs WHERE id = ${p1} AND user_id = ${p2}`,
+        `SELECT * FROM designs WHERE id = ${p1} AND creator_id = ${p2}`,
         [id, userId]
       );
 

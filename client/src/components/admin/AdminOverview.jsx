@@ -20,11 +20,14 @@ const AdminOverview = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
+      const token = localStorage.getItem('token');
+      const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+
       const [eventsRes, donationsRes, connectionsRes, trendRes] = await Promise.all([
-        fetch(`${API_URL}/api/stats/events/count`),
-        fetch(`${API_URL}/api/stats/donations`),
+        fetch(`${API_URL}/api/stats/events/count`, { headers }),
+        fetch(`${API_URL}/api/stats/donations`, { headers }),
         fetch(`${API_URL}/api/connections/status`),
-        fetch(`${API_URL}/api/stats/donations/trend`)
+        fetch(`${API_URL}/api/stats/donations/trend`, { headers })
       ]);
 
       const events = await eventsRes.json();
