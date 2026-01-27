@@ -18,7 +18,7 @@ const standardLimiter = rateLimit({
   },
   standardHeaders: true, // Return rate limit info in headers
   legacyHeaders: false, // Disable X-RateLimit-* headers
-  // Use default keyGenerator which handles IPv6 properly
+  validate: { xForwardedForHeader: false }, // Cloud Run proxy compatibility
 });
 
 /**
@@ -35,6 +35,7 @@ const authLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: false, // Count all requests including successful ones
+  validate: { xForwardedForHeader: false },
 });
 
 /**
@@ -50,6 +51,7 @@ const oauthLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 /**
@@ -65,6 +67,7 @@ const sensitiveOpLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 /**
@@ -80,6 +83,7 @@ const publicLimiter = rateLimit({
   },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 });
 
 /**

@@ -116,6 +116,10 @@ const createApp = ({
   const authMiddleware = createAuthMiddleware(tokenService);
 
   // ===== Middleware =====
+  // Trust proxy for Cloud Run / reverse proxy environments
+  // Required for express-rate-limit to correctly identify client IPs
+  app.set('trust proxy', 1);
+
   app.use(cors());
   app.use(express.json());
 
