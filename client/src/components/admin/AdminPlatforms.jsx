@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { RefreshCw, MessageSquare, DollarSign, Users, Activity, Wifi, WifiOff, TrendingUp, Eye } from 'lucide-react';
+import { RefreshCw, MessageSquare, DollarSign, Users, Activity, Wifi, WifiOff, TrendingUp, Eye, Gamepad2, Monitor, Filter } from 'lucide-react';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
@@ -29,6 +29,9 @@ const AdminPlatforms = () => {
   const [donations, setDonations] = useState([]);
   const [peakStreamers, setPeakStreamers] = useState([]);
   const [cumulativeStreamers, setCumulativeStreamers] = useState([]);
+  const [nexonFilter, setNexonFilter] = useState(false);
+  const [monitorStats, setMonitorStats] = useState(null);
+  const [nexonDetail, setNexonDetail] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -40,12 +43,14 @@ const AdminPlatforms = () => {
       const token = localStorage.getItem('token');
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-      const [eventsRes, donationsRes, connectionsRes, peakRes, cumulativeRes] = await Promise.all([
+      const [eventsRes, donationsRes, connectionsRes, peakRes, cumulativeRes, monitorRes, nexonRes] = await Promise.all([
         fetch(`${API_URL}/api/stats/events/by-platform`, { headers }),
         fetch(`${API_URL}/api/stats/donations`, { headers }),
         fetch(`${API_URL}/api/connections/status`),
         fetch(`${API_URL}/api/stats/top-streamers-by-viewers?sortBy=peak&limit=10`),
-        fetch(`${API_URL}/api/stats/top-streamers-by-viewers?sortBy=cumulative&limit=10`)
+        fetch(`${API_URL}/api/stats/top-streamers-by-viewers?sortBy=cumulative&limit=10`),
+        fetch(`${API_URL}/api/monitor/stats`),
+        fetch(`${API_URL}/api/monitor/stats/nexon`)
       ]);
 
       const events = eventsRes.ok ? await eventsRes.json() : [];
@@ -53,6 +58,8 @@ const AdminPlatforms = () => {
       const connectionsData = connectionsRes.ok ? await connectionsRes.json() : {};
       const peakData = peakRes.ok ? await peakRes.json() : [];
       const cumulativeData = cumulativeRes.ok ? await cumulativeRes.json() : [];
+      const monitorData = monitorRes.ok ? await monitorRes.json() : null;
+      const nexonData = nexonRes.ok ? await nexonRes.json() : null;
 
       const eventsArr = Array.isArray(events) ? events : [];
       const donationsArr = Array.isArray(donationsData) ? donationsData : [];
@@ -62,6 +69,8 @@ const AdminPlatforms = () => {
       setConnections(connectionsData);
       setPeakStreamers(peakData);
       setCumulativeStreamers(cumulativeData);
+      setMonitorStats(monitorData);
+      setNexonDetail(nexonData);
 
       // 플랫폼 데이터 생성
       const platformData = ['soop', 'chzzk'].map(id => {
@@ -76,7 +85,11 @@ const AdminPlatforms = () => {
           totalEvents: eventData?.count || 0,
           donations: donationData?.total || 0,
           donationCount: donationData?.count || 0,
-          avgDonation: donationData?.average || 0
+          avgDonation: donationData?.average || 0,
+          liveBroadcasts: monitorData?.platforms?.[id]?.broadcasts || 0,
+          liveViewers: monitorData?.platforms?.[id]?.viewers || 0,
+          nexonBroadcasts: monitorData?.nexon?.[id]?.broadcasts || 0,
+          nexonViewers: monitorData?.nexon?.[id]?.viewers || 0,
         };
       });
 
@@ -102,6 +115,45 @@ const AdminPlatforms = () => {
     }).format(amount || 0);
   };
 
+  // 넥슨 게임 데이터를 통합 테이블용으로 변환
+  const getNexonGameTable = () => {
+    if (!nexonDetail?.platforms) return [];
+    const soopGames = nexonDetail.platforms.soop?.games || [];
+    const chzzkGames = nexonDetail.platforms.chzzk?.games || [];
+
+    // 모든 게임명 수집 (category_name 기준)
+    const gameMap = new Map();
+    soopGames.forEach(g => {
+      const name = g.category_name || g.category_id;
+      gameMap.set(name, {
+        name,
+        soopBroadcasts: g.broadcast_count || 0,
+        soopViewers: g.total_viewers || 0,
+        chzzkBroadcasts: 0,
+        chzzkViewers: 0,
+      });
+    });
+    chzzkGames.forEach(g => {
+      const name = g.category_name || g.category_id;
+      if (gameMap.has(name)) {
+        const existing = gameMap.get(name);
+        existing.chzzkBroadcasts = g.broadcast_count || 0;
+        existing.chzzkViewers = g.total_viewers || 0;
+      } else {
+        gameMap.set(name, {
+          name,
+          soopBroadcasts: 0,
+          soopViewers: 0,
+          chzzkBroadcasts: g.broadcast_count || 0,
+          chzzkViewers: g.total_viewers || 0,
+        });
+      }
+    });
+
+    return Array.from(gameMap.values())
+      .sort((a, b) => (b.soopViewers + b.chzzkViewers) - (a.soopViewers + a.chzzkViewers));
+  };
+
   if (loading) {
     return <LoadingSpinner />;
   }
@@ -122,6 +174,16 @@ const AdminPlatforms = () => {
       metric: '후원건수',
       soop: platforms.find(p => p.id === 'soop')?.donationCount || 0,
       chzzk: platforms.find(p => p.id === 'chzzk')?.donationCount || 0
+    },
+    {
+      metric: '시청자',
+      soop: platforms.find(p => p.id === 'soop')?.liveViewers || 0,
+      chzzk: platforms.find(p => p.id === 'chzzk')?.liveViewers || 0
+    },
+    {
+      metric: '방송',
+      soop: platforms.find(p => p.id === 'soop')?.liveBroadcasts || 0,
+      chzzk: platforms.find(p => p.id === 'chzzk')?.liveBroadcasts || 0
     }
   ];
 
@@ -136,11 +198,60 @@ const AdminPlatforms = () => {
       type: '이벤트',
       soop: platforms.find(p => p.id === 'soop')?.totalEvents || 0,
       chzzk: platforms.find(p => p.id === 'chzzk')?.totalEvents || 0
+    },
+    {
+      type: '실시간 시청자',
+      soop: platforms.find(p => p.id === 'soop')?.liveViewers || 0,
+      chzzk: platforms.find(p => p.id === 'chzzk')?.liveViewers || 0
+    },
+    {
+      type: '넥슨 시청자',
+      soop: platforms.find(p => p.id === 'soop')?.nexonViewers || 0,
+      chzzk: platforms.find(p => p.id === 'chzzk')?.nexonViewers || 0
     }
   ];
 
+  const nexonGames = getNexonGameTable();
+
   return (
     <div className="admin-platforms">
+      {/* Filter Bar */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: '20px',
+        padding: '12px 16px',
+        background: 'var(--color-surface, #1e293b)',
+        borderRadius: '10px',
+        border: '1px solid var(--color-border, #334155)'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#94a3b8' }}>
+          <Filter size={16} />
+          <span style={{ fontSize: '14px' }}>필터</span>
+        </div>
+        <button
+          onClick={() => setNexonFilter(!nexonFilter)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 16px',
+            background: nexonFilter ? '#10b981' : 'var(--color-surface-hover, #334155)',
+            border: nexonFilter ? '1px solid #10b981' : '1px solid var(--color-border, #475569)',
+            borderRadius: '8px',
+            color: nexonFilter ? '#fff' : '#94a3b8',
+            cursor: 'pointer',
+            fontSize: '13px',
+            fontWeight: 500,
+            transition: 'all 0.2s'
+          }}
+        >
+          <Gamepad2 size={16} />
+          넥슨게임만 보기
+        </button>
+      </div>
+
       {/* Platform Cards */}
       <div className="platform-cards-grid">
         {platforms.map((platform) => (
@@ -164,26 +275,53 @@ const AdminPlatforms = () => {
               )}
             </div>
             <div className="platform-card-stats">
-              <div className="platform-stat">
-                <Activity size={16} />
-                <span className="stat-label">이벤트</span>
-                <span className="stat-value">{formatNumber(platform.totalEvents)}</span>
-              </div>
-              <div className="platform-stat">
-                <MessageSquare size={16} />
-                <span className="stat-label">후원 건수</span>
-                <span className="stat-value">{formatNumber(platform.donationCount)}</span>
-              </div>
-              <div className="platform-stat">
-                <DollarSign size={16} />
-                <span className="stat-label">총 후원금</span>
-                <span className="stat-value">{formatCurrency(platform.donations)}</span>
-              </div>
-              <div className="platform-stat">
-                <Users size={16} />
-                <span className="stat-label">평균 후원</span>
-                <span className="stat-value">{formatCurrency(Math.round(platform.avgDonation))}</span>
-              </div>
+              {nexonFilter ? (
+                <>
+                  <div className="platform-stat">
+                    <Gamepad2 size={16} />
+                    <span className="stat-label">넥슨 방송</span>
+                    <span className="stat-value">{formatNumber(platform.nexonBroadcasts)}</span>
+                  </div>
+                  <div className="platform-stat">
+                    <Eye size={16} />
+                    <span className="stat-label">넥슨 시청자</span>
+                    <span className="stat-value">{formatNumber(platform.nexonViewers)}</span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="platform-stat">
+                    <Monitor size={16} />
+                    <span className="stat-label">라이브 방송</span>
+                    <span className="stat-value">{formatNumber(platform.liveBroadcasts)}</span>
+                  </div>
+                  <div className="platform-stat">
+                    <Eye size={16} />
+                    <span className="stat-label">실시간 시청자</span>
+                    <span className="stat-value">{formatNumber(platform.liveViewers)}</span>
+                  </div>
+                  <div className="platform-stat">
+                    <Activity size={16} />
+                    <span className="stat-label">이벤트</span>
+                    <span className="stat-value">{formatNumber(platform.totalEvents)}</span>
+                  </div>
+                  <div className="platform-stat">
+                    <MessageSquare size={16} />
+                    <span className="stat-label">후원 건수</span>
+                    <span className="stat-value">{formatNumber(platform.donationCount)}</span>
+                  </div>
+                  <div className="platform-stat">
+                    <DollarSign size={16} />
+                    <span className="stat-label">총 후원금</span>
+                    <span className="stat-value">{formatCurrency(platform.donations)}</span>
+                  </div>
+                  <div className="platform-stat">
+                    <Users size={16} />
+                    <span className="stat-label">평균 후원</span>
+                    <span className="stat-value">{formatCurrency(Math.round(platform.avgDonation))}</span>
+                  </div>
+                </>
+              )}
             </div>
             <div className="platform-card-growth">
               <span className={`growth-badge ${platform.connected ? 'positive' : 'negative'}`}>
@@ -195,15 +333,67 @@ const AdminPlatforms = () => {
         ))}
       </div>
 
+      {/* Nexon Game Detail Table (visible when filter ON) */}
+      {nexonFilter && nexonGames.length > 0 && (
+        <div className="admin-table-card" style={{ marginTop: '24px' }}>
+          <div className="table-header">
+            <h3>
+              <Gamepad2 size={20} style={{ marginRight: 8, verticalAlign: 'middle' }} />
+              넥슨 게임별 상세
+            </h3>
+            {nexonDetail?.total && (
+              <span style={{ color: '#94a3b8', fontSize: '13px' }}>
+                총 {formatNumber(nexonDetail.total.broadcasts)}개 방송 / {formatNumber(nexonDetail.total.viewers)}명 시청
+              </span>
+            )}
+          </div>
+          <div className="admin-table-container">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>게임</th>
+                  <th style={{ color: PLATFORM_COLORS.soop }}>SOOP 방송</th>
+                  <th style={{ color: PLATFORM_COLORS.soop }}>SOOP 시청자</th>
+                  <th style={{ color: PLATFORM_COLORS.chzzk }}>Chzzk 방송</th>
+                  <th style={{ color: PLATFORM_COLORS.chzzk }}>Chzzk 시청자</th>
+                  <th>합계 시청자</th>
+                </tr>
+              </thead>
+              <tbody>
+                {nexonGames.map((game) => (
+                  <tr key={game.name}>
+                    <td style={{ fontWeight: 500 }}>{game.name}</td>
+                    <td>{formatNumber(game.soopBroadcasts)}</td>
+                    <td>{formatNumber(game.soopViewers)}</td>
+                    <td>{formatNumber(game.chzzkBroadcasts)}</td>
+                    <td>{formatNumber(game.chzzkViewers)}</td>
+                    <td style={{ fontWeight: 600 }}>{formatNumber(game.soopViewers + game.chzzkViewers)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {nexonFilter && nexonGames.length === 0 && (
+        <div className="admin-table-card" style={{ marginTop: '24px' }}>
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
+            <Gamepad2 size={32} style={{ opacity: 0.5, marginBottom: '12px' }} />
+            <p>현재 라이브 중인 넥슨 게임 방송이 없습니다</p>
+          </div>
+        </div>
+      )}
+
       {/* Charts Grid */}
-      <div className="admin-charts-grid">
+      <div className="admin-charts-grid" style={{ marginTop: '24px' }}>
         {/* Radar Chart - Platform Comparison */}
         <div className="admin-chart-card">
           <div className="chart-header">
             <h3>플랫폼 종합 비교</h3>
           </div>
           <div className="chart-body">
-            {platforms.some(p => p.totalEvents > 0 || p.donations > 0) ? (
+            {platforms.some(p => p.totalEvents > 0 || p.donations > 0 || p.liveViewers > 0) ? (
               <ResponsiveContainer width="100%" height={300}>
                 <RadarChart data={radarData}>
                   <PolarGrid stroke="#334155" />
@@ -242,7 +432,7 @@ const AdminPlatforms = () => {
             <h3>플랫폼별 데이터 분포</h3>
           </div>
           <div className="chart-body">
-            {platforms.some(p => p.totalEvents > 0 || p.donationCount > 0) ? (
+            {platforms.some(p => p.totalEvents > 0 || p.donationCount > 0 || p.liveViewers > 0) ? (
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={barChartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -297,6 +487,18 @@ const AdminPlatforms = () => {
                 ))}
               </tr>
               <tr>
+                <td>라이브 방송</td>
+                {platforms.map((platform) => (
+                  <td key={platform.id}>{formatNumber(platform.liveBroadcasts)}</td>
+                ))}
+              </tr>
+              <tr>
+                <td>실시간 시청자</td>
+                {platforms.map((platform) => (
+                  <td key={platform.id} style={{ fontWeight: 600 }}>{formatNumber(platform.liveViewers)}</td>
+                ))}
+              </tr>
+              <tr>
                 <td>총 이벤트</td>
                 {platforms.map((platform) => (
                   <td key={platform.id}>{formatNumber(platform.totalEvents)}</td>
@@ -318,6 +520,18 @@ const AdminPlatforms = () => {
                 <td>평균 후원금</td>
                 {platforms.map((platform) => (
                   <td key={platform.id}>{formatCurrency(Math.round(platform.avgDonation))}</td>
+                ))}
+              </tr>
+              <tr style={{ borderTop: '2px solid #475569' }}>
+                <td style={{ color: '#10b981', fontWeight: 500 }}>넥슨 방송</td>
+                {platforms.map((platform) => (
+                  <td key={platform.id}>{formatNumber(platform.nexonBroadcasts)}</td>
+                ))}
+              </tr>
+              <tr>
+                <td style={{ color: '#10b981', fontWeight: 500 }}>넥슨 시청자</td>
+                {platforms.map((platform) => (
+                  <td key={platform.id} style={{ fontWeight: 600 }}>{formatNumber(platform.nexonViewers)}</td>
                 ))}
               </tr>
             </tbody>
