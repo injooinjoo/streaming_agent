@@ -555,6 +555,43 @@ class CategoryCrawler {
       }
     }
 
+    // Record broadcast-level deduped platform totals
+    // Uses broadcasts table to get unique channel viewer sums (no category overlap)
+    try {
+      const recentThreshold = isPostgres()
+        ? "NOW() - INTERVAL '30 minutes'"
+        : "datetime('now', '-30 minutes')";
+
+      const platformTotals = await getAll(`
+        SELECT
+          platform,
+          SUM(current_viewer_count) as total_viewers,
+          COUNT(DISTINCT channel_id) as total_channels
+        FROM broadcasts
+        WHERE is_live = ${isActiveCheck.replace('is_active', 'is_live')}
+          AND current_viewer_count > 0
+          AND updated_at >= ${recentThreshold}
+        GROUP BY platform
+      `, []);
+
+      for (const pt of (platformTotals || [])) {
+        await this.recordStats({
+          platform: pt.platform,
+          platformCategoryId: '_broadcast_total_',
+          viewerCount: Number(pt.total_viewers) || 0,
+          streamerCount: Number(pt.total_channels) || 0,
+        });
+      }
+
+      categoryLogger.debug("Recorded broadcast-level platform totals", {
+        platforms: (platformTotals || []).map(p => `${p.platform}:${p.total_viewers}`)
+      });
+    } catch (error) {
+      categoryLogger.error("Broadcast total stats record failed", {
+        error: error.message,
+      });
+    }
+
     categoryLogger.debug("Recorded stats", { count: rows.length });
   }
 

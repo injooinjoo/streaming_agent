@@ -7,6 +7,7 @@
 
 const { getOne, getAll } = require("../db/connections");
 const { getSQLHelpers, isPostgres } = require("../config/database.config");
+const { ALL_NEXON_CATEGORY_IDS } = require("../constants/nexonGames");
 
 /**
  * Get placeholder for parameterized queries
@@ -272,36 +273,86 @@ const createStatsService = () => {
     /**
      * Get broadcasters list (based on target_channel_id - actual streamers who received events)
      * @param {Object} options - Query options
+     * @param {boolean} options.nexonOnly - Filter to only Nexon game streamers
+     * @param {string} options.excludeChannelId - Channel ID to exclude (e.g. logged-in user)
      * @returns {Promise<Object>}
      */
-    async getBroadcasters({ search = "", sortBy = "total_donations", sortOrder = "desc", page = 1, limit = 20 }) {
+    async getBroadcasters({ search = "", sortBy = "total_donations", sortOrder = "desc", page = 1, limit = 20, nexonOnly = false, excludeChannelId = "" }) {
       const offset = (page - 1) * limit;
-      const validSortColumns = ["channel_id", "total_events", "total_donations", "chat_count", "donation_count", "first_seen"];
+      const validSortColumns = ["channel_id", "total_events", "total_donations", "chat_count", "donation_count", "first_seen", "nexon_affinity"];
       const sortColumn = validSortColumns.includes(sortBy) ? sortBy : "total_donations";
       const order = sortOrder === "asc" ? "ASC" : "DESC";
 
-      let whereClause = "";
+      const conditions = [];
       const params = [];
       let paramIndex = 1;
 
       if (search) {
-        whereClause = isPostgres()
-          ? `WHERE (target_channel_id ILIKE ${p(paramIndex)} OR p.nickname ILIKE ${p(paramIndex)})`
-          : `WHERE (target_channel_id LIKE ${p(paramIndex)} OR p.nickname LIKE ${p(paramIndex)})`;
+        const likeOp = isPostgres() ? 'ILIKE' : 'LIKE';
+        conditions.push(`(e.target_channel_id ${likeOp} ${p(paramIndex)} OR p.nickname ${likeOp} ${p(paramIndex)})`);
         params.push(`%${search}%`);
         paramIndex++;
       }
 
-      // Count unique channels (broadcasters)
+      if (excludeChannelId) {
+        conditions.push(`e.target_channel_id != ${p(paramIndex)}`);
+        params.push(excludeChannelId);
+        paramIndex++;
+      }
+
+      const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+      // Build Nexon affinity subquery using broadcast_segments
+      const nexonIds = ALL_NEXON_CATEGORY_IDS;
+      const nexonSelectPlaceholders = nexonIds.map((_, i) => p(paramIndex + i)).join(',');
+      paramIndex += nexonIds.length;
+
+      let havingPlaceholders = '';
+      if (nexonOnly) {
+        havingPlaceholders = nexonIds.map((_, i) => p(paramIndex + i)).join(',');
+        paramIndex += nexonIds.length;
+      }
+
+      const nexonJoinType = nexonOnly ? 'INNER JOIN' : 'LEFT JOIN';
+      const nexonSubquery = `${nexonJoinType} (
+        SELECT
+          bs.channel_id as nx_channel_id,
+          bs.platform as nx_platform,
+          ROUND(
+            COUNT(CASE WHEN bs.category_id IN (${nexonSelectPlaceholders}) THEN 1 END) * 100.0
+            / NULLIF(COUNT(*), 0)
+          ) as nexon_affinity
+        FROM broadcast_segments bs
+        GROUP BY bs.channel_id, bs.platform
+        ${nexonOnly ? `HAVING COUNT(CASE WHEN bs.category_id IN (${havingPlaceholders}) THEN 1 END) > 0` : ''}
+      ) nexon_stats ON e.target_channel_id = nexon_stats.nx_channel_id AND e.platform = nexon_stats.nx_platform`;
+
+      const nexonSubqueryParams = nexonOnly ? [...nexonIds, ...nexonIds] : [...nexonIds];
+
+      // Count query
+      const countParams = [...params, ...nexonSubqueryParams];
       const countRow = await streamingDbGet(
-        `SELECT COUNT(DISTINCT target_channel_id) as total FROM events ${search ? (isPostgres() ? `WHERE target_channel_id ILIKE ${p(1)}` : `WHERE target_channel_id LIKE ${p(1)}`) : ''}`,
-        search ? [`%${search}%`] : []
+        `SELECT COUNT(*) as total FROM (
+          SELECT e.target_channel_id
+          FROM events e
+          LEFT JOIN persons p ON e.target_person_id = p.id
+          ${nexonSubquery}
+          ${whereClause}
+          GROUP BY e.target_channel_id, e.platform
+        ) sub`,
+        countParams
       );
 
       const totalCount = countRow?.total || 0;
       const totalPages = Math.ceil(totalCount / limit);
 
-      // Get broadcasters with their stats from events table
+      // Determine sort - if sorting by nexon_affinity, use COALESCE for LEFT JOIN case
+      const effectiveSortColumn = sortColumn === 'nexon_affinity'
+        ? 'COALESCE(nexon_stats.nexon_affinity, 0)'
+        : sortColumn;
+
+      // Main query
+      const mainParams = [...params, ...nexonSubqueryParams, limit, offset];
       const rows = await streamingDbAll(
         `SELECT
           e.target_channel_id as channel_id,
@@ -314,14 +365,16 @@ const createStatsService = () => {
           COALESCE(SUM(CASE WHEN e.event_type = 'donation' THEN e.amount ELSE 0 END), 0) as total_donations,
           MIN(e.event_timestamp) as first_seen,
           MAX(e.event_timestamp) as last_seen,
-          COUNT(DISTINCT e.actor_nickname) as unique_viewers
+          COUNT(DISTINCT e.actor_nickname) as unique_viewers,
+          COALESCE(nexon_stats.nexon_affinity, 0) as nexon_affinity
         FROM events e
         LEFT JOIN persons p ON e.target_person_id = p.id
+        ${nexonSubquery}
         ${whereClause}
-        GROUP BY e.target_channel_id, e.platform, p.nickname, p.profile_image_url
-        ORDER BY ${sortColumn} ${order}
+        GROUP BY e.target_channel_id, e.platform, p.nickname, p.profile_image_url, nexon_stats.nexon_affinity
+        ORDER BY ${effectiveSortColumn} ${order}
         LIMIT ${p(paramIndex++)} OFFSET ${p(paramIndex++)}`,
-        [...params, limit, offset]
+        mainParams
       );
 
       const broadcasters = (rows || []).map((row, index) => ({
@@ -337,6 +390,7 @@ const createStatsService = () => {
         unique_viewers: row.unique_viewers || 0,
         first_seen: row.first_seen,
         last_seen: row.last_seen,
+        nexon_affinity: row.nexon_affinity || 0,
         // Calculated metrics for influencer discovery
         chat_velocity: row.chat_count > 0 ? Math.round(row.chat_count / Math.max(1, Math.ceil((new Date(row.last_seen) - new Date(row.first_seen)) / (1000 * 60)))) : 0,
         donation_conversion: row.unique_viewers > 0 ? Math.round((row.donation_count / row.unique_viewers) * 100) : 0,
@@ -854,8 +908,30 @@ const createStatsService = () => {
      * @returns {Promise<Object>}
      */
     async getRealtimePlatformSummary() {
-      // Get current viewers and channels from platform_categories
+      // Use broadcasts table with channel_id dedup for accurate unique viewer count.
+      // Each viewer can only watch one broadcast at a time, so summing per unique
+      // channel gives the true concurrent viewer count without category overlap.
+      const recentThreshold = isPostgres()
+        ? "NOW() - INTERVAL '30 minutes'"
+        : "datetime('now', '-30 minutes')";
+
       const platformData = await streamingDbAll(`
+        SELECT
+          platform,
+          SUM(current_viewer_count) as total_viewers,
+          COUNT(DISTINCT channel_id) as total_channels,
+          MAX(updated_at) as last_updated
+        FROM broadcasts
+        WHERE is_live = ${isPostgres() ? 'TRUE' : '1'}
+          AND current_viewer_count > 0
+          AND updated_at >= ${recentThreshold}
+        GROUP BY platform
+        ORDER BY total_viewers DESC
+      `);
+
+      // Fallback to platform_categories if broadcasts table has no recent data
+      const hasBroadcastData = platformData && platformData.length > 0;
+      const fallbackData = hasBroadcastData ? null : await streamingDbAll(`
         SELECT
           platform,
           SUM(viewer_count) as total_viewers,
@@ -867,25 +943,26 @@ const createStatsService = () => {
         ORDER BY total_viewers DESC
       `);
 
-      // Get peak viewers for each platform in last 24h
-      // FIX: Use MAX per category per hour to deduplicate multiple crawler snapshots,
-      // then SUM across categories for each hour, then get MAX of those hourly totals
+      const effectiveData = hasBroadcastData ? platformData : (fallbackData || []);
+
+      // Get peak viewers from broadcasts table (unique channel dedup per hour)
       const peakData = await streamingDbAll(
         isPostgres()
           ? `
             SELECT platform, MAX(hourly_total) as peak_viewers
             FROM (
-              SELECT platform, snapshot_hour, SUM(max_category_viewers) as hourly_total
+              SELECT platform, snapshot_hour, SUM(max_channel_viewers) as hourly_total
               FROM (
                 SELECT
                   platform,
-                  TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00') as snapshot_hour,
-                  platform_category_id,
-                  MAX(viewer_count) as max_category_viewers
-                FROM category_stats
-                WHERE recorded_at >= NOW() - INTERVAL '24 hours'
-                GROUP BY platform, TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00'), platform_category_id
-              ) per_category
+                  TO_CHAR(updated_at, 'YYYY-MM-DD HH24:00') as snapshot_hour,
+                  channel_id,
+                  MAX(current_viewer_count) as max_channel_viewers
+                FROM broadcasts
+                WHERE updated_at >= NOW() - INTERVAL '24 hours'
+                  AND current_viewer_count > 0
+                GROUP BY platform, TO_CHAR(updated_at, 'YYYY-MM-DD HH24:00'), channel_id
+              ) per_channel
               GROUP BY platform, snapshot_hour
             ) hourly_sums
             GROUP BY platform
@@ -893,17 +970,18 @@ const createStatsService = () => {
           : `
             SELECT platform, MAX(hourly_total) as peak_viewers
             FROM (
-              SELECT platform, snapshot_hour, SUM(max_category_viewers) as hourly_total
+              SELECT platform, snapshot_hour, SUM(max_channel_viewers) as hourly_total
               FROM (
                 SELECT
                   platform,
-                  strftime('%Y-%m-%d %H:00', recorded_at) as snapshot_hour,
-                  platform_category_id,
-                  MAX(viewer_count) as max_category_viewers
-                FROM category_stats
-                WHERE recorded_at >= datetime('now', '-24 hours')
-                GROUP BY platform, strftime('%Y-%m-%d %H:00', recorded_at), platform_category_id
-              ) per_category
+                  strftime('%Y-%m-%d %H:00', updated_at) as snapshot_hour,
+                  channel_id,
+                  MAX(current_viewer_count) as max_channel_viewers
+                FROM broadcasts
+                WHERE updated_at >= datetime('now', '-24 hours')
+                  AND current_viewer_count > 0
+                GROUP BY platform, strftime('%Y-%m-%d %H:00', updated_at), channel_id
+              ) per_channel
               GROUP BY platform, snapshot_hour
             ) hourly_sums
             GROUP BY platform
@@ -922,7 +1000,7 @@ const createStatsService = () => {
         youtube: 'YouTube'
       };
 
-      const platforms = (platformData || []).map(row => ({
+      const platforms = (effectiveData).map(row => ({
         platform: row.platform,
         name: platformNames[row.platform] || row.platform,
         viewers: Number(row.total_viewers) || 0,
@@ -950,71 +1028,116 @@ const createStatsService = () => {
       if (type === 'chats') {
         // Chat data is too large to query in realtime (13M+ rows)
         // Return placeholder - use summary table in future
+        const now = new Date();
         const result = [];
-        for (let i = 0; i < 24; i++) {
-          const hourStr = String(i).padStart(2, '0') + ':00';
+        for (let i = 23; i >= 0; i--) {
+          const d = new Date(now.getTime() - i * 3600000);
+          const hourStr = String(d.getHours()).padStart(2, '0') + ':00';
           result.push({ time: hourStr, chzzk: 0, soop: 0, twitch: 0 });
         }
         return result;
       }
 
-      // For viewers and channels, use category_stats
-      // FIX: Use MAX per category per hour to avoid duplicate snapshot summation
-      // The crawler may run multiple times per hour, so we need to deduplicate
+      // For viewers and channels, prefer broadcast-level deduped totals (_broadcast_total_)
+      // to avoid category overlap double-counting. Falls back to category-level aggregation.
       const field = type === 'channels' ? 'streamer_count' : 'viewer_count';
 
-      // Subquery: Get MAX value per category per hour to deduplicate multiple snapshots
-      // Then sum across all categories for each hour
-      const trendData = await streamingDbAll(
+      // Try broadcast-level totals first (accurate unique channel sums)
+      const broadcastTotalData = await streamingDbAll(
         isPostgres()
           ? `
-            SELECT time, platform, SUM(max_value) as total
+            SELECT
+              TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00') as time_key,
+              TO_CHAR(recorded_at, 'HH24:00') as time_display,
+              platform,
+              MAX(${field}) as total
+            FROM category_stats
+            WHERE platform_category_id = '_broadcast_total_'
+              AND recorded_at >= NOW() - INTERVAL '${hours} hours'
+            GROUP BY TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00'), TO_CHAR(recorded_at, 'HH24:00'), platform
+            ORDER BY time_key
+          `
+          : `
+            SELECT
+              strftime('%Y-%m-%d %H:00', recorded_at) as time_key,
+              strftime('%H:00', recorded_at) as time_display,
+              platform,
+              MAX(${field}) as total
+            FROM category_stats
+            WHERE platform_category_id = '_broadcast_total_'
+              AND recorded_at >= datetime('now', '-${hours} hours')
+            GROUP BY strftime('%Y-%m-%d %H', recorded_at), platform
+            ORDER BY time_key
+          `
+      );
+
+      const useBroadcastTotals = broadcastTotalData && broadcastTotalData.length > 0;
+
+      // Fallback: category-level aggregation with dedup (legacy behavior)
+      const trendData = useBroadcastTotals ? broadcastTotalData : await streamingDbAll(
+        isPostgres()
+          ? `
+            SELECT time_key, time_display, platform, SUM(max_value) as total
             FROM (
               SELECT
-                TO_CHAR(recorded_at, 'HH24:00') as time,
+                TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00') as time_key,
+                TO_CHAR(recorded_at, 'HH24:00') as time_display,
                 platform,
                 platform_category_id,
                 MAX(${field}) as max_value
               FROM category_stats
               WHERE recorded_at >= NOW() - INTERVAL '${hours} hours'
-              GROUP BY TO_CHAR(recorded_at, 'HH24:00'), platform, platform_category_id
+                AND platform_category_id != '_broadcast_total_'
+              GROUP BY TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00'), TO_CHAR(recorded_at, 'HH24:00'), platform, platform_category_id
             ) sub
-            GROUP BY time, platform
-            ORDER BY time
+            GROUP BY time_key, time_display, platform
+            ORDER BY time_key
           `
           : `
-            SELECT time, platform, SUM(max_value) as total
+            SELECT time_key, time_display, platform, SUM(max_value) as total
             FROM (
               SELECT
-                strftime('%H:00', recorded_at) as time,
+                strftime('%Y-%m-%d %H:00', recorded_at) as time_key,
+                strftime('%H:00', recorded_at) as time_display,
                 platform,
                 platform_category_id,
                 MAX(${field}) as max_value
               FROM category_stats
               WHERE recorded_at >= datetime('now', '-${hours} hours')
-              GROUP BY strftime('%H', recorded_at), platform, platform_category_id
+                AND platform_category_id != '_broadcast_total_'
+              GROUP BY strftime('%Y-%m-%d %H', recorded_at), platform, platform_category_id
             ) sub
-            GROUP BY time, platform
-            ORDER BY time
+            GROUP BY time_key, time_display, platform
+            ORDER BY time_key
           `
       );
 
+      // Build map keyed by full date+hour for correct chronological ordering
       const hourlyMap = {};
       (trendData || []).forEach(row => {
-        if (!hourlyMap[row.time]) {
-          hourlyMap[row.time] = { time: row.time, chzzk: 0, soop: 0, twitch: 0 };
+        const key = row.time_key;
+        if (!hourlyMap[key]) {
+          hourlyMap[key] = { time: row.time_display, chzzk: 0, soop: 0, twitch: 0 };
         }
         const total = Number(row.total) || 0;
-        if (row.platform === 'chzzk') hourlyMap[row.time].chzzk = total;
-        else if (row.platform === 'soop') hourlyMap[row.time].soop = total;
-        else if (row.platform === 'twitch') hourlyMap[row.time].twitch = total;
+        if (row.platform === 'chzzk') hourlyMap[key].chzzk = total;
+        else if (row.platform === 'soop') hourlyMap[key].soop = total;
+        else if (row.platform === 'twitch') hourlyMap[key].twitch = total;
       });
 
-      // Fill all hours
+      // Fill hours chronologically: oldest (24h ago) on left → current hour on right
+      const now = new Date();
       const result = [];
-      for (let i = 0; i < 24; i++) {
-        const hourStr = String(i).padStart(2, '0') + ':00';
-        result.push(hourlyMap[hourStr] || { time: hourStr, chzzk: 0, soop: 0, twitch: 0 });
+      for (let i = 23; i >= 0; i--) {
+        const d = new Date(now.getTime() - i * 3600000);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const dateHourKey = `${yyyy}-${mm}-${dd} ${hh}:00`;
+        const hourDisplay = `${hh}:00`;
+        const entry = hourlyMap[dateHourKey];
+        result.push(entry || { time: hourDisplay, chzzk: 0, soop: 0, twitch: 0 });
       }
       return result;
     },
