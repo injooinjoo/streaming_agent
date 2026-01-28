@@ -195,7 +195,7 @@
 .platform-logo {
   width: 34px;
   height: 34px;
-  object-fit: cover;
+  object-fit: contain;
   margin-right: 6px;
   vertical-align: middle;
   border-radius: 6px;
