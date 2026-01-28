@@ -191,8 +191,8 @@
 .platform-badge.chzzk { background: #00ffa3; color: black; }
 .platform-badge.soop { background: #007bff; color: white; }
 
-/* 플랫폼 로고 이미지 */
-.platform-logo {
+/* 채팅 오버레이 플랫폼 로고 이미지 */
+.chat-platform-logo {
   width: 34px;
   height: 34px;
   object-fit: contain;

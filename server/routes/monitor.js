@@ -558,56 +558,52 @@ const createMonitorRouter = (db) => {
       const isLiveValue = isPostgres() ? 'TRUE' : '1';
       const whereClause = liveOnly ? `WHERE b.is_live = ${isLiveValue}` : "";
 
-      // Get total count
-      const countResult = await getOne(
-        `SELECT COUNT(*) as total FROM broadcasts b ${whereClause}`
-      );
+      // Run count and data queries in parallel
+      const [countResult, broadcasts] = await Promise.all([
+        getOne(`SELECT COUNT(*) as total FROM broadcasts b ${whereClause}`),
+        getAll(
+          `SELECT
+            b.id,
+            b.platform,
+            b.channel_id,
+            b.broadcast_id,
+            b.broadcaster_person_id,
+            p.nickname as broadcaster_nickname,
+            b.title,
+            seg.category_name,
+            b.current_viewer_count,
+            b.peak_viewer_count,
+            COALESCE(event_stats.chat_count, 0) as total_chat_count,
+            COALESCE(event_stats.donation_amount, 0) as total_donation_amount,
+            b.is_live,
+            b.started_at,
+            b.ended_at,
+            b.duration_minutes,
+            b.updated_at
+          FROM broadcasts b
+          LEFT JOIN persons p ON b.broadcaster_person_id = p.id
+          LEFT JOIN (
+            SELECT broadcast_id, category_name
+            FROM broadcast_segments
+            WHERE id IN (
+              SELECT MAX(id) FROM broadcast_segments GROUP BY broadcast_id
+            )
+          ) seg ON seg.broadcast_id = b.id
+          LEFT JOIN (
+            SELECT broadcast_id,
+              SUM(CASE WHEN event_type = 'chat' THEN 1 ELSE 0 END) as chat_count,
+              SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END) as donation_amount
+            FROM events
+            WHERE event_type IN ('chat', 'donation')
+            GROUP BY broadcast_id
+          ) event_stats ON event_stats.broadcast_id = b.id
+          ${whereClause}
+          ORDER BY b.is_live DESC, b.current_viewer_count DESC, b.updated_at DESC
+          LIMIT ${p(1)} OFFSET ${p(2)}`,
+          [limit, offset]
+        ),
+      ]);
       const total = countResult?.total || 0;
-
-      // Get broadcasts with latest segment category and computed stats from events
-      const broadcasts = await getAll(
-        `SELECT
-          b.id,
-          b.platform,
-          b.channel_id,
-          b.broadcast_id,
-          b.broadcaster_person_id,
-          p.nickname as broadcaster_nickname,
-          b.title,
-          seg.category_name,
-          b.current_viewer_count,
-          b.peak_viewer_count,
-          COALESCE(chat_stats.chat_count, 0) as total_chat_count,
-          COALESCE(donation_stats.donation_amount, 0) as total_donation_amount,
-          b.is_live,
-          b.started_at,
-          b.ended_at,
-          b.duration_minutes,
-          b.updated_at
-        FROM broadcasts b
-        LEFT JOIN persons p ON b.broadcaster_person_id = p.id
-        LEFT JOIN (
-          SELECT broadcast_id, category_name
-          FROM broadcast_segments
-          WHERE id IN (
-            SELECT MAX(id) FROM broadcast_segments GROUP BY broadcast_id
-          )
-        ) seg ON seg.broadcast_id = b.id
-        LEFT JOIN (
-          SELECT broadcast_id, COUNT(*) as chat_count
-          FROM events WHERE event_type = 'chat'
-          GROUP BY broadcast_id
-        ) chat_stats ON chat_stats.broadcast_id = b.id
-        LEFT JOIN (
-          SELECT broadcast_id, SUM(amount) as donation_amount
-          FROM events WHERE event_type = 'donation'
-          GROUP BY broadcast_id
-        ) donation_stats ON donation_stats.broadcast_id = b.id
-        ${whereClause}
-        ORDER BY b.is_live DESC, b.current_viewer_count DESC, b.updated_at DESC
-        LIMIT ${p(1)} OFFSET ${p(2)}`,
-        [limit, offset]
-      );
 
       res.json({
         data: broadcasts,
@@ -643,45 +639,42 @@ const createMonitorRouter = (db) => {
         whereClause = "WHERE p.channel_id IS NULL";
       }
 
-      // Get total count
-      const countResult = await getOne(
-        `SELECT COUNT(*) as total FROM persons p ${whereClause}`
-      );
+      // Run count and data queries in parallel
+      const [countResult, persons] = await Promise.all([
+        getOne(`SELECT COUNT(*) as total FROM persons p ${whereClause}`),
+        getAll(
+          `SELECT
+            p.id,
+            p.platform,
+            p.platform_user_id,
+            p.nickname,
+            p.channel_id,
+            p.follower_count,
+            p.subscriber_count,
+            p.total_broadcast_minutes,
+            COALESCE(event_stats.chat_count, 0) as total_chat_count,
+            COALESCE(event_stats.donation_count, 0) as total_donation_count,
+            COALESCE(event_stats.donation_amount, 0) as total_donation_amount,
+            p.first_seen_at,
+            p.last_seen_at,
+            CASE WHEN p.channel_id IS NOT NULL THEN 'broadcaster' ELSE 'viewer' END as person_type
+          FROM persons p
+          LEFT JOIN (
+            SELECT actor_person_id,
+              SUM(CASE WHEN event_type = 'chat' THEN 1 ELSE 0 END) as chat_count,
+              SUM(CASE WHEN event_type = 'donation' THEN 1 ELSE 0 END) as donation_count,
+              SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END) as donation_amount
+            FROM events
+            WHERE event_type IN ('chat', 'donation')
+            GROUP BY actor_person_id
+          ) event_stats ON event_stats.actor_person_id = p.id
+          ${whereClause}
+          ORDER BY p.last_seen_at DESC, COALESCE(event_stats.donation_amount, 0) DESC
+          LIMIT ${p(1)} OFFSET ${p(2)}`,
+          [limit, offset]
+        ),
+      ]);
       const total = countResult?.total || 0;
-
-      // Get persons with stats computed from events
-      const persons = await getAll(
-        `SELECT
-          p.id,
-          p.platform,
-          p.platform_user_id,
-          p.nickname,
-          p.channel_id,
-          p.follower_count,
-          p.subscriber_count,
-          p.total_broadcast_minutes,
-          COALESCE(chat_stats.chat_count, 0) as total_chat_count,
-          COALESCE(donation_stats.donation_count, 0) as total_donation_count,
-          COALESCE(donation_stats.donation_amount, 0) as total_donation_amount,
-          p.first_seen_at,
-          p.last_seen_at,
-          CASE WHEN p.channel_id IS NOT NULL THEN 'broadcaster' ELSE 'viewer' END as person_type
-        FROM persons p
-        LEFT JOIN (
-          SELECT actor_person_id, COUNT(*) as chat_count
-          FROM events WHERE event_type = 'chat'
-          GROUP BY actor_person_id
-        ) chat_stats ON chat_stats.actor_person_id = p.id
-        LEFT JOIN (
-          SELECT actor_person_id, COUNT(*) as donation_count, SUM(amount) as donation_amount
-          FROM events WHERE event_type = 'donation'
-          GROUP BY actor_person_id
-        ) donation_stats ON donation_stats.actor_person_id = p.id
-        ${whereClause}
-        ORDER BY p.last_seen_at DESC, COALESCE(donation_stats.donation_amount, 0) DESC
-        LIMIT ${p(1)} OFFSET ${p(2)}`,
-        [limit, offset]
-      );
 
       res.json({
         data: persons,

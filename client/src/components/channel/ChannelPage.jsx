@@ -38,51 +38,49 @@ const ChannelPage = () => {
         // const res = await fetch(`${API_URL}/api/channel/${channelId}`);
         // const data = await res.json();
 
-        // Mock 데이터
-        setTimeout(() => {
-          setChannelData({
-            id: channelId || 'demo-channel',
-            displayName: '데모 스트리머',
-            username: 'demo_streamer',
-            avatar: null,
-            bio: '안녕하세요! 다양한 게임과 소통 방송을 진행하는 스트리머입니다. 😊',
-            verified: true,
-            level: 42,
-            createdAt: '2023-05-15',
-            platforms: [
-              { id: 'soop', name: 'SOOP', connected: true, followers: 15420, channelUrl: 'https://www.sooplive.co.kr/demo' },
-              { id: 'chzzk', name: '치지직', connected: true, followers: 8350, channelUrl: 'https://chzzk.naver.com/demo' },
-              { id: 'youtube', name: '유튜브', connected: false, followers: 0 },
-            ],
-            stats: {
-              totalFollowers: 23770,
-              totalViews: 1250000,
-              avgViewers: 342,
-              peakViewers: 1580,
-              totalStreams: 156,
-              totalHours: 892,
-              totalDonations: 4520000,
-              lastStreamDate: '2026-01-19',
-            },
-            recentStreams: [
-              { id: 1, title: '[LOL] 랭크 도전! 목표는 다이아몬드', date: '2026-01-19', duration: '4h 32m', viewers: 485, category: 'League of Legends' },
-              { id: 2, title: '신작 게임 리뷰 + 시청자 참여', date: '2026-01-18', duration: '3h 15m', viewers: 312, category: 'Just Chatting' },
-              { id: 3, title: '팬아트 리뷰하며 소통방송', date: '2026-01-17', duration: '2h 45m', viewers: 428, category: 'Art' },
-            ],
-            badges: [
-              { id: 'partner', name: '파트너', icon: <Shield size={14} />, color: '#6366f1' },
-              { id: 'top100', name: 'TOP 100', icon: <Award size={14} />, color: '#f59e0b' },
-              { id: 'verified', name: '인증됨', icon: <Check size={14} />, color: '#10b981' },
-            ],
-            socialLinks: [
-              { platform: 'twitter', url: 'https://twitter.com/demo', label: '@demo_streamer' },
-              { platform: 'instagram', url: 'https://instagram.com/demo', label: '@demo_streamer' },
-              { platform: 'discord', url: 'https://discord.gg/demo', label: 'Demo Server' },
-            ]
-          });
-          setLiveStatus({ isLive: true, viewers: 523, startedAt: new Date(Date.now() - 7200000) });
-          setLoading(false);
-        }, 500);
+        // Mock 데이터 (setTimeout 제거 - 불필요한 500ms 지연 방지)
+        setChannelData({
+          id: channelId || 'demo-channel',
+          displayName: '데모 스트리머',
+          username: 'demo_streamer',
+          avatar: null,
+          bio: '안녕하세요! 다양한 게임과 소통 방송을 진행하는 스트리머입니다. 😊',
+          verified: true,
+          level: 42,
+          createdAt: '2023-05-15',
+          platforms: [
+            { id: 'soop', name: 'SOOP', connected: true, followers: 15420, channelUrl: 'https://www.sooplive.co.kr/demo' },
+            { id: 'chzzk', name: '치지직', connected: true, followers: 8350, channelUrl: 'https://chzzk.naver.com/demo' },
+            { id: 'youtube', name: '유튜브', connected: false, followers: 0 },
+          ],
+          stats: {
+            totalFollowers: 23770,
+            totalViews: 1250000,
+            avgViewers: 342,
+            peakViewers: 1580,
+            totalStreams: 156,
+            totalHours: 892,
+            totalDonations: 4520000,
+            lastStreamDate: '2026-01-19',
+          },
+          recentStreams: [
+            { id: 1, title: '[LOL] 랭크 도전! 목표는 다이아몬드', date: '2026-01-19', duration: '4h 32m', viewers: 485, category: 'League of Legends' },
+            { id: 2, title: '신작 게임 리뷰 + 시청자 참여', date: '2026-01-18', duration: '3h 15m', viewers: 312, category: 'Just Chatting' },
+            { id: 3, title: '팬아트 리뷰하며 소통방송', date: '2026-01-17', duration: '2h 45m', viewers: 428, category: 'Art' },
+          ],
+          badges: [
+            { id: 'partner', name: '파트너', icon: <Shield size={14} />, color: '#6366f1' },
+            { id: 'top100', name: 'TOP 100', icon: <Award size={14} />, color: '#f59e0b' },
+            { id: 'verified', name: '인증됨', icon: <Check size={14} />, color: '#10b981' },
+          ],
+          socialLinks: [
+            { platform: 'twitter', url: 'https://twitter.com/demo', label: '@demo_streamer' },
+            { platform: 'instagram', url: 'https://instagram.com/demo', label: '@demo_streamer' },
+            { platform: 'discord', url: 'https://discord.gg/demo', label: 'Demo Server' },
+          ]
+        });
+        setLiveStatus({ isLive: true, viewers: 523, startedAt: new Date(Date.now() - 7200000) });
+        setLoading(false);
       } catch (error) {
         console.error('Failed to fetch channel data:', error);
         setLoading(false);

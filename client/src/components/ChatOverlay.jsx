@@ -1186,7 +1186,7 @@ const ChatOverlay = ({
                 <img
                   src={`/assets/logos/${msg.platform}.png`}
                   alt={msg.platform}
-                  className="platform-logo"
+                  className="chat-platform-logo"
                 />
               )}
               {activeSettings.showNickname && (

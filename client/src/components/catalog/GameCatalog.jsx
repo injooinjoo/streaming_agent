@@ -29,24 +29,27 @@ const GameCatalog = ({ onGameSelect }) => {
   const [trends, setTrends] = useState(null);
   const [trendsLoading, setTrendsLoading] = useState(true);
 
-  // 게임 카탈로그 및 통계 로드
-  const fetchCatalog = async () => {
+  // 게임 카탈로그, 통계, 트렌드를 모두 병렬 로드
+  const fetchAll = async () => {
     setLoading(true);
+    setTrendsLoading(true);
     setError(null);
 
     try {
-      // 병렬로 게임 목록과 통계 조회
-      const [gamesRes, statsRes] = await Promise.all([
+      const [gamesRes, statsRes, trendsRes] = await Promise.all([
         fetch(`${API_URL}/api/categories?limit=100`),
-        fetch(`${API_URL}/api/categories/stats`)
+        fetch(`${API_URL}/api/categories/stats`),
+        fetch(`${API_URL}/api/categories/trends?limit=20&days=7`)
       ]);
 
       if (!gamesRes.ok || !statsRes.ok) {
         throw new Error('불러오기 실패');
       }
 
-      const gamesData = await gamesRes.json();
-      const statsData = await statsRes.json();
+      const [gamesData, statsData] = await Promise.all([
+        gamesRes.json(),
+        statsRes.json()
+      ]);
 
       if (gamesData.success && gamesData.data) {
         setGames(gamesData.data);
@@ -55,35 +58,25 @@ const GameCatalog = ({ onGameSelect }) => {
       if (statsData.success && statsData.data) {
         setStats(statsData.data);
       }
+
+      // 트렌드는 실패해도 무시
+      if (trendsRes.ok) {
+        const trendsData = await trendsRes.json();
+        if (trendsData.success && trendsData.data) {
+          setTrends(trendsData.data);
+        }
+      }
     } catch (err) {
       console.error('GameCatalog fetch error:', err);
       setError(err.message);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // 트렌드 데이터 로드
-  const fetchTrends = async () => {
-    setTrendsLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/api/categories/trends?limit=20&days=7`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.data) {
-          setTrends(data.data);
-        }
-      }
-    } catch (err) {
-      console.error('Trends fetch error:', err);
-    } finally {
       setTrendsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchCatalog();
-    fetchTrends();
+    fetchAll();
   }, []);
 
   // 검색 필터
@@ -151,7 +144,7 @@ const GameCatalog = ({ onGameSelect }) => {
         <div className="game-catalog-error">
           <AlertCircle size={32} />
           <span>{error}</span>
-          <button onClick={fetchCatalog} className="retry-button">
+          <button onClick={fetchAll} className="retry-button">
             <RefreshCw size={16} />
             다시 시도
           </button>
@@ -171,7 +164,7 @@ const GameCatalog = ({ onGameSelect }) => {
             <p>인기 카테고리와 스트리머 정보를 확인하세요</p>
           </div>
         </div>
-        <button onClick={() => { fetchCatalog(); fetchTrends(); }} className="refresh-button" title="새로고침">
+        <button onClick={fetchAll} className="refresh-button" title="새로고침">
           <RefreshCw size={18} />
         </button>
       </div>

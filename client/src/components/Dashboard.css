@@ -822,11 +822,11 @@
   gap: 4px;
 }
 
-.platform-logo {
-  width: 16px;
-  height: 16px;
+.category-platform-logo {
+  width: 24px;
+  height: 24px;
   object-fit: contain;
-  border-radius: 3px;
+  border-radius: 4px;
 }
 
 /* Categories Wrapper - 세로 배치 */

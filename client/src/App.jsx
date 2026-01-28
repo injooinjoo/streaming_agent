@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { AuthProvider } from './contexts/AuthContext';
@@ -6,25 +6,27 @@ import { StreamingModeProvider } from './contexts/StreamingModeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import ToastContainer from './components/shared/Toast';
 import Dashboard from './components/Dashboard';
-import ChannelPage from './components/channel/ChannelPage';
-import ChatOverlay from './components/ChatOverlay';
-import AlertOverlay from './components/AlertOverlay';
-import SubtitleOverlay from './components/SubtitleOverlay';
-import GoalOverlay from './components/GoalOverlay';
-import TickerOverlay from './components/TickerOverlay';
-import RouletteOverlay from './components/RouletteOverlay';
-import EmojiOverlay from './components/EmojiOverlay';
-import VotingOverlay from './components/VotingOverlay';
-import CreditsOverlay from './components/CreditsOverlay';
-import AdOverlay from './components/AdOverlay';
-import LoginPage from './components/auth/LoginPage';
-import RegisterPage from './components/auth/RegisterPage';
 import ProtectedRoute, { AdminRoute, AdvertiserRoute } from './components/auth/ProtectedRoute';
-import AdvertiserDashboard from './components/advertiser/AdvertiserDashboard';
-import AdminDashboard from './components/admin/AdminDashboard';
-import MyDesigns from './components/designer/MyDesigns';
-import DesignCustomizer from './components/designer/DesignCustomizer';
 import './App.css';
+
+// Lazy-loaded pages (코드 스플리팅으로 초기 번들 크기 감소)
+const ChannelPage = lazy(() => import('./components/channel/ChannelPage'));
+const ChatOverlay = lazy(() => import('./components/ChatOverlay'));
+const AlertOverlay = lazy(() => import('./components/AlertOverlay'));
+const SubtitleOverlay = lazy(() => import('./components/SubtitleOverlay'));
+const GoalOverlay = lazy(() => import('./components/GoalOverlay'));
+const TickerOverlay = lazy(() => import('./components/TickerOverlay'));
+const RouletteOverlay = lazy(() => import('./components/RouletteOverlay'));
+const EmojiOverlay = lazy(() => import('./components/EmojiOverlay'));
+const VotingOverlay = lazy(() => import('./components/VotingOverlay'));
+const CreditsOverlay = lazy(() => import('./components/CreditsOverlay'));
+const AdOverlay = lazy(() => import('./components/AdOverlay'));
+const LoginPage = lazy(() => import('./components/auth/LoginPage'));
+const RegisterPage = lazy(() => import('./components/auth/RegisterPage'));
+const AdvertiserDashboard = lazy(() => import('./components/advertiser/AdvertiserDashboard'));
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
+const MyDesigns = lazy(() => import('./components/designer/MyDesigns'));
+const DesignCustomizer = lazy(() => import('./components/designer/DesignCustomizer'));
 
 function App() {
   // 모바일 브라우저 주소창 대응 viewport height 설정
@@ -51,6 +53,7 @@ function App() {
         <StreamingModeProvider>
         <Router>
           <div className="app-container">
+            <Suspense fallback={null}>
             <Routes>
             {/* 메인 */}
             <Route path="/" element={<Dashboard />} />
@@ -114,6 +117,7 @@ function App() {
             <Route path="/overlay/ticker" element={<TickerOverlay />} />
             <Route path="/overlay/ads" element={<AdOverlay />} />
             </Routes>
+            </Suspense>
           </div>
         </Router>
         </StreamingModeProvider>

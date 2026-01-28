@@ -204,27 +204,39 @@ const Dashboard = () => {
     }
   };
 
-  // 이벤트는 대시보드 탭에서만 fetch (대기중인 이벤트 표시용)
+  // 대시보드 탭일 때 이벤트 + 대시보드 데이터 병렬 fetch
+  // 탭 비활성(브라우저 탭 이탈) 시 폴링 자동 중지
   useEffect(() => {
     if (authLoading || activeTab !== 'dashboard') return;
 
+    // 초기 로드: 병렬 실행
     fetchEvents();
-    const eventsInterval = setInterval(fetchEvents, 3000);
+    fetchDashboardData();
+
+    let eventsInterval = setInterval(fetchEvents, 3000);
+    let dashboardInterval = setInterval(fetchDashboardData, 30000);
+
+    // 브라우저 탭 비활성 시 폴링 중지
+    const handleVisibility = () => {
+      if (document.hidden) {
+        clearInterval(eventsInterval);
+        clearInterval(dashboardInterval);
+        eventsInterval = null;
+        dashboardInterval = null;
+      } else {
+        // 탭 복귀 시 즉시 fetch + 폴링 재시작
+        fetchEvents();
+        fetchDashboardData();
+        eventsInterval = setInterval(fetchEvents, 3000);
+        dashboardInterval = setInterval(fetchDashboardData, 30000);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
       clearInterval(eventsInterval);
-    };
-  }, [authLoading, user?.channelId, activeTab]);
-
-  // 대시보드 데이터도 대시보드 탭일 때만 fetch
-  useEffect(() => {
-    if (authLoading || activeTab !== 'dashboard') return;
-
-    fetchDashboardData();
-    const dashboardInterval = setInterval(fetchDashboardData, 30000); // 30초마다 갱신
-
-    return () => {
       clearInterval(dashboardInterval);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [authLoading, user?.channelId, user?.platform, activeTab]);
 
@@ -467,7 +479,7 @@ const Dashboard = () => {
                               <span className="stat-value platform-logos">
                                 {platformLogos && platformLogos.length > 0 ? (
                                   platformLogos.map((logo, i) => (
-                                    <img key={i} src={logo.src} alt={logo.name} className="platform-logo" />
+                                    <img key={i} src={logo.src} alt={logo.name} className="category-platform-logo" />
                                   ))
                                 ) : '-'}
                               </span>
