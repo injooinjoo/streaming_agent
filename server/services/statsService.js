@@ -1817,7 +1817,7 @@ const createStatsService = () => {
       const broadcastFilter = buildChannelFilter(channelId, platform);
       const broadcastConditions = [
         `segment_started_at >= ${sql.dateSubtract(days, 'days')}`,
-        ...broadcastFilter.conditions
+        ...broadcastFilter.conditions.map(c => c.replace('target_channel_id', 'channel_id'))
       ];
 
       const peakViewers = await streamingDbGet(
