@@ -37,7 +37,7 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
     try {
       // Fetch broadcasters (actual streamers who have broadcast)
       const [broadcastersRes] = await Promise.all([
-        fetch(`${API_URL}/api/broadcasters?limit=20`, { headers })
+        fetch(`${API_URL}/api/broadcasters?limit=20&nexonOnly=true`, { headers })
       ]);
 
       if (broadcastersRes.ok) {
@@ -51,7 +51,7 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
           avgViewers: b.unique_viewers || 0,
           chatVelocity: b.chat_velocity || 0,
           donationConversion: b.donation_conversion || 0,
-          nexonAffinity: 0, // To be implemented with game category analysis
+          nexonAffinity: b.nexon_affinity || 0,
           sentiment: 0,
           trend: 'stable',
           mainNexonIP: '-',
@@ -200,8 +200,8 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
                   <tr>
                     <td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
                       <AlertTriangle size={24} style={{ marginBottom: '8px', opacity: 0.5 }} />
-                      <div>방송 기록이 있는 스트리머가 없습니다</div>
-                      <div style={{ fontSize: '12px', marginTop: '4px' }}>채팅/후원 이벤트가 수집되면 자동으로 표시됩니다</div>
+                      <div>넥슨 게임을 방송한 스트리머가 없습니다</div>
+                      <div style={{ fontSize: '12px', marginTop: '4px' }}>넥슨 게임 카테고리로 방송한 이력이 수집되면 자동으로 표시됩니다</div>
                     </td>
                   </tr>
                 ) : filteredStreamers.map((streamer) => (

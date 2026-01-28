@@ -239,16 +239,31 @@ const createStatsRouter = (
    */
   router.get("/broadcasters", authenticateToken, async (req, res) => {
     try {
+      const nexonOnly = req.query.nexonOnly === 'true';
+
+      // Get logged-in user's channel_id to exclude from results
+      let excludeChannelId = req.user?.channelId || '';
+      if (!excludeChannelId && req.user?.id) {
+        const userRow = await getOne(
+          `SELECT channel_id FROM users WHERE id = ${p(1)}`,
+          [req.user.id]
+        );
+        excludeChannelId = userRow?.channel_id || '';
+      }
+
       const params = {
         search: req.query.search || "",
-        sortBy: req.query.sortBy || "total_donations",
+        sortBy: req.query.sortBy || (nexonOnly ? "nexon_affinity" : "total_donations"),
         sortOrder: req.query.sortOrder || "desc",
         page: parseInt(req.query.page, 10) || 1,
         limit: parseInt(req.query.limit, 10) || 20,
+        nexonOnly,
+        excludeChannelId,
       };
-      // 기본 파라미터(검색 없음, 첫 페이지)일 때 캐시 사용
+      // nexonOnly 모드에서는 캐시 키에 nexonOnly 포함
+      const cacheKeyExtra = nexonOnly ? { nexonOnly: true, sortBy: params.sortBy, page: params.page } : { sortBy: params.sortBy, page: 1 };
       if (statsCacheService && !params.search && params.page === 1) {
-        const key = statsCacheService.buildKey(STATS_KEYS.BROADCASTERS, { sortBy: params.sortBy, page: 1 });
+        const key = statsCacheService.buildKey(STATS_KEYS.BROADCASTERS, cacheKeyExtra);
         const result = await statsCacheService.getOrCompute(key, () => statsService.getBroadcasters(params), TTL.MEDIUM);
         return res.json(result);
       }

@@ -12,6 +12,7 @@
 const express = require("express");
 const { api: apiLogger } = require("../services/logger");
 const { getOne, getAll, isPostgres } = require("../db/connections");
+const { NEXON_SOOP_CATEGORY_IDS, NEXON_CHZZK_CATEGORY_IDS } = require("../constants/nexonGames");
 
 /**
  * Get placeholder for parameterized queries
@@ -245,33 +246,27 @@ const SCHEMA_METADATA = {
 const createMonitorRouter = (db) => {
   const router = express.Router();
 
-  // Use cross-database compatible helpers from connections.js
-  // getOne → getOne, getAll → getAll
+  // === In-memory cache for expensive aggregation queries ===
+  const statsCache = {
+    data: null,
+    timestamp: 0,
+    ttl: 5 * 60 * 1000, // 5 minutes
+  };
 
   /**
    * GET /api/monitor/stats
    * Returns summary statistics including platform breakdown and Nexon games
+   * Cached for 5 minutes to avoid 11 aggregation queries per request
    */
   router.get("/monitor/stats", async (req, res) => {
     try {
-      // Nexon game category IDs by platform
-      const nexonSoopCategoryIds = [
-        '00040005', // 서든어택
-        '00040070', // FC 온라인
-        '00040032', // 메이플스토리
-        '00040158', // 메이플스토리 월드
-        '00360113', // 마비노기 모바일
-        '00360055', // 카트라이더 러쉬플러스
-        '00040004', // 던전앤파이터
-        '00040065', // 바람의나라
-      ];
-      const nexonChzzkCategoryIds = [
-        'MapleStory', 'Dungeon_Fighter_Online', 'FC_Online', 'Sudden_Attack',
-        'KartRider', 'Mabinogi', 'The_First_Descendant', 'V4'
-      ];
+      // Return cached data if fresh
+      if (statsCache.data && Date.now() - statsCache.timestamp < statsCache.ttl) {
+        return res.json(statsCache.data);
+      }
       // Generate cross-database compatible placeholders for IN clause
-      const nexonSoopPlaceholders = nexonSoopCategoryIds.map((_, i) => p(i + 1)).join(',');
-      const nexonChzzkPlaceholders = nexonChzzkCategoryIds.map((_, i) => p(i + 1)).join(',');
+      const nexonSoopPlaceholders = NEXON_SOOP_CATEGORY_IDS.map((_, i) => p(i + 1)).join(',');
+      const nexonChzzkPlaceholders = NEXON_CHZZK_CATEGORY_IDS.map((_, i) => p(i + 1)).join(',');
       const isLiveVal = isPostgres() ? 'TRUE' : '1';
 
       // Execute all stats queries in parallel
@@ -329,7 +324,7 @@ const createMonitorRouter = (db) => {
             FROM broadcast_segments
           ) seg ON b.id = seg.broadcast_id AND seg.rn = 1
           WHERE b.is_live = ${isLiveVal} AND b.platform = 'soop' AND b.current_viewer_count >= 50 AND seg.category_id IN (${nexonSoopPlaceholders})`,
-          nexonSoopCategoryIds),
+          NEXON_SOOP_CATEGORY_IDS),
         // Nexon games stats - Chzzk (50+ viewers only)
         getOne(`SELECT
           COUNT(*) as broadcasts,
@@ -341,10 +336,10 @@ const createMonitorRouter = (db) => {
             FROM broadcast_segments
           ) seg ON b.id = seg.broadcast_id AND seg.rn = 1
           WHERE b.is_live = ${isLiveVal} AND b.platform = 'chzzk' AND b.current_viewer_count >= 50 AND seg.category_id IN (${nexonChzzkPlaceholders})`,
-          nexonChzzkCategoryIds),
+          NEXON_CHZZK_CATEGORY_IDS),
       ]);
 
-      res.json({
+      const result = {
         liveBroadcasts: liveBroadcasts?.count || 0,
         totalViewers: totalViewers?.total || 0,
         totalPersons: totalPersons?.count || 0,
@@ -375,7 +370,13 @@ const createMonitorRouter = (db) => {
             viewers: nexonChzzkStats?.viewers || 0,
           },
         },
-      });
+      };
+
+      // Cache the result
+      statsCache.data = result;
+      statsCache.timestamp = Date.now();
+
+      res.json(result);
     } catch (error) {
       apiLogger.error("Monitor stats error", { error: error.message });
       res.status(500).json({ error: "Failed to fetch stats" });
@@ -462,16 +463,9 @@ const createMonitorRouter = (db) => {
    */
   router.get("/monitor/stats/nexon", async (req, res) => {
     try {
-      // Nexon game category IDs by platform
       const nexonCategories = {
-        soop: [
-          '00040005', '00040070', '00040032', '00040158',
-          '00360113', '00360055', '00040004', '00040065'
-        ],
-        chzzk: [
-          'MapleStory', 'Dungeon_Fighter_Online', 'FC_Online', 'Sudden_Attack',
-          'KartRider', 'Mabinogi', 'The_First_Descendant', 'V4'
-        ]
+        soop: NEXON_SOOP_CATEGORY_IDS,
+        chzzk: NEXON_CHZZK_CATEGORY_IDS,
       };
 
       const isLiveValue = isPostgres() ? 'TRUE' : '1';

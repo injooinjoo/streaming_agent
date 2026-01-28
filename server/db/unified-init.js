@@ -579,6 +579,20 @@ const initializeUnifiedDatabase = (db) => {
       db.run(`CREATE INDEX IF NOT EXISTS idx_user_sessions_channel ON user_sessions(platform, channel_id)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_user_sessions_time ON user_sessions(session_started_at)`);
 
+      // === Performance indexes (compound) ===
+      // For monitor/broadcasts LEFT JOIN aggregations
+      db.run(`CREATE INDEX IF NOT EXISTS idx_events_type_broadcast ON events(event_type, broadcast_id)`);
+      // For monitor/stats filtering live + viewer count
+      db.run(`CREATE INDEX IF NOT EXISTS idx_broadcasts_live_viewers ON broadcasts(is_live, current_viewer_count)`);
+      // For latest segment lookup (MAX(id) pattern)
+      db.run(`CREATE INDEX IF NOT EXISTS idx_segments_broadcast_id_desc ON broadcast_segments(broadcast_id, id DESC)`);
+      // For persons event aggregations
+      db.run(`CREATE INDEX IF NOT EXISTS idx_events_actor_type ON events(actor_person_id, event_type)`);
+      // For overlay hash lookups
+      db.run(`CREATE INDEX IF NOT EXISTS idx_users_overlay_hash ON users(overlay_hash)`);
+      // For viewer engagement broadcaster lookups
+      db.run(`CREATE INDEX IF NOT EXISTS idx_engagement_broadcaster_person ON viewer_engagement(broadcaster_person_id, person_id)`);
+
       // Legacy table indexes
       db.run(`CREATE INDEX IF NOT EXISTS idx_platform_categories_platform ON platform_categories(platform)`);
       db.run(`CREATE INDEX IF NOT EXISTS idx_category_stats_platform ON category_stats(platform, platform_category_id)`);
