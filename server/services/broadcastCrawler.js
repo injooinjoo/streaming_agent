@@ -828,17 +828,30 @@ class BroadcastCrawler {
     const topBroadcasts = broadcasts.slice(0, this.maxAutoConnections);
     const currentChannelIds = new Set(topBroadcasts.map((b) => b.channelId));
 
+    // DEBUG: 연결 시도 통계
+    let attempted = 0;
+    let connected = 0;
+    let failed = 0;
+
     // 1. 새로운 채널 연결
     for (const broadcast of topBroadcasts) {
       const adapterKey = this.getAdapterKey(platform, broadcast.channelId);
 
       if (!this.activeAdapters.has(adapterKey)) {
+        attempted++;
         try {
           await this.connectToChannel(platform, broadcast);
+          connected++;
         } catch (error) {
+          failed++;
           // "not live" errors are expected during crawling - don't log as error
         }
       }
+    }
+
+    // DEBUG: 연결 시도 요약
+    if (attempted > 0) {
+      console.log(`[crawler:debug] ${platform} 연결 시도: ${attempted}, 성공: ${connected}, 실패: ${failed}`);
     }
 
     // 2. 순위 밖으로 밀려난 채널 연결 해제
@@ -909,6 +922,7 @@ class BroadcastCrawler {
 
     adapter.on("connected", () => {
       this.autoConnectedChannels.add(adapterKey);
+      console.log(`[crawler:debug] ✅ ${platform} adapter connected: ${broadcast.channelId}`);
     });
 
     adapter.on("disconnected", () => {
@@ -920,6 +934,10 @@ class BroadcastCrawler {
       const msg = error.message || "";
       if (!msg.includes("not live") && !msg.includes("not found")) {
         broadcastLogger.error(`[${platform}:auto] Error:`, { error: msg });
+      }
+      // DEBUG: chzzk 연결 실패 추적
+      if (platform === "chzzk") {
+        console.log(`[crawler:debug] ❌ chzzk error for ${broadcast.channelId}: ${msg}`);
       }
     });
 

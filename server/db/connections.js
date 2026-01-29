@@ -1,56 +1,16 @@
 /**
  * Database Connections Manager
- * Supports SQLite (development) and PostgreSQL/Supabase (production)
+ * PostgreSQL/Supabase only - SQLite support removed
  *
  * Usage:
- * - development: Uses SQLite (unified.db)
- * - staging/production: Uses PostgreSQL via DATABASE_URL
+ * - All environments use PostgreSQL via DATABASE_URL
  */
 
-const path = require("path");
 const { getConfig, isPostgres, isSQLite, getSQLHelpers } = require("../config/database.config");
 const { db: dbLogger } = require("../services/logger");
 
-// Database instances
-let db = null;
+// Database instance
 let pool = null;
-
-// Database file paths (for SQLite)
-const UNIFIED_DB_PATH = path.resolve(__dirname, "../unified.db");
-
-// Legacy paths (for migration reference)
-const LEGACY_OVERLAY_DB_PATH = path.resolve(__dirname, "../weflab_clone.db");
-const LEGACY_STREAMING_DB_PATH = path.resolve(__dirname, "../streaming_data.db");
-
-/**
- * Initialize SQLite database
- * @returns {Promise<sqlite3.Database>}
- */
-const initializeSQLite = async () => {
-  const sqlite3 = require("sqlite3").verbose();
-  const { initializeUnifiedDatabase } = require("./unified-init");
-
-  return new Promise((resolve, reject) => {
-    db = new sqlite3.Database(UNIFIED_DB_PATH, async (err) => {
-      if (err) {
-        dbLogger.error("Failed to connect to SQLite database", { error: err.message });
-        reject(err);
-        return;
-      }
-
-      dbLogger.info("Connected to SQLite database", { path: UNIFIED_DB_PATH });
-
-      try {
-        await initializeUnifiedDatabase(db);
-        dbLogger.info("SQLite database initialized successfully");
-        resolve(db);
-      } catch (initErr) {
-        dbLogger.error("Failed to initialize SQLite tables", { error: initErr.message });
-        reject(initErr);
-      }
-    });
-  });
-};
 
 /**
  * Initialize PostgreSQL database (Supabase)
@@ -84,9 +44,6 @@ const initializePostgres = async () => {
       poolSize: config.pool?.max || 20,
     });
 
-    // Note: Schema initialization for PostgreSQL is handled via migrations
-    // Run: node server/db/migrations/001_initial_schema.sql
-
     return pool;
   } catch (err) {
     dbLogger.error("Failed to connect to PostgreSQL database", { error: err.message });
@@ -95,8 +52,8 @@ const initializePostgres = async () => {
 };
 
 /**
- * Initialize database based on environment
- * @returns {Promise<sqlite3.Database|pg.Pool>}
+ * Initialize database
+ * @returns {Promise<pg.Pool>}
  */
 const initializeDatabase = async () => {
   const config = getConfig();
@@ -106,11 +63,7 @@ const initializeDatabase = async () => {
     client: config.client,
   });
 
-  if (isPostgres()) {
-    return initializePostgres();
-  } else {
-    return initializeSQLite();
-  }
+  return initializePostgres();
 };
 
 /**
@@ -118,43 +71,30 @@ const initializeDatabase = async () => {
  * @returns {Promise<void>}
  */
 const closeDatabase = async () => {
-  if (isPostgres() && pool) {
+  if (pool) {
     await pool.end();
     dbLogger.info("PostgreSQL connection pool closed");
     pool = null;
-  } else if (db) {
-    return new Promise((resolve, reject) => {
-      db.close((err) => {
-        if (err) {
-          dbLogger.error("Error closing SQLite database", { error: err.message });
-          reject(err);
-        } else {
-          dbLogger.info("SQLite database connection closed");
-          db = null;
-          resolve();
-        }
-      });
-    });
   }
 };
 
 /**
  * Get database instance
- * @returns {sqlite3.Database|pg.Pool|null}
+ * @returns {pg.Pool|null}
  */
-const getDb = () => (isPostgres() ? pool : db);
+const getDb = () => pool;
 
 /**
  * Get overlay database instance (backward compatibility alias)
  * @deprecated Use getDb() instead
- * @returns {sqlite3.Database|pg.Pool|null}
+ * @returns {pg.Pool|null}
  */
 const getOverlayDb = () => getDb();
 
 /**
  * Get streaming database instance (backward compatibility alias)
  * @deprecated Use getDb() instead
- * @returns {sqlite3.Database|pg.Pool|null}
+ * @returns {pg.Pool|null}
  */
 const getStreamingDb = () => getDb();
 
@@ -176,148 +116,79 @@ const initializeDatabases = async () => {
 const closeDatabases = closeDatabase;
 
 // ============================================
-// Query Helper Functions (Cross-DB Compatible)
+// Query Helper Functions (PostgreSQL)
 // ============================================
 
 /**
  * Convert SQLite-style ? placeholders to PostgreSQL-style $1, $2, etc.
  * @param {string} sql - SQL query with ? placeholders
- * @returns {string} - SQL query with $1, $2 placeholders for PostgreSQL
+ * @returns {string} - SQL query with $1, $2 placeholders
  */
 const convertPlaceholders = (sql) => {
-  if (!isPostgres()) return sql;
-
   let index = 0;
   return sql.replace(/\?/g, () => `$${++index}`);
 };
 
 /**
  * Run database query with promise wrapper
- * Works with both SQLite and PostgreSQL
- * Automatically converts ? placeholders to $1, $2 for PostgreSQL
  * @param {string} sql - SQL query
  * @param {Array} params - Query parameters
  * @returns {Promise<{lastID?: number, changes?: number, rowCount?: number}>}
  */
 const runQuery = async (sql, params = []) => {
-  if (isPostgres()) {
-    const pgSql = convertPlaceholders(sql);
-    const result = await pool.query(pgSql, params);
-    return {
-      lastID: result.rows[0]?.id,
-      changes: result.rowCount,
-      rowCount: result.rowCount,
-    };
-  } else {
-    return new Promise((resolve, reject) => {
-      db.run(sql, params, function (err) {
-        if (err) reject(err);
-        else resolve({ lastID: this.lastID, changes: this.changes });
-      });
-    });
-  }
+  const pgSql = convertPlaceholders(sql);
+  const result = await pool.query(pgSql, params);
+  return {
+    lastID: result.rows[0]?.id,
+    changes: result.rowCount,
+    rowCount: result.rowCount,
+  };
 };
 
 /**
  * Get single row from database
- * Works with both SQLite and PostgreSQL
- * Automatically converts ? placeholders to $1, $2 for PostgreSQL
  * @param {string} sql - SQL query
  * @param {Array} params - Query parameters
  * @returns {Promise<any>}
  */
 const getOne = async (sql, params = []) => {
-  if (isPostgres()) {
-    const pgSql = convertPlaceholders(sql);
-    const result = await pool.query(pgSql, params);
-    return result.rows[0] || null;
-  } else {
-    return new Promise((resolve, reject) => {
-      db.get(sql, params, (err, row) => {
-        if (err) reject(err);
-        else resolve(row);
-      });
-    });
-  }
+  const pgSql = convertPlaceholders(sql);
+  const result = await pool.query(pgSql, params);
+  return result.rows[0] || null;
 };
 
 /**
  * Get all rows from database
- * Works with both SQLite and PostgreSQL
- * Automatically converts ? placeholders to $1, $2 for PostgreSQL
  * @param {string} sql - SQL query
  * @param {Array} params - Query parameters
  * @returns {Promise<Array>}
  */
 const getAll = async (sql, params = []) => {
-  if (isPostgres()) {
-    const pgSql = convertPlaceholders(sql);
-    const result = await pool.query(pgSql, params);
-    return result.rows || [];
-  } else {
-    return new Promise((resolve, reject) => {
-      db.all(sql, params, (err, rows) => {
-        if (err) reject(err);
-        else resolve(rows || []);
-      });
-    });
-  }
+  const pgSql = convertPlaceholders(sql);
+  const result = await pool.query(pgSql, params);
+  return result.rows || [];
 };
 
 /**
- * Execute query with RETURNING clause (PostgreSQL) or get lastID (SQLite)
- * Automatically converts ? placeholders to $1, $2 for PostgreSQL
- * @param {string} sql - SQL query (should include RETURNING for PostgreSQL)
+ * Execute query with RETURNING clause
+ * @param {string} sql - SQL query (should include RETURNING)
  * @param {Array} params - Query parameters
  * @returns {Promise<any>} - Returns the inserted/updated row
  */
 const runReturning = async (sql, params = []) => {
-  if (isPostgres()) {
-    // PostgreSQL: Use RETURNING clause with converted placeholders
-    const pgSql = convertPlaceholders(sql);
-    const result = await pool.query(pgSql, params);
-    return result.rows[0] || null;
-  } else {
-    // SQLite: Run query and fetch the row by lastID
-    return new Promise((resolve, reject) => {
-      db.run(sql.replace(/\s+RETURNING\s+.*/i, ""), params, function (err) {
-        if (err) {
-          reject(err);
-          return;
-        }
-        const lastID = this.lastID;
-        // Extract table name from INSERT statement
-        const tableMatch = sql.match(/INSERT\s+INTO\s+(\w+)/i);
-        if (tableMatch && lastID) {
-          db.get(`SELECT * FROM ${tableMatch[1]} WHERE id = ?`, [lastID], (err2, row) => {
-            if (err2) reject(err2);
-            else resolve(row);
-          });
-        } else {
-          resolve({ id: lastID, changes: this.changes });
-        }
-      });
-    });
-  }
+  const pgSql = convertPlaceholders(sql);
+  const result = await pool.query(pgSql, params);
+  return result.rows[0] || null;
 };
 
 /**
  * Begin transaction
- * @returns {Promise<any>} - Transaction client (PostgreSQL) or void (SQLite)
+ * @returns {Promise<any>} - Transaction client
  */
 const beginTransaction = async () => {
-  if (isPostgres()) {
-    const client = await pool.connect();
-    await client.query("BEGIN");
-    return client;
-  } else {
-    return new Promise((resolve, reject) => {
-      db.run("BEGIN TRANSACTION", (err) => {
-        if (err) reject(err);
-        else resolve(db);
-      });
-    });
-  }
+  const client = await pool.connect();
+  await client.query("BEGIN");
+  return client;
 };
 
 /**
@@ -326,17 +197,8 @@ const beginTransaction = async () => {
  * @returns {Promise<void>}
  */
 const commitTransaction = async (client) => {
-  if (isPostgres()) {
-    await client.query("COMMIT");
-    client.release();
-  } else {
-    return new Promise((resolve, reject) => {
-      db.run("COMMIT", (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-  }
+  await client.query("COMMIT");
+  client.release();
 };
 
 /**
@@ -345,17 +207,8 @@ const commitTransaction = async (client) => {
  * @returns {Promise<void>}
  */
 const rollbackTransaction = async (client) => {
-  if (isPostgres()) {
-    await client.query("ROLLBACK");
-    client.release();
-  } else {
-    return new Promise((resolve, reject) => {
-      db.run("ROLLBACK", (err) => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
-  }
+  await client.query("ROLLBACK");
+  client.release();
 };
 
 module.exports = {
@@ -373,7 +226,7 @@ module.exports = {
   commitTransaction,
   rollbackTransaction,
 
-  // SQL helpers for cross-DB compatibility
+  // SQL helpers for compatibility
   getSQLHelpers,
   isPostgres,
   isSQLite,
@@ -383,13 +236,4 @@ module.exports = {
   closeDatabases,
   getOverlayDb,
   getStreamingDb,
-
-  // Paths
-  UNIFIED_DB_PATH,
-  LEGACY_OVERLAY_DB_PATH,
-  LEGACY_STREAMING_DB_PATH,
-
-  // Legacy path aliases
-  OVERLAY_DB_PATH: LEGACY_OVERLAY_DB_PATH,
-  STREAMING_DB_PATH: LEGACY_STREAMING_DB_PATH,
 };

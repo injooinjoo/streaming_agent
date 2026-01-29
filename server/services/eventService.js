@@ -147,6 +147,51 @@ const createEventService = (_db, io, statsCacheService = null) => {
     },
 
     /**
+     * Save event from normalized format without emitting (for socket handlers that already emit)
+     * @param {Object} normalizedEvent - Normalized event from adapter
+     * @returns {Promise<Object>}
+     */
+    async saveFromNormalized(normalizedEvent) {
+      const eventType = normalizedEvent.type;
+      const platform = normalizedEvent.platform;
+      const actorNickname = normalizedEvent.sender?.nickname || "Anonymous";
+      const actorRole = normalizedEvent.sender?.role || null;
+      const targetChannelId = normalizedEvent.metadata?.channelId;
+      const message = normalizedEvent.content?.message || "";
+      const amount = normalizedEvent.content?.amount || null;
+      const originalAmount = normalizedEvent.content?.originalAmount || null;
+      const currency = normalizedEvent.content?.currency || null;
+      const donationType = normalizedEvent.content?.donationType || null;
+      const eventTimestamp = normalizedEvent.metadata?.timestamp || new Date().toISOString();
+
+      const id = uuidv4();
+
+      await dbRun(
+        `INSERT INTO events (
+          id, event_type, platform,
+          actor_person_id, actor_nickname, actor_role,
+          target_person_id, target_channel_id, broadcast_id,
+          message, amount, original_amount, currency, donation_type,
+          event_timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          id, eventType, platform,
+          normalizedEvent.sender?.id || null, actorNickname, actorRole,
+          null, targetChannelId, null,
+          message, amount, originalAmount, currency, donationType,
+          eventTimestamp,
+        ]
+      );
+
+      // Invalidate stats cache on donation events
+      if (eventType === 'donation' && statsCacheService) {
+        statsCacheService.onDonationEvent().catch(() => {});
+      }
+
+      return { id, eventType, platform, actorNickname, amount };
+    },
+
+    /**
      * Get recent events
      * @param {number} limit - Max events to return
      * @returns {Promise<Array>}

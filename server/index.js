@@ -2,9 +2,9 @@
  * Streaming Agent Server
  * Main entry point - initializes database, Socket.io, and Express app
  *
- * Uses unified database (unified.db):
- * - Settings, users, ads, marketplace (formerly weflab_clone.db)
- * - Events, viewer stats, categories (formerly streaming_data.db)
+ * Uses PostgreSQL/Supabase database:
+ * - Settings, users, ads, marketplace
+ * - Events, viewer stats, categories
  */
 
 const http = require("http");
@@ -18,7 +18,7 @@ validateEnv(process.env.NODE_ENV === "production"); // Only exit in production
 
 // Application modules
 const { createApp } = require("./app");
-const { initializeDatabase, closeDatabase, getDb, getOne, runQuery, isPostgres } = require("./db/connections");
+const { initializeDatabase, closeDatabase, getDb, getOne, runQuery } = require("./db/connections");
 const { setupSocketHandlers } = require("./socket/handlers");
 
 // Platform Adapters
@@ -56,13 +56,10 @@ const DEMO_USER = {
 /**
  * Initialize demo user for development mode
  * Creates the user in DB if not exists, or returns existing user
- * Works with both SQLite and PostgreSQL
  */
 const initializeDemoUser = async () => {
   try {
-    // Use parameterized query - PostgreSQL uses $1, SQLite uses ?
-    const paramPlaceholder = isPostgres() ? '$1' : '?';
-    const user = await getOne(`SELECT * FROM users WHERE email = ${paramPlaceholder}`, [DEMO_USER.email]);
+    const user = await getOne(`SELECT * FROM users WHERE email = $1`, [DEMO_USER.email]);
 
     if (user) {
       // User exists, export the hash for auth middleware
@@ -74,18 +71,9 @@ const initializeDemoUser = async () => {
     // Create new demo user with generated hash
     const overlayHash = crypto.randomBytes(8).toString("hex");
 
-    let insertQuery;
-    let insertParams;
-
-    if (isPostgres()) {
-      insertQuery = `INSERT INTO users (email, display_name, role, overlay_hash, channel_id, platform)
-                     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
-      insertParams = [DEMO_USER.email, DEMO_USER.displayName, DEMO_USER.role, overlayHash, DEMO_USER.channelId, DEMO_USER.platform];
-    } else {
-      insertQuery = `INSERT INTO users (email, display_name, role, overlay_hash, channel_id, platform)
-                     VALUES (?, ?, ?, ?, ?, ?)`;
-      insertParams = [DEMO_USER.email, DEMO_USER.displayName, DEMO_USER.role, overlayHash, DEMO_USER.channelId, DEMO_USER.platform];
-    }
+    const insertQuery = `INSERT INTO users (email, display_name, role, overlay_hash, channel_id, platform)
+                         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`;
+    const insertParams = [DEMO_USER.email, DEMO_USER.displayName, DEMO_USER.role, overlayHash, DEMO_USER.channelId, DEMO_USER.platform];
 
     const result = await runQuery(insertQuery, insertParams);
     module.exports.demoUserOverlayHash = overlayHash;
@@ -176,6 +164,7 @@ const main = async () => {
       db,
       ChzzkAdapter,
       SoopAdapter,
+      eventService,
     });
     socketLogger.info("Socket.io handlers initialized (with overlay auto-connect)");
 

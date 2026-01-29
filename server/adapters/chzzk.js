@@ -329,6 +329,13 @@ class ChzzkAdapter extends BaseAdapter {
         const profile = msg.profile ? JSON.parse(msg.profile) : {};
         const extras = msg.extras ? JSON.parse(msg.extras) : {};
 
+        // DEBUG: userIdHash 상태 확인 (첫 10개 메시지만)
+        if (!this._debugCount) this._debugCount = 0;
+        if (this._debugCount < 10) {
+          console.log(`[chzzk:debug] userIdHash="${profile.userIdHash}" (type=${typeof profile.userIdHash}), nickname="${profile.nickname}"`);
+          this._debugCount++;
+        }
+
         const event = {
           id: uuidv4(),
           type: "chat",

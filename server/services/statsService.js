@@ -1428,11 +1428,20 @@ const createStatsService = () => {
         console.error('Failed to fetch game categories:', err);
       }
 
+      // Return null for empty data to distinguish from actual 0 values
+      // - donationCount > 0: data exists, show actual values
+      // - donationCount === 0: no donation data, show null (displays as "--")
+      // - peakViewers === null: no broadcast data, show null
+      // - newSubs === 0: no subscription events, show null
+      const hasDonationData = todayStats?.donationCount > 0;
+      const hasBroadcastData = peakViewers?.peakViewers !== null && peakViewers?.peakViewers !== undefined;
+      const hasSubscribeData = subscribeCount?.newSubs > 0;
+
       return {
-        todayDonation: todayStats?.todayDonation || 0,
-        donationCount: todayStats?.donationCount || 0,
-        peakViewers: peakViewers?.peakViewers || 0,
-        newSubs: subscribeCount?.newSubs || 0,
+        todayDonation: hasDonationData ? todayStats.todayDonation : null,
+        donationCount: hasDonationData ? todayStats.donationCount : null,
+        peakViewers: hasBroadcastData ? peakViewers.peakViewers : null,
+        newSubs: hasSubscribeData ? subscribeCount.newSubs : null,
         insights,
         myCategories,
         topCategories,

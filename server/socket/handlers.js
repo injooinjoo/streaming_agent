@@ -3,9 +3,11 @@
  * Centralized WebSocket event management for overlays
  *
  * Uses cross-database compatible helpers from connections.js
+ * Stores events to Supabase via statsStorageService
  */
 
 const { getOne, isPostgres } = require("../db/connections");
+const statsStorage = require("../services/statsStorageService");
 
 /**
  * Get placeholder for parameterized queries
@@ -22,9 +24,10 @@ const overlayAdapters = new Map();
  * @param {Object} options.db - Database instance (kept for backward compatibility)
  * @param {Function} options.ChzzkAdapter - Chzzk adapter class
  * @param {Function} options.SoopAdapter - Soop adapter class
+ * @param {Object} options.eventService - Event service for storing donation/subscribe events
  */
 const setupSocketHandlers = (io, options = {}) => {
-  const { ChzzkAdapter, SoopAdapter } = options;
+  const { ChzzkAdapter, SoopAdapter, eventService } = options;
 
   // Helper: Find user by overlay hash
   const findUserByOverlayHash = async (hash) => {
@@ -74,9 +77,25 @@ const setupSocketHandlers = (io, options = {}) => {
         const AdapterClass = user.platform === "chzzk" ? ChzzkAdapter : SoopAdapter;
         const adapter = new AdapterClass({ channelId: user.channel_id });
 
-        // Forward events to overlay room
-        adapter.on("event", (event) => {
+        // Forward events to overlay room and store to database
+        adapter.on("event", async (event) => {
+          // Forward to overlay clients
           io.to(`overlay:${hash}`).emit("new-event", event);
+
+          // Store event to database (non-blocking)
+          try {
+            if (event.type === "donation" || event.type === "subscribe") {
+              // Donation/subscribe → events table (no re-emit, already emitted above)
+              if (eventService) {
+                await eventService.saveFromNormalized(event);
+              }
+            } else {
+              // chat, viewer-update, user-enter, user-exit → stats tables
+              await statsStorage.processEvent(event);
+            }
+          } catch (err) {
+            console.error(`[Storage] Failed to store ${event.type}:`, err.message);
+          }
         });
 
         adapter.on("connected", () => {

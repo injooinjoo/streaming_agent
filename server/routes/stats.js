@@ -733,12 +733,13 @@ const createStatsRouter = (
       const channelId = req.query.channelId || null;
       const platform = req.query.platform || null;
 
-      // If not authenticated and no channelId, return empty dashboard prompting login
+      // If not authenticated and no channelId, return null values to indicate no data
       if (!req.user && !channelId) {
         return res.json({
-          todayDonation: 0,
-          peakViewers: 0,
-          newSubs: 0,
+          todayDonation: null,
+          donationCount: null,
+          peakViewers: null,
+          newSubs: null,
           insights: [
             {
               type: "info",
@@ -746,6 +747,7 @@ const createStatsRouter = (
               value: null
             }
           ],
+          myCategories: [],
           topCategories: [],
           requiresAuth: true
         });
