@@ -188,17 +188,22 @@ const main = async () => {
       // Initialize Category Service in background (after server is listening)
       categoryService.initialize().then(() => {
         // Initialize Broadcast Crawler Service after category service is ready
-        const broadcastCrawler = new BroadcastCrawler(db, io, {
-          ChzzkAdapter,
-          SoopAdapter,
-          activeAdapters,
-          normalizer,
-          ViewerEngagementService,
-          eventService,
-        });
-        broadcastCrawler.startScheduledCrawl();
-        logger.info("Broadcast crawler started (5 min interval, auto-connect top 50)");
-        module.exports.broadcastCrawler = broadcastCrawler;
+        // Skip if ENABLE_CRAWLER=false (for Cloud Run deployment)
+        if (process.env.ENABLE_CRAWLER !== 'false') {
+          const broadcastCrawler = new BroadcastCrawler(db, io, {
+            ChzzkAdapter,
+            SoopAdapter,
+            activeAdapters,
+            normalizer,
+            ViewerEngagementService,
+            eventService,
+          });
+          broadcastCrawler.startScheduledCrawl();
+          logger.info("Broadcast crawler started (5 min interval, auto-connect top 50)");
+          module.exports.broadcastCrawler = broadcastCrawler;
+        } else {
+          logger.info("Broadcast crawler disabled (ENABLE_CRAWLER=false)");
+        }
 
         // Warm up stats cache and start schedulers (after category service is ready)
         if (statsCacheService) {

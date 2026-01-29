@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js",
+    "crawler": "node crawler-only.js",
     "test": "echo \"Error: no test specified\" && exit 1",
     "db:migrate": "knex migrate:latest --knexfile db/knexfile.js",
     "db:rollback": "knex migrate:rollback --knexfile db/knexfile.js",
