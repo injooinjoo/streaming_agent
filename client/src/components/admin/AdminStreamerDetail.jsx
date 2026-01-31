@@ -650,7 +650,7 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
                   <tr key={campaign.campaignId}>
                     <td style={{ fontWeight: 600 }}>{campaign.campaignName}</td>
                     <td style={{ fontSize: 12, color: '#64748b' }}>{campaign.period}</td>
-                    <td style={{ fontWeight: 600 }}>{campaign.conversions.toLocaleString()}</td>
+                    <td style={{ fontWeight: 600 }}>{(campaign.conversions || 0).toLocaleString()}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{

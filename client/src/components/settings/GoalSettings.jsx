@@ -628,7 +628,7 @@ const GoalSettings = () => {
                   onChange={(e) => setTestValue(parseInt(e.target.value))}
                   style={{ flex: 1 }}
                 />
-                <span className="unit-value">{testValue.toLocaleString()}</span>
+                <span className="unit-value">{(testValue || 0).toLocaleString()}</span>
               </div>
             </div>
 

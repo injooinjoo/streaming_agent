@@ -1045,7 +1045,7 @@ const ChatOverlay = ({
       {activeSettings.viewerCount?.enabled && activeSettings.viewerCount?.position === 'top' && (
         <div className="viewer-widget top">
           <span className="viewer-icon">👥</span>
-          <span className="viewer-count">{viewerCountValue.toLocaleString()}</span>
+          <span className="viewer-count">{(viewerCountValue || 0).toLocaleString()}</span>
         </div>
       )}
 
@@ -1233,7 +1233,7 @@ const ChatOverlay = ({
       {activeSettings.viewerCount?.enabled && activeSettings.viewerCount?.position === 'bottom' && (
         <div className="viewer-widget bottom">
           <span className="viewer-icon">👥</span>
-          <span className="viewer-count">{viewerCountValue.toLocaleString()}</span>
+          <span className="viewer-count">{(viewerCountValue || 0).toLocaleString()}</span>
         </div>
       )}
     </div>

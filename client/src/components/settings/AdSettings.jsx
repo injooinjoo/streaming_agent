@@ -505,7 +505,7 @@ const AdSettings = () => {
             <Eye size={14} />
           </div>
           <div className="stat-content">
-            <span className="value">{revenueStats.totalImpressions.toLocaleString()}</span>
+            <span className="value">{(revenueStats.totalImpressions || 0).toLocaleString()}</span>
             <span className="subtext">회</span>
           </div>
         </div>
@@ -515,7 +515,7 @@ const AdSettings = () => {
             <MousePointerClick size={14} />
           </div>
           <div className="stat-content">
-            <span className="value">{revenueStats.totalClicks.toLocaleString()}</span>
+            <span className="value">{(revenueStats.totalClicks || 0).toLocaleString()}</span>
             <span className="subtext">CTR {revenueStats.ctr}%</span>
           </div>
         </div>
@@ -525,8 +525,8 @@ const AdSettings = () => {
             <TrendingUp size={14} />
           </div>
           <div className="stat-content">
-            <span className="value">₩{revenueStats.totalRevenue.toLocaleString()}</span>
-            <span className="subtext">정산 대기 ₩{revenueStats.pendingSettlement.toLocaleString()}</span>
+            <span className="value">₩{(revenueStats.totalRevenue || 0).toLocaleString()}</span>
+            <span className="subtext">정산 대기 ₩{(revenueStats.pendingSettlement || 0).toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -746,7 +746,7 @@ const AdSettings = () => {
                   {settlement.period}
                 </div>
                 <div className="settlement-amount">
-                  ₩{settlement.revenue.toLocaleString()}
+                  ₩{(settlement.revenue || 0).toLocaleString()}
                 </div>
                 <div className={`settlement-status ${settlement.status}`}>
                   {settlement.status === 'paid' && <Check size={14} />}

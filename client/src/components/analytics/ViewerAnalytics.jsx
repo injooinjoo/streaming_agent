@@ -180,7 +180,7 @@ const ViewerAnalytics = () => {
           change=""
           trend="neutral"
           icon={<TrendingUp size={18} />}
-          subtitle={`인당 평균 ${avgChatsPerViewer.toLocaleString()}개`}
+          subtitle={`인당 평균 ${(avgChatsPerViewer || 0).toLocaleString()}개`}
         />
         <AnalyticsCard
           title="피크 시간대"
@@ -225,7 +225,7 @@ const ViewerAnalytics = () => {
               <YAxis yAxisId="right" orientation="right" stroke={chartColors.textMuted} fontSize={12} />
               <Tooltip
                 contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }}
-                formatter={(value, name) => [value.toLocaleString(), name]}
+                formatter={(value, name) => [(value || 0).toLocaleString(), name]}
               />
               <Legend />
               <Area
@@ -257,7 +257,7 @@ const ViewerAnalytics = () => {
               <YAxis stroke={chartColors.textMuted} fontSize={12} />
               <Tooltip
                 contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }}
-                formatter={(value, name) => [value.toLocaleString(), name]}
+                formatter={(value, name) => [(value || 0).toLocaleString(), name]}
               />
               <Bar dataKey="viewers" name="시청자 수" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             </BarChart>
@@ -280,7 +280,7 @@ const ViewerAnalytics = () => {
               <YAxis yAxisId="right" orientation="right" stroke={chartColors.textMuted} fontSize={12} />
               <Tooltip
                 contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }}
-                formatter={(value, name) => [value.toLocaleString(), name]}
+                formatter={(value, name) => [(value || 0).toLocaleString(), name]}
               />
               <Legend />
               <Bar yAxisId="left" dataKey="viewers" name="시청자 수" fill="#3b82f6" radius={[4, 4, 0, 0]} />

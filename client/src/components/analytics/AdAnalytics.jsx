@@ -182,7 +182,7 @@ const AdAnalytics = () => {
         />
         <AnalyticsCard
           title="총 노출수"
-          value={totalImpressions.toLocaleString()}
+          value={(totalImpressions || 0).toLocaleString()}
           change=""
           trend="neutral"
           icon={<Eye size={18} />}
@@ -244,7 +244,7 @@ const AdAnalytics = () => {
               <Tooltip
                 formatter={(value, name) => {
                   if (name === '수익') return formatCurrency(value);
-                  return value.toLocaleString();
+                  return (value || 0).toLocaleString();
                 }}
                 contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }}
               />
@@ -325,8 +325,8 @@ const AdAnalytics = () => {
                     {row.status === 'active' ? '활성' : '일시중지'}
                   </span>
                 </td>
-                <td><span className="sensitive-blur">{row.impressions.toLocaleString()}</span></td>
-                <td><span className="sensitive-blur">{row.clicks.toLocaleString()}</span></td>
+                <td><span className="sensitive-blur">{(row.impressions || 0).toLocaleString()}</span></td>
+                <td><span className="sensitive-blur">{(row.clicks || 0).toLocaleString()}</span></td>
                 <td style={{ color: parseFloat(row.ctr) >= 3 ? '#10b981' : 'inherit', fontWeight: parseFloat(row.ctr) >= 3 ? 600 : 400 }}>
                   <span className="sensitive-blur">{row.ctr}%</span>
                 </td>
@@ -354,7 +354,7 @@ const AdAnalytics = () => {
             <p style={{ opacity: 0.9, fontSize: '14px' }}>
               {totalImpressions > 0 ? (
                 <>
-                  총 <span className="sensitive-blur">{totalImpressions.toLocaleString()}</span>회 노출, <span className="sensitive-blur">{totalClicks.toLocaleString()}</span>회 클릭으로
+                  총 <span className="sensitive-blur">{(totalImpressions || 0).toLocaleString()}</span>회 노출, <span className="sensitive-blur">{(totalClicks || 0).toLocaleString()}</span>회 클릭으로
                   <strong className="sensitive-blur"> {formatCurrency(totalRevenue)}</strong>의 수익을 달성했습니다.
                 </>
               ) : (

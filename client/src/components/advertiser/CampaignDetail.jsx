@@ -285,7 +285,7 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
               <div className="campaign-info-item">
                 <span className="campaign-info-label">일일 예산</span>
                 <span className="campaign-info-value">
-                  {campaign.budget_daily > 0 ? `₩${campaign.budget_daily.toLocaleString()}` : '제한 없음'}
+                  {campaign.budget_daily > 0 ? `₩${(campaign.budget_daily || 0).toLocaleString()}` : '제한 없음'}
                 </span>
               </div>
               <div className="campaign-info-item">

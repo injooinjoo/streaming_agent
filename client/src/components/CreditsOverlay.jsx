@@ -115,7 +115,7 @@ const CreditsOverlay = ({
                     <>
                       <span className="item-name">{item.name}</span>
                       {item.role && <span className="item-role">{item.role}</span>}
-                      {item.amount && <span className="item-amount">{item.amount.toLocaleString()}원</span>}
+                      {item.amount && <span className="item-amount">{(item.amount || 0).toLocaleString()}원</span>}
                     </>
                   )}
                 </div>

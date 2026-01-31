@@ -348,7 +348,7 @@ const ContentAnalytics = () => {
               <YAxis yAxisId="right" orientation="right" stroke={chartColors.textMuted} fontSize={12} />
               <Tooltip
                 contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }}
-                formatter={(value, name) => [value.toLocaleString(), name]}
+                formatter={(value, name) => [(value || 0).toLocaleString(), name]}
               />
               <Legend />
               <Bar yAxisId="left" dataKey="donations" name="후원금 (만원)" fill="#3b82f6" radius={[4, 4, 0, 0]} />

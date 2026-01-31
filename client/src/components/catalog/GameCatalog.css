@@ -498,6 +498,25 @@
   color: var(--text-muted);
 }
 
+.game-catalog-card__rank {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(0, 0, 0, 0.65);
+  color: rgba(255, 255, 255, 0.85);
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  backdrop-filter: blur(8px);
+  z-index: 2;
+}
+
+.game-catalog-card__rank.top {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark, #6d28d9));
+  color: white;
+}
+
 .game-catalog-card__genre {
   position: absolute;
   top: 12px;

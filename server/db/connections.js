@@ -30,24 +30,33 @@ const initializePostgres = async () => {
     max: config.pool?.max || 20,
     min: config.pool?.min || 2,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 10000,
+    connectionTimeoutMillis: 30000,
   });
 
-  // Test connection
-  try {
-    const client = await pool.connect();
-    const result = await client.query("SELECT NOW()");
-    client.release();
+  // Test connection with retry
+  const maxRetries = 5;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const client = await pool.connect();
+      const result = await client.query("SELECT NOW()");
+      client.release();
 
-    dbLogger.info("Connected to PostgreSQL database", {
-      timestamp: result.rows[0].now,
-      poolSize: config.pool?.max || 20,
-    });
+      dbLogger.info("Connected to PostgreSQL database", {
+        timestamp: result.rows[0].now,
+        poolSize: config.pool?.max || 20,
+        attempt,
+      });
 
-    return pool;
-  } catch (err) {
-    dbLogger.error("Failed to connect to PostgreSQL database", { error: err.message });
-    throw err;
+      return pool;
+    } catch (err) {
+      dbLogger.warn(`Failed to connect to PostgreSQL (attempt ${attempt}/${maxRetries})`, { error: err.message });
+      if (attempt === maxRetries) {
+        dbLogger.error("Failed to connect to PostgreSQL database after all retries", { error: err.message });
+        throw err;
+      }
+      // Wait before retry: 2s, 4s, 6s, 8s
+      await new Promise(resolve => setTimeout(resolve, attempt * 2000));
+    }
   }
 };
 

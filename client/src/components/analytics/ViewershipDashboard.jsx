@@ -237,7 +237,7 @@ const ViewershipDashboard = () => {
                     border: '1px solid var(--border-subtle)',
                     borderRadius: '8px'
                   }}
-                  formatter={(value, name) => [value.toLocaleString(), name === 'chzzk' ? '치지직' : name === 'soop' ? 'SOOP' : '트위치']}
+                  formatter={(value, name) => [(value || 0).toLocaleString(), name === 'chzzk' ? '치지직' : name === 'soop' ? 'SOOP' : '트위치']}
                 />
                 <Line type="monotone" dataKey="chzzk" stroke="#00ffa3" strokeWidth={2} dot={false} name="chzzk" />
                 <Line type="monotone" dataKey="soop" stroke="#3b82f6" strokeWidth={2} dot={false} name="soop" />
@@ -276,14 +276,14 @@ const ViewershipDashboard = () => {
                 />
                 <div className="realtime-platform-info">
                   <div className="realtime-platform-name">{platform.name}</div>
-                  <div className="realtime-platform-channels">{platform.channels.toLocaleString()} 채널</div>
+                  <div className="realtime-platform-channels">{(platform.channels || 0).toLocaleString()} 채널</div>
                 </div>
                 <div className="realtime-platform-viewers">
                   <div>
-                    <span className="realtime-viewers-value sensitive-blur">{platform.viewers.toLocaleString()}</span>
+                    <span className="realtime-viewers-value sensitive-blur">{(platform.viewers || 0).toLocaleString()}</span>
                     <span className="realtime-viewers-unit">명</span>
                   </div>
-                  <div className="realtime-platform-peak">최고 <span className="sensitive-blur">{platform.peak.toLocaleString()}</span>명</div>
+                  <div className="realtime-platform-peak">최고 <span className="sensitive-blur">{(platform.peak || 0).toLocaleString()}</span>명</div>
                 </div>
               </div>
             )) : (
@@ -378,7 +378,7 @@ const ViewershipDashboard = () => {
                     border: '1px solid var(--border-subtle)',
                     borderRadius: '8px'
                   }}
-                  formatter={(value) => [`${value.toLocaleString()}`, '']}
+                  formatter={(value) => [`${(value || 0).toLocaleString()}`, '']}
                 />
                 <Area
                   type="monotone"

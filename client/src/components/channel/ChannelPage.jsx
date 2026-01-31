@@ -219,7 +219,7 @@ const ChannelPage = () => {
           <div className="live-stats">
             <div className="live-stat">
               <Eye size={18} />
-              <span className="live-stat-value">{liveStatus.viewers.toLocaleString()}</span>
+              <span className="live-stat-value">{(liveStatus.viewers || 0).toLocaleString()}</span>
               <span className="live-stat-label">시청자</span>
             </div>
           </div>
@@ -333,7 +333,7 @@ const ChannelPage = () => {
           <div className="stat-icon"><DollarSign size={24} /></div>
           <div className="stat-info">
             <span className="stat-label">총 후원 수익</span>
-            <span className="stat-value">₩{channelData.stats.totalDonations.toLocaleString()}</span>
+            <span className="stat-value">₩{(channelData.stats.totalDonations || 0).toLocaleString()}</span>
           </div>
         </div>
         <div className="stat-card">

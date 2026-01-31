@@ -639,7 +639,7 @@ const SubtitleSettings = () => {
                   borderRadius: '6px',
                   marginBottom: '4px'
                 }}>
-                  <span>{evt.sender}: {evt.amount.toLocaleString()}원</span>
+                  <span>{evt.sender}: {(evt.amount || 0).toLocaleString()}원</span>
                   <button
                     onClick={() => setTestEvents(prev => prev.filter(e => e.id !== evt.id))}
                     style={{

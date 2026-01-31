@@ -257,7 +257,7 @@ const MarketplacePage = () => {
                 <div className="design-stats">
                   <div className="stat">
                     <Download size={14} />
-                    <span>{design.downloadCount.toLocaleString()}</span>
+                    <span>{(design.downloadCount || 0).toLocaleString()}</span>
                   </div>
                   <div className="stat">
                     <Star size={14} fill="#f59e0b" stroke="#f59e0b" />

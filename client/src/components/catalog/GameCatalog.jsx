@@ -94,7 +94,7 @@ const GameCatalog = ({ onGameSelect }) => {
   const topGame = useMemo(() => {
     if (!games.length) return null;
     return games.reduce((top, game) =>
-      (game.totalViewers > (top?.totalViewers || 0)) ? game : top
+      (Number(game.totalViewers) > Number(top?.totalViewers || 0)) ? game : top
     , games[0]);
   }, [games]);
 
@@ -177,7 +177,7 @@ const GameCatalog = ({ onGameSelect }) => {
             <span className="game-catalog-stat__value">
               {formatNumber(stats?.total_viewers || 0)}
             </span>
-            <span className="game-catalog-stat__label">총 시청자</span>
+            <span className="game-catalog-stat__label">실시간 총 시청자</span>
           </div>
         </div>
         <div className="game-catalog-stat glass-premium">
@@ -186,7 +186,7 @@ const GameCatalog = ({ onGameSelect }) => {
             <span className="game-catalog-stat__value">
               {formatNumber(stats?.total_streamers || 0)}
             </span>
-            <span className="game-catalog-stat__label">활성 스트리머</span>
+            <span className="game-catalog-stat__label">실시간 방송 중</span>
           </div>
         </div>
         <div className="game-catalog-stat glass-premium">
@@ -323,16 +323,20 @@ const GameCatalog = ({ onGameSelect }) => {
 
       {/* 게임 그리드 */}
       <div className="game-catalog-grid">
-        {filteredGames.map(game => (
+        {filteredGames.map((game, index) => (
           <div
             key={game.id}
             className="game-catalog-card glass-premium"
             onClick={() => {
-              console.log('[GameCatalog] Card clicked - game.id:', game.id, 'name:', game.nameKr || game.name);
               onGameSelect(game.id);
             }}
           >
             <div className="game-catalog-card__image">
+              {!searchTerm && (
+                <div className={`game-catalog-card__rank ${index < 3 ? 'top' : ''}`}>
+                  #{index + 1}
+                </div>
+              )}
               {game.imageUrl ? (
                 <img src={game.imageUrl} alt={game.nameKr || game.name} />
               ) : (

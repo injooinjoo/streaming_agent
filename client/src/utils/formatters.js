@@ -9,13 +9,14 @@
  * @returns {string} - 포맷된 문자열 (예: 1500 -> "1.5K", 1500000 -> "1.5M")
  */
 export const formatNumber = (num) => {
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(1) + 'M';
+  const n = Number(num) || 0;
+  if (n >= 1000000) {
+    return (n / 1000000).toFixed(1) + 'M';
   }
-  if (num >= 1000) {
-    return (num / 1000).toFixed(1) + 'K';
+  if (n >= 1000) {
+    return (n / 1000).toFixed(1) + 'K';
   }
-  return num.toLocaleString();
+  return n.toLocaleString();
 };
 
 /**
@@ -24,5 +25,5 @@ export const formatNumber = (num) => {
  * @returns {string} - 포맷된 문자열 (예: 1500 -> "1,500")
  */
 export const formatFullNumber = (num) => {
-  return num.toLocaleString();
+  return (Number(num) || 0).toLocaleString();
 };

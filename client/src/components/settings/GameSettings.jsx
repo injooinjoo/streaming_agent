@@ -270,7 +270,7 @@ const GameSettings = () => {
             </div>
             <div className="rank-info">
               <span className="tier-badge challenger">{data.tier}</span>
-              {data.lp.toLocaleString()} LP
+              {(data.lp || 0).toLocaleString()} LP
             </div>
             <div className="recent-games">
               {data.recentGames.map((game, i) => (
@@ -319,7 +319,7 @@ const GameSettings = () => {
             <div className="rank-info">Lv.{data.level} {data.job}</div>
             <div className="stats-row">
               <div className="stat-item">
-                <div className="stat-value">{data.legion.toLocaleString()}</div>
+                <div className="stat-value">{(data.legion || 0).toLocaleString()}</div>
                 <div className="stat-label">유니온</div>
               </div>
               <div className="stat-item">
@@ -334,7 +334,7 @@ const GameSettings = () => {
         return (
           <div className="overlay-preview-card">
             <div className="player-name">⚽ {data.nickname}</div>
-            <div className="rank-info">{data.division} · {data.rating.toLocaleString()} RP</div>
+            <div className="rank-info">{data.division} · {(data.rating || 0).toLocaleString()} RP</div>
             <div className="stats-row">
               <div className="stat-item">
                 <div className="stat-value">{data.winRate}%</div>
@@ -372,7 +372,7 @@ const GameSettings = () => {
             <div className="player-name">🪖 {data.nickname}</div>
             <div className="rank-info">
               <span className="tier-badge master">{data.tier}</span>
-              {data.rp.toLocaleString()} RP
+              {(data.rp || 0).toLocaleString()} RP
             </div>
             <div className="stats-row">
               <div className="stat-item">
@@ -393,7 +393,7 @@ const GameSettings = () => {
             <div className="player-name">♟️ {data.nickname}</div>
             <div className="rank-info">
               <span className="tier-badge grandmaster">{data.tier}</span>
-              {data.lp.toLocaleString()} LP
+              {(data.lp || 0).toLocaleString()} LP
             </div>
             <div className="stats-row">
               <div className="stat-item">

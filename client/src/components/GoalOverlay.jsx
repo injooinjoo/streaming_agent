@@ -199,7 +199,7 @@ const GoalOverlay = ({
         <div className="goal-header">
           <span className="goal-title">{title}</span>
           <span className="goal-values">
-            {activeCurrentValue.toLocaleString()} / {targetValue.toLocaleString()}
+            {(activeCurrentValue || 0).toLocaleString()} / {(targetValue || 0).toLocaleString()}
           </span>
         </div>
         <div className="goal-bar-bg" style={{ height: `${thickness}px` }}>

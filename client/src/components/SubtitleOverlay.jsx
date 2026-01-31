@@ -97,7 +97,7 @@ const SubtitleOverlay = ({
       }
       return (activeSettings.textFormat || '{닉네임} {금액}')
         .replace('{닉네임}', latest.sender)
-        .replace('{금액}', `${latest.amount.toLocaleString()}원`);
+        .replace('{금액}', `${(latest.amount || 0).toLocaleString()}원`);
     }
 
     if (activeSettings.mode === 'ranking') {
@@ -123,7 +123,7 @@ const SubtitleOverlay = ({
           {displayData.map(([name, amount], idx) => (
             <div key={name} className="ranking-item">
               {activeSettings.showMedals && <Medal size={activeSettings.fontSize} className={`medal-${idx + 1}`} />}
-              <span>{name} {amount.toLocaleString()}원</span>
+              <span>{name} {(amount || 0).toLocaleString()}원</span>
             </div>
           ))}
         </div>
@@ -157,7 +157,7 @@ const SubtitleOverlay = ({
         return acc;
       }, {});
       const mvp = Object.entries(ranks).sort(([, a], [, b]) => b - a)[0];
-      return `🏆 MVP: ${mvp[0]} (${mvp[1].toLocaleString()}원)`;
+      return `🏆 MVP: ${mvp[0]} (${(mvp[1] || 0).toLocaleString()}원)`;
     }
 
     if (activeSettings.mode === 'image') {

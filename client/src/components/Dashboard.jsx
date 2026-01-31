@@ -266,7 +266,7 @@ const Dashboard = () => {
                 <ChevronRight size={14} />
               </div>
               <div className="stat-content">
-                <span className="value sensitive-blur">₩{dashboardData.todayDonation.toLocaleString()}</span>
+                <span className="value sensitive-blur">₩{(dashboardData.todayDonation || 0).toLocaleString()}</span>
                 <span className="subtext">이번 달 누적</span>
               </div>
               <div className="stat-link">
@@ -280,7 +280,7 @@ const Dashboard = () => {
                 <ChevronRight size={14} />
               </div>
               <div className="stat-content">
-                <span className="value sensitive-blur">{dashboardData.peakViewers.toLocaleString()}</span>
+                <span className="value sensitive-blur">{(dashboardData.peakViewers || 0).toLocaleString()}</span>
                 <span className="subtext">이번 달 기준</span>
               </div>
               <div className="stat-link">
@@ -555,7 +555,7 @@ const Dashboard = () => {
                           </span>
                         </div>
                         <div style={{ fontWeight: 500 }}>{ev.sender}</div>
-                        <div className="amount-cell">₩{ev.amount.toLocaleString()}</div>
+                        <div className="amount-cell">₩{(ev.amount || 0).toLocaleString()}</div>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                           <button className="btn btn-sm btn-primary" style={{ padding: '4px 12px', fontSize: '12px' }}>
                             재생
@@ -610,7 +610,7 @@ const Dashboard = () => {
                   <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
                     <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 후원 금액</div>
                     <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--primary-color)' }}>
-                      ₩{dashboardData.todayDonation.toLocaleString()}
+                      ₩{(dashboardData.todayDonation || 0).toLocaleString()}
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>이번 달</div>
                   </div>
@@ -624,7 +624,7 @@ const Dashboard = () => {
                   <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
                     <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>최고 시청자</div>
                     <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                      {dashboardData.peakViewers.toLocaleString()}
+                      {(dashboardData.peakViewers || 0).toLocaleString()}
                     </div>
                     <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>이번 달</div>
                   </div>
