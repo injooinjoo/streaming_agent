@@ -1,0 +1,35 @@
+steps:
+  # Build the container image using Dockerfile
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/streaming-agent:latest', '.']
+
+  # Push the container image to Container Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/streaming-agent:latest']
+
+  # Deploy container image to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'streaming-agent'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/streaming-agent:latest'
+      - '--region'
+      - 'asia-northeast3'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '3001'
+      - '--memory'
+      - '512Mi'
+      - '--timeout'
+      - '300'
+      - '--set-env-vars'
+      # 맥미니 로컬 DB 사용 (공유기 포트포워딩 필요: 외부 5432 → 맥미니 IP:5432)
+      - 'NODE_ENV=production,ENABLE_CRAWLER=false,DB_MODE=local,DATABASE_URL_LOCAL=postgresql://streaming_user:<DB_PASSWORD>@<PUBLIC_IP>:5432/streaming_agent,DATABASE_SSL=false,JWT_SECRET=<JWT_SECRET>,JWT_REFRESH_SECRET=<JWT_REFRESH_SECRET>,ADMIN_ACCESS_CODE=<ADMIN_CODE>'
+      # Supabase로 전환 시 위 줄을 아래로 교체:
+      # - 'ENABLE_CRAWLER=false,DB_MODE=supabase,DATABASE_URL_SUPABASE=postgresql://postgres:<PASSWORD>@db.xxx.supabase.co:5432/postgres'
+
+images:
+  - 'gcr.io/$PROJECT_ID/streaming-agent:latest'
