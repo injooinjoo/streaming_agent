@@ -1,0 +1,52 @@
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {1.1}{\ignorespaces \xpg@aux {}{korean}넥슨이 직면한 3가지 구조적 문제}}{9}{table.caption.6}%
+\contentsline {table}{\numberline {1.2}{\ignorespaces \xpg@aux {}{korean}데이터 수집 시도와 한계}}{10}{table.caption.7}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {2.1}{\ignorespaces \xpg@aux {}{korean}사업 질문과 필요 데이터 매핑}}{11}{table.caption.8}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces \xpg@aux {}{korean}플랫폼별 후원 정규화 매핑}}{14}{table.caption.11}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces \xpg@aux {}{korean}위플랩 vs Streaming Agent 비교}}{14}{table.caption.12}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {4.1}{\ignorespaces \xpg@aux {}{korean}Streaming Agent 오버레이 목록}}{17}{table.caption.17}%
+\contentsline {table}{\numberline {4.2}{\ignorespaces \xpg@aux {}{korean}중립성 유지를 위한 핵심 원칙}}{18}{table.caption.18}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces \xpg@aux {}{korean}마케팅 관점의 데이터 활용}}{19}{table.caption.19}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces \xpg@aux {}{korean}게임 개발/운영 관점의 데이터 활용}}{19}{table.caption.20}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {6.1}{\ignorespaces \xpg@aux {}{korean}서비스 운영 모델}}{21}{table.caption.21}%
+\contentsline {table}{\numberline {6.2}{\ignorespaces \xpg@aux {}{korean}광고 슬롯 유형}}{22}{table.caption.22}%
+\contentsline {table}{\numberline {6.3}{\ignorespaces \xpg@aux {}{korean}국내 스트리밍 오버레이 시장 현황}}{22}{table.caption.23}%
+\contentsline {table}{\numberline {6.4}{\ignorespaces \xpg@aux {}{korean}연간 비용 구조 추정}}{23}{table.caption.24}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {7.1}{\ignorespaces \xpg@aux {}{korean}사업 리스크 분석 및 대응 전략}}{24}{table.caption.25}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {8.1}{\ignorespaces \xpg@aux {}{korean}단계별 실행 계획 요약}}{26}{table.caption.26}%
+\contentsline {table}{\numberline {8.2}{\ignorespaces \xpg@aux {}{korean}단계별 핵심 KPI}}{26}{table.caption.27}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {9.1}{\ignorespaces \xpg@aux {}{korean}기술 스택}}{29}{table.caption.28}%
+\contentsline {table}{\numberline {9.2}{\ignorespaces \xpg@aux {}{korean}플랫폼별 어댑터 특성}}{30}{table.caption.30}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {10.1}{\ignorespaces \xpg@aux {}{korean}테이블 그룹 요약}}{33}{table.caption.32}%
+\contentsline {table}{\numberline {10.2}{\ignorespaces persons 테이블 (15 컬럼)}}{33}{table.10.2}%
+\contentsline {table}{\numberline {10.3}{\ignorespaces events 테이블 (16 컬럼)}}{34}{table.10.3}%
+\contentsline {table}{\numberline {10.4}{\ignorespaces broadcasts 테이블 (18 컬럼)}}{34}{table.10.4}%
+\contentsline {table}{\numberline {10.5}{\ignorespaces broadcast\_segments 테이블 (10 컬럼)}}{35}{table.10.5}%
+\contentsline {table}{\numberline {10.6}{\ignorespaces viewer\_engagement 테이블 (12 컬럼)}}{35}{table.10.6}%
+\contentsline {table}{\numberline {10.7}{\ignorespaces viewer\_snapshots 테이블 (9 컬럼)}}{36}{table.10.7}%
+\contentsline {table}{\numberline {10.8}{\ignorespaces chat\_stats 테이블 (8 컬럼)}}{36}{table.10.8}%
+\contentsline {table}{\numberline {10.9}{\ignorespaces platform\_categories 테이블 (11 컬럼)}}{37}{table.10.9}%
+\contentsline {table}{\numberline {10.10}{\ignorespaces unified\_games 테이블 (10 컬럼)}}{38}{table.10.10}%
+\contentsline {table}{\numberline {10.11}{\ignorespaces category\_game\_mappings 테이블 (7 컬럼)}}{38}{table.10.11}%
+\contentsline {table}{\numberline {10.12}{\ignorespaces \xpg@aux {}{korean}오버레이 설정 관련 테이블}}{39}{table.caption.34}%
+\contentsline {table}{\numberline {10.13}{\ignorespaces users 테이블 (12 컬럼)}}{39}{table.10.13}%
+\contentsline {table}{\numberline {10.14}{\ignorespaces \xpg@aux {}{korean}광고 시스템 테이블}}{40}{table.caption.35}%
+\contentsline {table}{\numberline {10.15}{\ignorespaces \xpg@aux {}{korean}마켓플레이스 테이블}}{40}{table.caption.36}%
+\contentsline {table}{\numberline {10.16}{\ignorespaces \xpg@aux {}{korean}Socket.io 이벤트 목록}}{41}{table.caption.37}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {11.1}{\ignorespaces \xpg@aux {}{korean}API 그룹별 엔드포인트 요약}}{42}{table.caption.38}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {12.1}{\ignorespaces \xpg@aux {}{korean}핵심 기술 과제 및 대응 방안}}{45}{table.caption.43}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {다.1}{\ignorespaces 플랫폼 원본 $\rightarrow $ UnifiedEvent 매핑}}{51}{table.다.1}%

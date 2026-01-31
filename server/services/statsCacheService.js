@@ -31,6 +31,8 @@ const STATS_KEYS = {
   REALTIME_TREND: "stats:realtime:trend",
   TOP_STREAMERS_REVENUE: "stats:top-streamers:revenue",
   TOP_STREAMERS_VIEWERS: "stats:top-streamers:viewers",
+  RANKING_LIVE: "stats:ranking:live",
+  RANKING_PEAK: "stats:ranking:peak",
 };
 
 // TTL (초)

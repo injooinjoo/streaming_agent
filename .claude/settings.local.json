@@ -233,7 +233,9 @@
       "Bash(tlmgr list:*)",
       "Bash(sudo tlmgr install:*)",
       "Bash(tlmgr install:*)",
-      "Bash(fc-list:*)"
+      "Bash(fc-list:*)",
+      "Bash(git rebase:*)",
+      "Bash(GIT_EDITOR=true git rebase:*)"
     ]
   }
 }

@@ -2110,6 +2110,146 @@ const createStatsService = () => {
         activeUsers: row.activeViewers || 0
       }));
     },
+
+    /**
+     * 실시간 방송 랭킹 - 현재 라이브 방송을 시청자수 내림차순 정렬
+     * @param {Object} options
+     * @param {string|null} options.platform - 플랫폼 필터 (soop/chzzk/null=전체)
+     * @param {number} options.limit - 결과 수 (기본 20)
+     * @returns {Promise<Array>}
+     */
+    async getLiveBroadcastRanking({ platform = null, limit = 20 } = {}) {
+      const conditions = [
+        `b.is_live = TRUE`,
+        `b.current_viewer_count >= 10`,
+        `b.updated_at >= ${sql.dateSubtract(30, 'minutes')}`,
+      ];
+      const params = [];
+      let idx = 1;
+
+      if (platform) {
+        conditions.push(`b.platform = ${p(idx++)}`);
+        params.push(platform);
+      }
+
+      params.push(limit);
+
+      const rows = await dbAll(
+        `SELECT
+          b.id,
+          b.platform,
+          b.channel_id,
+          b.title,
+          b.current_viewer_count,
+          b.peak_viewer_count,
+          b.started_at,
+          b.thumbnail_url,
+          b.updated_at,
+          p.nickname as broadcaster_name,
+          p.profile_image_url,
+          seg.category_name
+        FROM broadcasts b
+        LEFT JOIN persons p ON b.broadcaster_person_id = p.id
+        LEFT JOIN (
+          SELECT broadcast_id, category_name
+          FROM broadcast_segments
+          WHERE id IN (
+            SELECT MAX(id) FROM broadcast_segments GROUP BY broadcast_id
+          )
+        ) seg ON seg.broadcast_id = b.id
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY b.current_viewer_count DESC
+        LIMIT ${p(idx)}`,
+        params
+      );
+
+      return (rows || []).map((row, index) => ({
+        rank: index + 1,
+        platform: row.platform,
+        channelId: row.channel_id,
+        title: row.title,
+        broadcasterName: row.broadcaster_name || '알 수 없음',
+        profileImageUrl: row.profile_image_url,
+        thumbnailUrl: row.thumbnail_url,
+        categoryName: row.category_name || '',
+        currentViewers: row.current_viewer_count || 0,
+        peakViewers: row.peak_viewer_count || 0,
+        startedAt: row.started_at,
+        updatedAt: row.updated_at,
+      }));
+    },
+
+    /**
+     * 최고 시청자수 랭킹 - 최근 N시간 내 피크 시청자수 기준
+     * @param {Object} options
+     * @param {string|null} options.platform - 플랫폼 필터 (soop/chzzk/null=전체)
+     * @param {number} options.limit - 결과 수 (기본 20)
+     * @param {number} options.hours - 조회 시간 범위 (기본 18)
+     * @returns {Promise<Array>}
+     */
+    async getPeakBroadcastRanking({ platform = null, limit = 20, hours = 18 } = {}) {
+      const conditions = [
+        `b.peak_viewer_count > 0`,
+        `b.updated_at >= ${sql.dateSubtract(hours, 'hours')}`,
+      ];
+      const params = [];
+      let idx = 1;
+
+      if (platform) {
+        conditions.push(`b.platform = ${p(idx++)}`);
+        params.push(platform);
+      }
+
+      params.push(limit);
+
+      const rows = await dbAll(
+        `SELECT
+          b.id,
+          b.platform,
+          b.channel_id,
+          b.title,
+          b.current_viewer_count,
+          b.peak_viewer_count,
+          b.is_live,
+          b.started_at,
+          b.ended_at,
+          b.thumbnail_url,
+          b.updated_at,
+          p.nickname as broadcaster_name,
+          p.profile_image_url,
+          seg.category_name
+        FROM broadcasts b
+        LEFT JOIN persons p ON b.broadcaster_person_id = p.id
+        LEFT JOIN (
+          SELECT broadcast_id, category_name
+          FROM broadcast_segments
+          WHERE id IN (
+            SELECT MAX(id) FROM broadcast_segments GROUP BY broadcast_id
+          )
+        ) seg ON seg.broadcast_id = b.id
+        WHERE ${conditions.join(' AND ')}
+        ORDER BY b.peak_viewer_count DESC
+        LIMIT ${p(idx)}`,
+        params
+      );
+
+      return (rows || []).map((row, index) => ({
+        rank: index + 1,
+        platform: row.platform,
+        channelId: row.channel_id,
+        title: row.title,
+        broadcasterName: row.broadcaster_name || '알 수 없음',
+        profileImageUrl: row.profile_image_url,
+        thumbnailUrl: row.thumbnail_url,
+        categoryName: row.category_name || '',
+        currentViewers: row.current_viewer_count || 0,
+        peakViewers: row.peak_viewer_count || 0,
+        isLive: row.is_live,
+        startedAt: row.started_at,
+        endedAt: row.ended_at,
+        updatedAt: row.updated_at,
+      }));
+    },
   };
 };
 

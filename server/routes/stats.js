@@ -1019,6 +1019,61 @@ const createStatsRouter = (
     }
   });
 
+  // ===== 방송 랭킹 API =====
+
+  /**
+   * 실시간 방송 랭킹 - 현재 라이브 방송을 시청자수 내림차순
+   * GET /api/stats/ranking/live?platform=soop&limit=20
+   */
+  router.get("/stats/ranking/live", authenticateToken, async (req, res) => {
+    try {
+      const platform = req.query.platform || null;
+      const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+
+      if (statsCacheService) {
+        const key = statsCacheService.buildKey(STATS_KEYS.RANKING_LIVE, { platform, limit });
+        const result = await statsCacheService.getOrCompute(
+          key,
+          () => statsService.getLiveBroadcastRanking({ platform, limit }),
+          TTL.FAST
+        );
+        return res.json(result);
+      }
+
+      const result = await statsService.getLiveBroadcastRanking({ platform, limit });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
+   * 최고 시청자수 랭킹 - 최근 N시간 내 피크 시청자수 기준
+   * GET /api/stats/ranking/peak?platform=chzzk&limit=20&hours=18
+   */
+  router.get("/stats/ranking/peak", authenticateToken, async (req, res) => {
+    try {
+      const platform = req.query.platform || null;
+      const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
+      const hours = Math.min(parseInt(req.query.hours, 10) || 18, 48);
+
+      if (statsCacheService) {
+        const key = statsCacheService.buildKey(STATS_KEYS.RANKING_PEAK, { platform, limit, hours });
+        const result = await statsCacheService.getOrCompute(
+          key,
+          () => statsService.getPeakBroadcastRanking({ platform, limit, hours }),
+          TTL.FAST
+        );
+        return res.json(result);
+      }
+
+      const result = await statsService.getPeakBroadcastRanking({ platform, limit, hours });
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   return router;
 };
 

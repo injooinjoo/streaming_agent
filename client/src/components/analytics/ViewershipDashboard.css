@@ -767,4 +767,280 @@
   .categories-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .broadcast-ranking-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== 방송 랭킹 섹션 ===== */
+
+.broadcast-ranking-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.ranking-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  padding: 20px;
+  overflow: hidden;
+}
+
+.ranking-header {
+  margin-bottom: 16px;
+}
+
+.ranking-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.ranking-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.ranking-platform-tabs {
+  display: flex;
+  gap: 6px;
+}
+
+.ranking-platform-tabs button {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.ranking-platform-tabs button:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.ranking-platform-tabs button.active {
+  background: var(--primary);
+  color: var(--text-on-primary);
+  border-color: var(--primary);
+}
+
+.ranking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.ranking-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  transition: all 0.15s;
+  cursor: default;
+}
+
+.ranking-item:hover {
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
+  transform: translateX(2px);
+}
+
+.ranking-position {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.05));
+}
+
+.ranking-position.rank-1 {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  color: #000;
+}
+
+.ranking-position.rank-2 {
+  background: linear-gradient(135deg, #c0c0c0, #a0a0a0);
+  color: #000;
+}
+
+.ranking-position.rank-3 {
+  background: linear-gradient(135deg, #cd7f32, #b06a28);
+  color: #fff;
+}
+
+.ranking-profile {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ranking-profile-img {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.ranking-profile-placeholder {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.05));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+.ranking-platform-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid var(--bg-card);
+  background: var(--bg-card);
+  object-fit: contain;
+}
+
+.ranking-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ranking-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ranking-live-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #ef4444;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.ranking-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ranking-category {
+  color: var(--primary);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.ranking-category::after {
+  content: '·';
+  margin-left: 4px;
+  color: var(--text-muted);
+}
+
+.ranking-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ranking-viewers {
+  text-align: right;
+  flex-shrink: 0;
+  min-width: 70px;
+}
+
+.ranking-viewers-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.ranking-elapsed {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ranking-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+/* 랭킹 반응형 */
+@media (max-width: 1200px) {
+  .broadcast-ranking-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .ranking-card {
+    padding: 16px;
+  }
+
+  .ranking-item {
+    gap: 8px;
+    padding: 8px 4px;
+  }
+
+  .ranking-profile-img {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ranking-profile-placeholder {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ranking-platform-badge {
+    width: 14px;
+    height: 14px;
+  }
+
+  .ranking-name {
+    font-size: 13px;
+  }
+
+  .ranking-viewers-value {
+    font-size: 13px;
+  }
 }

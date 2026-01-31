@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { Clock, Users, TrendingUp, DollarSign, RefreshCw, LogIn, Monitor, Gamepad2 } from 'lucide-react';
+import { Clock, Users, TrendingUp, DollarSign, RefreshCw, LogIn, Monitor, Gamepad2, Flame, Trophy } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../shared/LoadingSpinner';
@@ -27,6 +27,10 @@ const ViewershipDashboard = () => {
   });
   const [viewerTrend, setViewerTrend] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [liveBroadcasts, setLiveBroadcasts] = useState([]);
+  const [peakBroadcasts, setPeakBroadcasts] = useState([]);
+  const [liveRankPlatform, setLiveRankPlatform] = useState(null);
+  const [peakRankPlatform, setPeakRankPlatform] = useState(null);
   const [authError, setAuthError] = useState(false);
 
   const { isAuthenticated, accessToken, loading: authLoading } = useAuth();
@@ -63,6 +67,23 @@ const ViewershipDashboard = () => {
     } catch (err) {
       console.error('Failed to fetch realtime trend:', err);
     }
+  };
+
+  const fetchRanking = async (type, platform = null) => {
+    const headers = {
+      'Content-Type': 'application/json',
+      ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
+    };
+    try {
+      const params = new URLSearchParams({ limit: '20' });
+      if (platform) params.set('platform', platform);
+      if (type === 'peak') params.set('hours', '18');
+      const res = await fetch(`${API_URL}/api/stats/ranking/${type}?${params}`, { headers });
+      if (res.ok) return await res.json();
+    } catch (err) {
+      console.error(`Failed to fetch ${type} ranking:`, err);
+    }
+    return [];
   };
 
   const fetchData = async () => {
@@ -105,6 +126,14 @@ const ViewershipDashboard = () => {
       setCategories(categoriesData.data || []);
       setRealtimeSummary(realtimeSummaryData);
       setRealtimeTrend(realtimeTrendData);
+
+      // Fetch ranking data in parallel
+      const [liveData, peakData] = await Promise.all([
+        fetchRanking('live', liveRankPlatform),
+        fetchRanking('peak', peakRankPlatform)
+      ]);
+      setLiveBroadcasts(liveData);
+      setPeakBroadcasts(peakData);
     } catch (err) {
       console.error('Failed to fetch viewership data:', err);
     } finally {
@@ -130,6 +159,27 @@ const ViewershipDashboard = () => {
       return `${(num / 1000).toFixed(1)}천`;
     }
     return num.toLocaleString();
+  };
+
+  const getElapsedTime = (startedAt) => {
+    if (!startedAt) return '';
+    const diff = Date.now() - new Date(startedAt).getTime();
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    if (hours > 0) return `${hours}시간 ${minutes}분`;
+    return `${minutes}분`;
+  };
+
+  const handleLiveRankPlatform = async (platform) => {
+    setLiveRankPlatform(platform);
+    const data = await fetchRanking('live', platform);
+    setLiveBroadcasts(data);
+  };
+
+  const handlePeakRankPlatform = async (platform) => {
+    setPeakRankPlatform(platform);
+    const data = await fetchRanking('peak', platform);
+    setPeakBroadcasts(data);
   };
 
   const now = new Date();
@@ -294,6 +344,107 @@ const ViewershipDashboard = () => {
           </div>
           <div className="realtime-update-time">
             {updateTime}
+          </div>
+        </div>
+      </section>
+
+      {/* 방송 랭킹 섹션 */}
+      <section className="broadcast-ranking-section">
+        {/* 실시간 방송 랭킹 */}
+        <div className="ranking-card">
+          <div className="ranking-header">
+            <div className="ranking-title">
+              <Flame size={18} />
+              실시간 방송 랭킹
+            </div>
+            <div className="ranking-platform-tabs">
+              <button className={liveRankPlatform === null ? 'active' : ''} onClick={() => handleLiveRankPlatform(null)}>전체</button>
+              <button className={liveRankPlatform === 'soop' ? 'active' : ''} onClick={() => handleLiveRankPlatform('soop')}>SOOP</button>
+              <button className={liveRankPlatform === 'chzzk' ? 'active' : ''} onClick={() => handleLiveRankPlatform('chzzk')}>Chzzk</button>
+            </div>
+          </div>
+          <div className="ranking-list">
+            {liveBroadcasts.length > 0 ? liveBroadcasts.map((item) => (
+              <div key={item.channelId + '-' + item.rank} className="ranking-item">
+                <div className={`ranking-position rank-${item.rank <= 3 ? item.rank : 'default'}`}>
+                  {item.rank}
+                </div>
+                <div className="ranking-profile">
+                  {item.profileImageUrl ? (
+                    <img src={item.profileImageUrl} alt={item.broadcasterName} className="ranking-profile-img" />
+                  ) : (
+                    <div className="ranking-profile-placeholder"><Users size={16} /></div>
+                  )}
+                  {getPlatformLogo(item.platform) && (
+                    <img src={getPlatformLogo(item.platform)} alt={item.platform} className="ranking-platform-badge" />
+                  )}
+                </div>
+                <div className="ranking-info">
+                  <div className="ranking-name">{item.broadcasterName}</div>
+                  <div className="ranking-meta">
+                    {item.categoryName && <span className="ranking-category">{item.categoryName}</span>}
+                    <span className="ranking-title-text">{item.title}</span>
+                  </div>
+                </div>
+                <div className="ranking-viewers">
+                  <div className="ranking-viewers-value sensitive-blur">{formatNumber(item.currentViewers)}</div>
+                  <div className="ranking-elapsed">{getElapsedTime(item.startedAt)}</div>
+                </div>
+              </div>
+            )) : (
+              <div className="ranking-empty">실시간 방송 데이터가 없습니다</div>
+            )}
+          </div>
+        </div>
+
+        {/* 최고 시청자수 랭킹 */}
+        <div className="ranking-card">
+          <div className="ranking-header">
+            <div className="ranking-title">
+              <Trophy size={18} />
+              최고 시청자수 랭킹
+            </div>
+            <div className="ranking-subtitle">최근 18시간 기준</div>
+            <div className="ranking-platform-tabs">
+              <button className={peakRankPlatform === null ? 'active' : ''} onClick={() => handlePeakRankPlatform(null)}>전체</button>
+              <button className={peakRankPlatform === 'chzzk' ? 'active' : ''} onClick={() => handlePeakRankPlatform('chzzk')}>Chzzk</button>
+              <button className={peakRankPlatform === 'soop' ? 'active' : ''} onClick={() => handlePeakRankPlatform('soop')}>SOOP</button>
+            </div>
+          </div>
+          <div className="ranking-list">
+            {peakBroadcasts.length > 0 ? peakBroadcasts.map((item) => (
+              <div key={item.channelId + '-peak-' + item.rank} className="ranking-item">
+                <div className={`ranking-position rank-${item.rank <= 3 ? item.rank : 'default'}`}>
+                  {item.rank}
+                </div>
+                <div className="ranking-profile">
+                  {item.profileImageUrl ? (
+                    <img src={item.profileImageUrl} alt={item.broadcasterName} className="ranking-profile-img" />
+                  ) : (
+                    <div className="ranking-profile-placeholder"><Users size={16} /></div>
+                  )}
+                  {getPlatformLogo(item.platform) && (
+                    <img src={getPlatformLogo(item.platform)} alt={item.platform} className="ranking-platform-badge" />
+                  )}
+                </div>
+                <div className="ranking-info">
+                  <div className="ranking-name">
+                    {item.broadcasterName}
+                    {item.isLive && <span className="ranking-live-badge">LIVE</span>}
+                  </div>
+                  <div className="ranking-meta">
+                    {item.categoryName && <span className="ranking-category">{item.categoryName}</span>}
+                    <span className="ranking-title-text">{item.title}</span>
+                  </div>
+                </div>
+                <div className="ranking-viewers">
+                  <div className="ranking-viewers-value sensitive-blur">{formatNumber(item.peakViewers)}</div>
+                  <div className="ranking-elapsed">{getElapsedTime(item.startedAt)}</div>
+                </div>
+              </div>
+            )) : (
+              <div className="ranking-empty">최고 시청자 데이터가 없습니다</div>
+            )}
           </div>
         </div>
       </section>
