@@ -224,7 +224,16 @@
       "WebFetch(domain:corp.sooplive.co.kr)",
       "WebFetch(domain:seeklogo.com)",
       "Bash(unzip:*)",
-      "WebFetch(domain:en.wikipedia.org)"
+      "WebFetch(domain:en.wikipedia.org)",
+      "Bash(npx knex:*)",
+      "Bash(nslookup:*)",
+      "Bash(source .env)",
+      "Bash(kpsewhich:*)",
+      "Bash(xelatex:*)",
+      "Bash(tlmgr list:*)",
+      "Bash(sudo tlmgr install:*)",
+      "Bash(tlmgr install:*)",
+      "Bash(fc-list:*)"
     ]
   }
 }

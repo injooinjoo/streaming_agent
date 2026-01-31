@@ -1,5 +1,9 @@
 /**
- * Unified Database Initialization
+ * @deprecated SQLite support removed - PostgreSQL only
+ * This file is kept for migration reference only.
+ * Use Knex migrations in db/migrations/ for PostgreSQL schema management.
+ *
+ * Unified Database Initialization (Legacy SQLite)
  * Creates all tables for the unified streaming system
  *
  * Schema changes from previous split DB:

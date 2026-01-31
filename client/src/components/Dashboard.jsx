@@ -61,10 +61,10 @@ const Dashboard = () => {
   };
 
   const defaultDashboardData = {
-    todayDonation: 0,
-    donationCount: 0,
-    peakViewers: 0,
-    newSubs: 0,
+    todayDonation: null,
+    donationCount: null,
+    peakViewers: null,
+    newSubs: null,
     insights: [],
     myCategories: [],
     topCategories: []
@@ -266,8 +266,10 @@ const Dashboard = () => {
                 <ChevronRight size={14} />
               </div>
               <div className="stat-content">
-                <span className="value sensitive-blur">₩{(dashboardData.todayDonation || 0).toLocaleString()}</span>
-                <span className="subtext">이번 달 누적</span>
+                <span className={`value sensitive-blur ${dashboardData.todayDonation === null ? 'no-data' : ''}`}>
+                  {dashboardData.todayDonation === null ? '--' : `₩${dashboardData.todayDonation.toLocaleString()}`}
+                </span>
+                <span className="subtext">{dashboardData.todayDonation === null ? '데이터 수집 대기 중' : '이번 달 누적'}</span>
               </div>
               <div className="stat-link">
                 <span>수익 분석 보기</span>
@@ -280,8 +282,10 @@ const Dashboard = () => {
                 <ChevronRight size={14} />
               </div>
               <div className="stat-content">
-                <span className="value sensitive-blur">{(dashboardData.peakViewers || 0).toLocaleString()}</span>
-                <span className="subtext">이번 달 기준</span>
+                <span className={`value sensitive-blur ${dashboardData.peakViewers === null ? 'no-data' : ''}`}>
+                  {dashboardData.peakViewers === null ? '--' : dashboardData.peakViewers.toLocaleString()}
+                </span>
+                <span className="subtext">{dashboardData.peakViewers === null ? '데이터 수집 대기 중' : '이번 달 기준'}</span>
               </div>
               <div className="stat-link">
                 <span>시청자 분석 보기</span>
@@ -294,8 +298,10 @@ const Dashboard = () => {
                 <ChevronRight size={14} />
               </div>
               <div className="stat-content">
-                <span className="value sensitive-blur">{dashboardData.newSubs}</span>
-                <span className="subtext">이번 달 기준</span>
+                <span className={`value sensitive-blur ${dashboardData.newSubs === null ? 'no-data' : ''}`}>
+                  {dashboardData.newSubs === null ? '--' : dashboardData.newSubs.toLocaleString()}
+                </span>
+                <span className="subtext">{dashboardData.newSubs === null ? '데이터 수집 대기 중' : '이번 달 기준'}</span>
               </div>
               <div className="stat-link">
                 <span>수익 분석 보기</span>
@@ -586,9 +592,13 @@ const Dashboard = () => {
             };
 
             // 평균 후원 금액 (서버에서 받은 데이터 기반)
-            const avgDonation = dashboardData.donationCount > 0
+            const avgDonation = dashboardData.donationCount && dashboardData.donationCount > 0
               ? Math.round(dashboardData.todayDonation / dashboardData.donationCount)
-              : 0;
+              : null;
+
+            // Helper for displaying null-safe values
+            const formatValue = (val, prefix = '', suffix = '') =>
+              val === null ? '--' : `${prefix}${val.toLocaleString()}${suffix}`;
 
             return (
               <div className="table-container">
@@ -602,38 +612,38 @@ const Dashboard = () => {
                   </div>
                   <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
                     <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 후원 수</div>
-                    <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                      {dashboardData.donationCount}
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: dashboardData.donationCount === null ? 'var(--text-muted)' : 'var(--text-main)' }}>
+                      {formatValue(dashboardData.donationCount)}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>이번 달</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{dashboardData.donationCount === null ? '데이터 수집 대기 중' : '이번 달'}</div>
                   </div>
                   <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
                     <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 후원 금액</div>
-                    <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--primary-color)' }}>
-                      ₩{(dashboardData.todayDonation || 0).toLocaleString()}
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: dashboardData.todayDonation === null ? 'var(--text-muted)' : 'var(--primary-color)' }}>
+                      {formatValue(dashboardData.todayDonation, '₩')}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>이번 달</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{dashboardData.todayDonation === null ? '데이터 수집 대기 중' : '이번 달'}</div>
                   </div>
                   <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
                     <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>평균 후원 금액</div>
-                    <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                      ₩{avgDonation.toLocaleString()}
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: avgDonation === null ? 'var(--text-muted)' : 'var(--text-main)' }}>
+                      {formatValue(avgDonation, '₩')}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>후원당 평균</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{avgDonation === null ? '데이터 수집 대기 중' : '후원당 평균'}</div>
                   </div>
                   <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
                     <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>최고 시청자</div>
-                    <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                      {(dashboardData.peakViewers || 0).toLocaleString()}
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: dashboardData.peakViewers === null ? 'var(--text-muted)' : 'var(--text-main)' }}>
+                      {formatValue(dashboardData.peakViewers)}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>이번 달</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{dashboardData.peakViewers === null ? '데이터 수집 대기 중' : '이번 달'}</div>
                   </div>
                   <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
                     <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>신규 구독</div>
-                    <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                      {dashboardData.newSubs}
+                    <div style={{ fontSize: '28px', fontWeight: '700', color: dashboardData.newSubs === null ? 'var(--text-muted)' : 'var(--text-main)' }}>
+                      {formatValue(dashboardData.newSubs)}
                     </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>이번 달</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{dashboardData.newSubs === null ? '데이터 수집 대기 중' : '이번 달'}</div>
                   </div>
                 </div>
               </div>
