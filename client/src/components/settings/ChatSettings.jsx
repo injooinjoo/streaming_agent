@@ -30,6 +30,9 @@ const dummyChatPool = [
   { sender: '게임마스터', message: '이거 어떻게 깨요?', platform: 'youtube', role: 'regular' },
   { sender: '밤샘시청자', message: '졸리다...', platform: 'chzzk', role: 'regular' },
   { sender: '질문봇', message: '나이가 어떻게 되세요?', platform: 'soop', role: 'regular' },
+  { sender: '트위치팬', message: 'PogChamp 대박이다', platform: 'twitch', role: 'regular' },
+  { sender: '해외시청자', message: 'This stream is awesome!', platform: 'twitch', role: 'subscriber' },
+  { sender: '트위치구독자', message: 'Kappa ㅋㅋㅋㅋ', platform: 'twitch', role: 'fan' },
 ];
 
 const defaultSettings = {
@@ -1240,6 +1243,7 @@ const ChatSettings = () => {
                 >
                   <option value="SOOP">SOOP</option>
                   <option value="CHZZK">CHZZK</option>
+                  <option value="TWITCH">TWITCH</option>
                 </select>
                 <ChevronDown className="select-arrow" size={14} />
               </div>

@@ -500,6 +500,10 @@
   background: #3b82f6;
 }
 
+.legend-dot.twitch {
+  background: #9146ff;
+}
+
 /* 최근 활동 피드 */
 .activity-feed-section {
   margin-bottom: 24px;

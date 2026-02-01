@@ -352,6 +352,7 @@ const ViewershipDashboard = () => {
               <button className={liveRankPlatform === null ? 'active' : ''} onClick={() => handleLiveRankPlatform(null)}>전체</button>
               <button className={liveRankPlatform === 'soop' ? 'active' : ''} onClick={() => handleLiveRankPlatform('soop')}>SOOP</button>
               <button className={liveRankPlatform === 'chzzk' ? 'active' : ''} onClick={() => handleLiveRankPlatform('chzzk')}>Chzzk</button>
+              <button className={liveRankPlatform === 'twitch' ? 'active' : ''} onClick={() => handleLiveRankPlatform('twitch')}>Twitch</button>
             </div>
           </div>
           <div className="ranking-list">
@@ -402,8 +403,9 @@ const ViewershipDashboard = () => {
             <div className="ranking-subtitle">최근 18시간 기준</div>
             <div className="ranking-platform-tabs">
               <button className={peakRankPlatform === null ? 'active' : ''} onClick={() => handlePeakRankPlatform(null)}>전체</button>
-              <button className={peakRankPlatform === 'chzzk' ? 'active' : ''} onClick={() => handlePeakRankPlatform('chzzk')}>Chzzk</button>
               <button className={peakRankPlatform === 'soop' ? 'active' : ''} onClick={() => handlePeakRankPlatform('soop')}>SOOP</button>
+              <button className={peakRankPlatform === 'chzzk' ? 'active' : ''} onClick={() => handlePeakRankPlatform('chzzk')}>Chzzk</button>
+              <button className={peakRankPlatform === 'twitch' ? 'active' : ''} onClick={() => handlePeakRankPlatform('twitch')}>Twitch</button>
             </div>
           </div>
           <div className="ranking-list">
@@ -502,6 +504,10 @@ const ViewershipDashboard = () => {
                 <span className="legend-dot soop"></span>
                 SOOP
               </div>
+              <div className="legend-item">
+                <span className="legend-dot twitch"></span>
+                트위치
+              </div>
             </div>
           </div>
           {viewerTrend.length > 0 ? (
@@ -515,6 +521,10 @@ const ViewershipDashboard = () => {
                   <linearGradient id="colorSoop" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
                     <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                  </linearGradient>
+                  <linearGradient id="colorTwitch" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#9146ff" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="#9146ff" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
@@ -545,6 +555,15 @@ const ViewershipDashboard = () => {
                   fillOpacity={1}
                   fill="url(#colorSoop)"
                   name="SOOP"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="twitch"
+                  stroke="#9146ff"
+                  strokeWidth={2}
+                  fillOpacity={1}
+                  fill="url(#colorTwitch)"
+                  name="트위치"
                 />
               </AreaChart>
             </ResponsiveContainer>
@@ -588,6 +607,9 @@ const ViewershipDashboard = () => {
                     )}
                     {category.platforms?.includes('chzzk') && (
                       <img src="/assets/logos/chzzk.png" alt="Chzzk" />
+                    )}
+                    {category.platforms?.includes('twitch') && (
+                      <img src="/assets/logos/twitch.png" alt="Twitch" />
                     )}
                   </div>
                 </div>
