@@ -533,3 +533,39 @@
     text-align: center;
   }
 }
+
+/* ========================================
+   Mobile Responsive - 480px
+   ======================================== */
+@media (max-width: 480px) {
+  .bot-status-card {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .command-header {
+    padding: 12px 14px;
+  }
+
+  .command-body {
+    padding: 14px;
+  }
+
+  .trigger-type-selector {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .trigger-type-selector select {
+    width: 100%;
+  }
+
+  .bot-name-input {
+    font-size: 14px;
+  }
+
+  .btn-save-full {
+    padding: 12px;
+    font-size: 13px;
+  }
+}

@@ -811,3 +811,88 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ===== Mobile 480px ===== */
+@media (max-width: 480px) {
+  .overlay-type-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .theme-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .customizer-header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .customizer-header h1 {
+    font-size: 18px;
+  }
+
+  .customizer-content {
+    padding: 12px;
+  }
+
+  .customizer-sidebar {
+    padding: 12px;
+  }
+
+  .property-group {
+    padding: 12px;
+  }
+
+  .property-group h3 {
+    font-size: 13px;
+  }
+
+  .property-label {
+    font-size: 12px;
+  }
+
+  .property-input,
+  .property-select {
+    font-size: 13px;
+    padding: 6px 8px;
+  }
+
+  .code-editor {
+    min-height: 250px;
+    font-size: 12px;
+  }
+
+  .preview-container {
+    min-height: 200px;
+    padding: 12px;
+  }
+
+  .header-right {
+    gap: 6px;
+  }
+
+  .header-right button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .design-title-input {
+    font-size: 14px;
+  }
+
+  .overlay-type-item {
+    padding: 8px 4px;
+    font-size: 11px;
+  }
+
+  .theme-card {
+    padding: 10px;
+  }
+
+  .theme-card h4 {
+    font-size: 12px;
+  }
+}

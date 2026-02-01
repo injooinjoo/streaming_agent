@@ -228,6 +228,50 @@ input:focus {
   input, select, textarea {
     font-size: 16px; /* Prevent iOS zoom on focus */
   }
+
+  /* Touch targets */
+  button, [role="button"], .btn-primary {
+    min-height: 44px;
+  }
+
+  /* Prevent horizontal overflow */
+  .content-body {
+    overflow-x: hidden;
+  }
+
+  .premium-card {
+    padding: 20px;
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .premium-card {
+    padding: 16px;
+    border-radius: 12px;
+  }
+
+  .btn-primary {
+    padding: 8px 16px;
+    font-size: 13px;
+  }
+
+  .mode-selector-grid,
+  .type-selector-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-card {
+    padding: 12px;
+  }
+
+  .settings-grid {
+    gap: 12px;
+  }
+
+  .checkbox-group {
+    padding: 10px;
+  }
 }
 
 /* ===== Streaming Mode - 민감 정보 블러 ===== */

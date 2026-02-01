@@ -533,3 +533,77 @@
     padding: 20px;
   }
 }
+
+/* ===== Mobile 480px ===== */
+@media (max-width: 480px) {
+  .designs-grid,
+  .marketplace-grid.grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .design-card {
+    padding: 0;
+  }
+
+  .design-thumbnail {
+    height: 140px;
+  }
+
+  .design-info {
+    padding: 12px;
+  }
+
+  .design-info h3 {
+    font-size: 14px;
+  }
+
+  .design-meta {
+    font-size: 12px;
+    gap: 8px;
+  }
+
+  .marketplace-header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .marketplace-header h1 {
+    font-size: 18px;
+  }
+
+  .marketplace-filters {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .search-bar input {
+    font-size: 13px;
+  }
+
+  .category-tabs {
+    padding: 8px 12px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .category-tab {
+    flex-shrink: 0;
+    padding: 6px 10px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .design-actions {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .design-actions button {
+    font-size: 12px;
+    padding: 6px 10px;
+  }
+}

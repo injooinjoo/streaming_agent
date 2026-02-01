@@ -247,6 +247,7 @@
   font-weight: 900;
   margin-bottom: 15px;
   letter-spacing: 2px;
+  text-shadow: none;
 }
 
 .gradient-text {
@@ -1441,4 +1442,40 @@
   font-size: 24px;
   font-weight: 700;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+/* ===== Mobile Safety Overrides (OBS sources opened on mobile) ===== */
+@media (max-width: 480px) {
+  .alert-card {
+    min-width: unset;
+    width: 95%;
+  }
+
+  .goal-bar-container {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .emoji-container {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .goal-container {
+    min-width: unset;
+    width: 95%;
+  }
+
+  .voting-container {
+    min-width: unset;
+    width: 95%;
+  }
+
+  .credits-container {
+    width: 95%;
+  }
+
+  .credits-title {
+    font-size: 32px;
+  }
 }

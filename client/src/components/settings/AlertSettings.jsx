@@ -490,7 +490,7 @@ const AlertSettings = () => {
                             />
                             <div className="check-icon">{typeConfig.enabled && <Check size={10} />}</div>
                           </label>
-                          <span className="signature-number" style={{ flex: 1 }}>{typeConfig.label}</span>
+                          <span className="donation-type-label">{typeConfig.label}</span>
                           <button
                             className="btn-icon-small"
                             onClick={() => toggleDonationTypeExpand(typeKey)}

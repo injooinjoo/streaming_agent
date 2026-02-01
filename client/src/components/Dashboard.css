@@ -1354,20 +1354,20 @@
   }
 
   .top-nav {
-    padding: 16px 20px;
+    padding: 12px 16px;
     height: auto;
-    flex-wrap: wrap;
-    gap: 12px;
+    flex-wrap: nowrap;
+    gap: 8px;
   }
 
   .search-container {
-    max-width: none;
-    width: 100%;
+    display: none;
   }
 
   .top-actions {
-    width: 100%;
-    justify-content: space-between;
+    flex: 1;
+    justify-content: flex-end;
+    gap: 8px;
   }
 }
 
@@ -1540,6 +1540,80 @@
 
 /* 480px 이하: 소형 모바일 레이아웃 */
 @media (max-width: 480px) {
+  .content-body {
+    padding: 12px;
+  }
+
+  .page-title h1 {
+    font-size: 20px;
+  }
+
+  .stat-card {
+    padding: 16px;
+  }
+
+  .stat-content .value {
+    font-size: 22px;
+  }
+
+  .insights-section {
+    padding: 16px;
+  }
+
+  .insight-card {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .tab-btn {
+    padding: 8px 2px;
+    font-size: 13px;
+  }
+
+  .tabs-container {
+    gap: 12px;
+  }
+
+  .url-copy-box {
+    flex-direction: column;
+  }
+
+  .settings-card {
+    padding: 12px;
+    margin-bottom: 16px;
+  }
+
+  .card-header {
+    margin-bottom: 16px;
+  }
+
+  .card-header h3 {
+    font-size: 16px;
+  }
+
+  .settings-panel {
+    padding: 5px 0;
+  }
+
+  .simulator-card {
+    padding: 16px;
+    margin-top: 20px;
+  }
+
+  .action-bar {
+    bottom: 12px;
+  }
+
+  .save-btn {
+    padding: 10px 16px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .page-header {
+    margin-bottom: 20px;
+  }
+
   /* 카테고리 카드 - 1열 풀 너비 */
   .category-card {
     flex: 1 1 100%;

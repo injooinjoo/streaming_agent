@@ -246,6 +246,95 @@ function createCategoriesRouter(db, categoryService, authenticateToken, statsCac
   });
 
   /**
+   * GET /api/categories/:id/daily-stats
+   * 일별 통계 (통계 탭용)
+   */
+  router.get("/categories/:id/daily-stats", async (req, res) => {
+    try {
+      const gameId = parseInt(req.params.id, 10);
+      const period = ['7d', '30d'].includes(req.query.period) ? req.query.period : '7d';
+      if (isNaN(gameId)) return res.status(400).json({ success: false, error: "Invalid game ID" });
+      const data = await categoryService.getGameDailyStats(gameId, period);
+      res.json({ success: true, data, period });
+    } catch (error) {
+      console.error("[categories] GET /categories/:id/daily-stats error:", error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/categories/:id/platform-stats
+   * 플랫폼별 통계
+   */
+  router.get("/categories/:id/platform-stats", async (req, res) => {
+    try {
+      const gameId = parseInt(req.params.id, 10);
+      const period = ['7d', '30d'].includes(req.query.period) ? req.query.period : '7d';
+      if (isNaN(gameId)) return res.status(400).json({ success: false, error: "Invalid game ID" });
+      const data = await categoryService.getGamePlatformStats(gameId, period);
+      res.json({ success: true, data, period });
+    } catch (error) {
+      console.error("[categories] GET /categories/:id/platform-stats error:", error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/categories/:id/streamer-ranking
+   * 스트리머 랭킹
+   */
+  router.get("/categories/:id/streamer-ranking", async (req, res) => {
+    try {
+      const gameId = parseInt(req.params.id, 10);
+      const period = ['7d', '30d'].includes(req.query.period) ? req.query.period : '7d';
+      const sortBy = ['peak', 'avg', 'count'].includes(req.query.sortBy) ? req.query.sortBy : 'peak';
+      const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+      if (isNaN(gameId)) return res.status(400).json({ success: false, error: "Invalid game ID" });
+      const data = await categoryService.getGameStreamerRanking(gameId, period, sortBy, limit);
+      res.json({ success: true, data, period, sortBy });
+    } catch (error) {
+      console.error("[categories] GET /categories/:id/streamer-ranking error:", error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/categories/:id/growth-ranking
+   * 성장 랭킹
+   */
+  router.get("/categories/:id/growth-ranking", async (req, res) => {
+    try {
+      const gameId = parseInt(req.params.id, 10);
+      const period = ['7d', '30d'].includes(req.query.period) ? req.query.period : '7d';
+      const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+      if (isNaN(gameId)) return res.status(400).json({ success: false, error: "Invalid game ID" });
+      const data = await categoryService.getGameGrowthRanking(gameId, period, limit);
+      res.json({ success: true, data, period });
+    } catch (error) {
+      console.error("[categories] GET /categories/:id/growth-ranking error:", error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
+   * GET /api/categories/:id/ranking-history
+   * 랭킹 히스토리 (특정 날짜)
+   */
+  router.get("/categories/:id/ranking-history", async (req, res) => {
+    try {
+      const gameId = parseInt(req.params.id, 10);
+      const date = req.query.date || null;
+      const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
+      if (isNaN(gameId)) return res.status(400).json({ success: false, error: "Invalid game ID" });
+      const data = await categoryService.getGameRankingHistory(gameId, date, limit);
+      res.json({ success: true, data, date });
+    } catch (error) {
+      console.error("[categories] GET /categories/:id/ranking-history error:", error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * POST /api/categories/refresh
    * 강제 새로고침 (관리자 전용)
    */

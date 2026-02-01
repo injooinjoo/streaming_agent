@@ -24,9 +24,9 @@ class LiveDiscoveryService {
     this.pendingConnections = new Set();
     this.lastDiscovery = null;
     this.stats = {
-      totalDiscovered: { soop: 0, chzzk: 0 },
-      activeConnections: { soop: 0, chzzk: 0 },
-      totalEvents: { soop: 0, chzzk: 0 },
+      totalDiscovered: { soop: 0, chzzk: 0, twitch: 0 },
+      activeConnections: { soop: 0, chzzk: 0, twitch: 0 },
+      totalEvents: { soop: 0, chzzk: 0, twitch: 0 },
       lastError: null,
     };
 
@@ -34,14 +34,16 @@ class LiveDiscoveryService {
     this.io = null;
     this.SoopAdapter = null;
     this.ChzzkAdapter = null;
+    this.TwitchAdapter = null;
     this.normalizer = null;
     this.db = null;
   }
 
-  setDependencies({ io, SoopAdapter, ChzzkAdapter, normalizer, db }) {
+  setDependencies({ io, SoopAdapter, ChzzkAdapter, TwitchAdapter, normalizer, db }) {
     this.io = io;
     this.SoopAdapter = SoopAdapter;
     this.ChzzkAdapter = ChzzkAdapter;
+    this.TwitchAdapter = TwitchAdapter || null;
     this.normalizer = normalizer;
     this.db = db;
   }
@@ -57,9 +59,10 @@ class LiveDiscoveryService {
     }
 
     this.isRunning = true;
+    const platformCount = 2 + (this.TwitchAdapter ? 1 : 0);
     logger.info("[discovery] Starting Live Discovery Service", {
       maxConnectionsPerPlatform: this.maxConnectionsPerPlatform,
-      totalMaxConnections: this.maxConnectionsPerPlatform * 2,
+      totalMaxConnections: this.maxConnectionsPerPlatform * platformCount,
       discoveryInterval: this.discoveryInterval / 1000 + "s",
     });
 
@@ -103,7 +106,7 @@ class LiveDiscoveryService {
     this.pendingConnections.clear();
 
     this.isRunning = false;
-    this.stats.activeConnections = { soop: 0, chzzk: 0 };
+    this.stats.activeConnections = { soop: 0, chzzk: 0, twitch: 0 };
 
     logger.info("[discovery] Service stopped");
     return this.getStatus();
@@ -114,17 +117,27 @@ class LiveDiscoveryService {
     logger.info("[discovery] Starting broadcast discovery...");
 
     try {
-      const [soopBroadcasts, chzzkBroadcasts] = await Promise.all([
+      const fetchPromises = [
         this.SoopAdapter.getAllLiveBroadcasts(1000),
         this.ChzzkAdapter.getAllLiveBroadcasts(1000),
-      ]);
+      ];
+      if (this.TwitchAdapter) {
+        fetchPromises.push(this.TwitchAdapter.getAllLiveBroadcasts(1000));
+      }
+
+      const results = await Promise.all(fetchPromises);
+      const soopBroadcasts = results[0];
+      const chzzkBroadcasts = results[1];
+      const twitchBroadcasts = results[2] || [];
 
       this.stats.totalDiscovered.soop = soopBroadcasts.length;
       this.stats.totalDiscovered.chzzk = chzzkBroadcasts.length;
+      this.stats.totalDiscovered.twitch = twitchBroadcasts.length;
 
       logger.info("[discovery] Discovered broadcasts", {
         soop: soopBroadcasts.length,
         chzzk: chzzkBroadcasts.length,
+        twitch: twitchBroadcasts.length,
       });
 
       const deduplicateAndSelectTop = (broadcasts, limit) => {
@@ -142,14 +155,16 @@ class LiveDiscoveryService {
 
       const topSoop = deduplicateAndSelectTop(soopBroadcasts, this.maxConnectionsPerPlatform);
       const topChzzk = deduplicateAndSelectTop(chzzkBroadcasts, this.maxConnectionsPerPlatform);
+      const topTwitch = deduplicateAndSelectTop(twitchBroadcasts, this.maxConnectionsPerPlatform);
 
       logger.info(`[discovery] Top channels selected`, {
         soop: `${topSoop.length}/${soopBroadcasts.length}`,
         chzzk: `${topChzzk.length}/${chzzkBroadcasts.length}`,
-        total: topSoop.length + topChzzk.length,
+        twitch: `${topTwitch.length}/${twitchBroadcasts.length}`,
+        total: topSoop.length + topChzzk.length + topTwitch.length,
       });
 
-      const topChannels = [...topSoop, ...topChzzk];
+      const topChannels = [...topSoop, ...topChzzk, ...topTwitch];
       await this.manageConnections(topChannels);
 
       this.lastDiscovery = new Date().toISOString();
@@ -229,6 +244,8 @@ class LiveDiscoveryService {
         adapter = new this.SoopAdapter(adapterOptions);
       } else if (channel.platform === "chzzk") {
         adapter = new this.ChzzkAdapter(adapterOptions);
+      } else if (channel.platform === "twitch" && this.TwitchAdapter) {
+        adapter = new this.TwitchAdapter(adapterOptions);
       } else {
         throw new Error(`Unknown platform: ${channel.platform}`);
       }
@@ -302,20 +319,22 @@ class LiveDiscoveryService {
   updateConnectionStats() {
     let soop = 0;
     let chzzk = 0;
+    let twitch = 0;
 
     for (const conn of this.activeConnections.values()) {
       if (conn.platform === "soop") soop++;
       else if (conn.platform === "chzzk") chzzk++;
+      else if (conn.platform === "twitch") twitch++;
     }
 
-    this.stats.activeConnections = { soop, chzzk };
+    this.stats.activeConnections = { soop, chzzk, twitch };
   }
 
   getStatus() {
     return {
       isRunning: this.isRunning,
       maxConnectionsPerPlatform: this.maxConnectionsPerPlatform,
-      totalMaxConnections: this.maxConnectionsPerPlatform * 2,
+      totalMaxConnections: this.maxConnectionsPerPlatform * (2 + (this.TwitchAdapter ? 1 : 0)),
       discoveryInterval: this.discoveryInterval,
       lastDiscovery: this.lastDiscovery,
       stats: {

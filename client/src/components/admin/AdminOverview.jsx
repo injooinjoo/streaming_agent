@@ -12,7 +12,7 @@ const AdminOverview = () => {
     totalEvents: 0,
     totalDonations: 0,
     donationsByPlatform: [],
-    platformConnections: { soop: { connected: false }, chzzk: { connected: false } },
+    platformConnections: { soop: { connected: false }, chzzk: { connected: false }, twitch: { connected: false } },
     recentActivity: []
   });
 
@@ -50,7 +50,7 @@ const AdminOverview = () => {
       }));
 
       // 연결된 플랫폼 수
-      const connectedPlatforms = (connections.soop?.connected ? 1 : 0) + (connections.chzzk?.connected ? 1 : 0);
+      const connectedPlatforms = (connections.soop?.connected ? 1 : 0) + (connections.chzzk?.connected ? 1 : 0) + (connections.twitch?.connected ? 1 : 0);
 
       setData({
         totalEvents: events.total || 0,
@@ -77,6 +77,7 @@ const AdminOverview = () => {
   // 플랫폼별 후원금 계산
   const soopDonations = data.donationsByPlatform.find(d => d.platform === 'soop')?.total || 0;
   const chzzkDonations = data.donationsByPlatform.find(d => d.platform === 'chzzk')?.total || 0;
+  const twitchDonations = data.donationsByPlatform.find(d => d.platform === 'twitch')?.total || 0;
 
   const metrics = [
     {
@@ -84,7 +85,7 @@ const AdminOverview = () => {
       value: data.connectedPlatforms || 0,
       icon: <Wifi size={24} />,
       color: '#6366f1',
-      change: data.platformConnections?.soop?.connected || data.platformConnections?.chzzk?.connected ? '활성' : '비활성',
+      change: data.platformConnections?.soop?.connected || data.platformConnections?.chzzk?.connected || data.platformConnections?.twitch?.connected ? '활성' : '비활성',
       changeType: data.connectedPlatforms > 0 ? 'positive' : 'neutral'
     },
     {
@@ -151,6 +152,10 @@ const AdminOverview = () => {
               <span className="summary-value">{formatCurrency(chzzkDonations)}</span>
             </div>
             <div className="summary-item">
+              <span className="summary-label">Twitch 후원금</span>
+              <span className="summary-value">{formatCurrency(twitchDonations)}</span>
+            </div>
+            <div className="summary-item">
               <span className="summary-label">SOOP 연결</span>
               <span className="summary-value" style={{ color: data.platformConnections?.soop?.connected ? '#10b981' : '#ef4444' }}>
                 {data.platformConnections?.soop?.connected ? '연결됨' : '미연결'}
@@ -160,6 +165,12 @@ const AdminOverview = () => {
               <span className="summary-label">Chzzk 연결</span>
               <span className="summary-value" style={{ color: data.platformConnections?.chzzk?.connected ? '#10b981' : '#ef4444' }}>
                 {data.platformConnections?.chzzk?.connected ? '연결됨' : '미연결'}
+              </span>
+            </div>
+            <div className="summary-item">
+              <span className="summary-label">Twitch 연결</span>
+              <span className="summary-value" style={{ color: data.platformConnections?.twitch?.connected ? '#10b981' : '#ef4444' }}>
+                {data.platformConnections?.twitch?.connected ? '연결됨' : '미연결'}
               </span>
             </div>
           </div>

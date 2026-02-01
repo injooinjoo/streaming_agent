@@ -548,18 +548,27 @@ class CategoryService {
       ? `NOW() - INTERVAL '${periodMapPostgres[period] || "24 hours"}'`
       : `datetime('now', '${periodMapSQLite[period] || "-24 hours"}')`;
 
+    // 7d/30d: 시간 단위로 집계하여 데이터 포인트 수 줄임 (620→168 for 7d)
+    // 1h/24h: 원본 15분 간격 유지
+    const needsHourlyBucket = period === '7d' || period === '30d';
+    const timeBucket = needsHourlyBucket
+      ? (isPostgres()
+        ? `DATE_TRUNC('hour', cs.recorded_at)`
+        : `strftime('%Y-%m-%d %H:00:00', cs.recorded_at)`)
+      : 'cs.recorded_at';
+
     const sql = `
       SELECT
-        cs.recorded_at,
-        SUM(cs.viewer_count) as total_viewers,
-        SUM(cs.streamer_count) as total_streamers
+        ${timeBucket} as recorded_at,
+        SUM(cs.viewer_count) / COUNT(DISTINCT cs.recorded_at) as total_viewers,
+        SUM(cs.streamer_count) / COUNT(DISTINCT cs.recorded_at) as total_streamers
       FROM category_stats cs
       JOIN category_game_mappings cgm
         ON cs.platform = cgm.platform AND cs.platform_category_id = cgm.platform_category_id
       WHERE cgm.unified_game_id = ${p(1)}
         AND cs.recorded_at >= ${timeFilter}
-      GROUP BY cs.recorded_at
-      ORDER BY cs.recorded_at ASC
+      GROUP BY ${timeBucket}
+      ORDER BY ${timeBucket} ASC
     `;
 
     return await getAll(sql, [gameId]);
@@ -785,6 +794,269 @@ class CategoryService {
       unmapped,
       lowConfidence,
     };
+  }
+
+  /**
+   * 일별 통계 (통계 탭용)
+   * @param {number} gameId
+   * @param {string} period - '7d', '30d'
+   * @returns {Promise<Array>}
+   */
+  async getGameDailyStats(gameId, period = '7d') {
+    const days = period === '30d' ? 30 : 7;
+    const timeFilter = isPostgres()
+      ? `NOW() - INTERVAL '${days} days'`
+      : `datetime('now', '-${days} days')`;
+    const dateFormat = isPostgres()
+      ? `TO_CHAR(cs.recorded_at, 'YYYY-MM-DD')`
+      : `DATE(cs.recorded_at)`;
+
+    const sql = `
+      SELECT
+        ${dateFormat} as date,
+        MAX(sub.total_viewers) as peak_viewers,
+        ROUND(AVG(sub.total_viewers)) as avg_viewers,
+        MAX(sub.total_streamers) as peak_streamers,
+        ROUND(AVG(sub.total_streamers)) as avg_streamers
+      FROM (
+        SELECT cs.recorded_at,
+          SUM(cs.viewer_count) as total_viewers,
+          SUM(cs.streamer_count) as total_streamers
+        FROM category_stats cs
+        JOIN category_game_mappings cgm
+          ON cs.platform = cgm.platform AND cs.platform_category_id = cgm.platform_category_id
+        WHERE cgm.unified_game_id = ${p(1)}
+          AND cs.recorded_at >= ${timeFilter}
+        GROUP BY cs.recorded_at
+      ) sub
+      GROUP BY ${dateFormat}
+      ORDER BY date ASC
+    `;
+
+    return await getAll(sql, [gameId]);
+  }
+
+  /**
+   * 플랫폼별 통계 (플랫폼별 통계 탭용)
+   * @param {number} gameId
+   * @param {string} period - '7d', '30d'
+   * @returns {Promise<Object>} { timeSeries, summary }
+   */
+  async getGamePlatformStats(gameId, period = '7d') {
+    const days = period === '30d' ? 30 : 7;
+    const timeFilter = isPostgres()
+      ? `NOW() - INTERVAL '${days} days'`
+      : `datetime('now', '-${days} days')`;
+    const dateFormat = isPostgres()
+      ? `TO_CHAR(cs.recorded_at, 'YYYY-MM-DD')`
+      : `DATE(cs.recorded_at)`;
+
+    // 일별 + 플랫폼별 시계열
+    const timeSeriesSql = `
+      SELECT
+        ${dateFormat} as date,
+        cs.platform,
+        MAX(cs.viewer_count) as peak_viewers,
+        ROUND(AVG(cs.viewer_count)) as avg_viewers,
+        MAX(cs.streamer_count) as peak_streamers,
+        ROUND(AVG(cs.streamer_count)) as avg_streamers
+      FROM category_stats cs
+      JOIN category_game_mappings cgm
+        ON cs.platform = cgm.platform AND cs.platform_category_id = cgm.platform_category_id
+      WHERE cgm.unified_game_id = ${p(1)}
+        AND cs.recorded_at >= ${timeFilter}
+      GROUP BY ${dateFormat}, cs.platform
+      ORDER BY date ASC, cs.platform
+    `;
+
+    // 플랫폼별 요약
+    const summarySql = `
+      SELECT
+        cs.platform,
+        MAX(cs.viewer_count) as peak_viewers,
+        ROUND(AVG(cs.viewer_count)) as avg_viewers,
+        MAX(cs.streamer_count) as peak_streamers,
+        ROUND(AVG(cs.streamer_count)) as avg_streamers
+      FROM category_stats cs
+      JOIN category_game_mappings cgm
+        ON cs.platform = cgm.platform AND cs.platform_category_id = cgm.platform_category_id
+      WHERE cgm.unified_game_id = ${p(1)}
+        AND cs.recorded_at >= ${timeFilter}
+      GROUP BY cs.platform
+      ORDER BY peak_viewers DESC
+    `;
+
+    const [timeSeries, summary] = await Promise.all([
+      getAll(timeSeriesSql, [gameId]),
+      getAll(summarySql, [gameId])
+    ]);
+
+    return { timeSeries, summary };
+  }
+
+  /**
+   * 스트리머 랭킹 (스트리머 랭킹 탭용)
+   * @param {number} gameId
+   * @param {string} period - '7d', '30d'
+   * @param {string} sortBy - 'peak', 'avg', 'count'
+   * @param {number} limit
+   * @returns {Promise<Array>}
+   */
+  async getGameStreamerRanking(gameId, period = '7d', sortBy = 'peak', limit = 50) {
+    const days = period === '30d' ? 30 : 7;
+    const timeFilter = isPostgres()
+      ? `NOW() - INTERVAL '${days} days'`
+      : `datetime('now', '-${days} days')`;
+
+    const durationCalc = isPostgres()
+      ? `ROUND(SUM(EXTRACT(EPOCH FROM (COALESCE(bs.segment_ended_at, NOW()) - bs.segment_started_at)) / 60))`
+      : `ROUND(SUM((JULIANDAY(COALESCE(bs.segment_ended_at, datetime('now'))) - JULIANDAY(bs.segment_started_at)) * 1440))`;
+
+    const orderBy = sortBy === 'avg' ? 'avg_viewers' : sortBy === 'count' ? 'broadcast_count' : 'peak_viewers';
+
+    const sql = `
+      SELECT
+        p.id as person_id,
+        p.nickname,
+        p.profile_image_url,
+        bs.platform,
+        MAX(bs.peak_viewer_count) as peak_viewers,
+        ROUND(AVG(bs.avg_viewer_count)) as avg_viewers,
+        COUNT(DISTINCT b.id) as broadcast_count,
+        ${durationCalc} as total_minutes
+      FROM broadcast_segments bs
+      JOIN broadcasts b ON bs.broadcast_id = b.id
+      JOIN persons p ON b.broadcaster_person_id = p.id
+      JOIN category_game_mappings cgm
+        ON bs.platform = cgm.platform AND bs.category_id = cgm.platform_category_id
+      WHERE cgm.unified_game_id = ${p(1)}
+        AND bs.segment_started_at >= ${timeFilter}
+      GROUP BY p.id, p.nickname, p.profile_image_url, bs.platform
+      ORDER BY ${orderBy} DESC
+      LIMIT ${p(2)}
+    `;
+
+    return await getAll(sql, [gameId, limit]);
+  }
+
+  /**
+   * 성장 랭킹 (성장 랭킹 탭용)
+   * @param {number} gameId
+   * @param {string} period - '7d', '30d'
+   * @param {number} limit
+   * @returns {Promise<Array>}
+   */
+  async getGameGrowthRanking(gameId, period = '7d', limit = 50) {
+    const days = period === '30d' ? 30 : 7;
+    const currentStart = isPostgres()
+      ? `NOW() - INTERVAL '${days} days'`
+      : `datetime('now', '-${days} days')`;
+    const prevStart = isPostgres()
+      ? `NOW() - INTERVAL '${days * 2} days'`
+      : `datetime('now', '-${days * 2} days')`;
+    const prevEnd = isPostgres()
+      ? `NOW() - INTERVAL '${days} days'`
+      : `datetime('now', '-${days} days')`;
+
+    // 현재 기간 스트리머별 평균
+    const currentSql = `
+      SELECT
+        p.id as person_id, p.nickname, p.profile_image_url, bs.platform,
+        ROUND(AVG(bs.avg_viewer_count)) as avg_viewers,
+        COUNT(DISTINCT b.id) as broadcast_count
+      FROM broadcast_segments bs
+      JOIN broadcasts b ON bs.broadcast_id = b.id
+      JOIN persons p ON b.broadcaster_person_id = p.id
+      JOIN category_game_mappings cgm
+        ON bs.platform = cgm.platform AND bs.category_id = cgm.platform_category_id
+      WHERE cgm.unified_game_id = ${p(1)}
+        AND bs.segment_started_at >= ${currentStart}
+      GROUP BY p.id, p.nickname, p.profile_image_url, bs.platform
+    `;
+
+    // 이전 기간 스트리머별 평균
+    const prevSql = `
+      SELECT
+        p.id as person_id,
+        ROUND(AVG(bs.avg_viewer_count)) as avg_viewers
+      FROM broadcast_segments bs
+      JOIN broadcasts b ON bs.broadcast_id = b.id
+      JOIN persons p ON b.broadcaster_person_id = p.id
+      JOIN category_game_mappings cgm
+        ON bs.platform = cgm.platform AND bs.category_id = cgm.platform_category_id
+      WHERE cgm.unified_game_id = ${p(1)}
+        AND bs.segment_started_at >= ${prevStart}
+        AND bs.segment_started_at < ${prevEnd}
+      GROUP BY p.id
+    `;
+
+    const [currentData, prevData] = await Promise.all([
+      getAll(currentSql, [gameId]),
+      getAll(prevSql, [gameId])
+    ]);
+
+    const prevMap = new Map((prevData || []).map(r => [r.person_id, r.avg_viewers]));
+
+    const results = (currentData || []).map(cur => {
+      const prev = prevMap.get(cur.person_id) || 0;
+      const growth = prev > 0 ? ((cur.avg_viewers - prev) / prev) * 100 : (cur.avg_viewers > 0 ? 100 : 0);
+      return {
+        ...cur,
+        prev_avg_viewers: Number(prev),
+        growth: Math.round(growth * 10) / 10
+      };
+    });
+
+    results.sort((a, b) => b.growth - a.growth);
+    return results.slice(0, limit);
+  }
+
+  /**
+   * 랭킹 히스토리 (특정 날짜 스냅샷)
+   * @param {number} gameId
+   * @param {string} date - 'YYYY-MM-DD'
+   * @param {number} limit
+   * @returns {Promise<Array>}
+   */
+  async getGameRankingHistory(gameId, date, limit = 50) {
+    // date가 없으면 어제 날짜 사용
+    if (!date) {
+      const d = new Date();
+      d.setDate(d.getDate() - 1);
+      date = d.toISOString().split('T')[0];
+    }
+
+    const dateStart = isPostgres()
+      ? `'${date}'::date`
+      : `'${date}'`;
+    const dateEnd = isPostgres()
+      ? `'${date}'::date + INTERVAL '1 day'`
+      : `datetime('${date}', '+1 day')`;
+
+    const sql = `
+      SELECT
+        p.id as person_id,
+        p.nickname,
+        p.profile_image_url,
+        b.platform,
+        b.title,
+        MAX(bs.peak_viewer_count) as peak_viewers,
+        ROUND(AVG(bs.avg_viewer_count)) as avg_viewers,
+        MIN(b.started_at) as started_at
+      FROM broadcast_segments bs
+      JOIN broadcasts b ON bs.broadcast_id = b.id
+      JOIN persons p ON b.broadcaster_person_id = p.id
+      JOIN category_game_mappings cgm
+        ON bs.platform = cgm.platform AND bs.category_id = cgm.platform_category_id
+      WHERE cgm.unified_game_id = ${p(1)}
+        AND bs.segment_started_at >= ${dateStart}
+        AND bs.segment_started_at < ${dateEnd}
+      GROUP BY p.id, p.nickname, p.profile_image_url, b.platform, b.title
+      ORDER BY peak_viewers DESC
+      LIMIT ${p(2)}
+    `;
+
+    return await getAll(sql, [gameId, limit]);
   }
 
   /**

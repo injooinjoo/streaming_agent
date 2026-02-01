@@ -1111,3 +1111,109 @@
     grid-column: span 1;
   }
 }
+
+/* ===== Mobile 480px ===== */
+@media (max-width: 480px) {
+  .quick-stats-grid,
+  .stats-overview-grid,
+  .connections-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .stat-card,
+  .connection-card {
+    padding: 12px;
+  }
+
+  .stat-value,
+  .quick-stat-value {
+    font-size: 18px;
+  }
+
+  .stat-label,
+  .quick-stat-label {
+    font-size: 11px;
+  }
+
+  .channel-header {
+    padding: 16px;
+  }
+
+  .channel-header h1 {
+    font-size: 18px;
+  }
+
+  .channel-content {
+    padding: 12px;
+  }
+
+  .profile-content {
+    gap: 12px;
+  }
+
+  .profile-avatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .profile-name {
+    font-size: 18px;
+  }
+
+  .profile-bio {
+    font-size: 13px;
+  }
+
+  .profile-actions {
+    gap: 6px;
+  }
+
+  .profile-actions .btn {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .channel-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .channel-tab {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .section-title {
+    font-size: 16px;
+  }
+
+  .connection-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .connection-card h4 {
+    font-size: 13px;
+  }
+
+  .connection-status {
+    font-size: 11px;
+  }
+
+  .overlay-url-card {
+    padding: 12px;
+  }
+
+  .overlay-url-card h4 {
+    font-size: 13px;
+  }
+
+  .url-display {
+    font-size: 11px;
+    padding: 8px;
+  }
+}

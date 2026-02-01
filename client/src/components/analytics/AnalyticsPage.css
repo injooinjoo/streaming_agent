@@ -406,3 +406,76 @@
     font-size: 24px;
   }
 }
+
+/* ===== Mobile 480px ===== */
+@media (max-width: 480px) {
+  .analytics-metrics-grid {
+    gap: 8px;
+  }
+
+  .analytics-card {
+    padding: 12px;
+  }
+
+  .analytics-card-value {
+    font-size: 20px;
+  }
+
+  .analytics-card-label {
+    font-size: 11px;
+  }
+
+  .analytics-header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .analytics-header h1 {
+    font-size: 18px;
+  }
+
+  .analytics-content {
+    padding: 12px;
+  }
+
+  .chart-container {
+    padding: 12px;
+    min-height: 200px;
+  }
+
+  .chart-header {
+    gap: 8px;
+  }
+
+  .chart-header h3 {
+    font-size: 14px;
+  }
+
+  .time-range-selector {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .time-range-selector button {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  .charts-grid {
+    gap: 12px;
+  }
+
+  .analytics-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .analytics-tab {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}

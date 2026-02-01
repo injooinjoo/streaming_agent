@@ -3687,3 +3687,117 @@
     display: none;
   }
 }
+
+/* ===== Mobile 480px ===== */
+@media (max-width: 480px) {
+  .admin-metrics-grid,
+  .admin-overview-grid,
+  .admin-summary-grid,
+  .revenue-summary-grid,
+  .nexon-ip-grid,
+  .campaign-metrics-grid,
+  .viewer-stats-grid,
+  .campaign-roi-stats,
+  .game-analytics-stats,
+  .streamer-stats-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .admin-card,
+  .admin-metric-card,
+  .stat-card,
+  .summary-card,
+  .detail-section {
+    padding: 12px;
+  }
+
+  .admin-metric-value,
+  .stat-value,
+  .metric-value,
+  .revenue-total-value,
+  .summary-value {
+    font-size: 20px;
+  }
+
+  .admin-metric-label,
+  .stat-label,
+  .metric-label {
+    font-size: 11px;
+  }
+
+  .admin-header h1,
+  .section-title,
+  .detail-header h2 {
+    font-size: 18px;
+  }
+
+  .admin-header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .admin-content {
+    padding: 12px;
+  }
+
+  .admin-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    padding-bottom: 8px;
+    gap: 4px;
+  }
+
+  .admin-tab {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .engagement-header,
+  .engagement-row {
+    grid-template-columns: 1.5fr 1fr 1fr;
+    font-size: 12px;
+    padding: 8px;
+  }
+
+  .engagement-header span:last-child,
+  .engagement-row span:last-child {
+    display: none;
+  }
+
+  .table-header,
+  .table-row {
+    font-size: 12px;
+    padding: 8px;
+  }
+
+  .chart-container {
+    padding: 12px;
+    min-height: 200px;
+  }
+
+  .streamer-detail-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 12px;
+  }
+
+  .streamer-avatar {
+    width: 60px;
+    height: 60px;
+  }
+
+  .filter-group {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .filter-group select,
+  .filter-group input {
+    width: 100%;
+    font-size: 13px;
+  }
+}

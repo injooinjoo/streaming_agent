@@ -1277,6 +1277,261 @@
   opacity: 0.4;
 }
 
+/* ===== Game Detail - Tab Navigation ===== */
+.game-detail-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  background: var(--bg-hover);
+  border-radius: 14px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+
+.game-detail-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.game-detail-tab:hover {
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.game-detail-tab.active {
+  background: var(--bg-card);
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.game-detail-tab svg {
+  flex-shrink: 0;
+}
+
+.game-detail-tab-content {
+  min-height: 300px;
+}
+
+/* ===== Game Tab Content ===== */
+.game-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.game-tab-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.game-tab-chart {
+  padding: 20px 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border-light);
+}
+
+.game-tab-chart h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+}
+
+.game-tab-chart h3 svg {
+  color: var(--primary);
+}
+
+.game-tab-table {
+  padding: 20px 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border-light);
+}
+
+.game-tab-table h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 16px 0;
+}
+
+.game-tab-table h3 svg {
+  color: var(--primary);
+}
+
+/* ===== Game Data Table ===== */
+.game-data-table {
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.game-data-table__header {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+  padding: 14px 20px;
+  background: var(--bg-hover);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.game-data-table__body {
+  display: flex;
+  flex-direction: column;
+}
+
+.game-data-table__row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: 8px;
+  padding: 14px 20px;
+  align-items: center;
+  border-top: 1px solid var(--border-light);
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: background 0.2s;
+}
+
+.game-data-table__row:hover {
+  background: var(--bg-hover);
+}
+
+.game-data-table__col {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Column width overrides */
+.game-data-table__col.rank-col {
+  max-width: 50px;
+  min-width: 50px;
+}
+
+.game-data-table__col.name-col {
+  min-width: 160px;
+  flex: 2;
+}
+
+.game-data-table__col.title-col {
+  min-width: 200px;
+  flex: 3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Streamer with 7 columns */
+.game-data-table__header:has(.rank-col) {
+  grid-template-columns: 50px minmax(160px, 2fr) 80px 100px 100px 80px 100px;
+}
+
+.game-data-table__row:has(.rank-col) {
+  grid-template-columns: 50px minmax(160px, 2fr) 80px 100px 100px 80px 100px;
+}
+
+/* Growth ranking with 6 columns */
+.game-data-table__header:has(.rank-col):not(:has(.title-col)):nth-child(1) {
+  grid-template-columns: 50px minmax(160px, 2fr) 80px 100px 100px 100px;
+}
+
+/* Stats tables with 5 equal columns */
+.game-data-table__header:not(:has(.rank-col)) {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.game-data-table__row:not(:has(.rank-col)) {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+/* ===== Streamer Info ===== */
+.streamer-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.streamer-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 2px solid var(--border-light);
+}
+
+.streamer-avatar-placeholder {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-hover);
+  color: var(--text-muted);
+  flex-shrink: 0;
+  border: 2px solid var(--border-light);
+}
+
+.streamer-name {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ===== Loading & Empty States ===== */
+.game-tab-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.game-tab-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 80px 20px;
+  color: var(--text-muted);
+  font-size: 14px;
+  background: var(--bg-hover);
+  border-radius: 16px;
+  border: 1px dashed var(--border-light);
+}
+
 /* Responsive */
 @media (max-width: 1200px) {
   .game-catalog-grid {
@@ -1299,6 +1554,12 @@
   .game-streamers-table__header,
   .game-streamers-table__row {
     grid-template-columns: 50px 1fr 80px 80px 80px 120px;
+  }
+
+  .game-data-table__header:has(.rank-col),
+  .game-data-table__row:has(.rank-col) {
+    grid-template-columns: 40px minmax(140px, 2fr) 70px 80px 80px 70px 80px;
+    font-size: 12px;
   }
 }
 
@@ -1375,6 +1636,53 @@
   .game-streamers-table__col.avg,
   .game-streamers-table__col.followers {
     display: none;
+  }
+
+  .game-detail-tabs {
+    gap: 2px;
+    padding: 3px;
+    border-radius: 10px;
+  }
+
+  .game-detail-tab {
+    padding: 8px 12px;
+    font-size: 12px;
+    gap: 4px;
+  }
+
+  .game-tab-chart,
+  .game-tab-table {
+    padding: 14px 16px;
+  }
+
+  .game-data-table__header,
+  .game-data-table__row {
+    padding: 10px 12px;
+    gap: 4px;
+  }
+
+  .game-data-table__header:has(.rank-col),
+  .game-data-table__row:has(.rank-col) {
+    grid-template-columns: 36px minmax(120px, 1fr) 60px 70px 70px;
+  }
+
+  .game-data-table__col.title-col,
+  .game-data-table__header .game-data-table__col:nth-child(6),
+  .game-data-table__row .game-data-table__col:nth-child(6),
+  .game-data-table__header .game-data-table__col:nth-child(7),
+  .game-data-table__row .game-data-table__col:nth-child(7) {
+    display: none;
+  }
+
+  .streamer-avatar,
+  .streamer-avatar-placeholder {
+    width: 26px;
+    height: 26px;
+  }
+
+  .game-tab-controls {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .game-catalog-card__title {

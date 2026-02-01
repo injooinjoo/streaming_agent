@@ -27,7 +27,7 @@ const AdminPlatforms = () => {
   const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [platforms, setPlatforms] = useState([]);
-  const [connections, setConnections] = useState({ soop: {}, chzzk: {} });
+  const [connections, setConnections] = useState({ soop: {}, chzzk: {}, twitch: {} });
   const [eventsByPlatform, setEventsByPlatform] = useState([]);
   const [donations, setDonations] = useState([]);
   const [peakStreamers, setPeakStreamers] = useState([]);
@@ -75,7 +75,7 @@ const AdminPlatforms = () => {
       setNexonDetail(nexonData);
 
       // 플랫폼 데이터 생성
-      const platformData = ['soop', 'chzzk'].map(id => {
+      const platformData = ['soop', 'chzzk', 'twitch'].map(id => {
         const eventData = eventsArr.find(e => e.platform === id);
         const donationData = donationsArr.find(d => d.platform === id);
         const connected = connectionsData[id]?.connected || false;
@@ -108,38 +108,40 @@ const AdminPlatforms = () => {
     if (!nexonDetail?.platforms) return [];
     const soopGames = nexonDetail.platforms.soop?.games || [];
     const chzzkGames = nexonDetail.platforms.chzzk?.games || [];
+    const twitchGames = nexonDetail.platforms.twitch?.games || [];
 
     // 모든 게임명 수집 (category_name 기준)
     const gameMap = new Map();
-    soopGames.forEach(g => {
-      const name = g.category_name || g.category_id;
-      gameMap.set(name, {
-        name,
-        soopBroadcasts: g.broadcast_count || 0,
-        soopViewers: g.total_viewers || 0,
-        chzzkBroadcasts: 0,
-        chzzkViewers: 0,
-      });
-    });
-    chzzkGames.forEach(g => {
-      const name = g.category_name || g.category_id;
-      if (gameMap.has(name)) {
-        const existing = gameMap.get(name);
-        existing.chzzkBroadcasts = g.broadcast_count || 0;
-        existing.chzzkViewers = g.total_viewers || 0;
-      } else {
+    const getOrCreate = (name) => {
+      if (!gameMap.has(name)) {
         gameMap.set(name, {
           name,
-          soopBroadcasts: 0,
-          soopViewers: 0,
-          chzzkBroadcasts: g.broadcast_count || 0,
-          chzzkViewers: g.total_viewers || 0,
+          soopBroadcasts: 0, soopViewers: 0,
+          chzzkBroadcasts: 0, chzzkViewers: 0,
+          twitchBroadcasts: 0, twitchViewers: 0,
         });
       }
+      return gameMap.get(name);
+    };
+
+    soopGames.forEach(g => {
+      const entry = getOrCreate(g.category_name || g.category_id);
+      entry.soopBroadcasts = g.broadcast_count || 0;
+      entry.soopViewers = g.total_viewers || 0;
+    });
+    chzzkGames.forEach(g => {
+      const entry = getOrCreate(g.category_name || g.category_id);
+      entry.chzzkBroadcasts = g.broadcast_count || 0;
+      entry.chzzkViewers = g.total_viewers || 0;
+    });
+    twitchGames.forEach(g => {
+      const entry = getOrCreate(g.category_name || g.category_id);
+      entry.twitchBroadcasts = g.broadcast_count || 0;
+      entry.twitchViewers = g.total_viewers || 0;
     });
 
     return Array.from(gameMap.values())
-      .sort((a, b) => (b.soopViewers + b.chzzkViewers) - (a.soopViewers + a.chzzkViewers));
+      .sort((a, b) => (b.soopViewers + b.chzzkViewers + b.twitchViewers) - (a.soopViewers + a.chzzkViewers + a.twitchViewers));
   };
 
   if (loading) {
@@ -151,27 +153,32 @@ const AdminPlatforms = () => {
     {
       metric: '이벤트',
       soop: platforms.find(p => p.id === 'soop')?.totalEvents || 0,
-      chzzk: platforms.find(p => p.id === 'chzzk')?.totalEvents || 0
+      chzzk: platforms.find(p => p.id === 'chzzk')?.totalEvents || 0,
+      twitch: platforms.find(p => p.id === 'twitch')?.totalEvents || 0
     },
     {
       metric: '후원금',
       soop: platforms.find(p => p.id === 'soop')?.donations || 0,
-      chzzk: platforms.find(p => p.id === 'chzzk')?.donations || 0
+      chzzk: platforms.find(p => p.id === 'chzzk')?.donations || 0,
+      twitch: platforms.find(p => p.id === 'twitch')?.donations || 0
     },
     {
       metric: '후원건수',
       soop: platforms.find(p => p.id === 'soop')?.donationCount || 0,
-      chzzk: platforms.find(p => p.id === 'chzzk')?.donationCount || 0
+      chzzk: platforms.find(p => p.id === 'chzzk')?.donationCount || 0,
+      twitch: platforms.find(p => p.id === 'twitch')?.donationCount || 0
     },
     {
       metric: '시청자',
       soop: platforms.find(p => p.id === 'soop')?.liveViewers || 0,
-      chzzk: platforms.find(p => p.id === 'chzzk')?.liveViewers || 0
+      chzzk: platforms.find(p => p.id === 'chzzk')?.liveViewers || 0,
+      twitch: platforms.find(p => p.id === 'twitch')?.liveViewers || 0
     },
     {
       metric: '방송',
       soop: platforms.find(p => p.id === 'soop')?.liveBroadcasts || 0,
-      chzzk: platforms.find(p => p.id === 'chzzk')?.liveBroadcasts || 0
+      chzzk: platforms.find(p => p.id === 'chzzk')?.liveBroadcasts || 0,
+      twitch: platforms.find(p => p.id === 'twitch')?.liveBroadcasts || 0
     }
   ];
 
@@ -180,22 +187,26 @@ const AdminPlatforms = () => {
     {
       type: '후원',
       soop: platforms.find(p => p.id === 'soop')?.donationCount || 0,
-      chzzk: platforms.find(p => p.id === 'chzzk')?.donationCount || 0
+      chzzk: platforms.find(p => p.id === 'chzzk')?.donationCount || 0,
+      twitch: platforms.find(p => p.id === 'twitch')?.donationCount || 0
     },
     {
       type: '이벤트',
       soop: platforms.find(p => p.id === 'soop')?.totalEvents || 0,
-      chzzk: platforms.find(p => p.id === 'chzzk')?.totalEvents || 0
+      chzzk: platforms.find(p => p.id === 'chzzk')?.totalEvents || 0,
+      twitch: platforms.find(p => p.id === 'twitch')?.totalEvents || 0
     },
     {
       type: '실시간 시청자',
       soop: platforms.find(p => p.id === 'soop')?.liveViewers || 0,
-      chzzk: platforms.find(p => p.id === 'chzzk')?.liveViewers || 0
+      chzzk: platforms.find(p => p.id === 'chzzk')?.liveViewers || 0,
+      twitch: platforms.find(p => p.id === 'twitch')?.liveViewers || 0
     },
     {
       type: '넥슨 시청자',
       soop: platforms.find(p => p.id === 'soop')?.nexonViewers || 0,
-      chzzk: platforms.find(p => p.id === 'chzzk')?.nexonViewers || 0
+      chzzk: platforms.find(p => p.id === 'chzzk')?.nexonViewers || 0,
+      twitch: platforms.find(p => p.id === 'twitch')?.nexonViewers || 0
     }
   ];
 
@@ -344,6 +355,8 @@ const AdminPlatforms = () => {
                   <th style={{ color: PLATFORM_COLORS.soop }}>SOOP 시청자</th>
                   <th style={{ color: PLATFORM_COLORS.chzzk }}>Chzzk 방송</th>
                   <th style={{ color: PLATFORM_COLORS.chzzk }}>Chzzk 시청자</th>
+                  <th style={{ color: PLATFORM_COLORS.twitch }}>Twitch 방송</th>
+                  <th style={{ color: PLATFORM_COLORS.twitch }}>Twitch 시청자</th>
                   <th>합계 시청자</th>
                 </tr>
               </thead>
@@ -355,7 +368,9 @@ const AdminPlatforms = () => {
                     <td>{formatCompactKo(game.soopViewers)}</td>
                     <td>{formatCompactKo(game.chzzkBroadcasts)}</td>
                     <td>{formatCompactKo(game.chzzkViewers)}</td>
-                    <td style={{ fontWeight: 600 }}>{formatCompactKo(game.soopViewers + game.chzzkViewers)}</td>
+                    <td>{formatCompactKo(game.twitchBroadcasts)}</td>
+                    <td>{formatCompactKo(game.twitchViewers)}</td>
+                    <td style={{ fontWeight: 600 }}>{formatCompactKo(game.soopViewers + game.chzzkViewers + game.twitchViewers)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -401,6 +416,13 @@ const AdminPlatforms = () => {
                     fill={PLATFORM_COLORS.chzzk}
                     fillOpacity={0.2}
                   />
+                  <Radar
+                    name="Twitch"
+                    dataKey="twitch"
+                    stroke={PLATFORM_COLORS.twitch}
+                    fill={PLATFORM_COLORS.twitch}
+                    fillOpacity={0.2}
+                  />
                   <Legend />
                   <Tooltip />
                 </RadarChart>
@@ -436,6 +458,7 @@ const AdminPlatforms = () => {
                   <Legend />
                   <Bar dataKey="soop" name="SOOP" fill={PLATFORM_COLORS.soop} radius={[4, 4, 0, 0]} />
                   <Bar dataKey="chzzk" name="Chzzk" fill={PLATFORM_COLORS.chzzk} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="twitch" name="Twitch" fill={PLATFORM_COLORS.twitch} radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (

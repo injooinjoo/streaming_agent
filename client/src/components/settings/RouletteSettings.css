@@ -374,3 +374,35 @@
     min-width: 100%;
   }
 }
+
+/* ========================================
+   Mobile Responsive - 480px
+   ======================================== */
+@media (max-width: 480px) {
+  .roulette-settings-preview-aside {
+    max-height: 300px;
+  }
+
+  .segment-fields {
+    gap: 6px;
+  }
+
+  .segment-text {
+    font-size: 13px;
+  }
+
+  .segment-fields input[type="text"] {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .segment-fields input[type="color"] {
+    width: 32px;
+    height: 32px;
+  }
+
+  .btn-save-full {
+    padding: 12px;
+    font-size: 13px;
+  }
+}

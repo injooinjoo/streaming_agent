@@ -711,3 +711,45 @@
     flex-wrap: nowrap;
   }
 }
+
+/* ========================================
+   Mobile Responsive - 480px
+   ======================================== */
+@media (max-width: 480px) {
+  .overlay-preview-card {
+    min-width: unset;
+    padding: 16px;
+  }
+
+  .url-game-info {
+    min-width: unset;
+  }
+
+  .game-checkboxes {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .game-selector-tabs {
+    gap: 4px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .overlay-type-tabs {
+    gap: 6px;
+  }
+
+  .overlay-url-item {
+    padding: 14px;
+  }
+
+  .url-input-wrapper input {
+    font-size: 12px;
+  }
+
+  .btn-save-full {
+    padding: 12px;
+    font-size: 13px;
+  }
+}

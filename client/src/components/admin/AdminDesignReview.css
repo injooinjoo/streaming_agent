@@ -677,3 +677,79 @@
     justify-content: center;
   }
 }
+
+/* ===== Mobile 480px ===== */
+@media (max-width: 480px) {
+  .review-stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .stat-card {
+    padding: 12px;
+  }
+
+  .stat-value {
+    font-size: 22px;
+  }
+
+  .stat-label {
+    font-size: 11px;
+  }
+
+  .review-header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .review-header h1 {
+    font-size: 18px;
+  }
+
+  .review-content {
+    padding: 12px;
+  }
+
+  .review-card {
+    padding: 12px;
+  }
+
+  .review-card-main {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .review-thumbnail {
+    width: 100%;
+    height: 100px;
+  }
+
+  .review-info h3 {
+    font-size: 14px;
+  }
+
+  .review-meta {
+    font-size: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .review-actions {
+    gap: 6px;
+  }
+
+  .action-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .review-filters {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .review-filters select {
+    width: 100%;
+  }
+}

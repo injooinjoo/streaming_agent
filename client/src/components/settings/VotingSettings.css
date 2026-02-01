@@ -289,3 +289,35 @@
     align-items: flex-start;
   }
 }
+
+/* ========================================
+   Mobile Responsive - 480px
+   ======================================== */
+@media (max-width: 480px) {
+  .poll-option-edit {
+    gap: 6px;
+  }
+
+  .poll-option-edit input[type="text"] {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  .poll-title-display {
+    font-size: 16px;
+  }
+
+  .btn-end-poll {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
+
+  .active-poll-card {
+    padding: 16px;
+  }
+
+  .btn-save-full {
+    padding: 12px;
+    font-size: 13px;
+  }
+}

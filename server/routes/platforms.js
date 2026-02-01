@@ -1007,6 +1007,7 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, Tw
         io,
         SoopAdapter,
         ChzzkAdapter,
+        TwitchAdapter,
         normalizer,
         db,
       });

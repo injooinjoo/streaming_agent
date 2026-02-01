@@ -842,3 +842,82 @@
     justify-content: center;
   }
 }
+
+/* ===== Mobile 480px ===== */
+@media (max-width: 480px) {
+  .campaign-stats-grid {
+    gap: 8px;
+  }
+
+  .campaign-stat-card {
+    padding: 12px;
+  }
+
+  .campaign-stat-value {
+    font-size: 20px;
+  }
+
+  .campaign-stat-label {
+    font-size: 11px;
+  }
+
+  .advertiser-header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .advertiser-header h1 {
+    font-size: 18px;
+  }
+
+  .advertiser-content {
+    padding: 12px;
+  }
+
+  .campaign-form-card {
+    padding: 16px;
+  }
+
+  .form-group label {
+    font-size: 13px;
+  }
+
+  .form-group input,
+  .form-group select,
+  .form-group textarea {
+    font-size: 13px;
+    padding: 8px 10px;
+  }
+
+  .targeting-grid {
+    gap: 8px;
+  }
+
+  .campaign-card {
+    padding: 12px;
+  }
+
+  .campaign-card h3 {
+    font-size: 14px;
+  }
+
+  .campaign-meta {
+    font-size: 12px;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .advertiser-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .advertiser-tab {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+}

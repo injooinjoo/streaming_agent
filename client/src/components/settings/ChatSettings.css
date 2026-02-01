@@ -1497,6 +1497,17 @@ input[type="color"] {
   flex-shrink: 0;
 }
 
+.donation-type-label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.disabled-type .donation-type-label {
+  opacity: 0.5;
+}
+
 .signature-range {
   display: flex;
   align-items: center;
@@ -1959,4 +1970,131 @@ input[type="color"] {
 
 .btn-setup-guide.active:hover {
   background: var(--primary-hover);
+}
+
+/* ========================================
+   Mobile Responsive - 768px Enhancement
+   ======================================== */
+@media (max-width: 768px) {
+  .header-top-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .action-area {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .url-copy-box {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .url-input-group {
+    width: 100%;
+  }
+
+  .sticky-tabs {
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .settings-tab-btn {
+    padding: 8px 14px;
+    font-size: 12px;
+  }
+
+  .command-list-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .widget-options-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .color-row-detailed {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+  }
+}
+
+/* ========================================
+   Mobile Responsive - 480px
+   ======================================== */
+@media (max-width: 480px) {
+  .title-text {
+    font-size: 20px;
+  }
+
+  .platform-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .checkbox-grid-refined {
+    padding: 16px;
+    grid-template-columns: 1fr;
+  }
+
+  .header-top-row {
+    gap: 8px;
+  }
+
+  .action-area {
+    gap: 6px;
+  }
+
+  .sticky-tabs {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .settings-tab-btn {
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  .url-copy-box {
+    padding: 12px;
+  }
+
+  .settings-section-header h3 {
+    font-size: 14px;
+  }
+
+  .theme-grid {
+    grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+    gap: 6px;
+  }
+
+  .theme-card {
+    padding: 8px;
+  }
+
+  .theme-preview {
+    height: 40px;
+  }
+
+  .theme-name {
+    font-size: 10px;
+  }
+
+  .import-section {
+    padding: 16px;
+  }
+
+  .import-url-row {
+    flex-direction: column;
+  }
+
+  .import-actions {
+    flex-direction: column;
+  }
+
+  .import-actions .btn-export-settings,
+  .import-actions .btn-apply-import {
+    width: 100%;
+    justify-content: center;
+  }
 }

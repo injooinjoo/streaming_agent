@@ -236,7 +236,16 @@
       "Bash(GIT_EDITOR=true git rebase:*)",
       "Bash(export PATH=\"/opt/homebrew/share/google-cloud-sdk/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH\")",
       "mcp__plugin_supabase_supabase__get_logs",
-      "Bash(gcloud artifacts repositories list:*)"
+      "Bash(gcloud artifacts repositories list:*)",
+      "Bash(while read f)",
+      "Bash(do if ! grep -q \"@media\" \"$f\")",
+      "Bash(then echo \"$f\")",
+      "Bash(fi)",
+      "Bash(# Kill any existing server processes and start fresh with a timeout pkill -f \"\"node index.js\"\" ; sleep 1 cd /Users/jacobmac/Desktop/Dev/streaming_agent/server && timeout 30 node index.js & sleep 15 lsof -i :3001 -t)",
+      "mcp__plugin_playwright_playwright__browser_resize",
+      "Bash(git status:*)",
+      "Bash(gcloud builds list:*)",
+      "Bash(gcloud builds:*)"
     ]
   }
 }

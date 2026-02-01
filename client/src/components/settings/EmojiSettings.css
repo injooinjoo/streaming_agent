@@ -308,3 +308,40 @@
     justify-content: center;
   }
 }
+
+/* ========================================
+   Mobile Responsive - 480px
+   ======================================== */
+@media (max-width: 480px) {
+  .emoji-grid {
+    grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
+    gap: 6px;
+  }
+
+  .emoji-item {
+    padding: 8px;
+    font-size: 20px;
+  }
+
+  .animation-style-card {
+    padding: 12px;
+  }
+
+  .animation-style-card .animation-icon {
+    font-size: 20px;
+  }
+
+  .animation-style-card .animation-name {
+    font-size: 11px;
+  }
+
+  .btn-test {
+    padding: 10px 14px;
+    font-size: 12px;
+  }
+
+  .btn-save-full {
+    padding: 12px;
+    font-size: 13px;
+  }
+}

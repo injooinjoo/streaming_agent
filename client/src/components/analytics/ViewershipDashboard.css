@@ -1044,3 +1044,96 @@
     font-size: 13px;
   }
 }
+
+/* ===== Mobile 480px ===== */
+@media (max-width: 480px) {
+  .yesterday-summary-grid,
+  .categories-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .summary-card {
+    padding: 12px;
+  }
+
+  .summary-card-value,
+  .viewership-total-value {
+    font-size: 20px;
+  }
+
+  .summary-card-label {
+    font-size: 11px;
+  }
+
+  .viewership-header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .viewership-header h1 {
+    font-size: 18px;
+  }
+
+  .viewership-content {
+    padding: 12px;
+  }
+
+  .viewership-total {
+    padding: 16px;
+  }
+
+  .realtime-total-viewers {
+    font-size: 28px;
+  }
+
+  .chart-container,
+  .viewership-chart-container {
+    padding: 12px;
+    min-height: 200px;
+  }
+
+  .viewership-section-title {
+    font-size: 14px;
+  }
+
+  .category-card {
+    padding: 12px;
+  }
+
+  .category-card h4 {
+    font-size: 13px;
+  }
+
+  .viewership-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .viewership-tab {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .ranking-item {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .ranking-thumbnail {
+    width: 24px;
+    height: 24px;
+  }
+
+  .ranking-name {
+    font-size: 12px;
+  }
+
+  .ranking-viewers-value {
+    font-size: 12px;
+  }
+}

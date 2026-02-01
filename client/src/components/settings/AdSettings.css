@@ -1009,3 +1009,74 @@
 [data-theme="dark"] .editor-field input[type="number"] {
   background: var(--bg-input);
 }
+
+/* ========================================
+   Mobile Responsive - 480px
+   ======================================== */
+@media (max-width: 480px) {
+  .slot-editor-panel,
+  .editor-placeholder,
+  .tips-card {
+    min-width: unset;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .stat-card {
+    padding: 16px;
+  }
+
+  .stat-card .stat-value {
+    font-size: 20px;
+  }
+
+  .slot-settings-sidebar {
+    gap: 8px;
+  }
+
+  .slot-card {
+    padding: 14px;
+  }
+
+  .slot-editor-panel {
+    padding: 18px;
+  }
+
+  .editor-field label {
+    font-size: 12px;
+  }
+
+  .revenue-header,
+  .revenue-row {
+    grid-template-columns: 1fr 1fr;
+    font-size: 12px;
+  }
+
+  .revenue-header span:nth-child(3),
+  .revenue-row span:nth-child(3),
+  .revenue-header span:nth-child(4),
+  .revenue-row span:nth-child(4) {
+    display: none;
+  }
+
+  .settlement-item {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 14px;
+  }
+
+  .tips-card {
+    padding: 16px;
+  }
+
+  .tips-card h4 {
+    font-size: 13px;
+  }
+
+  .tips-card li {
+    font-size: 12px;
+  }
+}
