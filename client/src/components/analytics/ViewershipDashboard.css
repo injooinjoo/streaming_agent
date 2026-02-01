@@ -860,6 +860,20 @@
   cursor: default;
 }
 
+.ranking-item.clickable {
+  cursor: pointer;
+}
+
+.ranking-item.clickable:hover {
+  background: var(--bg-elevated, rgba(255, 255, 255, 0.06));
+  transform: translateX(4px);
+}
+
+.ranking-item.clickable:active {
+  transform: translateX(2px);
+  opacity: 0.85;
+}
+
 .ranking-item:hover {
   background: var(--bg-elevated, rgba(255, 255, 255, 0.03));
   transform: translateX(2px);

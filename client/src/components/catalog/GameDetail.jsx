@@ -474,7 +474,6 @@ const StreamerRankingTab = ({ gameId, onStreamerSelect }) => {
                 key={i}
                 className={`game-data-table__row ${row.person_id ? 'clickable' : ''}`}
                 onClick={() => row.person_id && onStreamerSelect?.(row.person_id)}
-                style={row.person_id ? { cursor: 'pointer' } : undefined}
               >
                 <div className="game-data-table__col rank-col">
                   <span className={`rank-badge ${i < 3 ? `rank-${i + 1}` : ''}`}>{i + 1}</span>
@@ -555,7 +554,6 @@ const GrowthRankingTab = ({ gameId, onStreamerSelect }) => {
                 key={i}
                 className={`game-data-table__row ${row.person_id ? 'clickable' : ''}`}
                 onClick={() => row.person_id && onStreamerSelect?.(row.person_id)}
-                style={row.person_id ? { cursor: 'pointer' } : undefined}
               >
                 <div className="game-data-table__col rank-col">
                   <span className={`rank-badge ${i < 3 ? `rank-${i + 1}` : ''}`}>{i + 1}</span>
@@ -658,8 +656,7 @@ const RankingHistoryTab = ({ gameId, onStreamerSelect }) => {
                   key={i}
                   className={`game-data-table__row ${row.person_id ? 'clickable' : ''}`}
                   onClick={() => row.person_id && onStreamerSelect?.(row.person_id)}
-                  style={row.person_id ? { cursor: 'pointer' } : undefined}
-                >
+                  >
                   <div className="game-data-table__col rank-col">
                     <span className={`rank-badge ${i < 3 ? `rank-${i + 1}` : ''}`}>{i + 1}</span>
                   </div>

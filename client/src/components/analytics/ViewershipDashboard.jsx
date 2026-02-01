@@ -361,7 +361,6 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
                 key={item.channelId + '-' + item.rank}
                 className={`ranking-item ${item.personId ? 'clickable' : ''}`}
                 onClick={() => item.personId && onStreamerSelect?.(item.personId)}
-                style={item.personId ? { cursor: 'pointer' } : undefined}
               >
                 <div className={`ranking-position rank-${item.rank <= 3 ? item.rank : 'default'}`}>
                   {item.rank}
@@ -417,7 +416,6 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
                 key={item.channelId + '-peak-' + item.rank}
                 className={`ranking-item ${item.personId ? 'clickable' : ''}`}
                 onClick={() => item.personId && onStreamerSelect?.(item.personId)}
-                style={item.personId ? { cursor: 'pointer' } : undefined}
               >
                 <div className={`ranking-position rank-${item.rank <= 3 ? item.rank : 'default'}`}>
                   {item.rank}

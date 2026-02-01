@@ -1419,6 +1419,20 @@
   background: var(--bg-hover);
 }
 
+.game-data-table__row.clickable {
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.game-data-table__row.clickable:hover {
+  background: var(--bg-hover);
+  transform: translateX(3px);
+}
+
+.game-data-table__row.clickable:active {
+  opacity: 0.85;
+}
+
 .game-data-table__col {
   display: flex;
   align-items: center;
