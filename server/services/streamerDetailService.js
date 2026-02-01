@@ -95,11 +95,11 @@ const createStreamerDetailService = () => {
 
       return {
         person,
-        broadcastStats: broadcastStats || {},
-        liveBroadcast,
+        stats: broadcastStats || {},
+        live: liveBroadcast,
         eventStats: eventStats || {},
         recentBroadcasts: recentBroadcasts || [],
-        categoryBreakdown: categoryBreakdown || [],
+        categories: categoryBreakdown || [],
       };
     },
 

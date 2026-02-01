@@ -4,13 +4,13 @@ import {
 } from 'recharts';
 import { Clock, Users, TrendingUp, DollarSign, RefreshCw, LogIn, Monitor, Gamepad2, Flame, Trophy } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import { API_URL } from '../../config/api';
 import { formatCompactKo, formatFullNumber, formatCurrency } from '../../utils/formatters';
 import './ViewershipDashboard.css';
 
-const ViewershipDashboard = () => {
+const ViewershipDashboard = ({ onStreamerSelect }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('viewers'); // viewers | channels | chats
   const [realtimeSummary, setRealtimeSummary] = useState(null);
@@ -357,7 +357,12 @@ const ViewershipDashboard = () => {
           </div>
           <div className="ranking-list">
             {liveBroadcasts.length > 0 ? liveBroadcasts.map((item) => (
-              <div key={item.channelId + '-' + item.rank} className="ranking-item">
+              <div
+                key={item.channelId + '-' + item.rank}
+                className={`ranking-item ${item.personId ? 'clickable' : ''}`}
+                onClick={() => item.personId && onStreamerSelect?.(item.personId)}
+                style={item.personId ? { cursor: 'pointer' } : undefined}
+              >
                 <div className={`ranking-position rank-${item.rank <= 3 ? item.rank : 'default'}`}>
                   {item.rank}
                 </div>
@@ -373,9 +378,7 @@ const ViewershipDashboard = () => {
                 </div>
                 <div className="ranking-info">
                   <div className="ranking-name">
-                    {item.personId ? (
-                      <Link to={`/streamer/${item.personId}`} className="streamer-link">{item.broadcasterName}</Link>
-                    ) : item.broadcasterName}
+                    {item.broadcasterName}
                   </div>
                   <div className="ranking-meta">
                     {item.categoryName && <span className="ranking-category">{item.categoryName}</span>}
@@ -410,7 +413,12 @@ const ViewershipDashboard = () => {
           </div>
           <div className="ranking-list">
             {peakBroadcasts.length > 0 ? peakBroadcasts.map((item) => (
-              <div key={item.channelId + '-peak-' + item.rank} className="ranking-item">
+              <div
+                key={item.channelId + '-peak-' + item.rank}
+                className={`ranking-item ${item.personId ? 'clickable' : ''}`}
+                onClick={() => item.personId && onStreamerSelect?.(item.personId)}
+                style={item.personId ? { cursor: 'pointer' } : undefined}
+              >
                 <div className={`ranking-position rank-${item.rank <= 3 ? item.rank : 'default'}`}>
                   {item.rank}
                 </div>
@@ -426,9 +434,7 @@ const ViewershipDashboard = () => {
                 </div>
                 <div className="ranking-info">
                   <div className="ranking-name">
-                    {item.personId ? (
-                      <Link to={`/streamer/${item.personId}`} className="streamer-link">{item.broadcasterName}</Link>
-                    ) : item.broadcasterName}
+                    {item.broadcasterName}
                     {item.isLive && <span className="ranking-live-badge">LIVE</span>}
                   </div>
                   <div className="ranking-meta">

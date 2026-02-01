@@ -64,12 +64,12 @@
   border: 3px solid var(--border-light);
 }
 
-.streamer-platform-badge {
+.streamer-profile-avatar .streamer-platform-badge {
   position: absolute;
   bottom: 0;
   right: 0;
-  width: 28px;
-  height: 28px;
+  width: 28px !important;
+  height: 28px !important;
   border-radius: 50%;
   background: var(--bg-card);
   padding: 3px;

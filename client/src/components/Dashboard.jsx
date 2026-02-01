@@ -28,6 +28,7 @@ import BotSettings from './settings/BotSettings';
 import GameSettings from './settings/GameSettings';
 import GameCatalog from './catalog/GameCatalog';
 import GameDetail from './catalog/GameDetail';
+import StreamerDetail from './streamer/StreamerDetail';
 import MarketplaceTab from './marketplace/MarketplaceTab';
 import RevenueAnalytics from './analytics/RevenueAnalytics';
 import ViewerAnalytics from './analytics/ViewerAnalytics';
@@ -43,6 +44,7 @@ const Dashboard = () => {
   const [collapsedGroups, setCollapsedGroups] = useState({});
   const [feedTab, setFeedTab] = useState('pending');
   const [selectedGameId, setSelectedGameId] = useState(null);
+  const [selectedPersonId, setSelectedPersonId] = useState(null);
 
   // 캐시에서 초기값 로드
   const getCachedDashboardData = () => {
@@ -94,6 +96,18 @@ const Dashboard = () => {
   const handleBackFromGame = () => {
     setSelectedGameId(null);
     setActiveTab('game-catalog');
+  };
+
+  // 스트리머 상세 핸들러
+  const handleStreamerSelect = (personId) => {
+    setSelectedPersonId(personId);
+    setActiveTab('streamer-detail');
+  };
+
+  const handleBackFromStreamer = () => {
+    setSelectedPersonId(null);
+    // 이전 탭으로 돌아가기 (viewership 또는 game-detail)
+    setActiveTab('viewership');
   };
 
   const menuGroups = [
@@ -667,7 +681,10 @@ const Dashboard = () => {
       return <GameCatalog onGameSelect={handleGameSelect} />;
     }
     if (activeTab === 'game-detail') {
-      return <GameDetail gameId={selectedGameId} onBack={handleBackFromGame} />;
+      return <GameDetail gameId={selectedGameId} onBack={handleBackFromGame} onStreamerSelect={handleStreamerSelect} />;
+    }
+    if (activeTab === 'streamer-detail') {
+      return <StreamerDetail personId={selectedPersonId} onBack={handleBackFromStreamer} />;
     }
 
     const ActiveComponent = {
@@ -690,8 +707,11 @@ const Dashboard = () => {
       'analytics-viewers': ViewerAnalytics,
       'analytics-content': ContentAnalytics,
       'analytics-ads': AdAnalytics,
-      'viewership': ViewershipDashboard,
     }[activeTab];
+
+    if (activeTab === 'viewership') {
+      return <ViewershipDashboard onStreamerSelect={handleStreamerSelect} />;
+    }
 
     if (ActiveComponent) return <ActiveComponent />;
 

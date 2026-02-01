@@ -50,9 +50,11 @@ const getElapsedTime = (startedAt) => {
 };
 
 // ===================== MAIN COMPONENT =====================
-const StreamerDetail = () => {
-  const { personId } = useParams();
+const StreamerDetail = ({ personId: propPersonId, onBack }) => {
+  const params = useParams();
   const navigate = useNavigate();
+  const personId = propPersonId || params.personId;
+  const isEmbedded = !!propPersonId;
   const [activeTab, setActiveTab] = useState('summary');
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -94,10 +96,18 @@ const StreamerDetail = () => {
     );
   }
 
+  const handleBack = () => {
+    if (isEmbedded && onBack) {
+      onBack();
+    } else {
+      navigate(-1);
+    }
+  };
+
   if (error || !profile) {
     return (
       <div className="streamer-detail">
-        <button className="streamer-detail-back" onClick={() => navigate(-1)}>
+        <button className="streamer-detail-back" onClick={handleBack}>
           <ArrowLeft size={16} /> 뒤로가기
         </button>
         <div className="streamer-tab-empty">
@@ -119,7 +129,7 @@ const StreamerDetail = () => {
 
   return (
     <div className="streamer-detail">
-      <button className="streamer-detail-back" onClick={() => navigate(-1)}>
+      <button className="streamer-detail-back" onClick={handleBack}>
         <ArrowLeft size={16} /> 뒤로가기
       </button>
 
@@ -343,10 +353,10 @@ const StatsTab = ({ personId, tabData, setTabData }) => {
   if (loading) return <div className="streamer-tab-loading"><RefreshCw size={20} className="spinning" /> 통계 로딩중...</div>;
   if (!data || data.length === 0) return <div className="streamer-tab-empty"><BarChart3 size={28} /> 통계 데이터가 없습니다</div>;
 
-  const totalBroadcasts = data.reduce((s, d) => s + (d.broadcast_count || 0), 0);
-  const totalMinutes = data.reduce((s, d) => s + (d.total_minutes || 0), 0);
-  const maxPeak = Math.max(...data.map(d => d.peak_viewers || 0));
-  const avgViewers = Math.round(data.reduce((s, d) => s + (d.avg_viewers || 0), 0) / data.length);
+  const totalBroadcasts = data.reduce((s, d) => s + Number(d.broadcast_count || 0), 0);
+  const totalMinutes = data.reduce((s, d) => s + Number(d.total_minutes || 0), 0);
+  const maxPeak = Math.max(...data.map(d => Number(d.peak_viewers || 0)));
+  const avgViewers = Math.round(data.reduce((s, d) => s + Number(d.avg_viewers || 0), 0) / data.length);
 
   return (
     <>

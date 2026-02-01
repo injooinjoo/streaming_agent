@@ -8,7 +8,6 @@ import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
-import { Link } from 'react-router-dom';
 import { formatCompactKo, formatFullNumber, formatGrowth } from '../../utils/formatters';
 import { API_URL } from '../../config/api';
 import LoadingSpinner from '../shared/LoadingSpinner';
@@ -414,7 +413,7 @@ const PlatformTab = ({ gameId }) => {
 };
 
 /* ====== Tab: 스트리머 랭킹 ====== */
-const StreamerRankingTab = ({ gameId }) => {
+const StreamerRankingTab = ({ gameId, onStreamerSelect }) => {
   const [data, setData] = useState(null);
   const [period, setPeriod] = useState('7d');
   const [sortBy, setSortBy] = useState('peak');
@@ -471,7 +470,12 @@ const StreamerRankingTab = ({ gameId }) => {
           </div>
           <div className="game-data-table__body">
             {data.map((row, i) => (
-              <div key={i} className="game-data-table__row">
+              <div
+                key={i}
+                className={`game-data-table__row ${row.person_id ? 'clickable' : ''}`}
+                onClick={() => row.person_id && onStreamerSelect?.(row.person_id)}
+                style={row.person_id ? { cursor: 'pointer' } : undefined}
+              >
                 <div className="game-data-table__col rank-col">
                   <span className={`rank-badge ${i < 3 ? `rank-${i + 1}` : ''}`}>{i + 1}</span>
                 </div>
@@ -482,11 +486,7 @@ const StreamerRankingTab = ({ gameId }) => {
                     ) : (
                       <div className="streamer-avatar-placeholder"><User size={14} /></div>
                     )}
-                    {row.person_id ? (
-                      <Link to={`/streamer/${row.person_id}`} className="streamer-link streamer-name">{row.nickname || '알 수 없음'}</Link>
-                    ) : (
-                      <span className="streamer-name">{row.nickname || '알 수 없음'}</span>
-                    )}
+                    <span className="streamer-name">{row.nickname || '알 수 없음'}</span>
                   </div>
                 </div>
                 <div className="game-data-table__col">
@@ -507,7 +507,7 @@ const StreamerRankingTab = ({ gameId }) => {
 };
 
 /* ====== Tab: 성장 랭킹 ====== */
-const GrowthRankingTab = ({ gameId }) => {
+const GrowthRankingTab = ({ gameId, onStreamerSelect }) => {
   const [data, setData] = useState(null);
   const [period, setPeriod] = useState('7d');
   const [loading, setLoading] = useState(true);
@@ -551,7 +551,12 @@ const GrowthRankingTab = ({ gameId }) => {
           </div>
           <div className="game-data-table__body">
             {data.map((row, i) => (
-              <div key={i} className="game-data-table__row">
+              <div
+                key={i}
+                className={`game-data-table__row ${row.person_id ? 'clickable' : ''}`}
+                onClick={() => row.person_id && onStreamerSelect?.(row.person_id)}
+                style={row.person_id ? { cursor: 'pointer' } : undefined}
+              >
                 <div className="game-data-table__col rank-col">
                   <span className={`rank-badge ${i < 3 ? `rank-${i + 1}` : ''}`}>{i + 1}</span>
                 </div>
@@ -562,11 +567,7 @@ const GrowthRankingTab = ({ gameId }) => {
                     ) : (
                       <div className="streamer-avatar-placeholder"><User size={14} /></div>
                     )}
-                    {row.person_id ? (
-                      <Link to={`/streamer/${row.person_id}`} className="streamer-link streamer-name">{row.nickname || '알 수 없음'}</Link>
-                    ) : (
-                      <span className="streamer-name">{row.nickname || '알 수 없음'}</span>
-                    )}
+                    <span className="streamer-name">{row.nickname || '알 수 없음'}</span>
                   </div>
                 </div>
                 <div className="game-data-table__col">
@@ -590,7 +591,7 @@ const GrowthRankingTab = ({ gameId }) => {
 };
 
 /* ====== Tab: 랭킹 히스토리 ====== */
-const RankingHistoryTab = ({ gameId }) => {
+const RankingHistoryTab = ({ gameId, onStreamerSelect }) => {
   const [data, setData] = useState(null);
   const [selectedDate, setSelectedDate] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - 1);
@@ -653,7 +654,12 @@ const RankingHistoryTab = ({ gameId }) => {
             </div>
             <div className="game-data-table__body">
               {data.map((row, i) => (
-                <div key={i} className="game-data-table__row">
+                <div
+                  key={i}
+                  className={`game-data-table__row ${row.person_id ? 'clickable' : ''}`}
+                  onClick={() => row.person_id && onStreamerSelect?.(row.person_id)}
+                  style={row.person_id ? { cursor: 'pointer' } : undefined}
+                >
                   <div className="game-data-table__col rank-col">
                     <span className={`rank-badge ${i < 3 ? `rank-${i + 1}` : ''}`}>{i + 1}</span>
                   </div>
@@ -664,11 +670,7 @@ const RankingHistoryTab = ({ gameId }) => {
                       ) : (
                         <div className="streamer-avatar-placeholder"><User size={14} /></div>
                       )}
-                      {row.person_id ? (
-                      <Link to={`/streamer/${row.person_id}`} className="streamer-link streamer-name">{row.nickname || '알 수 없음'}</Link>
-                    ) : (
                       <span className="streamer-name">{row.nickname || '알 수 없음'}</span>
-                    )}
                     </div>
                   </div>
                   <div className="game-data-table__col">
@@ -692,7 +694,7 @@ const RankingHistoryTab = ({ gameId }) => {
 };
 
 /* ====== Main Component ====== */
-const GameDetail = ({ gameId, onBack }) => {
+const GameDetail = ({ gameId, onBack, onStreamerSelect }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [gameData, setGameData] = useState(null);
@@ -798,11 +800,11 @@ const GameDetail = ({ gameId, onBack }) => {
       case 'platform':
         return <PlatformTab gameId={gameId} />;
       case 'streamer':
-        return <StreamerRankingTab gameId={gameId} />;
+        return <StreamerRankingTab gameId={gameId} onStreamerSelect={onStreamerSelect} />;
       case 'growth':
-        return <GrowthRankingTab gameId={gameId} />;
+        return <GrowthRankingTab gameId={gameId} onStreamerSelect={onStreamerSelect} />;
       case 'history':
-        return <RankingHistoryTab gameId={gameId} />;
+        return <RankingHistoryTab gameId={gameId} onStreamerSelect={onStreamerSelect} />;
       default:
         return null;
     }
