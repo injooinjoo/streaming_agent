@@ -250,6 +250,7 @@ cd client && npm run build && cp -r dist/* ../server/public/
 | SOOP | `/assets/logos/soop.png` |
 | Chzzk | `/assets/logos/chzzk.png` |
 | YouTube | `/assets/logos/youtube.png` |
+| Twitch | `/assets/logos/twitch.png` |
 
 ---
 

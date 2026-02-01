@@ -88,6 +88,7 @@
       "Bash(__NEW_LINE_66f8227ca8b2889c__ curl -s http://localhost:3001/api/discovery/status)",
       "Bash(__NEW_LINE_eed78cecf26a4368__ echo \"\")",
       "Bash(exit 0)",
+      "Bash(sshpass -p 'Gd_4s$aJ*a4kX}v]' ssh -o StrictHostKeyChecking=no root@158.247.204.45 'pm2 stop all && pm2 list')",
       "Bash(ssh:*)",
       "Bash(sshpass -p:*)",
       "Bash(ssh-keygen:*)",
@@ -116,6 +117,7 @@
       "Bash(gh run list:*)",
       "Bash(gh run view:*)",
       "Bash(gh workflow run:*)",
+      "Bash(pm2 logs:*)",
       "mcp__render__list_services",
       "Bash(__NEW_LINE_9ac834a4469671de__ echo \"Data copied. Checking unified.db tables:\")",
       "mcp__plugin_playwright_playwright__browser_navigate",
@@ -232,20 +234,10 @@
       "Bash(sudo tlmgr install:*)",
       "Bash(tlmgr install:*)",
       "Bash(fc-list:*)",
-      "Bash(git rebase:*)",
-      "Bash(GIT_EDITOR=true git rebase:*)",
-      "Bash(export PATH=\"/opt/homebrew/share/google-cloud-sdk/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH\")",
-      "mcp__plugin_supabase_supabase__get_logs",
-      "Bash(gcloud artifacts repositories list:*)",
-      "Bash(while read f)",
-      "Bash(do if ! grep -q \"@media\" \"$f\")",
-      "Bash(then echo \"$f\")",
-      "Bash(fi)",
-      "Bash(# Kill any existing server processes and start fresh with a timeout pkill -f \"\"node index.js\"\" ; sleep 1 cd /Users/jacobmac/Desktop/Dev/streaming_agent/server && timeout 30 node index.js & sleep 15 lsof -i :3001 -t)",
-      "mcp__plugin_playwright_playwright__browser_resize",
-      "Bash(git status:*)",
-      "Bash(gcloud builds list:*)",
-      "Bash(gcloud builds:*)"
+      "Bash(git remote add:*)",
+      "Bash(git config:*)",
+      "Bash(git branch:*)",
+      "Bash(npm run process:api:*)"
     ]
   }
 }
