@@ -1063,7 +1063,8 @@ const createStatsService = () => {
         const result = [];
         for (let i = 23; i >= 0; i--) {
           const d = new Date(now.getTime() - i * 3600000);
-          const hourStr = String(d.getHours()).padStart(2, '0') + ':00';
+          const kst = new Date(d.getTime() + 9 * 3600000);
+          const hourStr = String(kst.getUTCHours()).padStart(2, '0') + ':00';
           result.push({ time: hourStr, chzzk: 0, soop: 0, twitch: 0 });
         }
         return result;
@@ -1074,30 +1075,31 @@ const createStatsService = () => {
       const field = type === 'channels' ? 'streamer_count' : 'viewer_count';
 
       // Try broadcast-level totals first (accurate unique channel sums)
+      // Convert recorded_at to KST (UTC+9) for correct Korean timezone grouping
       const broadcastTotalData = await streamingDbAll(
         isPostgres()
           ? `
             SELECT
-              TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00') as time_key,
-              TO_CHAR(recorded_at, 'HH24:00') as time_display,
+              TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:00') as time_key,
+              TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'HH24:00') as time_display,
               platform,
               MAX(${field}) as total
             FROM category_stats
             WHERE platform_category_id = '_broadcast_total_'
               AND recorded_at >= NOW() - INTERVAL '${hours} hours'
-            GROUP BY TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00'), TO_CHAR(recorded_at, 'HH24:00'), platform
+            GROUP BY TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:00'), TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'HH24:00'), platform
             ORDER BY time_key
           `
           : `
             SELECT
-              strftime('%Y-%m-%d %H:00', recorded_at) as time_key,
-              strftime('%H:00', recorded_at) as time_display,
+              strftime('%Y-%m-%d %H:00', recorded_at, '+9 hours') as time_key,
+              strftime('%H:00', recorded_at, '+9 hours') as time_display,
               platform,
               MAX(${field}) as total
             FROM category_stats
             WHERE platform_category_id = '_broadcast_total_'
               AND recorded_at >= datetime('now', '-${hours} hours')
-            GROUP BY strftime('%Y-%m-%d %H', recorded_at), platform
+            GROUP BY strftime('%Y-%m-%d %H', recorded_at, '+9 hours'), platform
             ORDER BY time_key
           `
       );
@@ -1105,21 +1107,22 @@ const createStatsService = () => {
       const useBroadcastTotals = broadcastTotalData && broadcastTotalData.length > 0;
 
       // Fallback: category-level aggregation with dedup (legacy behavior)
+      // Also using KST timezone conversion
       const trendData = useBroadcastTotals ? broadcastTotalData : await streamingDbAll(
         isPostgres()
           ? `
             SELECT time_key, time_display, platform, SUM(max_value) as total
             FROM (
               SELECT
-                TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00') as time_key,
-                TO_CHAR(recorded_at, 'HH24:00') as time_display,
+                TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:00') as time_key,
+                TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'HH24:00') as time_display,
                 platform,
                 platform_category_id,
                 MAX(${field}) as max_value
               FROM category_stats
               WHERE recorded_at >= NOW() - INTERVAL '${hours} hours'
                 AND platform_category_id != '_broadcast_total_'
-              GROUP BY TO_CHAR(recorded_at, 'YYYY-MM-DD HH24:00'), TO_CHAR(recorded_at, 'HH24:00'), platform, platform_category_id
+              GROUP BY TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:00'), TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'HH24:00'), platform, platform_category_id
             ) sub
             GROUP BY time_key, time_display, platform
             ORDER BY time_key
@@ -1128,15 +1131,15 @@ const createStatsService = () => {
             SELECT time_key, time_display, platform, SUM(max_value) as total
             FROM (
               SELECT
-                strftime('%Y-%m-%d %H:00', recorded_at) as time_key,
-                strftime('%H:00', recorded_at) as time_display,
+                strftime('%Y-%m-%d %H:00', recorded_at, '+9 hours') as time_key,
+                strftime('%H:00', recorded_at, '+9 hours') as time_display,
                 platform,
                 platform_category_id,
                 MAX(${field}) as max_value
               FROM category_stats
               WHERE recorded_at >= datetime('now', '-${hours} hours')
                 AND platform_category_id != '_broadcast_total_'
-              GROUP BY strftime('%Y-%m-%d %H', recorded_at), platform, platform_category_id
+              GROUP BY strftime('%Y-%m-%d %H', recorded_at, '+9 hours'), platform, platform_category_id
             ) sub
             GROUP BY time_key, time_display, platform
             ORDER BY time_key
@@ -1156,15 +1159,17 @@ const createStatsService = () => {
         else if (row.platform === 'twitch') hourlyMap[key].twitch = total;
       });
 
-      // Fill hours chronologically: oldest (24h ago) on left → current hour on right
+      // Fill hours chronologically: oldest (24h ago) on left → current hour (KST) on right
       const now = new Date();
       const result = [];
       for (let i = 23; i >= 0; i--) {
         const d = new Date(now.getTime() - i * 3600000);
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, '0');
-        const dd = String(d.getDate()).padStart(2, '0');
-        const hh = String(d.getHours()).padStart(2, '0');
+        // Convert to KST (UTC+9) for display and key matching
+        const kst = new Date(d.getTime() + 9 * 3600000);
+        const yyyy = kst.getUTCFullYear();
+        const mm = String(kst.getUTCMonth() + 1).padStart(2, '0');
+        const dd = String(kst.getUTCDate()).padStart(2, '0');
+        const hh = String(kst.getUTCHours()).padStart(2, '0');
         const dateHourKey = `${yyyy}-${mm}-${dd} ${hh}:00`;
         const hourDisplay = `${hh}:00`;
         const entry = hourlyMap[dateHourKey];
