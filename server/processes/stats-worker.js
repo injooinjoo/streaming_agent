@@ -29,10 +29,8 @@ const main = async () => {
   const categoryService = new CategoryService(db, null);
   const designService = createDesignService(db, null);
 
-  // 카테고리 캐시 로드 (스케줄러 없이)
-  await categoryService.initialize().catch((err) => {
-    log.warn("Category cache load failed, continuing anyway", { error: err.message });
-  });
+  // CategoryService: 크롤/스케줄러 시작하지 않음 (category-crawler가 담당)
+  // StatsCacheService가 내부에서 categoryService의 DB 쿼리 메서드만 사용
 
   // StatsCacheService
   statsCacheService = new StatsCacheService({
@@ -58,11 +56,6 @@ const main = async () => {
       if (statsCacheService) {
         statsCacheService.shutdown();
         log.info("Stats cache service stopped");
-      }
-    },
-    () => {
-      if (categoryService) {
-        categoryService.shutdown();
       }
     },
   ]);
