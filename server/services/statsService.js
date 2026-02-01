@@ -1159,10 +1159,11 @@ const createStatsService = () => {
         else if (row.platform === 'twitch') hourlyMap[key].twitch = total;
       });
 
-      // Fill hours chronologically: oldest (24h ago) on left → current hour (KST) on right
+      // Fill hours chronologically: oldest on left → most recent data on right
+      // Start from 24h ago, stop at previous hour (current hour is incomplete → shows 0)
       const now = new Date();
       const result = [];
-      for (let i = 23; i >= 0; i--) {
+      for (let i = 23; i >= 1; i--) {
         const d = new Date(now.getTime() - i * 3600000);
         // Convert to KST (UTC+9) for display and key matching
         const kst = new Date(d.getTime() + 9 * 3600000);
