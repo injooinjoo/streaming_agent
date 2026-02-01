@@ -1311,8 +1311,8 @@ const createStatsService = () => {
       if (todayStats?.todayDonation > 0) {
         insights.push({
           type: 'donation',
-          message: `이번 달 ${todayStats.donationCount}건의 후원이 있었습니다`,
-          value: `₩${todayStats.todayDonation.toLocaleString()}`
+          message: `이번 달 ${Number(todayStats.donationCount).toLocaleString('ko-KR')}건의 후원이 있었습니다`,
+          value: `₩${Number(todayStats.todayDonation).toLocaleString('ko-KR')}`
         });
       }
 
@@ -1320,7 +1320,7 @@ const createStatsService = () => {
         insights.push({
           type: 'viewers',
           message: `이번 달 최고 시청자 수를 기록했습니다`,
-          value: `${peakViewers.peakViewers}명`
+          value: `${Number(peakViewers.peakViewers).toLocaleString('ko-KR')}명`
         });
       }
 
@@ -1331,7 +1331,7 @@ const createStatsService = () => {
         insights.push({
           type: 'platform',
           message: `${platformName}에서 가장 활발한 활동이 있습니다`,
-          value: `${topPlatform.activity}개 이벤트`
+          value: `${Number(topPlatform.activity).toLocaleString('ko-KR')}개 이벤트`
         });
       }
 
