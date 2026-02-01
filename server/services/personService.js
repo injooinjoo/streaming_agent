@@ -56,7 +56,11 @@ class PersonService {
           channel_id, channel_description, follower_count, subscriber_count
         ) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)})
         ON CONFLICT(platform, platform_user_id) DO UPDATE SET
-          nickname = COALESCE(${excludedPrefix}.nickname, persons.nickname),
+          nickname = CASE
+            WHEN ${excludedPrefix}.nickname IS NOT NULL THEN ${excludedPrefix}.nickname
+            WHEN persons.nickname = persons.platform_user_id THEN NULL
+            ELSE persons.nickname
+          END,
           profile_image_url = COALESCE(${excludedPrefix}.profile_image_url, persons.profile_image_url),
           channel_id = COALESCE(${excludedPrefix}.channel_id, persons.channel_id),
           channel_description = COALESCE(${excludedPrefix}.channel_description, persons.channel_description),

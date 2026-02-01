@@ -985,10 +985,14 @@ class BroadcastCrawler {
 
       // 1. Upsert person (viewer) - only if valid sender.id exists
       if (hasSenderId && this.personService) {
+        // nickname이 userId와 동일한 경우 실제 닉네임이 아닌 폴백값이므로 null 처리
+        const senderNickname = event.sender.nickname && event.sender.nickname !== event.sender.id
+          ? event.sender.nickname
+          : null;
         personId = await this.personService.upsertPerson({
           platform: event.platform,
           platformUserId: event.sender.id,
-          nickname: event.sender.nickname,
+          nickname: senderNickname,
           profileImageUrl: event.sender.profileImage || event.sender.profileImageUrl,
         });
       }
