@@ -44,7 +44,7 @@
   position: relative;
 }
 
-.streamer-profile-avatar img {
+.streamer-profile-avatar .streamer-profile-img {
   width: 100px;
   height: 100px;
   border-radius: 50%;

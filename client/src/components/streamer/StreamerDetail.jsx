@@ -107,9 +107,11 @@ const StreamerDetail = ({ personId: propPersonId, onBack }) => {
   if (error || !profile) {
     return (
       <div className="streamer-detail">
-        <button className="streamer-detail-back" onClick={handleBack}>
-          <ArrowLeft size={16} /> 뒤로가기
-        </button>
+        {!isEmbedded && (
+          <button className="streamer-detail-back" onClick={handleBack}>
+            <ArrowLeft size={16} /> 뒤로가기
+          </button>
+        )}
         <div className="streamer-tab-empty">
           <Users size={32} />
           <span>{error || '스트리머를 찾을 수 없습니다'}</span>
@@ -129,15 +131,17 @@ const StreamerDetail = ({ personId: propPersonId, onBack }) => {
 
   return (
     <div className="streamer-detail">
-      <button className="streamer-detail-back" onClick={handleBack}>
-        <ArrowLeft size={16} /> 뒤로가기
-      </button>
+      {!isEmbedded && (
+        <button className="streamer-detail-back" onClick={handleBack}>
+          <ArrowLeft size={16} /> 뒤로가기
+        </button>
+      )}
 
       {/* Profile Header */}
       <div className="streamer-profile-header">
         <div className="streamer-profile-avatar">
           {profile.person?.profile_image_url ? (
-            <img src={profile.person.profile_image_url} alt={profile.person.nickname} />
+            <img src={profile.person.profile_image_url} alt={profile.person.nickname} className="streamer-profile-img" />
           ) : (
             <div className="streamer-profile-avatar-placeholder"><Users size={36} /></div>
           )}
