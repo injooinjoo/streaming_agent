@@ -907,6 +907,113 @@
   }
 }
 
+/* === 방송 인사이트 === */
+.broadcast-insights-wrapper {
+  margin-bottom: 32px;
+}
+
+.broadcast-insights-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.insight-summary-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.bi-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-medium);
+}
+
+.bi-card__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: rgba(99, 102, 241, 0.1);
+  color: var(--primary-color);
+  flex-shrink: 0;
+}
+
+.bi-card__content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bi-card__label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.bi-card__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.insight-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.insight-chart-card {
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-medium);
+}
+
+.insight-chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  margin: 0 0 4px 0;
+}
+
+.insight-chart-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0 0 16px 0;
+}
+
+@media (max-width: 1024px) {
+  .insight-summary-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .insight-charts-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bi-card__value {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .insight-summary-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Tabs */
 .tabs-container {
   display: flex;

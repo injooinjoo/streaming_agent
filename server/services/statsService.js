@@ -1419,52 +1419,32 @@ const createStatsService = () => {
         }
       }
 
-      // Top game categories from unified_games (실제 게임 카테고리)
-      // 이미지 우선순위: SOOP 카테고리 이미지 > Chzzk 포스터 이미지 > unified_games 이미지
-      let topCategories = [];
-      try {
-        const boolTrue = isPostgres() ? 'TRUE' : '1';
-        // PostgreSQL uses STRING_AGG, SQLite uses GROUP_CONCAT
-        const concatDistinct = isPostgres()
-          ? `STRING_AGG(DISTINCT pc.platform, ',')`
-          : `GROUP_CONCAT(DISTINCT pc.platform)`;
+      // 방송 인사이트 데이터 (channelId가 있을 때만)
+      let hourlyActivity = [];
+      let weeklyTrend = [];
+      let peakHourSummary = null;
 
-        const categoryRows = await streamingDbAll(`
-          SELECT
-            ug.id,
-            ug.name,
-            ug.name_kr,
-            ug.image_url,
-            ug.genre_kr,
-            COALESCE(SUM(pc.viewer_count), 0) as total_viewers,
-            COALESCE(SUM(pc.streamer_count), 0) as total_streamers,
-            ${concatDistinct} as platforms,
-            MAX(CASE WHEN pc.platform = 'soop' THEN pc.thumbnail_url END) as soop_thumbnail,
-            MAX(CASE WHEN pc.platform = 'chzzk' THEN pc.thumbnail_url END) as chzzk_thumbnail
-          FROM unified_games ug
-          LEFT JOIN category_game_mappings cgm ON ug.id = cgm.unified_game_id
-          LEFT JOIN platform_categories pc ON cgm.platform = pc.platform
-            AND cgm.platform_category_id = pc.platform_category_id
-            AND pc.is_active = ${boolTrue}
-          GROUP BY ug.id, ug.name, ug.name_kr, ug.image_url, ug.genre_kr
-          HAVING COALESCE(SUM(pc.viewer_count), 0) > 0
-          ORDER BY total_viewers DESC
-          LIMIT 5
-        `);
-        if (categoryRows && categoryRows.length > 0) {
-          topCategories = categoryRows.map((row, i) => ({
-            rank: i + 1,
-            id: row.id,
-            name: row.name_kr || row.name,
-            imageUrl: row.soop_thumbnail || row.chzzk_thumbnail || row.image_url || null,
-            genre: row.genre_kr,
-            totalViewers: Number(row.total_viewers) || 0,
-            totalStreamers: Number(row.total_streamers) || 0,
-            platforms: row.platforms ? row.platforms.split(',') : [],
-          }));
+      if (channelId) {
+        try {
+          const [hourly, timeline, summary] = await Promise.all([
+            this.getChatTrendByHourFiltered(7, channelId, platform),
+            this.getActivityTimelineFiltered(7, channelId, platform),
+            this.getChatActivitySummaryFiltered(7, channelId, platform),
+          ]);
+          hourlyActivity = hourly || [];
+          weeklyTrend = timeline || [];
+          if (summary) {
+            peakHourSummary = {
+              peakHour: summary.peakHour || null,
+              peakViewerCount: summary.peakViewerCount || 0,
+              uniqueViewers: summary.uniqueViewers || 0,
+              totalChats: summary.totalChats || 0,
+              activeDays: summary.activeDays || 0,
+            };
+          }
+        } catch (err) {
+          console.error('Failed to fetch broadcast insights:', err);
         }
-      } catch (err) {
-        console.error('Failed to fetch game categories:', err);
       }
 
       // Return null for empty data to distinguish from actual 0 values
@@ -1483,7 +1463,10 @@ const createStatsService = () => {
         newSubs: hasSubscribeData ? subscribeCount.newSubs : null,
         insights,
         myCategories,
-        topCategories,
+        topCategories: [],
+        hourlyActivity,
+        weeklyTrend,
+        peakHourSummary,
       };
     },
 

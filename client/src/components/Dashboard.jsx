@@ -5,7 +5,7 @@ import {
   HelpCircle, ExternalLink, Settings,
   RefreshCw, Megaphone, Palette, Sparkles, Activity, TrendingUp, MousePointerClick,
   DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, ChevronDown, Disc,
-  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket, Trophy, Heart
+  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket, Trophy, Heart, Clock
 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { formatCurrency, formatFullNumber } from '../utils/formatters';
@@ -35,6 +35,10 @@ import ViewerAnalytics from './analytics/ViewerAnalytics';
 import ContentAnalytics from './analytics/ContentAnalytics';
 import AdAnalytics from './analytics/AdAnalytics';
 import ViewershipDashboard from './analytics/ViewershipDashboard';
+import {
+  BarChart, Bar, AreaChart, Area,
+  XAxis, YAxis, Tooltip, ResponsiveContainer
+} from 'recharts';
 import './Dashboard.css';
 
 const Dashboard = () => {
@@ -70,7 +74,10 @@ const Dashboard = () => {
     newSubs: null,
     insights: [],
     myCategories: [],
-    topCategories: []
+    topCategories: [],
+    hourlyActivity: [],
+    weeklyTrend: [],
+    peakHourSummary: null,
   };
 
   const [dashboardData, setDashboardData] = useState(() => getCachedDashboardData() || defaultDashboardData);
@@ -447,86 +454,148 @@ const Dashboard = () => {
             </div>
           )}
 
-          <div className="categories-wrapper">
-            <div className="categories-section">
-              <div className="section-header">
-                <div className="section-title">
-                  <Gamepad2 size={18} className="text-primary" />
-                  <h2>인기 게임 카테고리</h2>
+          {/* 방송 인사이트 섹션 */}
+          {isAuthenticated && (dashboardData.hourlyActivity?.length > 0 || dashboardData.weeklyTrend?.length > 0 || dashboardData.peakHourSummary) && (
+            <div className="broadcast-insights-wrapper">
+              <div className="broadcast-insights-section">
+                <div className="section-header">
+                  <div className="section-title">
+                    <Activity size={18} className="text-primary" />
+                    <h2>방송 인사이트</h2>
+                  </div>
+                  <button className="section-link" onClick={() => setActiveTab('analytics-viewers')}>
+                    상세 분석 보기 <ChevronRight size={14} />
+                  </button>
                 </div>
-                <button className="section-link" onClick={() => setActiveTab('analytics-content')}>
-                  콘텐츠 분석 보기 <ChevronRight size={14} />
-                </button>
-              </div>
-              <div className="categories-grid">
-                {dashboardData.topCategories && dashboardData.topCategories.length > 0 ?
-                  dashboardData.topCategories.map((category, index) => {
-                    // 플랫폼 로고 가져오기
-                    const getPlatformLogos = (platforms) => {
-                      if (!platforms || platforms.length === 0) return null;
-                      return platforms.map(p => {
-                        if (p === 'soop') return { src: '/assets/logos/soop.png', name: 'SOOP' };
-                        if (p === 'chzzk') return { src: '/assets/logos/chzzk.png', name: '치지직' };
-                        if (p === 'twitch') return { src: '/assets/logos/twitch.png', name: 'Twitch' };
-                        if (p === 'youtube') return { src: '/assets/logos/youtube.png', name: 'YouTube' };
-                        return null;
-                      }).filter(Boolean);
-                    };
-                    const platformLogos = getPlatformLogos(category.platforms);
 
-                    return (
-                      <div
-                        key={category.id || index}
-                        className="category-card glass-premium"
-                        onClick={() => setSelectedGameId(category.id)}
-                      >
-                        <div className="category-rank">#{index + 1}</div>
-                        <div className="category-image">
-                          {category.imageUrl ? (
-                            <img src={category.imageUrl} alt={category.name} />
-                          ) : (
-                            <Gamepad2 size={40} className="category-placeholder-icon" />
-                          )}
-                        </div>
-                        <div className="category-info">
-                          <span className="category-name">{category.name}</span>
-                          {category.genre && (
-                            <span className="category-genre">{category.genre}</span>
-                          )}
-                          <div className="category-stats">
-                            <div className="category-stat">
-                              <span className="stat-label">시청자</span>
-                              <span className="stat-value sensitive-blur">{formatFullNumber(category.totalViewers || 0)}</span>
-                            </div>
-                            <div className="category-stat">
-                              <span className="stat-label">방송</span>
-                              <span className="stat-value sensitive-blur">{formatFullNumber(category.totalStreamers || 0)}</span>
-                            </div>
-                            <div className="category-stat">
-                              <span className="stat-label">플랫폼</span>
-                              <span className="stat-value platform-logos">
-                                {platformLogos && platformLogos.length > 0 ? (
-                                  platformLogos.map((logo, i) => (
-                                    <img key={i} src={logo.src} alt={logo.name} className="category-platform-logo" />
-                                  ))
-                                ) : '-'}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
+                {/* 피크 시간대 요약 카드 */}
+                {dashboardData.peakHourSummary && (
+                  <div className="insight-summary-cards">
+                    <div className="bi-card glass-premium">
+                      <div className="bi-card__icon">
+                        <Clock size={20} />
                       </div>
-                    );
-                  }) : (
-                    <div className="empty-state" style={{ gridColumn: '1 / -1', padding: '40px', textAlign: 'center' }}>
-                      <Gamepad2 size={48} style={{ color: 'var(--text-muted)', marginBottom: '16px' }} />
-                      <p>아직 카테고리 데이터가 없습니다.</p>
-                      <p style={{ fontSize: '13px', color: 'var(--text-muted)' }}>SOOP이나 치지직에서 방송 중인 게임 정보를 수집합니다.</p>
+                      <div className="bi-card__content">
+                        <span className="bi-card__label">피크 시간대</span>
+                        <span className="bi-card__value">{dashboardData.peakHourSummary.peakHour || '--'}</span>
+                      </div>
                     </div>
-                  )
-                }
+                    <div className="bi-card glass-premium">
+                      <div className="bi-card__icon">
+                        <Users size={20} />
+                      </div>
+                      <div className="bi-card__content">
+                        <span className="bi-card__label">주간 고유 시청자</span>
+                        <span className="bi-card__value sensitive-blur">
+                          {formatFullNumber(dashboardData.peakHourSummary.uniqueViewers)}명
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bi-card glass-premium">
+                      <div className="bi-card__icon">
+                        <MessageSquare size={20} />
+                      </div>
+                      <div className="bi-card__content">
+                        <span className="bi-card__label">주간 채팅</span>
+                        <span className="bi-card__value sensitive-blur">
+                          {formatFullNumber(dashboardData.peakHourSummary.totalChats)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="bi-card glass-premium">
+                      <div className="bi-card__icon">
+                        <TrendingUp size={20} />
+                      </div>
+                      <div className="bi-card__content">
+                        <span className="bi-card__label">활동일</span>
+                        <span className="bi-card__value">
+                          {dashboardData.peakHourSummary.activeDays}일 / 7일
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 차트 영역 */}
+                <div className="insight-charts-grid">
+                  {/* 시간대별 활동 패턴 */}
+                  {dashboardData.hourlyActivity?.length > 0 && (
+                    <div className="insight-chart-card glass-premium">
+                      <h3 className="insight-chart-title">시간대별 활동 패턴</h3>
+                      <p className="insight-chart-desc">최근 7일 기준, 시청자가 가장 많은 시간대</p>
+                      <div style={{ width: '100%', height: 180 }}>
+                        <ResponsiveContainer>
+                          <BarChart data={dashboardData.hourlyActivity} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                            <XAxis
+                              dataKey="hour"
+                              tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+                              tickFormatter={(v) => v.replace(':00', '')}
+                              interval={2}
+                            />
+                            <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+                            <Tooltip
+                              contentStyle={{
+                                background: 'var(--bg-card)',
+                                border: '1px solid var(--border-medium)',
+                                borderRadius: '8px',
+                                fontSize: '12px'
+                              }}
+                              formatter={(value, name) => [
+                                formatFullNumber(value),
+                                name === 'viewers' ? '시청자' : '채팅'
+                              ]}
+                              labelFormatter={(label) => `${label} 시`}
+                            />
+                            <Bar dataKey="viewers" fill="var(--primary-color)" radius={[3, 3, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 최근 7일 추이 */}
+                  {dashboardData.weeklyTrend?.length > 0 && (
+                    <div className="insight-chart-card glass-premium">
+                      <h3 className="insight-chart-title">최근 7일 추이</h3>
+                      <p className="insight-chart-desc">일별 활성 시청자 수 변화</p>
+                      <div style={{ width: '100%', height: 180 }}>
+                        <ResponsiveContainer>
+                          <AreaChart data={[...dashboardData.weeklyTrend].reverse()} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                            <XAxis
+                              dataKey="date"
+                              tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
+                              tickFormatter={(v) => v.slice(5)}
+                            />
+                            <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
+                            <Tooltip
+                              contentStyle={{
+                                background: 'var(--bg-card)',
+                                border: '1px solid var(--border-medium)',
+                                borderRadius: '8px',
+                                fontSize: '12px'
+                              }}
+                              formatter={(value, name) => [
+                                formatFullNumber(value),
+                                name === 'activeViewers' ? '시청자' : '채팅'
+                              ]}
+                            />
+                            <Area
+                              type="monotone"
+                              dataKey="activeViewers"
+                              stroke="var(--primary-color)"
+                              fill="var(--primary-color)"
+                              fillOpacity={0.15}
+                              strokeWidth={2}
+                            />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           <div className="tabs-container">
             <button
