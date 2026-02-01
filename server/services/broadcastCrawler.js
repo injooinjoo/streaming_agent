@@ -954,6 +954,26 @@ class BroadcastCrawler {
     }
   }
 
+  /**
+   * 크롤러 상태 통계 반환
+   * @returns {Object} 플랫폼별 연결 수 및 총 자동 연결 수
+   */
+  getStats() {
+    const stats = {
+      totalAutoConnected: this.autoConnectedChannels.size,
+    };
+
+    for (const platform of ['soop', 'chzzk', 'twitch', 'youtube']) {
+      let connections = 0;
+      for (const [key] of this.activeAdapters) {
+        if (key.startsWith(`${platform}:`)) connections++;
+      }
+      stats[platform] = { connections };
+    }
+
+    return stats;
+  }
+
   // ===== Auto WebSocket Connection Methods =====
 
   /**
