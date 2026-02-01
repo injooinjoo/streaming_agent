@@ -1164,8 +1164,8 @@
 
 .summary-stat-card {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 6px;
   padding: 14px 16px;
   background: var(--bg-hover);
   border-radius: 12px;
@@ -1177,26 +1177,32 @@
 }
 
 .summary-stat-label {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.summary-stat-right {
+.summary-stat-row {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
 
 .summary-stat-value {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .summary-stat-unit {
   font-size: 12px;
   color: var(--text-muted);
   font-weight: 400;
+  margin-left: 2px;
 }
 
 .game-summary-empty {
@@ -1393,5 +1399,83 @@
 
   .game-catalog-stats {
     grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .game-catalog-header {
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+  }
+
+  .game-catalog-header h1 {
+    font-size: 18px;
+  }
+
+  .game-catalog-content {
+    padding: 12px;
+  }
+
+  .game-catalog-card {
+    padding: 0;
+  }
+
+  .game-catalog-card__info {
+    padding: 12px;
+  }
+
+  .game-catalog-card__name {
+    font-size: 14px;
+  }
+
+  .game-detail-stats {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .game-detail-header__image {
+    height: 150px;
+  }
+
+  .game-detail-header__title {
+    font-size: 20px;
+  }
+
+  .summary-stat-value {
+    font-size: 20px;
+  }
+
+  .summary-stat-label {
+    font-size: 11px;
+  }
+
+  .game-catalog-filters {
+    flex-direction: column;
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .game-catalog-filters select,
+  .game-catalog-filters input {
+    width: 100%;
+    font-size: 13px;
+  }
+
+  .game-catalog-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    gap: 4px;
+  }
+
+  .game-catalog-tab {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .chart-container {
+    padding: 12px;
+    min-height: 200px;
   }
 }

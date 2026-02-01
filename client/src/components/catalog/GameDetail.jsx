@@ -6,7 +6,7 @@ import {
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
-import { formatNumber, formatFullNumber } from '../../utils/formatters';
+import { formatCompactKo, formatFullNumber } from '../../utils/formatters';
 import { API_URL } from '../../config/api';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './GameCatalog.css';
@@ -70,13 +70,17 @@ const GameDetail = ({ gameId, onBack }) => {
       if (trendRes.ok) {
         const trendResult = await trendRes.json();
         if (trendResult.success) {
-          const formatted = (trendResult.data || []).map(row => ({
-            time: new Date(row.recorded_at).toLocaleString('ko-KR', {
-              month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-            }),
-            viewers: Number(row.total_viewers || 0),
-            streamers: Number(row.total_streamers || 0)
-          }));
+          const formatted = (trendResult.data || []).map(row => {
+            const d = new Date(row.recorded_at);
+            const m = d.getMonth() + 1;
+            const dd = d.getDate();
+            const h = d.getHours();
+            return {
+              time: `${m}/${dd} ${h}시`,
+              viewers: Number(row.total_viewers || 0),
+              streamers: Number(row.total_streamers || 0)
+            };
+          });
           setTrendData(formatted);
         }
       }
@@ -289,38 +293,48 @@ const GameDetail = ({ gameId, onBack }) => {
             <div className="game-summary-stats">
               <div className="summary-stat-card">
                 <div className="summary-stat-label">동시 최고 시청자</div>
-                <div className="summary-stat-value sensitive-blur">
-                  {summaryStats.current.peakViewers.toLocaleString()}<span className="summary-stat-unit">명</span>
+                <div className="summary-stat-row">
+                  <div className="summary-stat-value sensitive-blur">
+                    {formatFullNumber(summaryStats.current.peakViewers)}<span className="summary-stat-unit">명</span>
+                  </div>
+                  <ChangeIndicator {...summaryStats.changes.peakViewers} />
                 </div>
-                <ChangeIndicator {...summaryStats.changes.peakViewers} />
               </div>
               <div className="summary-stat-card">
                 <div className="summary-stat-label">평균 시청자</div>
-                <div className="summary-stat-value sensitive-blur">
-                  {summaryStats.current.avgViewers.toLocaleString()}<span className="summary-stat-unit">명</span>
+                <div className="summary-stat-row">
+                  <div className="summary-stat-value sensitive-blur">
+                    {formatFullNumber(summaryStats.current.avgViewers)}<span className="summary-stat-unit">명</span>
+                  </div>
+                  <ChangeIndicator {...summaryStats.changes.avgViewers} />
                 </div>
-                <ChangeIndicator {...summaryStats.changes.avgViewers} />
               </div>
               <div className="summary-stat-card">
-                <div className="summary-stat-label">뷰어십 ( 평균 시청자 * 방송시간 )</div>
-                <div className="summary-stat-value sensitive-blur">
-                  {summaryStats.current.viewership.toLocaleString()}<span className="summary-stat-unit">명</span>
+                <div className="summary-stat-label">뷰어십 (평균 시청자 × 방송시간)</div>
+                <div className="summary-stat-row">
+                  <div className="summary-stat-value sensitive-blur">
+                    {formatFullNumber(summaryStats.current.viewership)}
+                  </div>
+                  <ChangeIndicator {...summaryStats.changes.viewership} />
                 </div>
-                <ChangeIndicator {...summaryStats.changes.viewership} />
               </div>
               <div className="summary-stat-card">
                 <div className="summary-stat-label">동시 최고채널</div>
-                <div className="summary-stat-value sensitive-blur">
-                  {summaryStats.current.peakStreamers.toLocaleString()}<span className="summary-stat-unit">채널</span>
+                <div className="summary-stat-row">
+                  <div className="summary-stat-value sensitive-blur">
+                    {formatFullNumber(summaryStats.current.peakStreamers)}<span className="summary-stat-unit">채널</span>
+                  </div>
+                  <ChangeIndicator {...summaryStats.changes.peakStreamers} />
                 </div>
-                <ChangeIndicator {...summaryStats.changes.peakStreamers} />
               </div>
               <div className="summary-stat-card">
                 <div className="summary-stat-label">평균 채널</div>
-                <div className="summary-stat-value sensitive-blur">
-                  {summaryStats.current.avgStreamers.toLocaleString()}<span className="summary-stat-unit">채널</span>
+                <div className="summary-stat-row">
+                  <div className="summary-stat-value sensitive-blur">
+                    {formatFullNumber(summaryStats.current.avgStreamers)}<span className="summary-stat-unit">채널</span>
+                  </div>
+                  <ChangeIndicator {...summaryStats.changes.avgStreamers} />
                 </div>
-                <ChangeIndicator {...summaryStats.changes.avgStreamers} />
               </div>
             </div>
           ) : (
@@ -347,9 +361,9 @@ const GameDetail = ({ gameId, onBack }) => {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} interval="preserveStartEnd" />
-                    <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={50} />
-                    <Tooltip contentStyle={chartTooltipStyle} formatter={(val) => [`${val.toLocaleString()}명`, '시청자']} />
+                    <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} interval={Math.max(1, Math.floor(trendData.length / 6))} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={55} tickFormatter={(v) => formatCompactKo(v)} />
+                    <Tooltip contentStyle={chartTooltipStyle} formatter={(val) => [`${formatFullNumber(val)}명`, '시청자']} />
                     <Area type="monotone" dataKey="viewers" stroke="#10b981" fill="url(#gdViewerGrad)" strokeWidth={1.5} />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -375,9 +389,9 @@ const GameDetail = ({ gameId, onBack }) => {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                    <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} interval="preserveStartEnd" />
-                    <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={50} />
-                    <Tooltip contentStyle={chartTooltipStyle} formatter={(val) => [`${val.toLocaleString()}채널`, '채널']} />
+                    <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'var(--text-muted)' }} interval={Math.max(1, Math.floor(trendData.length / 6))} />
+                    <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} width={55} tickFormatter={(v) => formatCompactKo(v)} />
+                    <Tooltip contentStyle={chartTooltipStyle} formatter={(val) => [`${formatFullNumber(val)}채널`, '채널']} />
                     <Area type="monotone" dataKey="streamers" stroke="#3b82f6" fill="url(#gdStreamerGrad)" strokeWidth={1.5} />
                   </AreaChart>
                 </ResponsiveContainer>
