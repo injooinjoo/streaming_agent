@@ -833,13 +833,15 @@ const createStatsService = () => {
       const hourlyMap = {};
       (rows || []).forEach(row => {
         if (!hourlyMap[row.time]) {
-          hourlyMap[row.time] = { time: row.time, soop: 0, chzzk: 0, total: 0 };
+          hourlyMap[row.time] = { time: row.time, soop: 0, chzzk: 0, twitch: 0, total: 0 };
         }
         const count = Number(row.count) || 0;
         if (row.platform === 'soop') {
           hourlyMap[row.time].soop = count;
         } else if (row.platform === 'chzzk') {
           hourlyMap[row.time].chzzk = count;
+        } else if (row.platform === 'twitch') {
+          hourlyMap[row.time].twitch = count;
         }
         hourlyMap[row.time].total += count;
       });
@@ -851,7 +853,7 @@ const createStatsService = () => {
         if (hourlyMap[hourStr]) {
           result.push(hourlyMap[hourStr]);
         } else {
-          result.push({ time: hourStr, soop: 0, chzzk: 0, total: 0 });
+          result.push({ time: hourStr, soop: 0, chzzk: 0, twitch: 0, total: 0 });
         }
       }
       return result;
