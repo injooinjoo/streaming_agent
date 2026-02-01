@@ -453,6 +453,8 @@ const Dashboard = () => {
                       return platforms.map(p => {
                         if (p === 'soop') return { src: '/assets/logos/soop.png', name: 'SOOP' };
                         if (p === 'chzzk') return { src: '/assets/logos/chzzk.png', name: '치지직' };
+                        if (p === 'twitch') return { src: '/assets/logos/twitch.png', name: 'Twitch' };
+                        if (p === 'youtube') return { src: '/assets/logos/youtube.png', name: 'YouTube' };
                         return null;
                       }).filter(Boolean);
                     };
@@ -542,6 +544,7 @@ const Dashboard = () => {
                       if (lowP === 'soop') return '/assets/logos/soop.png';
                       if (lowP === 'chzzk') return '/assets/logos/chzzk.png';
                       if (lowP === 'youtube') return '/assets/logos/youtube.png';
+                      if (lowP === 'twitch') return '/assets/logos/twitch.png';
                       return null;
                     };
                     const platformLogo = getPlatformLogo(ev.platform);

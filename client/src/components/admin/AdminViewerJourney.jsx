@@ -139,6 +139,7 @@ const AdminViewerJourney = () => {
     const platformMap = {
       soop: '/assets/logos/soop.png',
       chzzk: '/assets/logos/chzzk.png',
+      twitch: '/assets/logos/twitch.png',
       youtube: '/assets/logos/youtube.png'
     };
     return platformMap[platform?.toLowerCase()];

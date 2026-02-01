@@ -24,6 +24,8 @@ const { setupSocketHandlers } = require("./socket/handlers");
 // Platform Adapters
 const ChzzkAdapter = require("./adapters/chzzk");
 const SoopAdapter = require("./adapters/soop");
+const TwitchAdapter = require("./adapters/twitch");
+const YouTubeAdapter = require("./adapters/youtube");
 const RiotAdapter = require("./adapters/riot");
 const normalizer = require("./services/normalizer");
 
@@ -131,6 +133,8 @@ const main = async () => {
       activeAdapters,
       ChzzkAdapter,
       SoopAdapter,
+      TwitchAdapter,
+      YouTubeAdapter,
       normalizer,
       riotApi,
       categoryService,
@@ -193,6 +197,8 @@ const main = async () => {
           const broadcastCrawler = new BroadcastCrawler(db, io, {
             ChzzkAdapter,
             SoopAdapter,
+            TwitchAdapter,
+            YouTubeAdapter,
             activeAdapters,
             normalizer,
             ViewerEngagementService,

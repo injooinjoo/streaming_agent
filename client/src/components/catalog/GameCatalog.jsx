@@ -298,16 +298,28 @@ const GameCatalog = ({ onGameSelect }) => {
           <img src="/assets/logos/soop.png" alt="SOOP" />
           <span>{stats?.soop_categories || 0} 카테고리</span>
         </div>
-        {stats?.shared_categories > 0 && (
-          <div className="platform-badge shared" title="양 플랫폼에 모두 있는 카테고리">
-            <Layers size={16} />
-            <span>{stats.shared_categories} 공유</span>
-          </div>
-        )}
         <div className="platform-badge chzzk">
           <img src="/assets/logos/chzzk.png" alt="Chzzk" />
           <span>{stats?.chzzk_categories || 0} 카테고리</span>
         </div>
+        {(stats?.twitch_categories > 0) && (
+          <div className="platform-badge twitch">
+            <img src="/assets/logos/twitch.png" alt="Twitch" />
+            <span>{stats.twitch_categories} 카테고리</span>
+          </div>
+        )}
+        {(stats?.youtube_categories > 0) && (
+          <div className="platform-badge youtube">
+            <img src="/assets/logos/youtube.png" alt="YouTube" />
+            <span>{stats.youtube_categories} 카테고리</span>
+          </div>
+        )}
+        {stats?.shared_categories > 0 && (
+          <div className="platform-badge shared" title="여러 플랫폼에 모두 있는 카테고리">
+            <Layers size={16} />
+            <span>{stats.shared_categories} 공유</span>
+          </div>
+        )}
       </div>
 
       {/* 검색 */}
@@ -369,6 +381,12 @@ const GameCatalog = ({ onGameSelect }) => {
                     )}
                     {game.platforms.includes('chzzk') && (
                       <img src="/assets/logos/chzzk.png" alt="Chzzk" title="Chzzk" />
+                    )}
+                    {game.platforms.includes('twitch') && (
+                      <img src="/assets/logos/twitch.png" alt="Twitch" title="Twitch" />
+                    )}
+                    {game.platforms.includes('youtube') && (
+                      <img src="/assets/logos/youtube.png" alt="YouTube" title="YouTube" />
                     )}
                   </div>
                 )}

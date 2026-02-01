@@ -219,7 +219,7 @@ const AccountSettings = () => {
     {
       id: 'twitch',
       name: '트위치',
-      logo: 'https://upload.wikimedia.org/wikipedia/commons/d/d3/Twitch_Glitch_Logo_Purple.svg',
+      logo: '/assets/logos/twitch.png',
       connected: false,
       profile: null
     }

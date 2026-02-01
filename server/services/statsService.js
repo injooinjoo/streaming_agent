@@ -177,7 +177,7 @@ const createStatsService = () => {
       );
 
       return (rows || []).map((row) => ({
-        name: row.platform === "soop" ? "SOOP" : row.platform === "chzzk" ? "Chzzk" : row.platform,
+        name: ({ soop: "SOOP", chzzk: "Chzzk", twitch: "Twitch", youtube: "YouTube" })[row.platform] || row.platform,
         value: row.value || 0,
       }));
     },

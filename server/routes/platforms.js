@@ -39,11 +39,13 @@ const generateEventId = () => {
  * @param {Map} activeAdapters - Active platform adapters map
  * @param {Function} ChzzkAdapter - Chzzk adapter class
  * @param {Function} SoopAdapter - SOOP adapter class
+ * @param {Function} TwitchAdapter - Twitch adapter class
+ * @param {Function} YouTubeAdapter - YouTube adapter class
  * @param {Object} normalizer - Event normalizer
  * @param {Object} db - SQLite database instance
  * @returns {express.Router}
  */
-const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, normalizer, db) => {
+const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, TwitchAdapter, YouTubeAdapter, normalizer, db) => {
   const router = express.Router();
   const personService = db ? new PersonService(db) : null;
   const viewerEngagementService = db ? new ViewerEngagementService(db) : null;
@@ -607,6 +609,336 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
     }
   });
 
+  // ===== Twitch API =====
+
+  /**
+   * POST /api/twitch/connect
+   * Connect to Twitch chat via EventSub
+   */
+  router.post("/twitch/connect", async (req, res) => {
+    const { channelId, userHash } = req.body;
+
+    if (!channelId) {
+      return res.status(400).json({ error: "channelId is required" });
+    }
+
+    if (!process.env.TWITCH_CLIENT_ID || !process.env.TWITCH_CLIENT_SECRET) {
+      return res.status(400).json({ error: "Twitch API keys not configured" });
+    }
+
+    const adapterKey = userHash ? `twitch:${channelId}:${userHash}` : `twitch:${channelId}`;
+    if (activeAdapters.has(adapterKey)) {
+      const existing = activeAdapters.get(adapterKey);
+      if (existing.isConnected) {
+        return res.json({
+          success: true,
+          message: "Already connected",
+          info: existing.getInfo(),
+        });
+      }
+    }
+
+    const app = req.app;
+
+    try {
+      const adapter = new TwitchAdapter({ channelId });
+
+      adapter.on("event", async (event) => {
+        const legacyEvent = normalizer.toEventsFormat(event);
+
+        const broadcastInfo = adapter.getInfo ? adapter.getInfo() : {};
+        await trackPersonAndEngagement(event, channelId, {
+          categoryId: broadcastInfo.categoryId || event.metadata?.categoryId,
+          categoryName: broadcastInfo.categoryName || event.metadata?.categoryName,
+        });
+
+        if (event.type && event.type !== 'viewer-update') {
+          runQuery(
+            `INSERT INTO events (id, event_type, platform, actor_nickname, actor_person_id, target_channel_id, message, amount, event_timestamp) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)}, ${p(9)})`,
+            [
+              generateEventId(),
+              event.type,
+              "twitch",
+              event.sender?.nickname || "unknown",
+              null,
+              channelId,
+              event.content?.message || "",
+              event.content?.amount || 0,
+              event.metadata?.timestamp || new Date().toISOString(),
+            ]
+          ).catch(err => console.error("[twitch] Event insert error:", err.message));
+        }
+
+        if (event.type === 'viewer-update' && event.content?.viewerCount) {
+          runQuery(
+            `INSERT INTO viewer_stats (platform, channel_id, viewer_count) VALUES (${p(1)}, ${p(2)}, ${p(3)})`,
+            ['twitch', channelId, event.content.viewerCount]
+          ).catch(err => console.error("[twitch] Viewer stats insert error:", err.message));
+        }
+
+        const socketIo = app.get("io");
+        if (socketIo) {
+          if (userHash) {
+            socketIo.to(`overlay:${userHash}`).emit("new-event", legacyEvent);
+          } else {
+            socketIo.emit("new-event", legacyEvent);
+          }
+        }
+
+        console.log(`[twitch] Event: ${event.type} from ${event.sender?.nickname || "system"}`);
+      });
+
+      adapter.on("connected", () => {
+        console.log(`[twitch] Adapter connected for channel: ${channelId}`);
+      });
+
+      adapter.on("disconnected", () => {
+        console.log(`[twitch] Adapter disconnected for channel: ${channelId}`);
+        activeAdapters.delete(adapterKey);
+      });
+
+      adapter.on("error", (error) => {
+        console.error(`[twitch] Adapter error:`, error.message);
+      });
+
+      await adapter.connect();
+      activeAdapters.set(adapterKey, adapter);
+
+      res.json({
+        success: true,
+        message: "Connected to Twitch chat",
+        info: adapter.getInfo(),
+      });
+    } catch (error) {
+      console.error(`[twitch] Connection failed:`, error.message);
+      res.status(500).json({
+        error: "Failed to connect to Twitch",
+        message: error.message,
+      });
+    }
+  });
+
+  /**
+   * POST /api/twitch/disconnect
+   */
+  router.post("/twitch/disconnect", (req, res) => {
+    const { channelId, userHash } = req.body;
+
+    if (!channelId) {
+      return res.status(400).json({ error: "channelId is required" });
+    }
+
+    const adapterKey = userHash ? `twitch:${channelId}:${userHash}` : `twitch:${channelId}`;
+    const adapter = activeAdapters.get(adapterKey);
+
+    if (!adapter) {
+      return res.status(404).json({ error: "No active connection found" });
+    }
+
+    adapter.disconnect();
+    activeAdapters.delete(adapterKey);
+
+    res.json({
+      success: true,
+      message: "Disconnected from Twitch",
+    });
+  });
+
+  /**
+   * GET /api/twitch/status
+   */
+  router.get("/twitch/status", (req, res) => {
+    const connections = [];
+
+    for (const [key, adapter] of activeAdapters.entries()) {
+      if (adapter.platform === "twitch") {
+        connections.push({
+          key,
+          ...adapter.getInfo(),
+        });
+      }
+    }
+
+    res.json({
+      activeConnections: connections.length,
+      connections,
+    });
+  });
+
+  // ===== YouTube API =====
+
+  /**
+   * POST /api/youtube/connect
+   * Connect to YouTube live chat
+   */
+  router.post("/youtube/connect", async (req, res) => {
+    const { channelId, videoId, userHash } = req.body;
+
+    if (!channelId && !videoId) {
+      return res.status(400).json({ error: "channelId or videoId is required" });
+    }
+
+    if (!process.env.YOUTUBE_API_KEY) {
+      return res.status(400).json({ error: "YouTube API key not configured" });
+    }
+
+    const identifier = videoId || channelId;
+    const adapterKey = userHash ? `youtube:${identifier}:${userHash}` : `youtube:${identifier}`;
+    if (activeAdapters.has(adapterKey)) {
+      const existing = activeAdapters.get(adapterKey);
+      if (existing.isConnected) {
+        return res.json({
+          success: true,
+          message: "Already connected",
+          info: existing.getInfo(),
+        });
+      }
+    }
+
+    const app = req.app;
+
+    try {
+      const adapter = new YouTubeAdapter({
+        channelId: channelId || videoId,
+        videoId,
+      });
+
+      adapter.on("event", async (event) => {
+        const legacyEvent = normalizer.toEventsFormat(event);
+
+        const broadcastInfo = adapter.getInfo ? adapter.getInfo() : {};
+        await trackPersonAndEngagement(event, identifier, {
+          categoryId: broadcastInfo.categoryId || event.metadata?.categoryId,
+          categoryName: broadcastInfo.categoryName || event.metadata?.categoryName,
+        });
+
+        if (event.type && event.type !== 'viewer-update') {
+          runQuery(
+            `INSERT INTO events (id, event_type, platform, actor_nickname, actor_person_id, target_channel_id, message, amount, event_timestamp) VALUES (${p(1)}, ${p(2)}, ${p(3)}, ${p(4)}, ${p(5)}, ${p(6)}, ${p(7)}, ${p(8)}, ${p(9)})`,
+            [
+              generateEventId(),
+              event.type,
+              "youtube",
+              event.sender?.nickname || "unknown",
+              null,
+              identifier,
+              event.content?.message || "",
+              event.content?.amount || 0,
+              event.metadata?.timestamp || new Date().toISOString(),
+            ]
+          ).catch(err => console.error("[youtube] Event insert error:", err.message));
+        }
+
+        if (event.type === 'viewer-update' && event.content?.viewerCount) {
+          runQuery(
+            `INSERT INTO viewer_stats (platform, channel_id, viewer_count) VALUES (${p(1)}, ${p(2)}, ${p(3)})`,
+            ['youtube', identifier, event.content.viewerCount]
+          ).catch(err => console.error("[youtube] Viewer stats insert error:", err.message));
+        }
+
+        const socketIo = app.get("io");
+        if (socketIo) {
+          if (userHash) {
+            socketIo.to(`overlay:${userHash}`).emit("new-event", legacyEvent);
+          } else {
+            socketIo.emit("new-event", legacyEvent);
+          }
+        }
+
+        console.log(`[youtube] Event: ${event.type} from ${event.sender?.nickname || "system"}`);
+      });
+
+      adapter.on("connected", () => {
+        console.log(`[youtube] Adapter connected for: ${identifier}`);
+      });
+
+      adapter.on("disconnected", () => {
+        console.log(`[youtube] Adapter disconnected for: ${identifier}`);
+        activeAdapters.delete(adapterKey);
+      });
+
+      adapter.on("error", (error) => {
+        console.error(`[youtube] Adapter error:`, error.message);
+      });
+
+      await adapter.connect();
+      activeAdapters.set(adapterKey, adapter);
+
+      res.json({
+        success: true,
+        message: "Connected to YouTube live chat",
+        info: adapter.getInfo(),
+      });
+    } catch (error) {
+      console.error(`[youtube] Connection failed:`, error.message);
+      res.status(500).json({
+        error: "Failed to connect to YouTube",
+        message: error.message,
+      });
+    }
+  });
+
+  /**
+   * POST /api/youtube/disconnect
+   */
+  router.post("/youtube/disconnect", (req, res) => {
+    const { channelId, videoId, userHash } = req.body;
+    const identifier = videoId || channelId;
+
+    if (!identifier) {
+      return res.status(400).json({ error: "channelId or videoId is required" });
+    }
+
+    const adapterKey = userHash ? `youtube:${identifier}:${userHash}` : `youtube:${identifier}`;
+    const adapter = activeAdapters.get(adapterKey);
+
+    if (!adapter) {
+      return res.status(404).json({ error: "No active connection found" });
+    }
+
+    adapter.disconnect();
+    activeAdapters.delete(adapterKey);
+
+    res.json({
+      success: true,
+      message: "Disconnected from YouTube",
+    });
+  });
+
+  /**
+   * GET /api/youtube/status
+   */
+  router.get("/youtube/status", (req, res) => {
+    const connections = [];
+
+    for (const [key, adapter] of activeAdapters.entries()) {
+      if (adapter.platform === "youtube") {
+        connections.push({
+          key,
+          ...adapter.getInfo(),
+        });
+      }
+    }
+
+    res.json({
+      activeConnections: connections.length,
+      connections,
+    });
+  });
+
+  /**
+   * GET /api/youtube/quota
+   * Get YouTube API quota usage status
+   */
+  router.get("/youtube/quota", (req, res) => {
+    try {
+      const quota = YouTubeAdapter.getQuotaStatus();
+      res.json({ success: true, data: quota });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // ===== Categories API =====
 
   /**
@@ -752,6 +1084,8 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
 
       let soopBroadcasts = [];
       let chzzkBroadcasts = [];
+      let twitchBroadcasts = [];
+      let youtubeBroadcasts = [];
 
       if (!platform || platform === "all" || platform === "soop") {
         soopBroadcasts = await SoopAdapter.getAllLiveBroadcasts(limit);
@@ -759,8 +1093,30 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
       if (!platform || platform === "all" || platform === "chzzk") {
         chzzkBroadcasts = await ChzzkAdapter.getAllLiveBroadcasts(limit);
       }
+      if ((!platform || platform === "all" || platform === "twitch") && process.env.TWITCH_CLIENT_ID) {
+        try {
+          const tokenRes = await fetch("https://id.twitch.tv/oauth2/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            body: `client_id=${process.env.TWITCH_CLIENT_ID}&client_secret=${process.env.TWITCH_CLIENT_SECRET}&grant_type=client_credentials`,
+          });
+          if (tokenRes.ok) {
+            const { access_token } = await tokenRes.json();
+            twitchBroadcasts = await TwitchAdapter.getAllLiveBroadcasts(access_token, process.env.TWITCH_CLIENT_ID, limit);
+          }
+        } catch (err) {
+          console.error("[broadcasts] Twitch fetch error:", err.message);
+        }
+      }
+      if ((!platform || platform === "all" || platform === "youtube") && process.env.YOUTUBE_API_KEY) {
+        try {
+          youtubeBroadcasts = await YouTubeAdapter.getAllLiveBroadcasts(process.env.YOUTUBE_API_KEY, 3);
+        } catch (err) {
+          console.error("[broadcasts] YouTube fetch error:", err.message);
+        }
+      }
 
-      const allBroadcasts = [...soopBroadcasts, ...chzzkBroadcasts];
+      const allBroadcasts = [...soopBroadcasts, ...chzzkBroadcasts, ...twitchBroadcasts, ...youtubeBroadcasts];
       allBroadcasts.sort((a, b) => b.viewerCount - a.viewerCount);
 
       res.json({
@@ -768,6 +1124,8 @@ const createPlatformsRouter = (io, activeAdapters, ChzzkAdapter, SoopAdapter, no
         count: {
           soop: soopBroadcasts.length,
           chzzk: chzzkBroadcasts.length,
+          twitch: twitchBroadcasts.length,
+          youtube: youtubeBroadcasts.length,
           total: allBroadcasts.length,
         },
         data: allBroadcasts.slice(0, limit),

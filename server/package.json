@@ -21,7 +21,16 @@
     "backup:monthly": "node scripts/backup-to-gcs.js --monthly",
     "backup:list": "node scripts/backup-to-gcs.js --list",
     "backup:cleanup": "node scripts/backup-to-gcs.js --cleanup",
-    "backup:scheduler": "node scripts/backup-to-gcs.js --scheduler"
+    "backup:scheduler": "node scripts/backup-to-gcs.js --scheduler",
+    "process:api": "node processes/api.js",
+    "process:broadcast": "node processes/broadcast-crawler.js",
+    "process:category": "node processes/category-crawler.js",
+    "process:stats": "node processes/stats-worker.js",
+    "multi:start": "pm2 start ecosystem.config.js",
+    "multi:stop": "pm2 stop ecosystem.config.js",
+    "multi:restart": "pm2 restart ecosystem.config.js",
+    "multi:status": "pm2 status",
+    "multi:logs": "pm2 logs"
   },
   "keywords": [],
   "author": "",

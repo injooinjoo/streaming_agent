@@ -70,6 +70,9 @@ const OPTIONAL_VARS = {
   RIOT_API_KEY: {
     description: "Riot Games API key for game stats",
   },
+  YOUTUBE_API_KEY: {
+    description: "YouTube Data API v3 key for broadcast/category crawling",
+  },
 
   // Admin Configuration
   ADMIN_ACCESS_CODE: {

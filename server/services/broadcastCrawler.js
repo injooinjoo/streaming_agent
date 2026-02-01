@@ -31,6 +31,16 @@ const RATE_LIMITS = {
     maxRetries: 3,
     retryDelay: 500,
   },
+  twitch: {
+    requestsPerSecond: 10,
+    maxRetries: 3,
+    retryDelay: 500,
+  },
+  youtube: {
+    requestsPerSecond: 1,
+    maxRetries: 2,
+    retryDelay: 2000,
+  },
 };
 
 class BroadcastCrawler {
@@ -45,6 +55,8 @@ class BroadcastCrawler {
     this.lastRequestTime = {
       soop: 0,
       chzzk: 0,
+      twitch: 0,
+      youtube: 0,
     };
     this.crawlInterval = null;
     this.crawlIntervalMs = 5 * 60 * 1000; // 5분
@@ -52,6 +64,8 @@ class BroadcastCrawler {
     // Auto-connection options
     this.ChzzkAdapter = options.ChzzkAdapter || null;
     this.SoopAdapter = options.SoopAdapter || null;
+    this.TwitchAdapter = options.TwitchAdapter || null;
+    this.YouTubeAdapter = options.YouTubeAdapter || null;
     this.activeAdapters = options.activeAdapters || new Map();
     this.normalizer = options.normalizer || null;
     this.ViewerEngagementService = options.ViewerEngagementService || null;
@@ -252,6 +266,74 @@ class BroadcastCrawler {
 
     broadcastLogger.info("Chzzk live broadcasts fetched", { count: allBroadcasts.length });
     return allBroadcasts.slice(0, maxBroadcasts);
+  }
+
+  /**
+   * Twitch 라이브 방송 크롤링
+   * @param {number} maxBroadcasts
+   * @returns {Promise<Array>}
+   */
+  async fetchTwitchLiveBroadcasts(maxBroadcasts = 1000) {
+    if (!this.TwitchAdapter) {
+      broadcastLogger.debug("Twitch adapter not configured, skipping");
+      return [];
+    }
+
+    const clientId = process.env.TWITCH_CLIENT_ID;
+    const clientSecret = process.env.TWITCH_CLIENT_SECRET;
+    if (!clientId || !clientSecret) {
+      broadcastLogger.debug("Twitch API credentials not set, skipping");
+      return [];
+    }
+
+    broadcastLogger.debug("Fetching Twitch live broadcasts...");
+
+    try {
+      // TwitchAdapter의 static 토큰 발급 사용
+      const tempAdapter = new this.TwitchAdapter({ channelId: "temp" });
+      const token = await tempAdapter.getAppAccessToken();
+
+      const broadcasts = await this.TwitchAdapter.getAllLiveBroadcasts(token, clientId, maxBroadcasts);
+      broadcastLogger.info("Twitch live broadcasts fetched", { count: broadcasts.length });
+      return broadcasts;
+    } catch (error) {
+      broadcastLogger.error("Twitch fetch failed", { error: error.message });
+      return [];
+    }
+  }
+
+  /**
+   * YouTube 라이브 방송 크롤링
+   * @param {number} maxPages - 최대 페이지 수 (비용: ~101 units/page)
+   * @returns {Promise<Array>}
+   */
+  async fetchYouTubeLiveBroadcasts(maxPages = 3) {
+    if (!this.YouTubeAdapter) {
+      broadcastLogger.debug("YouTube adapter not configured, skipping");
+      return [];
+    }
+
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (!apiKey) {
+      broadcastLogger.debug("YouTube API key not set, skipping");
+      return [];
+    }
+
+    broadcastLogger.debug("Fetching YouTube live broadcasts...");
+
+    try {
+      const broadcasts = await this.YouTubeAdapter.getAllLiveBroadcasts(apiKey, maxPages);
+      const quota = this.YouTubeAdapter.getQuotaStatus();
+      broadcastLogger.info("YouTube live broadcasts fetched", {
+        count: broadcasts.length,
+        quotaUsed: quota.used,
+        quotaRemaining: quota.remaining,
+      });
+      return broadcasts;
+    } catch (error) {
+      broadcastLogger.error("YouTube fetch failed", { error: error.message });
+      return [];
+    }
   }
 
   /**
@@ -670,6 +752,8 @@ class BroadcastCrawler {
     const results = {
       soop: { live: 0, ended: 0, segments: 0 },
       chzzk: { live: 0, ended: 0, segments: 0 },
+      twitch: { live: 0, ended: 0, segments: 0 },
+      youtube: { live: 0, ended: 0, segments: 0 },
     };
 
     // SOOP 크롤링
@@ -726,6 +810,64 @@ class BroadcastCrawler {
       await this.autoConnectTopBroadcasts(chzzkBroadcasts, "chzzk");
     } catch (error) {
       broadcastLogger.error("Chzzk crawl failed", { error: error.message });
+    }
+
+    // Twitch 크롤링
+    if (process.env.TWITCH_CLIENT_ID) {
+      let twitchBroadcasts = [];
+      try {
+        twitchBroadcasts = await this.fetchTwitchLiveBroadcasts();
+        const twitchBroadcastIds = new Set();
+
+        for (const broadcast of twitchBroadcasts) {
+          try {
+            const personId = await this.upsertBroadcaster(broadcast);
+            await this.upsertBroadcast(broadcast, personId);
+            twitchBroadcastIds.add(broadcast.broadcastId);
+          } catch (error) {
+            broadcastLogger.error("Twitch broadcast upsert error", {
+              channelId: broadcast.channelId,
+              error: error.message,
+            });
+          }
+        }
+
+        results.twitch.live = twitchBroadcasts.length;
+        results.twitch.ended = await this.detectEndedBroadcasts("twitch", twitchBroadcastIds);
+
+        // 상위 50개 방송에 자동 연결
+        await this.autoConnectTopBroadcasts(twitchBroadcasts, "twitch");
+      } catch (error) {
+        broadcastLogger.error("Twitch crawl failed", { error: error.message });
+      }
+    }
+
+    // YouTube 크롤링 (할당량 제한으로 15분 간격 권장)
+    if (process.env.YOUTUBE_API_KEY) {
+      let ytBroadcasts = [];
+      try {
+        ytBroadcasts = await this.fetchYouTubeLiveBroadcasts();
+        const ytBroadcastIds = new Set();
+
+        for (const broadcast of ytBroadcasts) {
+          try {
+            const personId = await this.upsertBroadcaster(broadcast);
+            await this.upsertBroadcast(broadcast, personId);
+            ytBroadcastIds.add(broadcast.broadcastId);
+          } catch (error) {
+            broadcastLogger.error("YouTube broadcast upsert error", {
+              channelId: broadcast.channelId,
+              error: error.message,
+            });
+          }
+        }
+
+        results.youtube.live = ytBroadcasts.length;
+        results.youtube.ended = await this.detectEndedBroadcasts("youtube", ytBroadcastIds);
+        // YouTube: 할당량 제한으로 자동 채팅 연결 안 함
+      } catch (error) {
+        broadcastLogger.error("YouTube crawl failed", { error: error.message });
+      }
     }
 
     // 자동 연결 상태 추가
@@ -874,7 +1016,17 @@ class BroadcastCrawler {
    * @param {Object} broadcast
    */
   async connectToChannel(platform, broadcast) {
-    const AdapterClass = platform === "chzzk" ? this.ChzzkAdapter : this.SoopAdapter;
+    let AdapterClass;
+    if (platform === "chzzk") AdapterClass = this.ChzzkAdapter;
+    else if (platform === "soop") AdapterClass = this.SoopAdapter;
+    else if (platform === "twitch") AdapterClass = this.TwitchAdapter;
+    else if (platform === "youtube") AdapterClass = this.YouTubeAdapter;
+    else AdapterClass = null;
+
+    if (!AdapterClass) {
+      broadcastLogger.warn(`No adapter for platform: ${platform}`);
+      return;
+    }
     const adapterKey = this.getAdapterKey(platform, broadcast.channelId);
 
     const adapter = new AdapterClass({

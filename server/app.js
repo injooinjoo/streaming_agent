@@ -80,6 +80,8 @@ const createApp = ({
   activeAdapters,
   ChzzkAdapter,
   SoopAdapter,
+  TwitchAdapter,
+  YouTubeAdapter,
   normalizer,
   riotApi,
   categoryService,
@@ -197,12 +199,14 @@ const createApp = ({
   );
   app.use("/api", statsRouter);
 
-  // Platform routes (Chzzk, SOOP, events) - uses streamingDb for events
+  // Platform routes (Chzzk, SOOP, Twitch, YouTube, events) - uses streamingDb for events
   const platformsRouter = createPlatformsRouter(
     io,
     activeAdapters,
     ChzzkAdapter,
     SoopAdapter,
+    TwitchAdapter,
+    YouTubeAdapter,
     normalizer,
     streamingDb
   );

@@ -18,7 +18,7 @@ const p = (index) => isPostgres() ? `$${index}` : '?';
  * 플랫폼 카테고리 스키마
  *
  * @typedef {Object} PlatformCategory
- * @property {string} platform - 플랫폼 ('soop' | 'chzzk')
+ * @property {string} platform - 플랫폼 ('soop' | 'chzzk' | 'twitch' | 'youtube')
  * @property {string} platformCategoryId - 플랫폼 내부 카테고리 ID
  * @property {string} platformCategoryName - 카테고리 이름
  * @property {string} [categoryType] - 카테고리 타입 (GAME, SPORTS, ETC)
@@ -39,6 +39,16 @@ const RATE_LIMITS = {
     maxRetries: 3,
     retryDelay: 500,
   },
+  twitch: {
+    requestsPerSecond: 10,
+    maxRetries: 3,
+    retryDelay: 500,
+  },
+  youtube: {
+    requestsPerSecond: 1,
+    maxRetries: 2,
+    retryDelay: 2000,
+  },
 };
 
 class CategoryCrawler {
@@ -52,6 +62,8 @@ class CategoryCrawler {
     this.lastRequestTime = {
       soop: 0,
       chzzk: 0,
+      twitch: 0,
+      youtube: 0,
     };
   }
 
@@ -355,8 +367,139 @@ class CategoryCrawler {
   }
 
   /**
+   * Twitch 카테고리 목록 크롤링 (Helix /games/top)
+   * @returns {Promise<PlatformCategory[]>}
+   */
+  async fetchTwitchCategories() {
+    const TwitchAdapter = require("../adapters/twitch");
+
+    const clientId = process.env.TWITCH_CLIENT_ID;
+    const clientSecret = process.env.TWITCH_CLIENT_SECRET;
+    if (!clientId || !clientSecret) {
+      categoryLogger.debug("Twitch API keys not configured, skipping");
+      return [];
+    }
+
+    categoryLogger.debug("Fetching Twitch categories...");
+
+    try {
+      // App Access Token 발급
+      const tokenRes = await fetch("https://id.twitch.tv/oauth2/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
+      });
+      if (!tokenRes.ok) throw new Error(`Token request failed: ${tokenRes.status}`);
+      const { access_token } = await tokenRes.json();
+
+      // 상위 카테고리 크롤링
+      const rawCategories = await TwitchAdapter.getAllCategories(access_token, clientId, 500);
+
+      // 각 카테고리별 시청자/방송 수 집계를 위해 스트림 데이터 사용
+      // Helix /games/top 은 viewer_count 를 제공하지 않으므로 스트림에서 집계
+      const allStreams = await TwitchAdapter.getAllLiveBroadcasts(access_token, clientId, 2000);
+
+      // 게임별 시청자/방송 수 집계
+      const gameStats = new Map();
+      for (const stream of allStreams) {
+        const gameId = stream.game_id;
+        if (!gameId) continue;
+        if (!gameStats.has(gameId)) {
+          gameStats.set(gameId, { viewers: 0, streamers: 0 });
+        }
+        const stat = gameStats.get(gameId);
+        stat.viewers += stream.viewer_count || 0;
+        stat.streamers += 1;
+      }
+
+      const categories = rawCategories.map((game) => ({
+        platform: "twitch",
+        platformCategoryId: game.id,
+        platformCategoryName: game.name,
+        categoryType: "GAME",
+        thumbnailUrl: game.box_art_url
+          ? game.box_art_url.replace("{width}", "285").replace("{height}", "380")
+          : null,
+        viewerCount: gameStats.get(game.id)?.viewers || 0,
+        streamerCount: gameStats.get(game.id)?.streamers || 0,
+      }));
+
+      categoryLogger.info("Twitch crawl complete", {
+        categories: categories.length,
+        totalViewers: categories.reduce((sum, c) => sum + c.viewerCount, 0),
+        totalStreamers: categories.reduce((sum, c) => sum + c.streamerCount, 0),
+      });
+      return categories;
+    } catch (error) {
+      categoryLogger.error("Twitch category crawl failed", { error: error.message });
+      return [];
+    }
+  }
+
+  /**
+   * YouTube 카테고리 목록 크롤링 (videoCategories.list)
+   * @returns {Promise<PlatformCategory[]>}
+   */
+  async fetchYouTubeCategories() {
+    const YouTubeAdapter = require("../adapters/youtube");
+
+    const apiKey = process.env.YOUTUBE_API_KEY;
+    if (!apiKey) {
+      categoryLogger.debug("YouTube API key not configured, skipping");
+      return [];
+    }
+
+    categoryLogger.debug("Fetching YouTube categories...");
+
+    try {
+      const rawCategories = await YouTubeAdapter.getVideoCategories(apiKey);
+
+      // YouTube videoCategories는 시청자/방송 수가 없으므로
+      // 라이브 검색으로 집계
+      const allBroadcasts = await YouTubeAdapter.getAllLiveBroadcasts(apiKey, 3);
+
+      // 카테고리별 집계
+      const catStats = new Map();
+      for (const b of allBroadcasts) {
+        const catId = b.categoryId || "0";
+        if (!catStats.has(catId)) {
+          catStats.set(catId, { viewers: 0, streamers: 0 });
+        }
+        const stat = catStats.get(catId);
+        stat.viewers += b.viewerCount || 0;
+        stat.streamers += 1;
+      }
+
+      const categories = rawCategories.map((cat) => ({
+        platform: "youtube",
+        platformCategoryId: cat.id,
+        platformCategoryName: cat.snippet?.title || cat.id,
+        categoryType: "GAME",
+        thumbnailUrl: null,
+        viewerCount: catStats.get(cat.id)?.viewers || 0,
+        streamerCount: catStats.get(cat.id)?.streamers || 0,
+      }));
+
+      // 활성 카테고리만 (시청자가 있는 것)
+      const activeCategories = categories.filter((c) => c.streamerCount > 0);
+
+      categoryLogger.info("YouTube crawl complete", {
+        totalCategories: categories.length,
+        activeCategories: activeCategories.length,
+        totalViewers: activeCategories.reduce((sum, c) => sum + c.viewerCount, 0),
+      });
+
+      // 활성 카테고리가 없으면 전체 카테고리 반환 (최소한 카테고리 목록은 유지)
+      return activeCategories.length > 0 ? activeCategories : categories;
+    } catch (error) {
+      categoryLogger.error("YouTube category crawl failed", { error: error.message });
+      return [];
+    }
+  }
+
+  /**
    * 모든 플랫폼 크롤링 및 DB 저장
-   * @returns {Promise<{soop: number, chzzk: number}>}
+   * @returns {Promise<{soop: number, chzzk: number, twitch: number, youtube: number}>}
    */
   async crawlAllPlatforms() {
     categoryLogger.info("Starting full crawl...");
@@ -364,6 +507,8 @@ class CategoryCrawler {
     const results = {
       soop: 0,
       chzzk: 0,
+      twitch: 0,
+      youtube: 0,
     };
 
     try {
@@ -388,7 +533,29 @@ class CategoryCrawler {
       categoryLogger.error("Chzzk crawl failed", { error: error.message });
     }
 
-    categoryLogger.info("Crawl complete", { soop: results.soop, chzzk: results.chzzk });
+    try {
+      // Twitch 크롤링
+      const twitchCategories = await this.fetchTwitchCategories();
+      for (const category of twitchCategories) {
+        await this.upsertCategory(category);
+      }
+      results.twitch = twitchCategories.length;
+    } catch (error) {
+      categoryLogger.error("Twitch crawl failed", { error: error.message });
+    }
+
+    try {
+      // YouTube 크롤링
+      const youtubeCategories = await this.fetchYouTubeCategories();
+      for (const category of youtubeCategories) {
+        await this.upsertCategory(category);
+      }
+      results.youtube = youtubeCategories.length;
+    } catch (error) {
+      categoryLogger.error("YouTube crawl failed", { error: error.message });
+    }
+
+    categoryLogger.info("Crawl complete", results);
     return results;
   }
 
@@ -415,6 +582,24 @@ class CategoryCrawler {
       }
     } catch (error) {
       categoryLogger.error("Chzzk viewer update failed", { error: error.message });
+    }
+
+    try {
+      const twitchCategories = await this.fetchTwitchCategories();
+      for (const category of twitchCategories) {
+        await this.updateCategoryViewers(category);
+      }
+    } catch (error) {
+      categoryLogger.error("Twitch viewer update failed", { error: error.message });
+    }
+
+    try {
+      const youtubeCategories = await this.fetchYouTubeCategories();
+      for (const category of youtubeCategories) {
+        await this.updateCategoryViewers(category);
+      }
+    } catch (error) {
+      categoryLogger.error("YouTube viewer update failed", { error: error.message });
     }
 
     categoryLogger.debug("Viewer counts updated");
