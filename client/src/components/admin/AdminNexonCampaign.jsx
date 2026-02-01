@@ -8,6 +8,7 @@ import {
   ResponsiveContainer, ComposedChart, Bar
 } from 'recharts';
 import LoadingSpinner from '../shared/LoadingSpinner';
+import { formatCompactKo, formatCurrencyCompact } from '../../utils/formatters';
 
 // Campaign Metrics
 const CAMPAIGN_METRICS = {
@@ -94,18 +95,6 @@ const AdminNexonCampaign = () => {
     return () => clearTimeout(timer);
   }, []);
 
-  const formatNumber = (num) => {
-    if (num >= 100000000) return `${(num / 100000000).toFixed(1)}억`;
-    if (num >= 10000) return `${(num / 10000).toFixed(1)}만`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}천`;
-    return num.toLocaleString();
-  };
-
-  const formatCurrency = (amount) => {
-    if (amount >= 100000000) return `₩${(amount / 100000000).toFixed(1)}억`;
-    if (amount >= 10000000) return `₩${(amount / 10000000).toFixed(1)}천만`;
-    return `₩${amount.toLocaleString()}`;
-  };
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -114,7 +103,7 @@ const AdminNexonCampaign = () => {
           <p className="tooltip-label">{label}</p>
           {payload.map((entry, index) => (
             <p key={index} style={{ color: entry.color }}>
-              {entry.name}: {entry.name === '감성지수' ? `${entry.value}%` : formatNumber(entry.value)}
+              {entry.name}: {entry.name === '감성지수' ? `${entry.value}%` : formatCompactKo(entry.value)}
             </p>
           ))}
         </div>
@@ -162,7 +151,7 @@ const AdminNexonCampaign = () => {
             </span>
           </div>
           <p className="campaign-metric-label">브랜드 키워드 언급</p>
-          <p className="campaign-metric-value">{formatNumber(CAMPAIGN_METRICS.brandKeywordMentions)}</p>
+          <p className="campaign-metric-value">{formatCompactKo(CAMPAIGN_METRICS.brandKeywordMentions)}</p>
         </div>
 
         <div className="campaign-metric-card">
@@ -190,7 +179,7 @@ const AdminNexonCampaign = () => {
             </span>
           </div>
           <p className="campaign-metric-label">추정 유입 전환</p>
-          <p className="campaign-metric-value">{formatNumber(CAMPAIGN_METRICS.estimatedConversions)}</p>
+          <p className="campaign-metric-value">{formatCompactKo(CAMPAIGN_METRICS.estimatedConversions)}</p>
         </div>
 
         <div className="campaign-metric-card">
@@ -307,10 +296,10 @@ const AdminNexonCampaign = () => {
                   <td style={{ fontSize: 12, color: '#64748b' }}>
                     {campaign.startDate} ~ {campaign.endDate}
                   </td>
-                  <td>{formatCurrency(campaign.budget)}</td>
-                  <td>{campaign.impressions > 0 ? formatNumber(campaign.impressions) : '-'}</td>
-                  <td>{campaign.engagements > 0 ? formatNumber(campaign.engagements) : '-'}</td>
-                  <td>{campaign.conversions > 0 ? formatNumber(campaign.conversions) : '-'}</td>
+                  <td>{formatCurrencyCompact(campaign.budget)}</td>
+                  <td>{campaign.impressions > 0 ? formatCompactKo(campaign.impressions) : '-'}</td>
+                  <td>{campaign.engagements > 0 ? formatCompactKo(campaign.engagements) : '-'}</td>
+                  <td>{campaign.conversions > 0 ? formatCompactKo(campaign.conversions) : '-'}</td>
                   <td>
                     {campaign.roi > 0 ? (
                       <span style={{ fontWeight: 700, color: campaign.roi >= 300 ? '#10b981' : '#6366f1' }}>

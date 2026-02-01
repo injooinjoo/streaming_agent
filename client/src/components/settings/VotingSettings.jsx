@@ -9,6 +9,7 @@ import socket from '../../config/socket';
 import { OverlayPreviewWrapper } from './shared';
 import VotingOverlay from '../VotingOverlay';
 import LoadingSpinner from '../shared/LoadingSpinner';
+import { formatPercent } from '../../utils/formatters';
 import './ChatSettings.css';
 
 const defaultColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
@@ -278,7 +279,7 @@ const VotingSettings = () => {
                       <div className="option-header">
                         <span className="option-text">{option.text}</span>
                         <span className="option-stats">
-                          {option.votes}표 ({percentage.toFixed(1)}%)
+                          {option.votes}표 ({formatPercent(percentage, 1)})
                         </span>
                       </div>
                       <div className="option-bar">

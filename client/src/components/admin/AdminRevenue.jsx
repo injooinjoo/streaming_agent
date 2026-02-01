@@ -7,6 +7,7 @@ import {
 import LoadingSpinner from '../shared/LoadingSpinner';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import { formatCurrency, formatCurrencyCompact, formatFullNumber, formatGrowth } from '../../utils/formatters';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
@@ -86,21 +87,6 @@ const AdminRevenue = () => {
     }
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      maximumFractionDigits: 0
-    }).format(amount || 0);
-  };
-
-  const formatCompactCurrency = (amount) => {
-    if (amount >= 100000000) return `${(amount / 100000000).toFixed(1)}억`;
-    if (amount >= 10000) return `${Math.round(amount / 10000).toLocaleString()}만`;
-    if (amount >= 1000) return `${Math.round(amount / 1000).toLocaleString()}천`;
-    return `₩${(amount || 0).toLocaleString()}`;
-  };
-
   const renderPieLabel = ({ name, percent }) => {
     if (percent < 0.05) return null;
     return `${name} ${(percent * 100).toFixed(0)}%`;
@@ -166,7 +152,7 @@ const AdminRevenue = () => {
           </div>
           <div className="revenue-card-content">
             <span className="revenue-card-label">후원 건수</span>
-            <span className="revenue-card-value">{(data.donationCount || 0).toLocaleString()}건</span>
+            <span className="revenue-card-value">{formatFullNumber(data.donationCount)}건</span>
           </div>
         </div>
         <div className="revenue-card">
@@ -185,7 +171,7 @@ const AdminRevenue = () => {
           <div className="revenue-card-content">
             <span className="revenue-card-label">전기 대비</span>
             <span className={`revenue-card-value ${data.growthRate >= 0 ? 'text-positive' : 'text-negative'}`}>
-              {data.growthRate >= 0 ? '+' : ''}{data.growthRate}%
+              {formatGrowth(data.growthRate)}
             </span>
           </div>
         </div>
@@ -210,7 +196,7 @@ const AdminRevenue = () => {
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
-                  <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={formatCompactCurrency} />
+                  <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(v) => formatCurrencyCompact(v, { showSymbol: false })} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
                   <Area
@@ -283,7 +269,7 @@ const AdminRevenue = () => {
                 <BarChart data={data.monthlyComparison}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} />
-                  <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={formatCompactCurrency} />
+                  <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={(v) => formatCurrencyCompact(v, { showSymbol: false })} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
                   <Bar dataKey="prevRevenue" name="전월" fill="#334155" radius={[4, 4, 0, 0]} />
@@ -335,7 +321,7 @@ const AdminRevenue = () => {
                       </div>
                     </td>
                     <td>{formatCurrency(streamer.totalRevenue)}</td>
-                    <td>{(streamer.donationCount || 0).toLocaleString()}건</td>
+                    <td>{formatFullNumber(streamer.donationCount)}건</td>
                     <td>
                       <div className="share-bar">
                         <div

@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../shared/LoadingSpinner';
 
 import { API_URL } from '../../config/api';
+import { formatCompactKo, formatCurrency } from '../../utils/formatters';
 
 const AdminViewerJourney = () => {
   const [loading, setLoading] = useState(true);
@@ -118,20 +119,6 @@ const AdminViewerJourney = () => {
     return `${hours}시간 ${minutes}분`;
   };
 
-  const formatNumber = (num) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num?.toLocaleString() || '0';
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      maximumFractionDigits: 0
-    }).format(amount || 0);
-  };
-
   const formatRelativeTime = (dateStr) => {
     if (!dateStr) return '-';
     const date = new Date(dateStr);
@@ -215,7 +202,7 @@ const AdminViewerJourney = () => {
                 </div>
                 <div className="stat-content">
                   <span className="stat-label">총 채팅</span>
-                  <span className="stat-value">{formatNumber(journeyData.totals.totalChats)}회</span>
+                  <span className="stat-value">{formatCompactKo(journeyData.totals.totalChats)}회</span>
                 </div>
               </div>
               <div className="viewer-stat-card">
@@ -336,7 +323,7 @@ const AdminViewerJourney = () => {
                         )}
                         {eng.streamerName}
                       </span>
-                      <span>{formatNumber(eng.chatCount)}회</span>
+                      <span>{formatCompactKo(eng.chatCount)}회</span>
                       <span>{eng.donationCount}회</span>
                       <span className="amount">{formatCurrency(eng.donationAmount)}</span>
                       <span className="time">{formatRelativeTime(eng.lastSeen)}</span>
@@ -423,7 +410,7 @@ const AdminViewerJourney = () => {
       {/* Summary */}
       <div className="viewer-summary">
         <Users size={18} />
-        <span>총 {formatNumber(totalCount)}명의 시청자</span>
+        <span>총 {formatCompactKo(totalCount)}명의 시청자</span>
       </div>
 
       {/* Error Message */}
@@ -470,11 +457,11 @@ const AdminViewerJourney = () => {
                   <div className="viewer-stats">
                     <div className="mini-stat">
                       <MessageSquare size={14} />
-                      <span>{formatNumber(viewer.totalChats)}</span>
+                      <span>{formatCompactKo(viewer.totalChats)}</span>
                     </div>
                     <div className="mini-stat">
                       <DollarSign size={14} />
-                      <span>{formatNumber(viewer.totalAmount)}</span>
+                      <span>{formatCompactKo(viewer.totalAmount)}</span>
                     </div>
                     <div className="mini-stat">
                       <Clock size={14} />

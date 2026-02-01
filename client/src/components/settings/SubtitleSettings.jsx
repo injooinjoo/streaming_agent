@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import { formatWon } from '../../utils/formatters';
 import { OverlayPreviewWrapper } from './shared';
 import SubtitleOverlay from '../SubtitleOverlay';
 import './ChatSettings.css';
@@ -639,7 +640,7 @@ const SubtitleSettings = () => {
                   borderRadius: '6px',
                   marginBottom: '4px'
                 }}>
-                  <span>{evt.sender}: {(evt.amount || 0).toLocaleString()}원</span>
+                  <span>{evt.sender}: {formatWon(evt.amount || 0)}</span>
                   <button
                     onClick={() => setTestEvents(prev => prev.filter(e => e.id !== evt.id))}
                     style={{

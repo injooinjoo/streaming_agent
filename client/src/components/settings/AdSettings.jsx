@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import { formatCurrency, formatFullNumber, formatPercent } from '../../utils/formatters';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './AdSettings.css';
 
@@ -505,7 +506,7 @@ const AdSettings = () => {
             <Eye size={14} />
           </div>
           <div className="stat-content">
-            <span className="value">{(revenueStats.totalImpressions || 0).toLocaleString()}</span>
+            <span className="value">{formatFullNumber(revenueStats.totalImpressions || 0)}</span>
             <span className="subtext">회</span>
           </div>
         </div>
@@ -515,7 +516,7 @@ const AdSettings = () => {
             <MousePointerClick size={14} />
           </div>
           <div className="stat-content">
-            <span className="value">{(revenueStats.totalClicks || 0).toLocaleString()}</span>
+            <span className="value">{formatFullNumber(revenueStats.totalClicks || 0)}</span>
             <span className="subtext">CTR {revenueStats.ctr}%</span>
           </div>
         </div>
@@ -525,8 +526,8 @@ const AdSettings = () => {
             <TrendingUp size={14} />
           </div>
           <div className="stat-content">
-            <span className="value">₩{(revenueStats.totalRevenue || 0).toLocaleString()}</span>
-            <span className="subtext">정산 대기 ₩{(revenueStats.pendingSettlement || 0).toLocaleString()}</span>
+            <span className="value">{formatCurrency(revenueStats.totalRevenue || 0)}</span>
+            <span className="subtext">정산 대기 {formatCurrency(revenueStats.pendingSettlement || 0)}</span>
           </div>
         </div>
       </div>
@@ -642,8 +643,8 @@ const AdSettings = () => {
                         </div>
                       </div>
                       <div className="slot-item-stats">
-                        <span>{slot.impressions?.toLocaleString() || 0} 노출</span>
-                        <span>₩{slot.revenue?.toLocaleString() || 0}</span>
+                        <span>{formatFullNumber(slot.impressions || 0)} 노출</span>
+                        <span>{formatCurrency(slot.revenue || 0)}</span>
                       </div>
                       <div className="slot-item-actions">
                         <button
@@ -715,19 +716,19 @@ const AdSettings = () => {
                   {slot.type === 'corner' && <Maximize2 size={16} />}
                   {slot.name}
                 </span>
-                <span>{slot.impressions?.toLocaleString() || 0}</span>
-                <span>{slot.clicks?.toLocaleString() || 0}</span>
-                <span>{slot.impressions ? ((slot.clicks / slot.impressions) * 100).toFixed(2) : 0}%</span>
-                <span className="revenue-amount">₩{slot.revenue?.toLocaleString() || 0}</span>
+                <span>{formatFullNumber(slot.impressions || 0)}</span>
+                <span>{formatFullNumber(slot.clicks || 0)}</span>
+                <span>{slot.impressions ? formatPercent((slot.clicks / slot.impressions) * 100, 2) : '0%'}</span>
+                <span className="revenue-amount">{formatCurrency(slot.revenue || 0)}</span>
               </div>
             ))}
             <div className="revenue-row total">
               <span>합계</span>
-              <span>{slots.reduce((sum, s) => sum + (s.impressions || 0), 0).toLocaleString()}</span>
-              <span>{slots.reduce((sum, s) => sum + (s.clicks || 0), 0).toLocaleString()}</span>
+              <span>{formatFullNumber(slots.reduce((sum, s) => sum + (s.impressions || 0), 0))}</span>
+              <span>{formatFullNumber(slots.reduce((sum, s) => sum + (s.clicks || 0), 0))}</span>
               <span>-</span>
               <span className="revenue-amount">
-                ₩{slots.reduce((sum, s) => sum + (s.revenue || 0), 0).toLocaleString()}
+                {formatCurrency(slots.reduce((sum, s) => sum + (s.revenue || 0), 0))}
               </span>
             </div>
           </div>
@@ -746,7 +747,7 @@ const AdSettings = () => {
                   {settlement.period}
                 </div>
                 <div className="settlement-amount">
-                  ₩{(settlement.revenue || 0).toLocaleString()}
+                  {formatCurrency(settlement.revenue || 0)}
                 </div>
                 <div className={`settlement-status ${settlement.status}`}>
                   {settlement.status === 'paid' && <Check size={14} />}

@@ -6,6 +6,7 @@ import {
 import { Gamepad2, Clock, TrendingUp, Gift, MessageSquare, Users, Download, RefreshCw, LogIn } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatCurrency, formatFullNumber, formatGrowth } from '../../utils/formatters';
 import AnalyticsCard from './shared/AnalyticsCard';
 import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
@@ -130,8 +131,6 @@ const ContentAnalytics = () => {
     }
   };
 
-  const formatCurrency = (value) => `₩${(value || 0).toLocaleString()}`;
-
   // Custom tooltip for pie charts
   const renderCustomTooltip = ({ active, payload }) => {
     if (active && payload && payload.length) {
@@ -145,7 +144,7 @@ const ContentAnalytics = () => {
         }}>
           <p style={{ margin: 0, fontWeight: 600 }}>{data.name}</p>
           <p style={{ margin: '4px 0 0', color: chartColors.textMuted }}>
-            {data.value?.toLocaleString()} ({data.percent}%)
+            {formatFullNumber(data.value)} ({data.percent}%)
           </p>
         </div>
       );
@@ -348,7 +347,7 @@ const ContentAnalytics = () => {
               <YAxis yAxisId="right" orientation="right" stroke={chartColors.textMuted} fontSize={12} />
               <Tooltip
                 contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }}
-                formatter={(value, name) => [(value || 0).toLocaleString(), name]}
+                formatter={(value, name) => [formatFullNumber(value), name]}
               />
               <Legend />
               <Bar yAxisId="left" dataKey="donations" name="후원금 (만원)" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -394,13 +393,13 @@ const ContentAnalytics = () => {
                     <td style={{ fontWeight: 600 }}>{catName}</td>
                     <td><span className="sensitive-blur">{formatCurrency(donation.value)}</span></td>
                     <td>{donation.percent || 0}%</td>
-                    <td><span className="sensitive-blur">{chat.value?.toLocaleString() || 0}</span></td>
+                    <td><span className="sensitive-blur">{formatFullNumber(chat.value)}</span></td>
                     <td>{chat.percent || 0}%</td>
                     <td style={{
                       color: growth.growth > 0 ? '#10b981' : growth.growth < 0 ? '#ef4444' : chartColors.textMuted,
                       fontWeight: 600
                     }}>
-                      {growth.growth > 0 ? '+' : ''}{growth.growth || 0}%
+                      {formatGrowth(growth.growth || 0)}
                     </td>
                   </tr>
                 );

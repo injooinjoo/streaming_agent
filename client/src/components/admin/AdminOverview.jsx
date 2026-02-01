@@ -3,6 +3,7 @@ import { Users, DollarSign, Megaphone, Activity, TrendingUp, Calendar, RefreshCw
 import LoadingSpinner from '../shared/LoadingSpinner';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import { formatCurrency, formatCompactKo } from '../../utils/formatters';
 
 const AdminOverview = () => {
   const { token } = useAuth();
@@ -68,19 +69,6 @@ const AdminOverview = () => {
     }
   };
 
-  const formatNumber = (num) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num?.toLocaleString() || '0';
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      maximumFractionDigits: 0
-    }).format(amount || 0);
-  };
 
   if (loading) {
     return <LoadingSpinner />;
@@ -109,7 +97,7 @@ const AdminOverview = () => {
     },
     {
       title: '후원 건수',
-      value: formatNumber(data.donationsByPlatform.reduce((sum, d) => sum + (d.count || 0), 0)),
+      value: formatCompactKo(data.donationsByPlatform.reduce((sum, d) => sum + (d.count || 0), 0)),
       icon: <Megaphone size={24} />,
       color: '#f59e0b',
       change: '전체',
@@ -117,7 +105,7 @@ const AdminOverview = () => {
     },
     {
       title: '총 이벤트',
-      value: formatNumber(data.totalEvents),
+      value: formatCompactKo(data.totalEvents),
       icon: <Activity size={24} />,
       color: '#ef4444',
       change: 'DB 기록',

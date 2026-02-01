@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_URL } from '../config/api';
+import { formatWon } from '../utils/formatters';
 import socket from '../config/socket';
 import './Overlay.css';
 
@@ -181,7 +182,7 @@ const AlertOverlay = ({
           {displayAlert.sender}
         </div>
         <div className="alert-amount" style={{ color: activeSettings.amountColor || '#ffc247' }}>
-          {(displayAlert.amount || 0).toLocaleString()} KRW
+          {formatWon(displayAlert.amount || 0)}
         </div>
         <div className="alert-message" style={{ color: activeSettings.fontColor || '#ffffff' }}>
           {displayAlert.message}

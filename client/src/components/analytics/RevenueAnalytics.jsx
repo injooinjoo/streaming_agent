@@ -7,6 +7,7 @@ import { DollarSign, Gift, Users, Megaphone, Download, RefreshCw, LogIn } from '
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
+import { formatCurrency, formatCurrencyCompact } from '../../utils/formatters';
 import AnalyticsCard from './shared/AnalyticsCard';
 import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
@@ -169,8 +170,6 @@ const RevenueAnalytics = () => {
     return 'default';
   };
 
-  const formatCurrency = (value) => `₩${(value || 0).toLocaleString()}`;
-
   if (loading) {
     return (
       <div className="analytics-page">
@@ -280,7 +279,7 @@ const RevenueAnalytics = () => {
           <LineChart data={revenueData}>
             <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
             <XAxis dataKey="date" stroke={chartColors.textMuted} fontSize={12} />
-            <YAxis stroke={chartColors.textMuted} fontSize={12} tickFormatter={(v) => `₩${(v/1000)}K`} />
+            <YAxis stroke={chartColors.textMuted} fontSize={12} tickFormatter={(v) => formatCurrencyCompact(v, { showSymbol: true })} />
             <Tooltip
               formatter={(value) => formatCurrency(value)}
               contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }}
@@ -299,7 +298,7 @@ const RevenueAnalytics = () => {
           <BarChart data={revenueData}>
             <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
             <XAxis dataKey="date" stroke={chartColors.textMuted} fontSize={12} />
-            <YAxis stroke={chartColors.textMuted} fontSize={12} tickFormatter={(v) => `₩${(v/1000)}K`} />
+            <YAxis stroke={chartColors.textMuted} fontSize={12} tickFormatter={(v) => formatCurrencyCompact(v, { showSymbol: true })} />
             <Tooltip
               formatter={(value) => formatCurrency(value)}
               contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }}

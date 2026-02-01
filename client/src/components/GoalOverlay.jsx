@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Heart, Star } from 'lucide-react';
 import { API_URL } from '../config/api';
+import { formatFullNumber, formatPercent } from '../utils/formatters';
 import socket from '../config/socket';
 import './Overlay.css';
 
@@ -120,7 +121,7 @@ const GoalOverlay = ({
             />
           </svg>
           <div className="goal-percent absolute-center">
-            {percentage.toFixed(0)}%
+            {formatPercent(percentage, 0)}
           </div>
         </div>
       );
@@ -150,7 +151,7 @@ const GoalOverlay = ({
           </div>
           {/* 퍼센트 표시 */}
           <div className="goal-percent absolute-center text-stroke">
-            {percentage.toFixed(0)}%
+            {formatPercent(percentage, 0)}
           </div>
         </div>
       );
@@ -186,7 +187,7 @@ const GoalOverlay = ({
             />
           </svg>
           <div className="goal-percent semi-percent">
-            {percentage.toFixed(0)}%
+            {formatPercent(percentage, 0)}
           </div>
         </div>
       );
@@ -199,7 +200,7 @@ const GoalOverlay = ({
         <div className="goal-header">
           <span className="goal-title">{title}</span>
           <span className="goal-values">
-            {(activeCurrentValue || 0).toLocaleString()} / {(targetValue || 0).toLocaleString()}
+            {formatFullNumber(activeCurrentValue || 0)} / {formatFullNumber(targetValue || 0)}
           </span>
         </div>
         <div className="goal-bar-bg" style={{ height: `${thickness}px` }}>

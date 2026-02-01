@@ -5,6 +5,7 @@ import {
   Image as ImageIcon, Video
 } from 'lucide-react';
 import { API_URL } from '../../config/api';
+import { formatCompactKo, formatCurrency, formatCurrencyCompact, formatPercent } from '../../utils/formatters';
 import './Advertiser.css';
 
 const CampaignDetail = ({ campaign, onBack, onEdit }) => {
@@ -36,7 +37,7 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
           impressions: data.impressions || campaign.impressions || 0,
           clicks: data.clicks || campaign.clicks || 0,
           spent: data.spent || campaign.spent || 0,
-          ctr: data.ctr || (data.impressions > 0 ? ((data.clicks / data.impressions) * 100).toFixed(2) : 0),
+          ctr: data.ctr || (data.impressions > 0 ? formatPercent(data.clicks / data.impressions, 2, { isRatio: true }) : '0.00%'),
           daily: data.daily || []
         });
       } else {
@@ -45,7 +46,7 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
           impressions: campaign.impressions || 0,
           clicks: campaign.clicks || 0,
           spent: campaign.spent || 0,
-          ctr: campaign.impressions > 0 ? ((campaign.clicks / campaign.impressions) * 100).toFixed(2) : 0,
+          ctr: campaign.impressions > 0 ? formatPercent(campaign.clicks / campaign.impressions, 2, { isRatio: true }) : '0.00%',
           daily: []
         });
       }
@@ -55,7 +56,7 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
         impressions: campaign.impressions || 0,
         clicks: campaign.clicks || 0,
         spent: campaign.spent || 0,
-        ctr: campaign.impressions > 0 ? ((campaign.clicks / campaign.impressions) * 100).toFixed(2) : 0,
+        ctr: campaign.impressions > 0 ? formatPercent(campaign.clicks / campaign.impressions, 2, { isRatio: true }) : '0.00%',
         daily: []
       });
     } finally {
@@ -82,12 +83,6 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
     } catch (err) {
       console.error('Failed to update campaign status', err);
     }
-  };
-
-  const formatNumber = (num) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num?.toLocaleString() || '0';
   };
 
   const formatDate = (dateStr) => {
@@ -182,7 +177,7 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
               <Eye size={18} />
             </div>
           </div>
-          <span className="campaign-stat-value">{formatNumber(stats.impressions)}</span>
+          <span className="campaign-stat-value">{formatCompactKo(stats.impressions)}</span>
         </div>
         <div className="campaign-stat-card">
           <div className="campaign-stat-header">
@@ -191,7 +186,7 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
               <MousePointerClick size={18} />
             </div>
           </div>
-          <span className="campaign-stat-value">{formatNumber(stats.clicks)}</span>
+          <span className="campaign-stat-value">{formatCompactKo(stats.clicks)}</span>
         </div>
         <div className="campaign-stat-card">
           <div className="campaign-stat-header">
@@ -200,7 +195,7 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
               <TrendingUp size={18} />
             </div>
           </div>
-          <span className="campaign-stat-value">{stats.ctr}%</span>
+          <span className="campaign-stat-value">{stats.ctr}</span>
         </div>
         <div className="campaign-stat-card">
           <div className="campaign-stat-header">
@@ -209,7 +204,7 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
               <DollarSign size={18} />
             </div>
           </div>
-          <span className="campaign-stat-value">₩{formatNumber(stats.spent)}</span>
+          <span className="campaign-stat-value">{formatCurrencyCompact(stats.spent)}</span>
         </div>
       </div>
 
@@ -280,17 +275,17 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
             <div className="campaign-info-list">
               <div className="campaign-info-item">
                 <span className="campaign-info-label">총 예산</span>
-                <span className="campaign-info-value">₩{campaign.budget_total?.toLocaleString()}</span>
+                <span className="campaign-info-value">{formatCurrency(campaign.budget_total)}</span>
               </div>
               <div className="campaign-info-item">
                 <span className="campaign-info-label">일일 예산</span>
                 <span className="campaign-info-value">
-                  {campaign.budget_daily > 0 ? `₩${(campaign.budget_daily || 0).toLocaleString()}` : '제한 없음'}
+                  {campaign.budget_daily > 0 ? formatCurrency(campaign.budget_daily) : '제한 없음'}
                 </span>
               </div>
               <div className="campaign-info-item">
                 <span className="campaign-info-label">CPM</span>
-                <span className="campaign-info-value">₩{campaign.cpm?.toLocaleString()}</span>
+                <span className="campaign-info-value">{formatCurrency(campaign.cpm)}</span>
               </div>
               <div className="campaign-info-item">
                 <span className="campaign-info-label">CPC</span>

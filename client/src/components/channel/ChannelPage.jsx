@@ -8,6 +8,7 @@ import {
   Hash, AtSign, MapPin, Sparkles, ChevronDown, Heart
 } from 'lucide-react';
 import { API_URL } from '../../config/api';
+import { formatCompactKo, formatCurrency, formatFullNumber } from '../../utils/formatters';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './ChannelPage.css';
 
@@ -97,11 +98,7 @@ const ChannelPage = () => {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const formatNumber = (num) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toString();
-  };
+  const formatNumber = (num) => formatCompactKo(num);
 
   const formatDuration = (ms) => {
     const hours = Math.floor(ms / 3600000);
@@ -219,7 +216,7 @@ const ChannelPage = () => {
           <div className="live-stats">
             <div className="live-stat">
               <Eye size={18} />
-              <span className="live-stat-value">{(liveStatus.viewers || 0).toLocaleString()}</span>
+              <span className="live-stat-value">{formatFullNumber(liveStatus.viewers || 0)}</span>
               <span className="live-stat-label">시청자</span>
             </div>
           </div>
@@ -333,7 +330,7 @@ const ChannelPage = () => {
           <div className="stat-icon"><DollarSign size={24} /></div>
           <div className="stat-info">
             <span className="stat-label">총 후원 수익</span>
-            <span className="stat-value">₩{(channelData.stats.totalDonations || 0).toLocaleString()}</span>
+            <span className="stat-value">{formatCurrency(channelData.stats.totalDonations || 0)}</span>
           </div>
         </div>
         <div className="stat-card">

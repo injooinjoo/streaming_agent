@@ -6,21 +6,10 @@ import {
 } from 'lucide-react';
 import Chart from 'chart.js/auto';
 import './AdminMonitor.css';
+import { formatFullNumber, formatCurrency } from '../../utils/formatters';
 
 const API_BASE = '/api/monitor';
 const PAGE_SIZE = 30;
-
-// 숫자 포맷
-const formatNumber = (num) => {
-  if (num === null || num === undefined) return '-';
-  return Number(num).toLocaleString('ko-KR');
-};
-
-// 금액 포맷
-const formatCurrency = (num) => {
-  if (num === null || num === undefined) return '-';
-  return '₩' + Number(num).toLocaleString('ko-KR');
-};
 
 // 날짜 포맷 (KST)
 const formatDate = (dateStr) => {
@@ -376,7 +365,7 @@ const AdminMonitor = () => {
     return (
       <div className="monitor-pagination">
         <span className="monitor-pagination-info">
-          {formatNumber(start)} - {formatNumber(end)} / {formatNumber(pagination.total)}
+          {formatFullNumber(start)} - {formatFullNumber(end)} / {formatFullNumber(pagination.total)}
         </span>
         <div className="monitor-pagination-buttons">
           <button
@@ -427,8 +416,8 @@ const AdminMonitor = () => {
           </div>
           <div className="monitor-stat-content">
             <h3>50명+ 라이브</h3>
-            <div className="value">{stats ? `${formatNumber(stats.liveBroadcasts)}개` : '-'}</div>
-            <div className="stat-sub">👥 {stats ? `${formatNumber(stats.totalViewers)}명` : '-'}</div>
+            <div className="value">{stats ? `${formatFullNumber(stats.liveBroadcasts)}개` : '-'}</div>
+            <div className="stat-sub">👥 {stats ? `${formatFullNumber(stats.totalViewers)}명` : '-'}</div>
           </div>
         </div>
 
@@ -439,7 +428,7 @@ const AdminMonitor = () => {
           <div className="monitor-stat-content">
             <h3>SOOP</h3>
             <div className="value">{stats?.platforms?.soop?.broadcasts || 0}개</div>
-            <div className="stat-sub">👥 {formatNumber(stats?.platforms?.soop?.viewers || 0)}명</div>
+            <div className="stat-sub">👥 {formatFullNumber(stats?.platforms?.soop?.viewers || 0)}명</div>
           </div>
         </div>
 
@@ -450,7 +439,7 @@ const AdminMonitor = () => {
           <div className="monitor-stat-content">
             <h3>Chzzk</h3>
             <div className="value">{stats?.platforms?.chzzk?.broadcasts || 0}개</div>
-            <div className="stat-sub">👥 {formatNumber(stats?.platforms?.chzzk?.viewers || 0)}명</div>
+            <div className="stat-sub">👥 {formatFullNumber(stats?.platforms?.chzzk?.viewers || 0)}명</div>
           </div>
         </div>
 
@@ -461,7 +450,7 @@ const AdminMonitor = () => {
           <div className="monitor-stat-content">
             <h3>넥슨(숲)</h3>
             <div className="value">{stats?.nexon?.soop?.broadcasts || 0}개</div>
-            <div className="stat-sub">👥 {formatNumber(stats?.nexon?.soop?.viewers || 0)}명</div>
+            <div className="stat-sub">👥 {formatFullNumber(stats?.nexon?.soop?.viewers || 0)}명</div>
           </div>
         </div>
 
@@ -472,7 +461,7 @@ const AdminMonitor = () => {
           <div className="monitor-stat-content">
             <h3>넥슨(치지직)</h3>
             <div className="value">{stats?.nexon?.chzzk?.broadcasts || 0}개</div>
-            <div className="stat-sub">👥 {formatNumber(stats?.nexon?.chzzk?.viewers || 0)}명</div>
+            <div className="stat-sub">👥 {formatFullNumber(stats?.nexon?.chzzk?.viewers || 0)}명</div>
           </div>
         </div>
       </div>
@@ -485,7 +474,7 @@ const AdminMonitor = () => {
           </div>
           <div className="monitor-stat-content">
             <h3>등록 인원</h3>
-            <div className="value">{formatNumber(stats?.totalPersons)}</div>
+            <div className="value">{formatFullNumber(stats?.totalPersons)}</div>
           </div>
         </div>
 
@@ -505,7 +494,7 @@ const AdminMonitor = () => {
           </div>
           <div className="monitor-stat-content">
             <h3>이벤트</h3>
-            <div className="value">{formatNumber(stats?.eventCount)}</div>
+            <div className="value">{formatFullNumber(stats?.eventCount)}</div>
           </div>
         </div>
 
@@ -515,7 +504,7 @@ const AdminMonitor = () => {
           </div>
           <div className="monitor-stat-content">
             <h3>세그먼트</h3>
-            <div className="value">{formatNumber(stats?.segmentCount)}</div>
+            <div className="value">{formatFullNumber(stats?.segmentCount)}</div>
           </div>
         </div>
 
@@ -525,7 +514,7 @@ const AdminMonitor = () => {
           </div>
           <div className="monitor-stat-content">
             <h3>스냅샷</h3>
-            <div className="value">{formatNumber(stats?.snapshotCount)}</div>
+            <div className="value">{formatFullNumber(stats?.snapshotCount)}</div>
           </div>
         </div>
 
@@ -535,7 +524,7 @@ const AdminMonitor = () => {
           </div>
           <div className="monitor-stat-content">
             <h3>참여 기록</h3>
-            <div className="value">{formatNumber(stats?.engagementCount)}</div>
+            <div className="value">{formatFullNumber(stats?.engagementCount)}</div>
           </div>
         </div>
       </div>
@@ -621,8 +610,8 @@ const AdminMonitor = () => {
                       </td>
                       <td className="monitor-truncate" title={b.title}>{b.title || '-'}</td>
                       <td>{b.category_name || '-'}</td>
-                      <td className="monitor-number">{formatNumber(b.current_viewer_count)}</td>
-                      <td className="monitor-number">{formatNumber(b.peak_viewer_count)}</td>
+                      <td className="monitor-number">{formatFullNumber(b.current_viewer_count)}</td>
+                      <td className="monitor-number">{formatFullNumber(b.peak_viewer_count)}</td>
                       <td className="monitor-number">{formatCurrency(b.total_donation_amount)}</td>
                       <td><StatusBadge isLive={b.is_live} /></td>
                     </tr>
@@ -673,9 +662,9 @@ const AdminMonitor = () => {
                         {p.nickname || '-'}
                       </td>
                       <td><TypeBadge type={p.person_type} /></td>
-                      <td className="monitor-number">{formatNumber(p.follower_count)}</td>
-                      <td className="monitor-number">{formatNumber(p.total_chat_count)}</td>
-                      <td className="monitor-number">{formatNumber(p.total_donation_count)}</td>
+                      <td className="monitor-number">{formatFullNumber(p.follower_count)}</td>
+                      <td className="monitor-number">{formatFullNumber(p.total_chat_count)}</td>
+                      <td className="monitor-number">{formatFullNumber(p.total_donation_count)}</td>
                       <td className="monitor-number">{formatCurrency(p.total_donation_amount)}</td>
                       <td>{formatDate(p.last_seen_at)}</td>
                     </tr>
@@ -719,8 +708,8 @@ const AdminMonitor = () => {
                       <td className="monitor-clickable" onClick={() => openPersonModal(e.broadcaster_person_id)}>
                         {e.broadcaster_nickname || '-'}
                       </td>
-                      <td className="monitor-number">{formatNumber(e.chat_count)}</td>
-                      <td className="monitor-number">{formatNumber(e.donation_count)}</td>
+                      <td className="monitor-number">{formatFullNumber(e.chat_count)}</td>
+                      <td className="monitor-number">{formatFullNumber(e.donation_count)}</td>
                       <td className="monitor-number">{formatCurrency(e.donation_amount)}</td>
                       <td title={e.categories}>{e.category_count > 0 ? `${e.category_count}개` : '-'}</td>
                       <td>{formatDate(e.last_seen_at)}</td>
@@ -821,8 +810,8 @@ const AdminMonitor = () => {
                       <td><PlatformBadge platform={s.platform} /></td>
                       <td>{s.broadcaster_nickname || '-'}</td>
                       <td>{s.category_name || '-'}</td>
-                      <td className="monitor-number">{formatNumber(s.peak_viewer_count)}</td>
-                      <td className="monitor-number">{formatNumber(s.avg_viewer_count)}</td>
+                      <td className="monitor-number">{formatFullNumber(s.peak_viewer_count)}</td>
+                      <td className="monitor-number">{formatFullNumber(s.avg_viewer_count)}</td>
                       <td>{formatDate(s.segment_started_at)}</td>
                       <td>{formatDate(s.segment_ended_at)}</td>
                     </tr>
@@ -877,8 +866,8 @@ const AdminMonitor = () => {
                       </td>
                       <td><PlatformBadge platform={c.platform} /></td>
                       <td>{c.category_name || '-'}</td>
-                      <td className="monitor-number">{formatNumber(c.viewer_count)}</td>
-                      <td className="monitor-number">{formatNumber(c.streamer_count)}</td>
+                      <td className="monitor-number">{formatFullNumber(c.viewer_count)}</td>
+                      <td className="monitor-number">{formatFullNumber(c.streamer_count)}</td>
                       <td>{formatDate(c.updated_at)}</td>
                     </tr>
                   ))}
@@ -928,15 +917,15 @@ const AdminMonitor = () => {
                 <div className="monitor-modal-stats">
                   <div className="monitor-modal-stat">
                     <h4>팔로워</h4>
-                    <div className="value">{formatNumber(modalPerson.follower_count)}</div>
+                    <div className="value">{formatFullNumber(modalPerson.follower_count)}</div>
                   </div>
                   <div className="monitor-modal-stat">
                     <h4>채팅 수</h4>
-                    <div className="value">{formatNumber(modalPerson.total_chat_count)}</div>
+                    <div className="value">{formatFullNumber(modalPerson.total_chat_count)}</div>
                   </div>
                   <div className="monitor-modal-stat">
                     <h4>후원 횟수</h4>
-                    <div className="value">{formatNumber(modalPerson.total_donation_count)}</div>
+                    <div className="value">{formatFullNumber(modalPerson.total_donation_count)}</div>
                   </div>
                   <div className="monitor-modal-stat">
                     <h4>후원 금액</h4>

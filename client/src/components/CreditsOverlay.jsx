@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_URL } from '../config/api';
+import { formatWon } from '../utils/formatters';
 import socket from '../config/socket';
 import './Overlay.css';
 
@@ -115,7 +116,7 @@ const CreditsOverlay = ({
                     <>
                       <span className="item-name">{item.name}</span>
                       {item.role && <span className="item-role">{item.role}</span>}
-                      {item.amount && <span className="item-amount">{(item.amount || 0).toLocaleString()}원</span>}
+                      {item.amount && <span className="item-amount">{formatWon(item.amount || 0)}</span>}
                     </>
                   )}
                 </div>

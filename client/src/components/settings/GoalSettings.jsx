@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import { formatFullNumber } from '../../utils/formatters';
 import { OverlayPreviewWrapper } from './shared';
 import GoalOverlay from '../GoalOverlay';
 import './ChatSettings.css';
@@ -628,7 +629,7 @@ const GoalSettings = () => {
                   onChange={(e) => setTestValue(parseInt(e.target.value))}
                   style={{ flex: 1 }}
                 />
-                <span className="unit-value">{(testValue || 0).toLocaleString()}</span>
+                <span className="unit-value">{formatFullNumber(testValue || 0)}</span>
               </div>
             </div>
 

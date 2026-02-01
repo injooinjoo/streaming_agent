@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, User, Mail, Calendar, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import { formatCurrency, formatFullNumber } from '../../utils/formatters';
 
 const AdminStreamers = ({ onStreamerSelect }) => {
   const { token } = useAuth();
@@ -81,14 +82,6 @@ const AdminStreamers = ({ onStreamerSelect }) => {
     });
   };
 
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      maximumFractionDigits: 0
-    }).format(amount || 0);
-  };
-
   const SortIcon = ({ column }) => {
     if (sortBy !== column) return null;
     return sortOrder === 'asc' ? <ChevronUp size={14} /> : <ChevronDown size={14} />;
@@ -126,7 +119,7 @@ const AdminStreamers = ({ onStreamerSelect }) => {
           </button>
         </form>
         <div className="admin-toolbar-info" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span>총 {totalCount.toLocaleString()}명</span>
+          <span>총 {formatFullNumber(totalCount)}명</span>
           <button
             onClick={fetchStreamers}
             style={{
@@ -207,7 +200,7 @@ const AdminStreamers = ({ onStreamerSelect }) => {
                     </div>
                   </td>
                   <td>{getRoleBadge(streamer.role)}</td>
-                  <td>{(streamer.total_events || 0).toLocaleString()}</td>
+                  <td>{formatFullNumber(streamer.total_events)}</td>
                   <td>{formatCurrency(streamer.total_donations)}</td>
                   <td>{formatDate(streamer.created_at)}</td>
                 </tr>

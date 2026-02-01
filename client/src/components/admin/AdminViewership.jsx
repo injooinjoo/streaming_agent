@@ -6,6 +6,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../shared/LoadingSpinner';
 
 import { API_URL } from '../../config/api';
+import { formatCompactKo } from '../../utils/formatters';
 
 // Game categories for filtering
 const GAME_CATEGORIES = [
@@ -102,12 +103,6 @@ const AdminViewership = ({ onStreamerSelect }) => {
       topDonationRate
     };
   }, [streamerData]);
-
-  const formatNumber = (num) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num?.toLocaleString() || '0';
-  };
 
   const getInfluenceRank = (score) => {
     if (score >= 90) return { label: 'S+', color: '#fbbf24', bg: '#fbbf2420' };
@@ -257,7 +252,7 @@ const AdminViewership = ({ onStreamerSelect }) => {
                       <td>
                         <div className="stat-cell">
                           <Users size={14} />
-                          <span>{formatNumber(streamer.avgViewers)}</span>
+                          <span>{formatCompactKo(streamer.avgViewers)}</span>
                         </div>
                       </td>
                       <td>

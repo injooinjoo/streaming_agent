@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { Medal } from 'lucide-react';
 import { API_URL } from '../config/api';
+import { formatWon } from '../utils/formatters';
 import socket from '../config/socket';
 import './Overlay.css';
 
@@ -97,7 +98,7 @@ const SubtitleOverlay = ({
       }
       return (activeSettings.textFormat || '{닉네임} {금액}')
         .replace('{닉네임}', latest.sender)
-        .replace('{금액}', `${(latest.amount || 0).toLocaleString()}원`);
+        .replace('{금액}', formatWon(latest.amount || 0));
     }
 
     if (activeSettings.mode === 'ranking') {
@@ -123,7 +124,7 @@ const SubtitleOverlay = ({
           {displayData.map(([name, amount], idx) => (
             <div key={name} className="ranking-item">
               {activeSettings.showMedals && <Medal size={activeSettings.fontSize} className={`medal-${idx + 1}`} />}
-              <span>{name} {(amount || 0).toLocaleString()}원</span>
+              <span>{name} {formatWon(amount || 0)}</span>
             </div>
           ))}
         </div>
@@ -141,7 +142,7 @@ const SubtitleOverlay = ({
       if (!hasEvents) {
         return "후원 0건";
       }
-      return `총 ${totalCount}건 · ${totalAmount.toLocaleString()}원`;
+      return `총 ${totalCount}건 · ${formatWon(totalAmount)}`;
     }
 
     if (activeSettings.mode === 'mvp') {
@@ -157,7 +158,7 @@ const SubtitleOverlay = ({
         return acc;
       }, {});
       const mvp = Object.entries(ranks).sort(([, a], [, b]) => b - a)[0];
-      return `🏆 MVP: ${mvp[0]} (${(mvp[1] || 0).toLocaleString()}원)`;
+      return `🏆 MVP: ${mvp[0]} (${formatWon(mvp[1] || 0)})`;
     }
 
     if (activeSettings.mode === 'image') {

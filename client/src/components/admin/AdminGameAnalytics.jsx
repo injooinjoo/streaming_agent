@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import { API_URL } from '../../config/api';
+import { formatFullNumber, formatCurrencyCompact, formatCompactKo, formatGrowth } from '../../utils/formatters';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#14b8a6', '#f97316'];
 
@@ -106,21 +107,6 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
     }));
   }, [gamesData]);
 
-  const formatNumber = (num) => {
-    return new Intl.NumberFormat('ko-KR').format(num);
-  };
-
-  const formatCurrency = (amount) => {
-    if (amount >= 100000000) return `${(amount / 100000000).toFixed(1)}억`;
-    if (amount >= 10000) return `${(amount / 10000).toFixed(0)}만`;
-    return formatNumber(amount);
-  };
-
-  const formatCompact = (num) => {
-    if (num >= 10000) return `${(num / 10000).toFixed(1)}만`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}천`;
-    return num;
-  };
 
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
@@ -129,7 +115,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
           <p className="tooltip-label">{label}</p>
           {payload.map((entry, index) => (
             <p key={index} style={{ color: entry.color }}>
-              {entry.name}: {formatNumber(entry.value)}명
+              {entry.name}: {formatFullNumber(entry.value)}명
             </p>
           ))}
         </div>
@@ -173,7 +159,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
           </div>
           <div className="revenue-card-content">
             <span className="revenue-card-label">총 시청시간</span>
-            <span className="revenue-card-value">{formatNumber(totalWatchTime)}시간</span>
+            <span className="revenue-card-value">{formatFullNumber(totalWatchTime)}시간</span>
           </div>
         </div>
         <div className="revenue-card">
@@ -182,7 +168,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
           </div>
           <div className="revenue-card-content">
             <span className="revenue-card-label">평균 동시접속</span>
-            <span className="revenue-card-value">{gamesData.length > 0 ? formatNumber(Math.floor(totalViewers / gamesData.length)) : 0}명</span>
+            <span className="revenue-card-value">{gamesData.length > 0 ? formatFullNumber(Math.floor(totalViewers / gamesData.length)) : 0}명</span>
           </div>
         </div>
         <div className="revenue-card">
@@ -191,7 +177,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
           </div>
           <div className="revenue-card-content">
             <span className="revenue-card-label">활성 스트리머</span>
-            <span className="revenue-card-value">{formatNumber(totalStreamers)}명</span>
+            <span className="revenue-card-value">{formatFullNumber(totalStreamers)}명</span>
           </div>
         </div>
         <div className="revenue-card">
@@ -200,7 +186,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
           </div>
           <div className="revenue-card-content">
             <span className="revenue-card-label">게임 수익</span>
-            <span className="revenue-card-value">₩{formatCurrency(totalRevenue)}</span>
+            <span className="revenue-card-value">{formatCurrencyCompact(totalRevenue)}</span>
           </div>
         </div>
       </div>
@@ -217,7 +203,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
               <AreaChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={formatCompact} />
+                <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={formatCompactKo} />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
                 <Area type="monotone" dataKey="메이플스토리" stackId="1" stroke="#6366f1" fill="#6366f1" fillOpacity={0.6} />
@@ -251,7 +237,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value) => `${formatNumber(value)}명`} />
+                <Tooltip formatter={(value) => `${formatFullNumber(value)}명`} />
                 <Legend />
               </PieChart>
             </ResponsiveContainer>
@@ -268,8 +254,8 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
               <BarChart data={peakHoursData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="hour" stroke="#94a3b8" fontSize={10} interval={2} />
-                <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={formatCompact} />
-                <Tooltip formatter={(value) => `${formatNumber(value)}명`} />
+                <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={formatCompactKo} />
+                <Tooltip formatter={(value) => `${formatFullNumber(value)}명`} />
                 <Bar dataKey="viewers" name="시청자" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -310,13 +296,13 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
                       <span>{game.name}</span>
                     </div>
                   </td>
-                  <td>{formatCompact(game.viewers)}명</td>
-                  <td>{formatNumber(game.streamers)}명</td>
-                  <td>{formatCompact(game.watchTime)}시간</td>
-                  <td>₩{formatCurrency(game.revenue)}</td>
+                  <td>{formatCompactKo(game.viewers)}명</td>
+                  <td>{formatFullNumber(game.streamers)}명</td>
+                  <td>{formatCompactKo(game.watchTime)}시간</td>
+                  <td>{formatCurrencyCompact(game.revenue)}</td>
                   <td>
                     <span className={`growth-badge ${game.growth >= 0 ? 'positive' : 'negative'}`}>
-                      {game.growth >= 0 ? '+' : ''}{game.growth.toFixed(1)}%
+                      {formatGrowth(game.growth)}
                     </span>
                   </td>
                 </tr>
@@ -372,7 +358,7 @@ const AdminGameAnalytics = ({ onStreamerSelect }) => {
                       <span>{streamer.name}</span>
                     </div>
                   </td>
-                  <td>{formatNumber(streamer.viewers)}명</td>
+                  <td>{formatFullNumber(streamer.viewers)}명</td>
                   <td>
                     <div className="influence-bar">
                       <div

@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import { formatFullNumber } from '../../utils/formatters';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './GameSettings.css';
 
@@ -127,7 +128,7 @@ const GameSettings = () => {
             <div className="player-name"><Trophy size={20} />{data.nickname}</div>
             <div className="rank-info">
               <span className="tier-badge challenger">{data.tier}</span>
-              {(data.lp || 0).toLocaleString()} LP
+              {formatFullNumber(data.lp || 0)} LP
             </div>
             <div className="recent-games">
               {data.recentGames.map((game, i) => (
@@ -161,7 +162,7 @@ const GameSettings = () => {
             <div className="player-name">🍁 {data.nickname}</div>
             <div className="rank-info">Lv.{data.level} {data.job}</div>
             <div className="stats-row">
-              <div className="stat-item"><div className="stat-value">{(data.legion || 0).toLocaleString()}</div><div className="stat-label">유니온</div></div>
+              <div className="stat-item"><div className="stat-value">{formatFullNumber(data.legion || 0)}</div><div className="stat-label">유니온</div></div>
               <div className="stat-item"><div className="stat-value">{data.guild}</div><div className="stat-label">길드</div></div>
             </div>
           </div>
@@ -170,7 +171,7 @@ const GameSettings = () => {
         return (
           <div className="overlay-preview-card">
             <div className="player-name">⚽ {data.nickname}</div>
-            <div className="rank-info">{data.division} · {(data.rating || 0).toLocaleString()} RP</div>
+            <div className="rank-info">{data.division} · {formatFullNumber(data.rating || 0)} RP</div>
             <div className="stats-row">
               <div className="stat-item"><div className="stat-value">{data.winRate}%</div><div className="stat-label">승률</div></div>
               <div className="stat-item"><div className="stat-value">Lv.{data.level}</div><div className="stat-label">레벨</div></div>
@@ -192,7 +193,7 @@ const GameSettings = () => {
         return (
           <div className="overlay-preview-card">
             <div className="player-name">🪖 {data.nickname}</div>
-            <div className="rank-info"><span className="tier-badge master">{data.tier}</span>{(data.rp || 0).toLocaleString()} RP</div>
+            <div className="rank-info"><span className="tier-badge master">{data.tier}</span>{formatFullNumber(data.rp || 0)} RP</div>
             <div className="stats-row">
               <div className="stat-item"><div className="stat-value">{data.kd}</div><div className="stat-label">K/D</div></div>
               <div className="stat-item"><div className="stat-value">{data.winRate}%</div><div className="stat-label">승률</div></div>
@@ -203,7 +204,7 @@ const GameSettings = () => {
         return (
           <div className="overlay-preview-card">
             <div className="player-name">♟️ {data.nickname}</div>
-            <div className="rank-info"><span className="tier-badge grandmaster">{data.tier}</span>{(data.lp || 0).toLocaleString()} LP</div>
+            <div className="rank-info"><span className="tier-badge grandmaster">{data.tier}</span>{formatFullNumber(data.lp || 0)} LP</div>
             <div className="stats-row">
               <div className="stat-item"><div className="stat-value">{data.avgPlace}</div><div className="stat-label">평균 등수</div></div>
             </div>

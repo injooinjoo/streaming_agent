@@ -7,6 +7,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import { API_URL } from '../../config/api';
+import { formatCompactKo, formatFullNumber, formatCurrency } from '../../utils/formatters';
 import './ViewershipDashboard.css';
 
 const ViewershipDashboard = () => {
@@ -151,16 +152,6 @@ const ViewershipDashboard = () => {
     return logos[platform] || null;
   };
 
-  const formatNumber = (num) => {
-    if (num >= 10000) {
-      return `${(num / 10000).toFixed(1)}만`;
-    }
-    if (num >= 1000) {
-      return `${(num / 1000).toFixed(1)}천`;
-    }
-    return num.toLocaleString();
-  };
-
   const getElapsedTime = (startedAt) => {
     if (!startedAt) return '';
     const diff = Date.now() - new Date(startedAt).getTime();
@@ -280,14 +271,14 @@ const ViewershipDashboard = () => {
               <LineChart data={realtimeTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border-subtle)" />
                 <XAxis dataKey="time" stroke="var(--text-muted)" fontSize={12} />
-                <YAxis stroke="var(--text-muted)" fontSize={12} tickFormatter={(v) => v >= 1000 ? `${(v/1000).toFixed(0)}K` : v} />
+                <YAxis stroke="var(--text-muted)" fontSize={12} tickFormatter={(v) => formatCompactKo(v)} />
                 <Tooltip
                   contentStyle={{
                     backgroundColor: 'var(--bg-card)',
                     border: '1px solid var(--border-subtle)',
                     borderRadius: '8px'
                   }}
-                  formatter={(value, name) => [(value || 0).toLocaleString(), name === 'chzzk' ? '치지직' : name === 'soop' ? 'SOOP' : '트위치']}
+                  formatter={(value, name) => [formatFullNumber(value), name === 'chzzk' ? '치지직' : name === 'soop' ? 'SOOP' : '트위치']}
                 />
                 <Line type="monotone" dataKey="chzzk" stroke="#00ffa3" strokeWidth={2} dot={false} name="chzzk" />
                 <Line type="monotone" dataKey="soop" stroke="#3b82f6" strokeWidth={2} dot={false} name="soop" />
@@ -311,7 +302,7 @@ const ViewershipDashboard = () => {
             SOOP, 치지직, 트위치 한국어 전체 시청자 수
           </div>
           <div className="realtime-total-viewers sensitive-blur">
-            {(realtimeSummary?.totalViewers || 0).toLocaleString()}
+            {formatFullNumber(realtimeSummary?.totalViewers)}
           </div>
           <div className="realtime-platform-list">
             {realtimeSummary?.platforms?.length > 0 ? realtimeSummary.platforms.map((platform, index) => (
@@ -326,14 +317,14 @@ const ViewershipDashboard = () => {
                 />
                 <div className="realtime-platform-info">
                   <div className="realtime-platform-name">{platform.name}</div>
-                  <div className="realtime-platform-channels">{(platform.channels || 0).toLocaleString()} 채널</div>
+                  <div className="realtime-platform-channels">{formatFullNumber(platform.channels)} 채널</div>
                 </div>
                 <div className="realtime-platform-viewers">
                   <div>
-                    <span className="realtime-viewers-value sensitive-blur">{(platform.viewers || 0).toLocaleString()}</span>
+                    <span className="realtime-viewers-value sensitive-blur">{formatFullNumber(platform.viewers)}</span>
                     <span className="realtime-viewers-unit">명</span>
                   </div>
-                  <div className="realtime-platform-peak">최고 <span className="sensitive-blur">{(platform.peak || 0).toLocaleString()}</span>명</div>
+                  <div className="realtime-platform-peak">최고 <span className="sensitive-blur">{formatFullNumber(platform.peak)}</span>명</div>
                 </div>
               </div>
             )) : (
@@ -387,7 +378,7 @@ const ViewershipDashboard = () => {
                   </div>
                 </div>
                 <div className="ranking-viewers">
-                  <div className="ranking-viewers-value sensitive-blur">{formatNumber(item.currentViewers)}</div>
+                  <div className="ranking-viewers-value sensitive-blur">{formatCompactKo(item.currentViewers)}</div>
                   <div className="ranking-elapsed">{getElapsedTime(item.startedAt)}</div>
                 </div>
               </div>
@@ -438,7 +429,7 @@ const ViewershipDashboard = () => {
                   </div>
                 </div>
                 <div className="ranking-viewers">
-                  <div className="ranking-viewers-value sensitive-blur">{formatNumber(item.peakViewers)}</div>
+                  <div className="ranking-viewers-value sensitive-blur">{formatCompactKo(item.peakViewers)}</div>
                   <div className="ranking-elapsed">{getElapsedTime(item.startedAt)}</div>
                 </div>
               </div>
@@ -469,15 +460,15 @@ const ViewershipDashboard = () => {
               <Users size={20} />
             </div>
             <div className="summary-card-label">참여자</div>
-            <div className="summary-card-value sensitive-blur">{(yesterdaySummary.avgViewers || 0).toLocaleString()}명</div>
-            <div className="summary-card-sub">채팅 <span className="sensitive-blur">{(yesterdaySummary.chatCount || 0).toLocaleString()}</span>개</div>
+            <div className="summary-card-value sensitive-blur">{formatFullNumber(yesterdaySummary.avgViewers)}명</div>
+            <div className="summary-card-sub">채팅 <span className="sensitive-blur">{formatFullNumber(yesterdaySummary.chatCount)}</span>개</div>
           </div>
           <div className="summary-card">
             <div className="summary-card-icon peak">
               <TrendingUp size={20} />
             </div>
             <div className="summary-card-label">후원 건수</div>
-            <div className="summary-card-value sensitive-blur">{(yesterdaySummary.donationCount || 0).toLocaleString()}건</div>
+            <div className="summary-card-value sensitive-blur">{formatFullNumber(yesterdaySummary.donationCount)}건</div>
             <div className="summary-card-sub">어제 기준</div>
           </div>
           <div className="summary-card">
@@ -485,8 +476,8 @@ const ViewershipDashboard = () => {
               <DollarSign size={20} />
             </div>
             <div className="summary-card-label">후원 금액</div>
-            <div className="summary-card-value sensitive-blur">₩{(yesterdaySummary.donationAmount || 0).toLocaleString()}</div>
-            <div className="summary-card-sub"><span className="sensitive-blur">{(yesterdaySummary.donationCount || 0)}</span>건의 후원</div>
+            <div className="summary-card-value sensitive-blur">{formatCurrency(yesterdaySummary.donationAmount)}</div>
+            <div className="summary-card-sub"><span className="sensitive-blur">{formatFullNumber(yesterdaySummary.donationCount)}</span>건의 후원</div>
           </div>
         </div>
       </div>
@@ -529,7 +520,7 @@ const ViewershipDashboard = () => {
                     border: '1px solid var(--border-subtle)',
                     borderRadius: '8px'
                   }}
-                  formatter={(value) => [`${(value || 0).toLocaleString()}`, '']}
+                  formatter={(value) => [formatFullNumber(value), '']}
                 />
                 <Area
                   type="monotone"
@@ -583,7 +574,7 @@ const ViewershipDashboard = () => {
                 <div className="category-stats">
                   <span className="category-viewers">
                     <Users size={14} />
-                    {formatNumber(category.totalViewers || 0)}
+                    {formatCompactKo(category.totalViewers || 0)}
                   </span>
                   <div className="category-platforms">
                     {category.platforms?.includes('soop') && (

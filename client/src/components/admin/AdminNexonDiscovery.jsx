@@ -10,6 +10,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import { API_URL } from '../../config/api';
+import { formatCompactKo } from '../../utils/formatters';
 
 const AdminNexonDiscovery = ({ onStreamerSelect }) => {
   const [loading, setLoading] = useState(true);
@@ -86,11 +87,6 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
     );
   }, [searchQuery, streamersData]);
 
-  const formatNumber = (num) => {
-    if (num >= 10000) return `${(num / 10000).toFixed(1)}만`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}천`;
-    return num.toLocaleString();
-  };
 
   const getAffinityClass = (score) => {
     if (score >= 80) return 'high';
@@ -146,7 +142,7 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
             <div className="nexon-ip-stats">
               <div className="nexon-ip-stat">
                 <span className="label">총 언급량</span>
-                <span className="value">{formatNumber(ip.mentionCount)}</span>
+                <span className="value">{formatCompactKo(ip.mentionCount)}</span>
               </div>
               <div className="nexon-ip-stat">
                 <span className="label">감성 지수</span>
@@ -226,7 +222,7 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
                     <td>
                       <span className="platform-badge">{streamer.platform.toUpperCase()}</span>
                     </td>
-                    <td>{formatNumber(streamer.avgViewers)}</td>
+                    <td>{formatCompactKo(streamer.avgViewers)}</td>
                     <td>
                       <div className="chat-velocity-cell">
                         <span className="chat-velocity-value">{streamer.chatVelocity} msg/m</span>

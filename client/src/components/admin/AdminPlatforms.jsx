@@ -7,6 +7,7 @@ import {
 import LoadingSpinner from '../shared/LoadingSpinner';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+import { formatCompactKo, formatCurrency } from '../../utils/formatters';
 
 const PLATFORM_COLORS = {
   soop: '#0066ff',
@@ -100,20 +101,6 @@ const AdminPlatforms = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const formatNumber = (num) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num?.toLocaleString() || '0';
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      maximumFractionDigits: 0
-    }).format(amount || 0);
   };
 
   // 넥슨 게임 데이터를 통합 테이블용으로 변환
@@ -281,12 +268,12 @@ const AdminPlatforms = () => {
                   <div className="platform-stat">
                     <Gamepad2 size={16} />
                     <span className="stat-label">넥슨 방송</span>
-                    <span className="stat-value">{formatNumber(platform.nexonBroadcasts)}</span>
+                    <span className="stat-value">{formatCompactKo(platform.nexonBroadcasts)}</span>
                   </div>
                   <div className="platform-stat">
                     <Eye size={16} />
                     <span className="stat-label">넥슨 시청자</span>
-                    <span className="stat-value">{formatNumber(platform.nexonViewers)}</span>
+                    <span className="stat-value">{formatCompactKo(platform.nexonViewers)}</span>
                   </div>
                 </>
               ) : (
@@ -294,22 +281,22 @@ const AdminPlatforms = () => {
                   <div className="platform-stat">
                     <Monitor size={16} />
                     <span className="stat-label">라이브 방송</span>
-                    <span className="stat-value">{formatNumber(platform.liveBroadcasts)}</span>
+                    <span className="stat-value">{formatCompactKo(platform.liveBroadcasts)}</span>
                   </div>
                   <div className="platform-stat">
                     <Eye size={16} />
                     <span className="stat-label">실시간 시청자</span>
-                    <span className="stat-value">{formatNumber(platform.liveViewers)}</span>
+                    <span className="stat-value">{formatCompactKo(platform.liveViewers)}</span>
                   </div>
                   <div className="platform-stat">
                     <Activity size={16} />
                     <span className="stat-label">이벤트</span>
-                    <span className="stat-value">{formatNumber(platform.totalEvents)}</span>
+                    <span className="stat-value">{formatCompactKo(platform.totalEvents)}</span>
                   </div>
                   <div className="platform-stat">
                     <MessageSquare size={16} />
                     <span className="stat-label">후원 건수</span>
-                    <span className="stat-value">{formatNumber(platform.donationCount)}</span>
+                    <span className="stat-value">{formatCompactKo(platform.donationCount)}</span>
                   </div>
                   <div className="platform-stat">
                     <DollarSign size={16} />
@@ -344,7 +331,7 @@ const AdminPlatforms = () => {
             </h3>
             {nexonDetail?.total && (
               <span style={{ color: '#94a3b8', fontSize: '13px' }}>
-                총 {formatNumber(nexonDetail.total.broadcasts)}개 방송 / {formatNumber(nexonDetail.total.viewers)}명 시청
+                총 {formatCompactKo(nexonDetail.total.broadcasts)}개 방송 / {formatCompactKo(nexonDetail.total.viewers)}명 시청
               </span>
             )}
           </div>
@@ -364,11 +351,11 @@ const AdminPlatforms = () => {
                 {nexonGames.map((game) => (
                   <tr key={game.name}>
                     <td style={{ fontWeight: 500 }}>{game.name}</td>
-                    <td>{formatNumber(game.soopBroadcasts)}</td>
-                    <td>{formatNumber(game.soopViewers)}</td>
-                    <td>{formatNumber(game.chzzkBroadcasts)}</td>
-                    <td>{formatNumber(game.chzzkViewers)}</td>
-                    <td style={{ fontWeight: 600 }}>{formatNumber(game.soopViewers + game.chzzkViewers)}</td>
+                    <td>{formatCompactKo(game.soopBroadcasts)}</td>
+                    <td>{formatCompactKo(game.soopViewers)}</td>
+                    <td>{formatCompactKo(game.chzzkBroadcasts)}</td>
+                    <td>{formatCompactKo(game.chzzkViewers)}</td>
+                    <td style={{ fontWeight: 600 }}>{formatCompactKo(game.soopViewers + game.chzzkViewers)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -490,25 +477,25 @@ const AdminPlatforms = () => {
               <tr>
                 <td>라이브 방송</td>
                 {platforms.map((platform) => (
-                  <td key={platform.id}>{formatNumber(platform.liveBroadcasts)}</td>
+                  <td key={platform.id}>{formatCompactKo(platform.liveBroadcasts)}</td>
                 ))}
               </tr>
               <tr>
                 <td>실시간 시청자</td>
                 {platforms.map((platform) => (
-                  <td key={platform.id} style={{ fontWeight: 600 }}>{formatNumber(platform.liveViewers)}</td>
+                  <td key={platform.id} style={{ fontWeight: 600 }}>{formatCompactKo(platform.liveViewers)}</td>
                 ))}
               </tr>
               <tr>
                 <td>총 이벤트</td>
                 {platforms.map((platform) => (
-                  <td key={platform.id}>{formatNumber(platform.totalEvents)}</td>
+                  <td key={platform.id}>{formatCompactKo(platform.totalEvents)}</td>
                 ))}
               </tr>
               <tr>
                 <td>후원 건수</td>
                 {platforms.map((platform) => (
-                  <td key={platform.id}>{formatNumber(platform.donationCount)}</td>
+                  <td key={platform.id}>{formatCompactKo(platform.donationCount)}</td>
                 ))}
               </tr>
               <tr>
@@ -526,13 +513,13 @@ const AdminPlatforms = () => {
               <tr style={{ borderTop: '2px solid #475569' }}>
                 <td style={{ color: '#10b981', fontWeight: 500 }}>넥슨 방송</td>
                 {platforms.map((platform) => (
-                  <td key={platform.id}>{formatNumber(platform.nexonBroadcasts)}</td>
+                  <td key={platform.id}>{formatCompactKo(platform.nexonBroadcasts)}</td>
                 ))}
               </tr>
               <tr>
                 <td style={{ color: '#10b981', fontWeight: 500 }}>넥슨 시청자</td>
                 {platforms.map((platform) => (
-                  <td key={platform.id} style={{ fontWeight: 600 }}>{formatNumber(platform.nexonViewers)}</td>
+                  <td key={platform.id} style={{ fontWeight: 600 }}>{formatCompactKo(platform.nexonViewers)}</td>
                 ))}
               </tr>
             </tbody>
@@ -581,7 +568,7 @@ const AdminPlatforms = () => {
                           {PLATFORM_NAMES[streamer.platform] || streamer.platform}
                         </span>
                       </td>
-                      <td style={{ fontWeight: 600 }}>{formatNumber(streamer.max_peak_viewers)}</td>
+                      <td style={{ fontWeight: 600 }}>{formatCompactKo(streamer.max_peak_viewers)}</td>
                       <td>{streamer.broadcast_count}회</td>
                     </tr>
                   ))}
@@ -635,7 +622,7 @@ const AdminPlatforms = () => {
                           {PLATFORM_NAMES[streamer.platform] || streamer.platform}
                         </span>
                       </td>
-                      <td style={{ fontWeight: 600 }}>{formatNumber(streamer.total_cumulative_viewers)}</td>
+                      <td style={{ fontWeight: 600 }}>{formatCompactKo(streamer.total_cumulative_viewers)}</td>
                       <td>{streamer.broadcast_count}회</td>
                     </tr>
                   ))}

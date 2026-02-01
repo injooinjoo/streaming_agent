@@ -8,6 +8,7 @@ import {
   Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket, Trophy, Heart
 } from 'lucide-react';
 import { API_URL } from '../config/api';
+import { formatCurrency, formatFullNumber } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useStreamingMode } from '../contexts/StreamingModeContext';
@@ -272,7 +273,7 @@ const Dashboard = () => {
               </div>
               <div className="stat-content">
                 <span className={`value sensitive-blur ${dashboardData.todayDonation === null ? 'no-data' : ''}`}>
-                  {dashboardData.todayDonation === null ? '--' : `₩${dashboardData.todayDonation.toLocaleString()}`}
+                  {dashboardData.todayDonation === null ? '--' : formatCurrency(dashboardData.todayDonation)}
                 </span>
                 <span className="subtext">{dashboardData.todayDonation === null ? '데이터 수집 대기 중' : '이번 달 누적'}</span>
               </div>
@@ -288,7 +289,7 @@ const Dashboard = () => {
               </div>
               <div className="stat-content">
                 <span className={`value sensitive-blur ${dashboardData.peakViewers === null ? 'no-data' : ''}`}>
-                  {dashboardData.peakViewers === null ? '--' : `${dashboardData.peakViewers.toLocaleString()}명`}
+                  {dashboardData.peakViewers === null ? '--' : `${formatFullNumber(dashboardData.peakViewers)}명`}
                 </span>
                 <span className="subtext">{dashboardData.peakViewers === null ? '데이터 수집 대기 중' : '이번 달 기준'}</span>
               </div>
@@ -304,7 +305,7 @@ const Dashboard = () => {
               </div>
               <div className="stat-content">
                 <span className={`value sensitive-blur ${dashboardData.newSubs === null ? 'no-data' : ''}`}>
-                  {dashboardData.newSubs === null ? '--' : `${dashboardData.newSubs.toLocaleString()}명`}
+                  {dashboardData.newSubs === null ? '--' : `${formatFullNumber(dashboardData.newSubs)}명`}
                 </span>
                 <span className="subtext">{dashboardData.newSubs === null ? '데이터 수집 대기 중' : '이번 달 기준'}</span>
               </div>
@@ -416,7 +417,7 @@ const Dashboard = () => {
                             </div>
                             <div className="category-stat">
                               <span className="stat-label">최고 시청자</span>
-                              <span className="stat-value sensitive-blur">{category.peakViewers?.toLocaleString() || 0}</span>
+                              <span className="stat-value sensitive-blur">{formatFullNumber(category.peakViewers || 0)}</span>
                             </div>
                             <div className="category-stat">
                               <span className="stat-label">마지막 방송</span>
@@ -479,11 +480,11 @@ const Dashboard = () => {
                           <div className="category-stats">
                             <div className="category-stat">
                               <span className="stat-label">시청자</span>
-                              <span className="stat-value sensitive-blur">{category.totalViewers?.toLocaleString() || 0}</span>
+                              <span className="stat-value sensitive-blur">{formatFullNumber(category.totalViewers || 0)}</span>
                             </div>
                             <div className="category-stat">
                               <span className="stat-label">방송</span>
-                              <span className="stat-value sensitive-blur">{category.totalStreamers?.toLocaleString() || 0}</span>
+                              <span className="stat-value sensitive-blur">{formatFullNumber(category.totalStreamers || 0)}</span>
                             </div>
                             <div className="category-stat">
                               <span className="stat-label">플랫폼</span>
@@ -566,7 +567,7 @@ const Dashboard = () => {
                           </span>
                         </div>
                         <div style={{ fontWeight: 500 }}>{ev.sender}</div>
-                        <div className="amount-cell">₩{(ev.amount || 0).toLocaleString()}</div>
+                        <div className="amount-cell">{formatCurrency(ev.amount || 0)}</div>
                         <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                           <button className="btn btn-sm btn-primary" style={{ padding: '4px 12px', fontSize: '12px' }}>
                             재생
@@ -603,7 +604,7 @@ const Dashboard = () => {
 
             // Helper for displaying null-safe values
             const formatValue = (val, prefix = '', suffix = '') =>
-              val === null ? '--' : `${prefix}${val.toLocaleString()}${suffix}`;
+              val === null ? '--' : `${prefix}${formatFullNumber(val)}${suffix}`;
 
             return (
               <div className="table-container">

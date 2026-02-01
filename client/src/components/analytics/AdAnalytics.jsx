@@ -6,6 +6,7 @@ import {
 import { DollarSign, Eye, MousePointerClick, Percent, Download, RefreshCw } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatCurrency, formatCurrencyCompact, formatFullNumber, formatPercent } from '../../utils/formatters';
 import AnalyticsCard from './shared/AnalyticsCard';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import TimeRangeSelector from './shared/TimeRangeSelector';
@@ -92,7 +93,7 @@ const AdAnalytics = () => {
         slot: s.name,
         impressions: s.impressions || 0,
         clicks: s.clicks || 0,
-        ctr: s.impressions > 0 ? ((s.clicks / s.impressions) * 100).toFixed(2) : 0,
+        ctr: s.impressions > 0 ? formatPercent(s.clicks / s.impressions, 2, { isRatio: true }) : '0.00%',
         cpm: s.impressions > 0 ? Math.round((s.revenue / s.impressions) * 1000) : 0,
         revenue: Math.round(s.revenue || 0),
         status: s.enabled ? 'active' : 'paused'
@@ -143,8 +144,6 @@ const AdAnalytics = () => {
   const avgCPM = totalImpressions > 0 ? Math.round((totalRevenue / totalImpressions) * 1000) : 0;
   const avgCPC = totalClicks > 0 ? Math.round(totalRevenue / totalClicks) : 0;
 
-  const formatCurrency = (value) => `₩${(value || 0).toLocaleString()}`;
-
   if (loading) {
     return (
       <div className="analytics-page">
@@ -183,7 +182,7 @@ const AdAnalytics = () => {
         />
         <AnalyticsCard
           title="총 노출수"
-          value={(totalImpressions || 0).toLocaleString()}
+          value={formatFullNumber(totalImpressions)}
           change=""
           trend="neutral"
           icon={<Eye size={18} />}
@@ -219,7 +218,7 @@ const AdAnalytics = () => {
               <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
               <XAxis dataKey="date" stroke={chartColors.textMuted} fontSize={12} />
               <YAxis yAxisId="left" stroke={chartColors.textMuted} fontSize={12} />
-              <YAxis yAxisId="right" orientation="right" stroke={chartColors.textMuted} fontSize={12} tickFormatter={(v) => `₩${(v/1000)}K`} />
+              <YAxis yAxisId="right" orientation="right" stroke={chartColors.textMuted} fontSize={12} tickFormatter={(v) => formatCurrencyCompact(v, { showSymbol: true })} />
               <Tooltip contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }} />
               <Legend />
               <Bar yAxisId="left" dataKey="impressions" name="노출수" fill={chartColors.barLight} radius={[4, 4, 0, 0]} />
@@ -241,11 +240,11 @@ const AdAnalytics = () => {
             <BarChart data={performanceByType}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
               <XAxis dataKey="type" stroke={chartColors.textMuted} fontSize={12} />
-              <YAxis stroke={chartColors.textMuted} fontSize={12} tickFormatter={(v) => `₩${(v/1000)}K`} />
+              <YAxis stroke={chartColors.textMuted} fontSize={12} tickFormatter={(v) => formatCurrencyCompact(v, { showSymbol: true })} />
               <Tooltip
                 formatter={(value, name) => {
                   if (name === '수익') return formatCurrency(value);
-                  return (value || 0).toLocaleString();
+                  return formatFullNumber(value);
                 }}
                 contentStyle={{ borderRadius: '8px', border: `1px solid ${chartColors.border}`, background: chartColors.tooltipBg }}
               />
@@ -326,10 +325,10 @@ const AdAnalytics = () => {
                     {row.status === 'active' ? '활성' : '일시중지'}
                   </span>
                 </td>
-                <td><span className="sensitive-blur">{(row.impressions || 0).toLocaleString()}</span></td>
-                <td><span className="sensitive-blur">{(row.clicks || 0).toLocaleString()}</span></td>
+                <td><span className="sensitive-blur">{formatFullNumber(row.impressions)}</span></td>
+                <td><span className="sensitive-blur">{formatFullNumber(row.clicks)}</span></td>
                 <td style={{ color: parseFloat(row.ctr) >= 3 ? '#10b981' : 'inherit', fontWeight: parseFloat(row.ctr) >= 3 ? 600 : 400 }}>
-                  <span className="sensitive-blur">{row.ctr}%</span>
+                  <span className="sensitive-blur">{row.ctr}</span>
                 </td>
                 <td><span className="sensitive-blur">{formatCurrency(row.cpm)}</span></td>
                 <td style={{ fontWeight: 600, color: 'var(--primary)' }}><span className="sensitive-blur">{formatCurrency(row.revenue)}</span></td>
@@ -355,7 +354,7 @@ const AdAnalytics = () => {
             <p style={{ opacity: 0.9, fontSize: '14px' }}>
               {totalImpressions > 0 ? (
                 <>
-                  총 <span className="sensitive-blur">{(totalImpressions || 0).toLocaleString()}</span>회 노출, <span className="sensitive-blur">{(totalClicks || 0).toLocaleString()}</span>회 클릭으로
+                  총 <span className="sensitive-blur">{formatFullNumber(totalImpressions)}</span>회 노출, <span className="sensitive-blur">{formatFullNumber(totalClicks)}</span>회 클릭으로
                   <strong className="sensitive-blur"> {formatCurrency(totalRevenue)}</strong>의 수익을 달성했습니다.
                 </>
               ) : (

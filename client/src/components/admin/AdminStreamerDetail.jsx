@@ -12,6 +12,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../shared/LoadingSpinner';
 
 import { API_URL } from '../../config/api';
+import { formatCompactKo, formatCurrency, formatFullNumber, formatGrowth } from '../../utils/formatters';
 
 const GAME_ICONS = {
   league: Crown,
@@ -130,20 +131,6 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
     efficiency: parseFloat(g.adEfficiency || 0)
   }));
 
-  const formatNumber = (num) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num?.toLocaleString() || '0';
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('ko-KR', {
-      style: 'currency',
-      currency: 'KRW',
-      maximumFractionDigits: 0
-    }).format(amount || 0);
-  };
-
   const getInfluenceRank = (score) => {
     if (score >= 90) return { label: 'S+', color: '#fbbf24', bg: '#fbbf2420' };
     if (score >= 80) return { label: 'S', color: '#f59e0b', bg: '#f59e0b20' };
@@ -184,11 +171,11 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
         </div>
         <div className="streamer-profile-stats">
           <div className="profile-stat">
-            <span className="stat-value">{formatNumber(streamer.totalFollowers)}</span>
+            <span className="stat-value">{formatCompactKo(streamer.totalFollowers)}</span>
             <span className="stat-label">팔로워</span>
           </div>
           <div className="profile-stat">
-            <span className="stat-value">{formatNumber(streamer.avgViewers)}</span>
+            <span className="stat-value">{formatCompactKo(streamer.avgViewers)}</span>
             <span className="stat-label">평균 시청자</span>
           </div>
           <div className="profile-stat">
@@ -296,7 +283,7 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
               <div className="game-stats">
                 <div className="game-stat">
                   <span className="label">평균 시청자</span>
-                  <span className="value">{formatNumber(game.avgViewers)}</span>
+                  <span className="value">{formatCompactKo(game.avgViewers)}</span>
                   <span className={`change ${game.viewersChange >= 0 ? 'positive' : 'negative'}`}>
                     {game.viewersChange >= 0 ? '↑' : '↓'} {Math.abs(game.viewersChange)}%
                   </span>
@@ -503,7 +490,7 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
             </div>
             <div className="nexon-contribution-content">
               <span className="nexon-contribution-label">추정 전환수</span>
-              <span className="nexon-contribution-value">{(attribution?.totalEstimatedConversions || 0).toLocaleString()}</span>
+              <span className="nexon-contribution-value">{formatFullNumber(attribution?.totalEstimatedConversions)}</span>
               <span className={`nexon-contribution-change ${(attribution?.conversionsChange || 0) >= 0 ? 'positive' : 'negative'}`}>
                 {(attribution?.conversionsChange || 0) >= 0 ? '+' : ''}{attribution?.conversionsChange || 0}% vs 전월
               </span>
@@ -650,7 +637,7 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
                   <tr key={campaign.campaignId}>
                     <td style={{ fontWeight: 600 }}>{campaign.campaignName}</td>
                     <td style={{ fontSize: 12, color: '#64748b' }}>{campaign.period}</td>
-                    <td style={{ fontWeight: 600 }}>{(campaign.conversions || 0).toLocaleString()}</td>
+                    <td style={{ fontWeight: 600 }}>{formatFullNumber(campaign.conversions)}</td>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <div style={{
@@ -726,8 +713,8 @@ const AdminStreamerDetail = ({ streamerId, onBack }) => {
                       <span>{broadcast.duration}</span>
                     </div>
                   </td>
-                  <td>{formatNumber(broadcast.peakViewers)}</td>
-                  <td>{formatNumber(broadcast.avgViewers)}</td>
+                  <td>{formatCompactKo(broadcast.peakViewers)}</td>
+                  <td>{formatCompactKo(broadcast.avgViewers)}</td>
                   <td>{formatCurrency(broadcast.donations)}</td>
                   <td>
                     <div className="efficiency-cell">

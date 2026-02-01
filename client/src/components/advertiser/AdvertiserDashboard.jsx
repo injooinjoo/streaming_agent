@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { API_URL } from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { formatCompactKo, formatCurrencyCompact, formatPercent } from '../../utils/formatters';
 import CampaignCreate from './CampaignCreate';
 import CampaignDetail from './CampaignDetail';
 import LoadingSpinner from '../shared/LoadingSpinner';
@@ -100,12 +101,6 @@ const AdvertiserDashboard = () => {
     ? campaigns
     : campaigns.filter(c => c.status === statusFilter);
 
-  const formatNumber = (num) => {
-    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-    return num.toLocaleString();
-  };
-
   const renderCampaignList = () => (
     <div className="animate-fade">
       <header className="page-header">
@@ -128,7 +123,7 @@ const AdvertiserDashboard = () => {
               <Eye size={18} />
             </div>
           </div>
-          <span className="campaign-stat-value">{formatNumber(stats.totalImpressions)}</span>
+          <span className="campaign-stat-value">{formatCompactKo(stats.totalImpressions)}</span>
           <span className="campaign-stat-change positive">+12.5% 이번 주</span>
         </div>
         <div className="campaign-stat-card">
@@ -138,7 +133,7 @@ const AdvertiserDashboard = () => {
               <MousePointerClick size={18} />
             </div>
           </div>
-          <span className="campaign-stat-value">{formatNumber(stats.totalClicks)}</span>
+          <span className="campaign-stat-value">{formatCompactKo(stats.totalClicks)}</span>
           <span className="campaign-stat-change positive">+8.3% 이번 주</span>
         </div>
         <div className="campaign-stat-card">
@@ -148,7 +143,7 @@ const AdvertiserDashboard = () => {
               <DollarSign size={18} />
             </div>
           </div>
-          <span className="campaign-stat-value">₩{formatNumber(stats.totalSpent)}</span>
+          <span className="campaign-stat-value">{formatCurrencyCompact(stats.totalSpent)}</span>
           <span className="campaign-stat-change negative">-2.1% 이번 주</span>
         </div>
         <div className="campaign-stat-card">
@@ -205,8 +200,8 @@ const AdvertiserDashboard = () => {
             </div>
             {filteredCampaigns.map((campaign) => {
               const ctr = campaign.impressions > 0
-                ? ((campaign.clicks / campaign.impressions) * 100).toFixed(2)
-                : '0.00';
+                ? formatPercent(campaign.clicks / campaign.impressions, 2, { isRatio: true })
+                : '0.00%';
               return (
                 <div key={campaign.id} className="campaigns-table-row">
                   <div className="campaign-name-cell">
@@ -246,10 +241,10 @@ const AdvertiserDashboard = () => {
                       {campaign.status === 'completed' && '완료됨'}
                     </span>
                   </div>
-                  <div className="campaign-metric">{formatNumber(campaign.impressions || 0)}</div>
-                  <div className="campaign-metric">{formatNumber(campaign.clicks || 0)}</div>
-                  <div className="campaign-metric">{ctr}%</div>
-                  <div className="campaign-metric">₩{formatNumber(campaign.spent || 0)}</div>
+                  <div className="campaign-metric">{formatCompactKo(campaign.impressions || 0)}</div>
+                  <div className="campaign-metric">{formatCompactKo(campaign.clicks || 0)}</div>
+                  <div className="campaign-metric">{ctr}</div>
+                  <div className="campaign-metric">{formatCurrencyCompact(campaign.spent || 0)}</div>
                   <div className="campaign-actions">
                     {campaign.status === 'active' ? (
                       <button

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { API_URL } from '../config/api';
+import { formatPercent } from '../utils/formatters';
 import socket from '../config/socket';
 import './Overlay.css';
 
@@ -135,7 +136,7 @@ const VotingOverlay = ({
                   <span className="option-text">{option.text}</span>
                   <span className="option-stats">
                     {activeSettings.showCount && <span className="vote-count">{option.votes || 0}표</span>}
-                    {activeSettings.showPercentage && <span className="vote-percentage">{percentage.toFixed(1)}%</span>}
+                    {activeSettings.showPercentage && <span className="vote-percentage">{formatPercent(percentage, 1)}</span>}
                   </span>
                 </div>
                 <div className="option-bar-bg">
