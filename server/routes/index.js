@@ -15,6 +15,7 @@ const createCategoriesRouter = require("./categories");
 const { createMonitorRouter } = require("./monitor");
 const { createDesignsRouter } = require("./designs");
 const { createMarketplaceRouter } = require("./marketplace");
+const createStreamerRouter = require("./streamer");
 
 module.exports = {
   createAuthRouter,
@@ -29,4 +30,5 @@ module.exports = {
   createMonitorRouter,
   createDesignsRouter,
   createMarketplaceRouter,
+  createStreamerRouter,
 };

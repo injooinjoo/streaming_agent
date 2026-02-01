@@ -2182,6 +2182,7 @@ const createStatsService = () => {
           b.started_at,
           b.thumbnail_url,
           b.updated_at,
+          b.broadcaster_person_id,
           p.nickname as broadcaster_name,
           p.profile_image_url,
           seg.category_name
@@ -2204,6 +2205,7 @@ const createStatsService = () => {
         rank: index + 1,
         platform: row.platform,
         channelId: row.channel_id,
+        personId: row.broadcaster_person_id,
         title: row.title,
         broadcasterName: row.broadcaster_name || row.channel_id || '알 수 없음',
         profileImageUrl: row.profile_image_url,
@@ -2252,6 +2254,7 @@ const createStatsService = () => {
           b.ended_at,
           b.thumbnail_url,
           b.updated_at,
+          b.broadcaster_person_id,
           p.nickname as broadcaster_name,
           p.profile_image_url,
           seg.category_name
@@ -2274,6 +2277,7 @@ const createStatsService = () => {
         rank: index + 1,
         platform: row.platform,
         channelId: row.channel_id,
+        personId: row.broadcaster_person_id,
         title: row.title,
         broadcasterName: row.broadcaster_name || row.channel_id || '알 수 없음',
         profileImageUrl: row.profile_image_url,

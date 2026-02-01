@@ -27,6 +27,7 @@ const AdvertiserDashboard = lazy(() => import('./components/advertiser/Advertise
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const MyDesigns = lazy(() => import('./components/designer/MyDesigns'));
 const DesignCustomizer = lazy(() => import('./components/designer/DesignCustomizer'));
+const StreamerDetail = lazy(() => import('./components/streamer/StreamerDetail'));
 
 function App() {
   // 모바일 브라우저 주소창 대응 viewport height 설정
@@ -61,6 +62,9 @@ function App() {
             {/* 채널 정보 페이지 */}
             <Route path="/channel/:channelId" element={<ChannelPage />} />
             <Route path="/channel" element={<ChannelPage />} />
+
+            {/* 스트리머 상세 페이지 (공개) */}
+            <Route path="/streamer/:personId" element={<StreamerDetail />} />
 
             {/* 인증 */}
             <Route path="/login" element={<LoginPage />} />

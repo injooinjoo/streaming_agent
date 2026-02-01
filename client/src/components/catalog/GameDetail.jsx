@@ -8,6 +8,7 @@ import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
+import { Link } from 'react-router-dom';
 import { formatCompactKo, formatFullNumber, formatGrowth } from '../../utils/formatters';
 import { API_URL } from '../../config/api';
 import LoadingSpinner from '../shared/LoadingSpinner';
@@ -481,7 +482,11 @@ const StreamerRankingTab = ({ gameId }) => {
                     ) : (
                       <div className="streamer-avatar-placeholder"><User size={14} /></div>
                     )}
-                    <span className="streamer-name">{row.nickname || '알 수 없음'}</span>
+                    {row.person_id ? (
+                      <Link to={`/streamer/${row.person_id}`} className="streamer-link streamer-name">{row.nickname || '알 수 없음'}</Link>
+                    ) : (
+                      <span className="streamer-name">{row.nickname || '알 수 없음'}</span>
+                    )}
                   </div>
                 </div>
                 <div className="game-data-table__col">
@@ -557,7 +562,11 @@ const GrowthRankingTab = ({ gameId }) => {
                     ) : (
                       <div className="streamer-avatar-placeholder"><User size={14} /></div>
                     )}
-                    <span className="streamer-name">{row.nickname || '알 수 없음'}</span>
+                    {row.person_id ? (
+                      <Link to={`/streamer/${row.person_id}`} className="streamer-link streamer-name">{row.nickname || '알 수 없음'}</Link>
+                    ) : (
+                      <span className="streamer-name">{row.nickname || '알 수 없음'}</span>
+                    )}
                   </div>
                 </div>
                 <div className="game-data-table__col">
@@ -655,7 +664,11 @@ const RankingHistoryTab = ({ gameId }) => {
                       ) : (
                         <div className="streamer-avatar-placeholder"><User size={14} /></div>
                       )}
+                      {row.person_id ? (
+                      <Link to={`/streamer/${row.person_id}`} className="streamer-link streamer-name">{row.nickname || '알 수 없음'}</Link>
+                    ) : (
                       <span className="streamer-name">{row.nickname || '알 수 없음'}</span>
+                    )}
                     </div>
                   </div>
                   <div className="game-data-table__col">

@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import { Clock, Users, TrendingUp, DollarSign, RefreshCw, LogIn, Monitor, Gamepad2, Flame, Trophy } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import { API_URL } from '../../config/api';
 import { formatCompactKo, formatFullNumber, formatCurrency } from '../../utils/formatters';
@@ -371,7 +371,11 @@ const ViewershipDashboard = () => {
                   )}
                 </div>
                 <div className="ranking-info">
-                  <div className="ranking-name">{item.broadcasterName}</div>
+                  <div className="ranking-name">
+                    {item.personId ? (
+                      <Link to={`/streamer/${item.personId}`} className="streamer-link">{item.broadcasterName}</Link>
+                    ) : item.broadcasterName}
+                  </div>
                   <div className="ranking-meta">
                     {item.categoryName && <span className="ranking-category">{item.categoryName}</span>}
                     <span className="ranking-title-text">{item.title}</span>
@@ -420,7 +424,9 @@ const ViewershipDashboard = () => {
                 </div>
                 <div className="ranking-info">
                   <div className="ranking-name">
-                    {item.broadcasterName}
+                    {item.personId ? (
+                      <Link to={`/streamer/${item.personId}`} className="streamer-link">{item.broadcasterName}</Link>
+                    ) : item.broadcasterName}
                     {item.isLive && <span className="ranking-live-badge">LIVE</span>}
                   </div>
                   <div className="ranking-meta">

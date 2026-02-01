@@ -29,6 +29,7 @@ const {
   createMonitorRouter,
   createDesignsRouter,
   createMarketplaceRouter,
+  createStreamerRouter,
 } = require("./routes");
 const { createHealthRouter } = require("./routes/health");
 
@@ -44,6 +45,7 @@ const { createDesignService } = require("./services/designService");
 const UserSessionService = require("./services/userSessionService");
 const ViewerEstimationService = require("./services/viewerEstimationService");
 const { StatsCacheService } = require("./services/statsCacheService");
+const { createStreamerDetailService } = require("./services/streamerDetailService");
 
 // Middleware
 const { authenticateToken, createAuthMiddleware } = require("./middleware/auth");
@@ -146,6 +148,7 @@ const createApp = ({
   // Apply public rate limiter to overlay endpoints (higher limit)
   app.use("/api/overlay", publicLimiter);
   app.use("/api/categories", publicLimiter);
+  app.use("/api/streamer", publicLimiter);
 
   // Apply standard rate limiter to all other API endpoints
   app.use("/api", standardLimiter);
@@ -219,6 +222,11 @@ const createApp = ({
   // Categories routes - uses streamingDb
   const categoriesRouter = createCategoriesRouter(streamingDb, categoryService, authMiddleware, statsCacheService);
   app.use("/api", categoriesRouter);
+
+  // Streamer detail routes (public, no auth)
+  const streamerDetailService = createStreamerDetailService();
+  const streamerRouter = createStreamerRouter(streamerDetailService);
+  app.use("/api", streamerRouter);
 
   // ===== Health Check Routes =====
   const healthRouter = createHealthRouter({ overlayDb, streamingDb });
