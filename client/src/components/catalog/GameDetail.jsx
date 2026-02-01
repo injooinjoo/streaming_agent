@@ -442,10 +442,10 @@ const GameDetail = ({ gameId, onBack }) => {
                     {platform.categoryName}
                   </div>
                   <div className="game-streamers-table__col viewers">
-                    {formatNumber(platform.viewerCount || 0)}
+                    {formatCompactKo(platform.viewerCount || 0)}
                   </div>
                   <div className="game-streamers-table__col avg">
-                    {formatNumber(platform.streamerCount || 0)}
+                    {formatCompactKo(platform.streamerCount || 0)}
                   </div>
                 </div>
               ))}
