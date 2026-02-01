@@ -1008,7 +1008,7 @@ class CategoryService {
     const sql = `
       SELECT
         p.id as person_id,
-        p.nickname,
+        COALESCE(p.nickname, p.platform_user_id) as nickname,
         p.profile_image_url,
         bs.platform,
         MAX(bs.peak_viewer_count) as peak_viewers,
@@ -1022,7 +1022,7 @@ class CategoryService {
         ON bs.platform = cgm.platform AND bs.category_id = cgm.platform_category_id
       WHERE cgm.unified_game_id = ${p(1)}
         AND bs.segment_started_at >= ${timeFilter}
-      GROUP BY p.id, p.nickname, p.profile_image_url, bs.platform
+      GROUP BY p.id, p.nickname, p.platform_user_id, p.profile_image_url, bs.platform
       ORDER BY ${orderBy} DESC
       LIMIT ${p(2)}
     `;
@@ -1052,7 +1052,7 @@ class CategoryService {
     // 현재 기간 스트리머별 평균
     const currentSql = `
       SELECT
-        p.id as person_id, p.nickname, p.profile_image_url, bs.platform,
+        p.id as person_id, COALESCE(p.nickname, p.platform_user_id) as nickname, p.profile_image_url, bs.platform,
         ROUND(AVG(bs.avg_viewer_count)) as avg_viewers,
         COUNT(DISTINCT b.id) as broadcast_count
       FROM broadcast_segments bs
@@ -1062,7 +1062,7 @@ class CategoryService {
         ON bs.platform = cgm.platform AND bs.category_id = cgm.platform_category_id
       WHERE cgm.unified_game_id = ${p(1)}
         AND bs.segment_started_at >= ${currentStart}
-      GROUP BY p.id, p.nickname, p.profile_image_url, bs.platform
+      GROUP BY p.id, p.nickname, p.platform_user_id, p.profile_image_url, bs.platform
     `;
 
     // 이전 기간 스트리머별 평균

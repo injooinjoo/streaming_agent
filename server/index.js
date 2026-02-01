@@ -35,6 +35,7 @@ const CategoryService = require("./services/categoryService");
 // Broadcast Crawler Service
 const BroadcastCrawler = require("./services/broadcastCrawler");
 const ViewerEngagementService = require("./services/viewerEngagementService");
+const PersonService = require("./services/personService");
 
 // Redis Service
 const { getRedisService } = require("./services/redisService");
@@ -188,6 +189,9 @@ const main = async () => {
         host: '0.0.0.0',
         environment: process.env.NODE_ENV || "development",
       });
+
+      // Cleanup invalid nicknames (SOOP internal IDs) on startup
+      new PersonService(db).cleanupInvalidNicknames();
 
       // Initialize Category Service in background (after server is listening)
       categoryService.initialize().then(() => {

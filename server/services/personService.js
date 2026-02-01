@@ -34,17 +34,31 @@ class PersonService {
    * @param {number} [data.subscriberCount] - 구독자 수
    * @returns {Promise<number>} - Person ID
    */
+  /**
+   * 닉네임이 유효한지 검사 (내부 ID 패턴 필터링)
+   */
+  static isValidNickname(nick) {
+    if (!nick) return false;
+    // "숫자|숫자" 패턴 (SOOP 내부 ID)
+    if (/^\d+\|\d+$/.test(nick)) return false;
+    // 순수 숫자만 10자리 이상 (내부 ID 가능성)
+    if (/^\d{10,}$/.test(nick)) return false;
+    return true;
+  }
+
   async upsertPerson(data) {
     const {
       platform,
       platformUserId,
-      nickname,
       profileImageUrl,
       channelId,
       channelDescription,
       followerCount,
       subscriberCount,
     } = data;
+
+    // 유효하지 않은 닉네임은 null 처리
+    const nickname = PersonService.isValidNickname(data.nickname) ? data.nickname : null;
 
     try {
       // Use cross-database compatible UPSERT with appropriate EXCLUDED syntax
@@ -91,6 +105,27 @@ class PersonService {
     } catch (err) {
       dbLogger.error("PersonService.upsertPerson error", { error: err.message });
       throw err;
+    }
+  }
+
+  /**
+   * 잘못된 닉네임 정리 (내부 ID 패턴)
+   * 서버 시작 시 1회 실행
+   */
+  async cleanupInvalidNicknames() {
+    try {
+      // SQLite: GLOB 패턴, PostgreSQL: ~ 정규식
+      // "숫자|숫자" 패턴 (SOOP 내부 ID) 정리
+      const condition = isPostgres()
+        ? `nickname ~ '^[0-9]+\\|[0-9]+$'`
+        : `nickname GLOB '[0-9]*|[0-9]*' AND nickname NOT GLOB '*[^0-9|]*'`;
+
+      const result = await runQuery(
+        `UPDATE persons SET nickname = NULL WHERE ${condition}`
+      );
+      dbLogger.info("Invalid nicknames cleaned up");
+    } catch (err) {
+      dbLogger.error("cleanupInvalidNicknames error", { error: err.message });
     }
   }
 
