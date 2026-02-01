@@ -530,6 +530,27 @@
   backdrop-filter: blur(8px);
 }
 
+.game-catalog-card__genres {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.game-catalog-card__genre-pill {
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 600;
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+
 .game-catalog-card__info {
   padding: 16px;
 }
@@ -857,6 +878,121 @@
   line-height: 1.7;
   color: var(--text-secondary);
   margin: 0 0 20px 0;
+}
+
+/* ===== IGDB Enrichment Styles ===== */
+
+/* Title row with rating */
+.game-detail-header__title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* IGDB Rating Badge */
+.game-igdb-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  color: white;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.game-igdb-rating svg {
+  fill: white;
+  stroke: white;
+}
+
+/* Genre/Theme Pills */
+.game-genre-pills {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.game-genre-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.game-genre-pill.genre {
+  background: rgba(139, 92, 246, 0.15);
+  color: #a78bfa;
+  border: 1px solid rgba(139, 92, 246, 0.25);
+}
+
+.game-genre-pill.theme {
+  background: rgba(6, 182, 212, 0.12);
+  color: #22d3ee;
+  border: 1px solid rgba(6, 182, 212, 0.2);
+}
+
+/* IGDB External Link */
+.game-igdb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--primary);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.game-igdb-link:hover {
+  background: rgba(139, 92, 246, 0.2);
+  border-color: var(--primary);
+}
+
+/* Companies */
+.game-detail-companies {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 16px;
+  border-top: 1px solid var(--border-light);
+}
+
+.game-company-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-hover);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.game-company-badge svg {
+  color: var(--text-muted);
+}
+
+.game-company-role {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding-left: 4px;
+  border-left: 1px solid var(--border-light);
+  margin-left: 4px;
 }
 
 .game-detail-platforms {

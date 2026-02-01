@@ -11,6 +11,7 @@
 
 const CategoryCrawler = require("./categoryCrawler");
 const CategoryMapper = require("./categoryMapper");
+const IgdbService = require("./igdbService");
 const { category: categoryLogger } = require("./logger");
 const { getRedisService } = require("./redisService");
 const { getOne, getAll, isPostgres } = require("../db/connections");
@@ -26,6 +27,7 @@ const SCHEDULE = {
   VIEWER_UPDATE: 5 * 60 * 1000,         // 5분마다 시청자 수 업데이트
   STATS_RECORD: 15 * 60 * 1000,         // 15분마다 통계 기록
   MAPPING_REFRESH: 24 * 60 * 60 * 1000, // 24시간마다 매핑 갱신
+  IGDB_ENRICHMENT: 6 * 60 * 60 * 1000,  // 6시간마다 IGDB enrichment
 };
 
 class CategoryService {
@@ -34,6 +36,7 @@ class CategoryService {
     this.io = io;
     this.crawler = new CategoryCrawler(db);
     this.mapper = new CategoryMapper(db);
+    this.igdb = new IgdbService();
     this.redis = getRedisService();
 
     // 스케줄러 인터벌 저장
@@ -42,6 +45,7 @@ class CategoryService {
       viewerUpdate: null,
       statsRecord: null,
       mappingRefresh: null,
+      igdbEnrichment: null,
     };
 
     // 메모리 캐시 (fallback when Redis unavailable)
@@ -130,6 +134,13 @@ class CategoryService {
       // 자동 매핑 실행
       await this.mapper.mapAllUnmapped();
 
+      // IGDB enrichment (비동기, 서버 시작 차단 안함)
+      if (this.igdb.isConfigured()) {
+        this.igdb.enrichAllUnmatched().catch(err => {
+          categoryLogger.error("Initial IGDB enrichment error", { error: err.message });
+        });
+      }
+
       // 스케줄러 시작
       this.startSchedulers();
 
@@ -190,6 +201,20 @@ class CategoryService {
       }
     }, SCHEDULE.MAPPING_REFRESH);
 
+    // IGDB enrichment (6시간마다)
+    if (this.igdb.isConfigured()) {
+      this.intervals.igdbEnrichment = setInterval(async () => {
+        categoryLogger.info("Running scheduled IGDB enrichment...");
+        try {
+          await this.igdb.enrichAllUnmatched();
+          await this.igdb.refreshStaleData();
+          await this.invalidateCache();
+        } catch (error) {
+          categoryLogger.error("IGDB enrichment error", { error: error.message });
+        }
+      }, SCHEDULE.IGDB_ENRICHMENT);
+    }
+
     categoryLogger.info("Schedulers started");
   }
 
@@ -208,6 +233,7 @@ class CategoryService {
       viewerUpdate: null,
       statsRecord: null,
       mappingRefresh: null,
+      igdbEnrichment: null,
     };
   }
 
@@ -265,7 +291,7 @@ class CategoryService {
     // Cross-database boolean comparison
     const isActiveCheck = isPostgres() ? `pc.is_active = TRUE` : `pc.is_active = 1`;
 
-    // 이미지 우선순위: SOOP 카테고리 이미지 > Chzzk 포스터 이미지 > unified_games 이미지
+    // 이미지 우선순위: IGDB 커버 > SOOP 카테고리 이미지 > Chzzk 포스터 이미지 > unified_games 이미지
     const sql = `
       SELECT
         ug.id,
@@ -274,9 +300,15 @@ class CategoryService {
         ug.genre,
         ug.genre_kr,
         ug.developer,
+        ug.publisher,
         ug.release_date,
         ug.description,
+        ug.summary,
         ug.image_url,
+        ug.cover_url,
+        ug.igdb_url,
+        ug.igdb_rating,
+        ug.igdb_followers,
         ug.is_verified,
         ug.created_at,
         COALESCE(SUM(pc.viewer_count), 0) as total_viewers,
@@ -302,9 +334,14 @@ class CategoryService {
       genre: row.genre,
       genreKr: row.genre_kr,
       developer: row.developer,
+      publisher: row.publisher,
       releaseDate: row.release_date,
-      description: row.description,
-      imageUrl: row.soop_thumbnail || row.chzzk_thumbnail || row.image_url || null,
+      description: row.summary || row.description,
+      imageUrl: row.cover_url || row.soop_thumbnail || row.chzzk_thumbnail || row.image_url || null,
+      coverUrl: row.cover_url || null,
+      igdbUrl: row.igdb_url || null,
+      igdbRating: row.igdb_rating || null,
+      igdbFollowers: row.igdb_followers || null,
       isVerified: row.is_verified === 1,
       totalViewers: row.total_viewers,
       totalStreamers: row.total_streamers,
@@ -314,6 +351,31 @@ class CategoryService {
       _soopThumbnail: row.soop_thumbnail,
       _chzzkThumbnail: row.chzzk_thumbnail,
     }));
+
+    // 장르 정보 일괄 조회 (N+1 방지)
+    const allGenres = await getAll(
+      "SELECT unified_game_id, genre_type, name, name_kr FROM game_genres ORDER BY unified_game_id, genre_type, name",
+      []
+    );
+    const genreMap = new Map();
+    for (const g of (allGenres || [])) {
+      if (!genreMap.has(g.unified_game_id)) {
+        genreMap.set(g.unified_game_id, { genres: [], themes: [] });
+      }
+      const entry = genreMap.get(g.unified_game_id);
+      if (g.genre_type === 'genre') {
+        entry.genres.push({ name: g.name, nameKr: g.name_kr });
+      } else if (g.genre_type === 'theme') {
+        entry.themes.push({ name: g.name, nameKr: g.name_kr });
+      }
+    }
+
+    // 장르 정보를 게임에 추가
+    for (const game of games) {
+      const gInfo = genreMap.get(game.id);
+      game.genres = gInfo?.genres || [];
+      game.themes = gInfo?.themes || [];
+    }
 
     // 캐시 업데이트 (Redis and memory)
     await this.setCached("games", games);
@@ -463,10 +525,10 @@ class CategoryService {
 
     const platforms = await getAll(platformsSql, [gameId]);
 
-    // 이미지 우선순위: SOOP 썸네일 > Chzzk 썸네일 > 기본 이미지
+    // 이미지 우선순위: IGDB 커버 > SOOP 썸네일 > Chzzk 썸네일 > 기본 이미지
     const soopPlatform = (platforms || []).find(pl => pl.platform === 'soop');
     const chzzkPlatform = (platforms || []).find(pl => pl.platform === 'chzzk');
-    let imageUrl = soopPlatform?.thumbnail_url || chzzkPlatform?.thumbnail_url || game.image_url || null;
+    let imageUrl = game.cover_url || soopPlatform?.thumbnail_url || chzzkPlatform?.thumbnail_url || game.image_url || null;
 
     // 이미지가 없으면 자동으로 가져오기 시도
     if (!imageUrl && platforms && platforms.length > 0) {
@@ -494,6 +556,16 @@ class CategoryService {
       }
     }
 
+    // IGDB 장르/태그, 회사 정보 조회
+    let genres = [];
+    let companies = [];
+    if (game.igdb_id) {
+      [genres, companies] = await Promise.all([
+        this.igdb.getGameGenres(gameId),
+        this.igdb.getGameCompanies(gameId),
+      ]);
+    }
+
     return {
       id: game.id,
       name: game.name,
@@ -501,9 +573,28 @@ class CategoryService {
       genre: game.genre,
       genreKr: game.genre_kr,
       developer: game.developer,
+      publisher: game.publisher,
       releaseDate: game.release_date,
-      description: game.description,
+      description: game.summary || game.description,
+      summary: game.summary,
       imageUrl: imageUrl,
+      coverUrl: game.cover_url || null,
+      igdbUrl: game.igdb_url || null,
+      igdbRating: game.igdb_rating || null,
+      igdbRatingCount: game.igdb_rating_count || null,
+      igdbFollowers: game.igdb_followers || null,
+      genres: genres.filter(g => g.genre_type === 'genre').map(g => ({
+        name: g.name,
+        nameKr: g.name_kr,
+      })),
+      themes: genres.filter(g => g.genre_type === 'theme').map(g => ({
+        name: g.name,
+        nameKr: g.name_kr,
+      })),
+      companies: companies.map(c => ({
+        name: c.name,
+        role: c.role,
+      })),
       isVerified: game.is_verified === 1,
       createdAt: game.created_at,
       updatedAt: game.updated_at,

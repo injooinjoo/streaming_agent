@@ -389,6 +389,27 @@ function createCategoriesRouter(db, categoryService, authenticateToken, statsCac
   });
 
   /**
+   * POST /api/categories/:id/igdb-enrich
+   * 특정 게임 IGDB 강제 enrichment (관리자 전용)
+   */
+  router.post("/categories/:id/igdb-enrich", authenticateToken, async (req, res) => {
+    try {
+      const gameId = parseInt(req.params.id, 10);
+      if (isNaN(gameId)) return res.status(400).json({ success: false, error: "Invalid game ID" });
+
+      const result = await categoryService.igdb.enrichSingleGame(gameId);
+      res.json({
+        success: true,
+        message: "IGDB enrichment complete",
+        data: { igdbId: result.igdbGame.id, confidence: result.confidence },
+      });
+    } catch (error) {
+      console.error("[categories] POST /categories/:id/igdb-enrich error:", error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * GET /api/categories/issues
    * 매핑 문제 목록 조회 (관리자 전용)
    */

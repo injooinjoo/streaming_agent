@@ -86,7 +86,9 @@ const GameCatalog = ({ onGameSelect }) => {
     return games.filter(game =>
       game.nameKr?.toLowerCase().includes(term) ||
       game.name?.toLowerCase().includes(term) ||
-      game.genre?.toLowerCase().includes(term)
+      game.genre?.toLowerCase().includes(term) ||
+      game.genres?.some(g => g.toLowerCase().includes(term)) ||
+      game.publisher?.toLowerCase().includes(term)
     );
   }, [games, searchTerm]);
 
@@ -356,9 +358,16 @@ const GameCatalog = ({ onGameSelect }) => {
                   <Layers size={32} />
                 </div>
               )}
-              {game.genre && (
+              {/* IGDB 장르 태그 (있으면 multiple pills, 없으면 단일 장르) */}
+              {game.genres?.length > 0 ? (
+                <div className="game-catalog-card__genres">
+                  {game.genres.slice(0, 2).map((g, i) => (
+                    <span key={i} className="game-catalog-card__genre-pill">{g}</span>
+                  ))}
+                </div>
+              ) : game.genre ? (
                 <div className="game-catalog-card__genre">{game.genre}</div>
-              )}
+              ) : null}
             </div>
             <div className="game-catalog-card__info">
               <h3 className="game-catalog-card__title">{game.nameKr || game.name}</h3>

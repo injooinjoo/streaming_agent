@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft, Eye, Users, TrendingUp, TrendingDown, Trophy, Calendar,
   Building2, RefreshCw, Tag, Crown, AlertCircle, BarChart3, Monitor,
-  ChevronDown, Clock, User, Award
+  ChevronDown, Clock, User, Award, Star, ExternalLink
 } from 'lucide-react';
 import {
   AreaChart, Area, BarChart, Bar, LineChart, Line,
@@ -786,7 +786,15 @@ const GameDetail = ({ gameId, onBack, onStreamerSelect }) => {
     );
   }
 
-  const tags = [gameData.genre, gameData.developer, ...(gameData.isVerified ? ['검증됨'] : [])].filter(Boolean);
+  // IGDB 장르/테마 태그 (있으면 사용, 없으면 기존 genre 사용)
+  const genreTags = gameData.genres?.length > 0 ? gameData.genres : [];
+  const themeTags = gameData.themes?.length > 0 ? gameData.themes : [];
+  const hasIgdbData = genreTags.length > 0 || themeTags.length > 0 || gameData.igdbRating;
+
+  // 기존 태그 (IGDB 태그가 없을 때 폴백)
+  const fallbackTags = !hasIgdbData
+    ? [gameData.genre, gameData.developer, ...(gameData.isVerified ? ['검증됨'] : [])].filter(Boolean)
+    : [];
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -821,28 +829,69 @@ const GameDetail = ({ gameId, onBack, onStreamerSelect }) => {
           )}
         </div>
         <div className="game-detail-header__info">
-          <h1>{gameData.nameKr || gameData.name}</h1>
+          <div className="game-detail-header__title-row">
+            <h1>{gameData.nameKr || gameData.name}</h1>
+            {gameData.igdbRating > 0 && (
+              <span className="game-igdb-rating" title={`IGDB 평점 ${Math.round(gameData.igdbRating)}/100`}>
+                <Star size={14} />{Math.round(gameData.igdbRating)}
+              </span>
+            )}
+          </div>
           {gameData.nameKr && gameData.name && gameData.nameKr !== gameData.name && (
             <p className="game-detail-header__name">{gameData.name}</p>
           )}
-          <div className="game-detail-header__tags">
-            {tags.map((tag, index) => (
-              <span key={index} className="game-detail-tag"><Tag size={12} />{tag}</span>
-            ))}
-          </div>
+
+          {/* IGDB 장르/테마 태그 */}
+          {hasIgdbData ? (
+            <div className="game-genre-pills">
+              {genreTags.map((tag, i) => (
+                <span key={`g-${i}`} className="game-genre-pill genre">{tag}</span>
+              ))}
+              {themeTags.map((tag, i) => (
+                <span key={`t-${i}`} className="game-genre-pill theme">{tag}</span>
+              ))}
+            </div>
+          ) : (
+            <div className="game-detail-header__tags">
+              {fallbackTags.map((tag, index) => (
+                <span key={index} className="game-detail-tag"><Tag size={12} />{tag}</span>
+              ))}
+            </div>
+          )}
+
           <div className="game-detail-header__meta">
-            {gameData.developer && (<span className="game-detail-meta"><Building2 size={14} />{gameData.developer}</span>)}
+            {(gameData.publisher || gameData.developer) && (
+              <span className="game-detail-meta"><Building2 size={14} />{gameData.publisher || gameData.developer}</span>
+            )}
             {gameData.releaseDate && (<span className="game-detail-meta"><Calendar size={14} />{gameData.releaseDate} 출시</span>)}
-            {gameData.genre && (<span className="game-detail-meta game-detail-genre">{gameData.genre}</span>)}
+            {gameData.igdbFollowers > 0 && (
+              <span className="game-detail-meta"><Users size={14} />{formatCompactKo(gameData.igdbFollowers)} 팔로워</span>
+            )}
+            {gameData.igdbUrl && (
+              <a href={gameData.igdbUrl} target="_blank" rel="noopener noreferrer" className="game-igdb-link">
+                <ExternalLink size={13} />IGDB
+              </a>
+            )}
           </div>
         </div>
       </div>
 
       {/* 게임 소개 */}
-      {gameData.description && (
+      {(gameData.summary || gameData.description) && (
         <div className="game-detail-description glass-premium">
           <h2><Tag size={18} />게임 소개</h2>
-          <p>{gameData.description}</p>
+          <p>{gameData.summary || gameData.description}</p>
+          {gameData.companies?.length > 0 && (
+            <div className="game-detail-companies">
+              {gameData.companies.map((c, i) => (
+                <span key={i} className="game-company-badge">
+                  <Building2 size={12} />
+                  {c.name}
+                  <span className="game-company-role">{c.role === 'developer' ? '개발' : c.role === 'publisher' ? '퍼블리싱' : c.role}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
