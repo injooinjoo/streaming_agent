@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Copy, RefreshCw, Save, ExternalLink,
+  Copy, ExternalLink,
   Gamepad2, Check, Trophy, Crosshair, User, Link2, Monitor
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
@@ -8,38 +8,10 @@ import { API_URL } from '../../config/api';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './GameSettings.css';
 
-// 기본 설정
-const defaultSettings = {
-  nexon: {
-    enabled: true,
-    accountId: '',
-    selectedGames: ['maplestory', 'fconline', 'suddenattack']
-  },
-  riot: {
-    enabled: false,
-    region: 'kr',
-    gameName: '',
-    tagLine: '',
-    selectedGames: ['lol', 'valorant', 'tft']
-  },
-  pubg: {
-    enabled: false,
-    platform: 'steam',
-    playerName: ''
-  },
-  steam: {
-    enabled: false,
-    steamId: ''
-  }
-};
-
-// 플랫폼 정보
+// 플랫폼 정보 (게임 목록 참조용)
 const platforms = [
   {
     id: 'nexon',
-    name: '넥슨',
-    icon: '🎮',
-    description: '메이플, FC온라인, 서든어택',
     games: [
       { id: 'maplestory', name: '메이플스토리', icon: '🍁' },
       { id: 'fconline', name: 'FC온라인', icon: '⚽' },
@@ -50,9 +22,6 @@ const platforms = [
   },
   {
     id: 'riot',
-    name: '라이엇 게임즈',
-    icon: '⚔️',
-    description: 'LoL, 발로란트, TFT',
     games: [
       { id: 'lol', name: '리그 오브 레전드', icon: '🏆' },
       { id: 'valorant', name: '발로란트', icon: '🎯' },
@@ -61,81 +30,27 @@ const platforms = [
   },
   {
     id: 'pubg',
-    name: 'PUBG',
-    icon: '🪖',
-    description: '배틀그라운드',
-    games: [
-      { id: 'pubg', name: 'PUBG', icon: '🪖' }
-    ]
+    games: [{ id: 'pubg', name: 'PUBG', icon: '🪖' }]
   },
   {
     id: 'steam',
-    name: '스팀',
-    icon: '🎯',
-    description: '스팀 게임 라이브러리',
-    games: [
-      { id: 'steam', name: '현재 플레이 중', icon: '🎮' }
-    ]
+    games: [{ id: 'steam', name: '현재 플레이 중', icon: '🎮' }]
   }
 ];
 
 // 가상 데이터
 const mockGameData = {
   lol: {
-    nickname: 'Faker',
-    tier: 'Challenger',
-    lp: 1247,
-    winRate: 67,
-    recentGames: [
-      { win: true }, { win: true }, { win: false }, { win: true }, { win: true }
-    ]
+    nickname: 'Faker', tier: 'Challenger', lp: 1247, winRate: 67,
+    recentGames: [{ win: true }, { win: true }, { win: false }, { win: true }, { win: true }]
   },
-  valorant: {
-    nickname: 'Hide on Bush',
-    rank: 'Radiant',
-    rr: 450,
-    kd: 1.4,
-    winRate: 58
-  },
-  tft: {
-    nickname: 'TFT Master',
-    tier: 'Grandmaster',
-    lp: 856,
-    avgPlace: 3.2
-  },
-  maplestory: {
-    nickname: '단풍잎사랑',
-    level: 287,
-    job: '아크메이지(불,독)',
-    legion: 8500,
-    guild: '별빛마을'
-  },
-  fconline: {
-    nickname: 'FCKing',
-    level: 42,
-    rating: 2340,
-    winRate: 61,
-    division: '슈퍼챔피언스'
-  },
-  suddenattack: {
-    nickname: '헤드샷장인',
-    level: 75,
-    kd: 2.1,
-    winRate: 54,
-    clan: '최강클랜'
-  },
-  pubg: {
-    nickname: 'ChickenDinner',
-    tier: 'Master',
-    rp: 5200,
-    kd: 3.2,
-    winRate: 18
-  },
-  steam: {
-    nickname: 'GamerPro',
-    currentGame: 'Counter-Strike 2',
-    playtime: '1,247시간'
-  }
+  valorant: { nickname: 'Hide on Bush', rank: 'Radiant', rr: 450, kd: 1.4, winRate: 58 },
+  tft: { nickname: 'TFT Master', tier: 'Grandmaster', lp: 856, avgPlace: 3.2 },
+  maplestory: { nickname: '단풍잎사랑', level: 287, job: '아크메이지(불,독)', legion: 8500, guild: '별빛마을' },
+  fconline: { nickname: 'FCKing', level: 42, rating: 2340, winRate: 61, division: '슈퍼챔피언스' },
+  suddenattack: { nickname: '헤드샷장인', level: 75, kd: 2.1, winRate: 54, clan: '최강클랜' },
+  pubg: { nickname: 'ChickenDinner', tier: 'Master', rp: 5200, kd: 3.2, winRate: 18 },
+  steam: { nickname: 'GamerPro', currentGame: 'Counter-Strike 2', playtime: '1,247시간' }
 };
 
 // 오버레이 타입
@@ -147,9 +62,8 @@ const overlayTypes = [
 
 const GameSettings = () => {
   const { user } = useAuth();
-  const [settings, setSettings] = useState(defaultSettings);
+  const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const overlayHash = user?.userHash || null;
   const [copied, setCopied] = useState('');
   const [selectedOverlayType, setSelectedOverlayType] = useState('stats');
@@ -164,30 +78,12 @@ const GameSettings = () => {
       const res = await fetch(`${API_URL}/api/settings/game`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
-        setSettings(prev => ({ ...prev, ...JSON.parse(data.value) }));
+        setSettings(JSON.parse(data.value));
       }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const saveSettings = async () => {
-    setSaving(true);
-    try {
-      await fetch(`${API_URL}/api/settings`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ key: 'game', value: settings })
-      });
-      alert('설정이 저장되었습니다!');
-    } catch (err) {
-      console.error('Failed to save settings:', err);
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -199,42 +95,6 @@ const GameSettings = () => {
     } catch (err) {
       console.error('Failed to copy:', err);
     }
-  };
-
-  const handlePlatformToggle = (platformId) => {
-    setSettings(prev => ({
-      ...prev,
-      [platformId]: {
-        ...prev[platformId],
-        enabled: !prev[platformId].enabled
-      }
-    }));
-  };
-
-  const handleInputChange = (platformId, field, value) => {
-    setSettings(prev => ({
-      ...prev,
-      [platformId]: {
-        ...prev[platformId],
-        [field]: value
-      }
-    }));
-  };
-
-  const handleGameToggle = (platformId, gameId) => {
-    setSettings(prev => {
-      const currentGames = prev[platformId].selectedGames || [];
-      const newGames = currentGames.includes(gameId)
-        ? currentGames.filter(g => g !== gameId)
-        : [...currentGames, gameId];
-      return {
-        ...prev,
-        [platformId]: {
-          ...prev[platformId],
-          selectedGames: newGames
-        }
-      };
-    });
   };
 
   const getEnabledGames = () => {
@@ -264,10 +124,7 @@ const GameSettings = () => {
       case 'lol':
         return (
           <div className="overlay-preview-card">
-            <div className="player-name">
-              <Trophy size={20} />
-              {data.nickname}
-            </div>
+            <div className="player-name"><Trophy size={20} />{data.nickname}</div>
             <div className="rank-info">
               <span className="tier-badge challenger">{data.tier}</span>
               {(data.lp || 0).toLocaleString()} LP
@@ -287,123 +144,71 @@ const GameSettings = () => {
             </div>
           </div>
         );
-
       case 'valorant':
         return (
           <div className="overlay-preview-card">
-            <div className="player-name">
-              <Crosshair size={20} />
-              {data.nickname}
-            </div>
-            <div className="rank-info">
-              <span className="tier-badge radiant">{data.rank}</span>
-              {data.rr} RR
-            </div>
+            <div className="player-name"><Crosshair size={20} />{data.nickname}</div>
+            <div className="rank-info"><span className="tier-badge radiant">{data.rank}</span>{data.rr} RR</div>
             <div className="stats-row">
-              <div className="stat-item">
-                <div className="stat-value">{data.kd}</div>
-                <div className="stat-label">K/D</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-value">{data.winRate}%</div>
-                <div className="stat-label">승률</div>
-              </div>
+              <div className="stat-item"><div className="stat-value">{data.kd}</div><div className="stat-label">K/D</div></div>
+              <div className="stat-item"><div className="stat-value">{data.winRate}%</div><div className="stat-label">승률</div></div>
             </div>
           </div>
         );
-
       case 'maplestory':
         return (
           <div className="overlay-preview-card">
             <div className="player-name">🍁 {data.nickname}</div>
             <div className="rank-info">Lv.{data.level} {data.job}</div>
             <div className="stats-row">
-              <div className="stat-item">
-                <div className="stat-value">{(data.legion || 0).toLocaleString()}</div>
-                <div className="stat-label">유니온</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-value">{data.guild}</div>
-                <div className="stat-label">길드</div>
-              </div>
+              <div className="stat-item"><div className="stat-value">{(data.legion || 0).toLocaleString()}</div><div className="stat-label">유니온</div></div>
+              <div className="stat-item"><div className="stat-value">{data.guild}</div><div className="stat-label">길드</div></div>
             </div>
           </div>
         );
-
       case 'fconline':
         return (
           <div className="overlay-preview-card">
             <div className="player-name">⚽ {data.nickname}</div>
             <div className="rank-info">{data.division} · {(data.rating || 0).toLocaleString()} RP</div>
             <div className="stats-row">
-              <div className="stat-item">
-                <div className="stat-value">{data.winRate}%</div>
-                <div className="stat-label">승률</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-value">Lv.{data.level}</div>
-                <div className="stat-label">레벨</div>
-              </div>
+              <div className="stat-item"><div className="stat-value">{data.winRate}%</div><div className="stat-label">승률</div></div>
+              <div className="stat-item"><div className="stat-value">Lv.{data.level}</div><div className="stat-label">레벨</div></div>
             </div>
           </div>
         );
-
       case 'suddenattack':
         return (
           <div className="overlay-preview-card">
             <div className="player-name">🔫 {data.nickname}</div>
             <div className="rank-info">Lv.{data.level} · {data.clan}</div>
             <div className="stats-row">
-              <div className="stat-item">
-                <div className="stat-value">{data.kd}</div>
-                <div className="stat-label">K/D</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-value">{data.winRate}%</div>
-                <div className="stat-label">승률</div>
-              </div>
+              <div className="stat-item"><div className="stat-value">{data.kd}</div><div className="stat-label">K/D</div></div>
+              <div className="stat-item"><div className="stat-value">{data.winRate}%</div><div className="stat-label">승률</div></div>
             </div>
           </div>
         );
-
       case 'pubg':
         return (
           <div className="overlay-preview-card">
             <div className="player-name">🪖 {data.nickname}</div>
-            <div className="rank-info">
-              <span className="tier-badge master">{data.tier}</span>
-              {(data.rp || 0).toLocaleString()} RP
-            </div>
+            <div className="rank-info"><span className="tier-badge master">{data.tier}</span>{(data.rp || 0).toLocaleString()} RP</div>
             <div className="stats-row">
-              <div className="stat-item">
-                <div className="stat-value">{data.kd}</div>
-                <div className="stat-label">K/D</div>
-              </div>
-              <div className="stat-item">
-                <div className="stat-value">{data.winRate}%</div>
-                <div className="stat-label">승률</div>
-              </div>
+              <div className="stat-item"><div className="stat-value">{data.kd}</div><div className="stat-label">K/D</div></div>
+              <div className="stat-item"><div className="stat-value">{data.winRate}%</div><div className="stat-label">승률</div></div>
             </div>
           </div>
         );
-
       case 'tft':
         return (
           <div className="overlay-preview-card">
             <div className="player-name">♟️ {data.nickname}</div>
-            <div className="rank-info">
-              <span className="tier-badge grandmaster">{data.tier}</span>
-              {(data.lp || 0).toLocaleString()} LP
-            </div>
+            <div className="rank-info"><span className="tier-badge grandmaster">{data.tier}</span>{(data.lp || 0).toLocaleString()} LP</div>
             <div className="stats-row">
-              <div className="stat-item">
-                <div className="stat-value">{data.avgPlace}</div>
-                <div className="stat-label">평균 등수</div>
-              </div>
+              <div className="stat-item"><div className="stat-value">{data.avgPlace}</div><div className="stat-label">평균 등수</div></div>
             </div>
           </div>
         );
-
       default:
         return (
           <div className="overlay-preview-card">
@@ -414,9 +219,7 @@ const GameSettings = () => {
     }
   };
 
-  useEffect(() => {
-    fetchSettings();
-  }, []);
+  useEffect(() => { fetchSettings(); }, []);
 
   useEffect(() => {
     const enabledGames = getEnabledGames();
@@ -426,11 +229,7 @@ const GameSettings = () => {
   }, [settings]);
 
   if (loading) {
-    return (
-      <div className="settings-panel">
-        <LoadingSpinner />
-      </div>
-    );
+    return <div className="settings-panel"><LoadingSpinner /></div>;
   }
 
   const enabledGames = getEnabledGames();
@@ -454,12 +253,7 @@ const GameSettings = () => {
               {copied === 'main' ? <Check size={16} /> : <Copy size={16} />}
               {copied === 'main' ? '복사됨' : 'URL 복사'}
             </button>
-            <a
-              href={overlayUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-external-view"
-            >
+            <a href={overlayUrl} target="_blank" rel="noopener noreferrer" className="btn-external-view">
               <ExternalLink size={16} />
               새 창에서 보기
             </a>
@@ -467,153 +261,16 @@ const GameSettings = () => {
         </div>
       </div>
 
-      {/* 계정 연동 섹션 */}
-      <div className="settings-card">
-        <div className="card-header">
-          <h3><Link2 size={20} style={{ marginRight: 8, verticalAlign: 'middle' }} />계정 연동</h3>
-          <p>게임 플랫폼 계정을 연동하여 전적/랭크 정보를 자동으로 가져옵니다</p>
+      {/* 연동 안내 */}
+      {enabledGames.length === 0 && (
+        <div className="settings-card">
+          <div className="empty-state">
+            <Link2 size={48} />
+            <h3>연동된 게임이 없습니다</h3>
+            <p>계정 설정 &gt; 게임 연동 탭에서 게임 플랫폼을 연동해주세요</p>
+          </div>
         </div>
-
-        <div className="platform-grid">
-          {platforms.map(platform => (
-            <div
-              key={platform.id}
-              className={`platform-card platform-${platform.id} ${settings[platform.id]?.enabled ? 'enabled' : ''}`}
-            >
-              <div className="platform-card-header">
-                <div className="platform-info">
-                  <div className="platform-icon">{platform.icon}</div>
-                  <div className="platform-name">
-                    <h3>{platform.name}</h3>
-                    <span>{platform.description}</span>
-                  </div>
-                </div>
-                <label className="toggle-switch">
-                  <input
-                    type="checkbox"
-                    checked={settings[platform.id]?.enabled || false}
-                    onChange={() => handlePlatformToggle(platform.id)}
-                  />
-                  <span className="slider"></span>
-                </label>
-              </div>
-
-              <div className="platform-card-body">
-                {platform.id === 'nexon' && (
-                  <div className="input-group">
-                    <label>넥슨 계정 ID</label>
-                    <input
-                      type="text"
-                      className="styled-input"
-                      placeholder="example@nexon.com"
-                      value={settings.nexon?.accountId || ''}
-                      onChange={(e) => handleInputChange('nexon', 'accountId', e.target.value)}
-                      disabled={!settings.nexon?.enabled}
-                    />
-                  </div>
-                )}
-
-                {platform.id === 'riot' && (
-                  <>
-                    <div className="input-group">
-                      <label>게임 이름</label>
-                      <input
-                        type="text"
-                        className="styled-input"
-                        placeholder="게임 이름"
-                        value={settings.riot?.gameName || ''}
-                        onChange={(e) => handleInputChange('riot', 'gameName', e.target.value)}
-                        disabled={!settings.riot?.enabled}
-                      />
-                    </div>
-                    <div className="input-group">
-                      <label>태그라인</label>
-                      <input
-                        type="text"
-                        className="styled-input"
-                        placeholder="KR1"
-                        value={settings.riot?.tagLine || ''}
-                        onChange={(e) => handleInputChange('riot', 'tagLine', e.target.value)}
-                        disabled={!settings.riot?.enabled}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {platform.id === 'pubg' && (
-                  <>
-                    <div className="input-group">
-                      <label>플랫폼</label>
-                      <select
-                        className="styled-select"
-                        value={settings.pubg?.platform || 'steam'}
-                        onChange={(e) => handleInputChange('pubg', 'platform', e.target.value)}
-                        disabled={!settings.pubg?.enabled}
-                      >
-                        <option value="steam">Steam</option>
-                        <option value="kakao">카카오</option>
-                      </select>
-                    </div>
-                    <div className="input-group">
-                      <label>플레이어 닉네임</label>
-                      <input
-                        type="text"
-                        className="styled-input"
-                        placeholder="닉네임"
-                        value={settings.pubg?.playerName || ''}
-                        onChange={(e) => handleInputChange('pubg', 'playerName', e.target.value)}
-                        disabled={!settings.pubg?.enabled}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {platform.id === 'steam' && (
-                  <div className="input-group">
-                    <label>Steam ID</label>
-                    <input
-                      type="text"
-                      className="styled-input"
-                      placeholder="76561198xxxxxxxxx"
-                      value={settings.steam?.steamId || ''}
-                      onChange={(e) => handleInputChange('steam', 'steamId', e.target.value)}
-                      disabled={!settings.steam?.enabled}
-                    />
-                  </div>
-                )}
-
-                {/* 게임 선택 */}
-                {platform.games.length > 1 && (
-                  <div className="input-group">
-                    <label>연동할 게임</label>
-                    <div className="game-checkboxes">
-                      {platform.games.map(game => (
-                        <label
-                          key={game.id}
-                          className={`game-checkbox ${!settings[platform.id]?.enabled ? 'disabled' : ''}`}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={settings[platform.id]?.selectedGames?.includes(game.id) || false}
-                            onChange={() => handleGameToggle(platform.id, game.id)}
-                            disabled={!settings[platform.id]?.enabled}
-                          />
-                          <span>{game.icon} {game.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <div className={`connection-status ${settings[platform.id]?.enabled ? 'connected' : 'disconnected'}`}>
-                  <span className="status-dot"></span>
-                  {settings[platform.id]?.enabled ? '테스트 모드로 연결됨' : '연결되지 않음'}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* 오버레이 미리보기 */}
       <div className="settings-card">
@@ -656,7 +313,7 @@ const GameSettings = () => {
           <div className="empty-state">
             <Gamepad2 size={48} />
             <h3>연동된 게임이 없습니다</h3>
-            <p>위에서 플랫폼을 활성화하고 게임을 선택해주세요</p>
+            <p>계정 설정 &gt; 게임 연동 탭에서 플랫폼을 활성화하고 게임을 선택해주세요</p>
           </div>
         )}
       </div>
@@ -692,11 +349,7 @@ const GameSettings = () => {
                   <span className="game-name">{game.name}</span>
                 </div>
                 <div className="url-input-wrapper">
-                  <input
-                    type="text"
-                    value={getOverlayUrl(game.id)}
-                    readOnly
-                  />
+                  <input type="text" value={getOverlayUrl(game.id)} readOnly />
                   <button
                     className={`btn-copy ${copied === game.id ? 'copied' : ''}`}
                     onClick={() => copyUrl(getOverlayUrl(game.id), game.id)}
@@ -716,18 +369,6 @@ const GameSettings = () => {
             <p>플랫폼을 연동하면 오버레이 URL이 생성됩니다</p>
           </div>
         )}
-      </div>
-
-      {/* 저장 버튼 */}
-      <div className="save-controls-wrapper">
-        <button
-          className="btn-save-full"
-          onClick={saveSettings}
-          disabled={saving}
-        >
-          {saving ? <RefreshCw className="spin" size={18} /> : <Save size={18} />}
-          {saving ? '저장 중...' : '설정 저장하기'}
-        </button>
       </div>
     </div>
   );

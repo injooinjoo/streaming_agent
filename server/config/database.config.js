@@ -126,6 +126,7 @@ const getSQLHelpers = () => {
     extractDayOfWeek: (column) => `EXTRACT(DOW FROM ${column})::INTEGER`,
     dateOnly: (column) => `${column}::DATE`,
     toDate: (column) => `${column}::DATE`,
+    yearMonth: (column) => `TO_CHAR(${column}, 'YYYY-MM')`,
     epochDiff: (col1, col2) => `EXTRACT(EPOCH FROM (${col1} - ${col2}))`,
     // Auto-increment
     autoIncrement: "BIGSERIAL",

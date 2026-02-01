@@ -5,11 +5,79 @@ import {
   LogOut, Info, Key, Monitor, Lock, Smartphone,
   ChevronDown, Mail, Eye, EyeOff, UserPlus, CheckCircle,
   Download, Upload, X, FileJson, AlertTriangle, CheckCircle2,
-  RefreshCw
+  RefreshCw, Gamepad2, Save
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
 import './AccountSettings.css';
+import './GameSettings.css';
+
+// 게임 연동 기본 설정
+const defaultGameSettings = {
+  nexon: {
+    enabled: true,
+    accountId: '',
+    selectedGames: ['maplestory', 'fconline', 'suddenattack']
+  },
+  riot: {
+    enabled: false,
+    region: 'kr',
+    gameName: '',
+    tagLine: '',
+    selectedGames: ['lol', 'valorant', 'tft']
+  },
+  pubg: {
+    enabled: false,
+    platform: 'steam',
+    playerName: ''
+  },
+  steam: {
+    enabled: false,
+    steamId: ''
+  }
+};
+
+// 게임 플랫폼 정보
+const gamePlatforms = [
+  {
+    id: 'nexon',
+    name: '넥슨',
+    icon: '🎮',
+    description: '메이플, FC온라인, 서든어택',
+    games: [
+      { id: 'maplestory', name: '메이플스토리', icon: '🍁' },
+      { id: 'fconline', name: 'FC온라인', icon: '⚽' },
+      { id: 'suddenattack', name: '서든어택', icon: '🔫' },
+      { id: 'dnf', name: '던전앤파이터', icon: '⚔️' },
+      { id: 'kart', name: '카트라이더', icon: '🏎️' }
+    ]
+  },
+  {
+    id: 'riot',
+    name: '라이엇 게임즈',
+    icon: '⚔️',
+    description: 'LoL, 발로란트, TFT',
+    games: [
+      { id: 'lol', name: '리그 오브 레전드', icon: '🏆' },
+      { id: 'valorant', name: '발로란트', icon: '🎯' },
+      { id: 'tft', name: '전략적 팀 전투', icon: '♟️' }
+    ]
+  },
+  {
+    id: 'pubg',
+    name: 'PUBG',
+    icon: '🪖',
+    description: '배틀그라운드',
+    games: [{ id: 'pubg', name: 'PUBG', icon: '🪖' }]
+  },
+  {
+    id: 'steam',
+    name: '스팀',
+    icon: '🎯',
+    description: '스팀 게임 라이브러리',
+    games: [{ id: 'steam', name: '현재 플레이 중', icon: '🎮' }]
+  }
+];
 
 const AccountSettings = () => {
   const navigate = useNavigate();
@@ -22,9 +90,15 @@ const AccountSettings = () => {
   const [connectionStatus, setConnectionStatus] = useState({ soop: {}, chzzk: {} });
   const [loadingConnections, setLoadingConnections] = useState(true);
 
+  // 게임 연동 state
+  const [gameSettings, setGameSettings] = useState(defaultGameSettings);
+  const [savingGame, setSavingGame] = useState(false);
+  const [loadingGame, setLoadingGame] = useState(true);
+
   // Fetch connection status on mount
   useEffect(() => {
     fetchConnectionStatus();
+    fetchGameSettings();
   }, []);
 
   const fetchConnectionStatus = async () => {
@@ -38,6 +112,73 @@ const AccountSettings = () => {
     } finally {
       setLoadingConnections(false);
     }
+  };
+
+  // 게임 연동 관련 함수들
+  const fetchGameSettings = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/settings/game`);
+      const data = await res.json();
+      if (data.value && data.value !== '{}') {
+        setGameSettings(prev => ({ ...prev, ...JSON.parse(data.value) }));
+      }
+    } catch (err) {
+      console.error('Failed to fetch game settings:', err);
+    } finally {
+      setLoadingGame(false);
+    }
+  };
+
+  const saveGameSettings = async () => {
+    setSavingGame(true);
+    try {
+      await fetch(`${API_URL}/api/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'game', value: gameSettings })
+      });
+      alert('게임 연동 설정이 저장되었습니다!');
+    } catch (err) {
+      console.error('Failed to save game settings:', err);
+    } finally {
+      setSavingGame(false);
+    }
+  };
+
+  const handleGamePlatformToggle = (platformId) => {
+    setGameSettings(prev => ({
+      ...prev,
+      [platformId]: {
+        ...prev[platformId],
+        enabled: !prev[platformId].enabled
+      }
+    }));
+  };
+
+  const handleGameInputChange = (platformId, field, value) => {
+    setGameSettings(prev => ({
+      ...prev,
+      [platformId]: {
+        ...prev[platformId],
+        [field]: value
+      }
+    }));
+  };
+
+  const handleGameToggle = (platformId, gameId) => {
+    setGameSettings(prev => {
+      const currentGames = prev[platformId].selectedGames || [];
+      const newGames = currentGames.includes(gameId)
+        ? currentGames.filter(g => g !== gameId)
+        : [...currentGames, gameId];
+      return {
+        ...prev,
+        [platformId]: {
+          ...prev[platformId],
+          selectedGames: newGames
+        }
+      };
+    });
   };
 
   // Platform connection states - dynamically built from API data
@@ -231,6 +372,12 @@ const AccountSettings = () => {
           onClick={() => setActiveSubTab('security')}
         >
           <Shield size={16} /> 보안 관리
+        </button>
+        <button
+          className={`account-tab ${activeSubTab === 'game' ? 'active' : ''}`}
+          onClick={() => setActiveSubTab('game')}
+        >
+          <Gamepad2 size={16} /> 게임 연동
         </button>
         <button
           className={`account-tab ${activeSubTab === 'import' ? 'active' : ''}`}
@@ -543,7 +690,179 @@ const AccountSettings = () => {
         </div>
       )}
 
-      {/* Tab 4: Import Settings */}
+      {/* Tab 4: Game Integration */}
+      {activeSubTab === 'game' && (
+        <div className="animate-fade">
+          <div className="settings-card glass-premium">
+            <div className="card-header">
+              <h3><Gamepad2 size={18} /> 게임 플랫폼 연동</h3>
+              <p>게임 플랫폼 계정을 연동하여 전적/랭크 정보를 자동으로 가져옵니다</p>
+            </div>
+
+            {loadingGame ? (
+              <div className="empty-state">
+                <RefreshCw size={32} className="spin" />
+                <p>게임 설정 로딩 중...</p>
+              </div>
+            ) : (
+              <>
+                <div className="platform-grid">
+                  {gamePlatforms.map(platform => (
+                    <div
+                      key={platform.id}
+                      className={`platform-card platform-${platform.id} ${gameSettings[platform.id]?.enabled ? 'enabled' : ''}`}
+                    >
+                      <div className="platform-card-header">
+                        <div className="platform-info">
+                          <div className="platform-icon">{platform.icon}</div>
+                          <div className="platform-name">
+                            <h3>{platform.name}</h3>
+                            <span>{platform.description}</span>
+                          </div>
+                        </div>
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={gameSettings[platform.id]?.enabled || false}
+                            onChange={() => handleGamePlatformToggle(platform.id)}
+                          />
+                          <span className="slider"></span>
+                        </label>
+                      </div>
+
+                      <div className="platform-card-body">
+                        {platform.id === 'nexon' && (
+                          <div className="input-group">
+                            <label>넥슨 계정 ID</label>
+                            <input
+                              type="text"
+                              className="styled-input"
+                              placeholder="example@nexon.com"
+                              value={gameSettings.nexon?.accountId || ''}
+                              onChange={(e) => handleGameInputChange('nexon', 'accountId', e.target.value)}
+                              disabled={!gameSettings.nexon?.enabled}
+                            />
+                          </div>
+                        )}
+
+                        {platform.id === 'riot' && (
+                          <>
+                            <div className="input-group">
+                              <label>게임 이름</label>
+                              <input
+                                type="text"
+                                className="styled-input"
+                                placeholder="게임 이름"
+                                value={gameSettings.riot?.gameName || ''}
+                                onChange={(e) => handleGameInputChange('riot', 'gameName', e.target.value)}
+                                disabled={!gameSettings.riot?.enabled}
+                              />
+                            </div>
+                            <div className="input-group">
+                              <label>태그라인</label>
+                              <input
+                                type="text"
+                                className="styled-input"
+                                placeholder="KR1"
+                                value={gameSettings.riot?.tagLine || ''}
+                                onChange={(e) => handleGameInputChange('riot', 'tagLine', e.target.value)}
+                                disabled={!gameSettings.riot?.enabled}
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {platform.id === 'pubg' && (
+                          <>
+                            <div className="input-group">
+                              <label>플랫폼</label>
+                              <select
+                                className="styled-select"
+                                value={gameSettings.pubg?.platform || 'steam'}
+                                onChange={(e) => handleGameInputChange('pubg', 'platform', e.target.value)}
+                                disabled={!gameSettings.pubg?.enabled}
+                              >
+                                <option value="steam">Steam</option>
+                                <option value="kakao">카카오</option>
+                              </select>
+                            </div>
+                            <div className="input-group">
+                              <label>플레이어 닉네임</label>
+                              <input
+                                type="text"
+                                className="styled-input"
+                                placeholder="닉네임"
+                                value={gameSettings.pubg?.playerName || ''}
+                                onChange={(e) => handleGameInputChange('pubg', 'playerName', e.target.value)}
+                                disabled={!gameSettings.pubg?.enabled}
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {platform.id === 'steam' && (
+                          <div className="input-group">
+                            <label>Steam ID</label>
+                            <input
+                              type="text"
+                              className="styled-input"
+                              placeholder="76561198xxxxxxxxx"
+                              value={gameSettings.steam?.steamId || ''}
+                              onChange={(e) => handleGameInputChange('steam', 'steamId', e.target.value)}
+                              disabled={!gameSettings.steam?.enabled}
+                            />
+                          </div>
+                        )}
+
+                        {/* 게임 선택 */}
+                        {platform.games.length > 1 && (
+                          <div className="input-group">
+                            <label>연동할 게임</label>
+                            <div className="game-checkboxes">
+                              {platform.games.map(game => (
+                                <label
+                                  key={game.id}
+                                  className={`game-checkbox ${!gameSettings[platform.id]?.enabled ? 'disabled' : ''}`}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={gameSettings[platform.id]?.selectedGames?.includes(game.id) || false}
+                                    onChange={() => handleGameToggle(platform.id, game.id)}
+                                    disabled={!gameSettings[platform.id]?.enabled}
+                                  />
+                                  <span>{game.icon} {game.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className={`connection-status ${gameSettings[platform.id]?.enabled ? 'connected' : 'disconnected'}`}>
+                          <span className="status-dot"></span>
+                          {gameSettings[platform.id]?.enabled ? '테스트 모드로 연결됨' : '연결되지 않음'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="save-controls-wrapper">
+                  <button
+                    className="btn-save-full"
+                    onClick={saveGameSettings}
+                    disabled={savingGame}
+                  >
+                    {savingGame ? <RefreshCw className="spin" size={18} /> : <Save size={18} />}
+                    {savingGame ? '저장 중...' : '설정 저장하기'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Tab 5: Import Settings */}
       {activeSubTab === 'import' && (
         <div className="animate-fade">
           <div className="settings-card glass-premium import-settings-card">

@@ -1,22 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, TrendingUp, Calendar, RefreshCw, Trophy, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, Calendar, RefreshCw, Trophy, Activity, Hash, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import {
-  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
+
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
 const AdminRevenue = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('month');
   const [data, setData] = useState({
     totalRevenue: 0,
-    adRevenue: 0,
-    donationRevenue: 0,
+    donationCount: 0,
+    averageDonation: 0,
+    growthRate: 0,
     revenueTrend: [],
     platformRevenue: [],
     monthlyComparison: [],
@@ -41,7 +43,6 @@ const AdminRevenue = () => {
     setLoading(true);
     try {
       const days = getDaysFromTimeRange();
-      const token = localStorage.getItem('token');
       const headers = {
         'Content-Type': 'application/json',
         ...(token && { 'Authorization': `Bearer ${token}` })
@@ -61,13 +62,21 @@ const AdminRevenue = () => {
       const monthly = await monthlyRes.json();
       const top = await topRes.json();
 
+      // Add previous month data for comparison bars
+      const monthlyArr = Array.isArray(monthly) ? monthly : [];
+      const monthlyWithPrev = monthlyArr.map((item, i) => ({
+        ...item,
+        prevRevenue: i > 0 ? monthlyArr[i - 1].revenue : 0
+      }));
+
       setData({
         totalRevenue: revenue.totalRevenue || 0,
-        adRevenue: revenue.adRevenue || 0,
-        donationRevenue: revenue.donationRevenue || 0,
+        donationCount: revenue.donationCount || 0,
+        averageDonation: revenue.averageDonation || 0,
+        growthRate: revenue.growthRate || 0,
         revenueTrend: Array.isArray(trend) ? trend : [],
         platformRevenue: Array.isArray(platform) ? platform : [],
-        monthlyComparison: Array.isArray(monthly) ? monthly : [],
+        monthlyComparison: monthlyWithPrev,
         topStreamers: Array.isArray(top) ? top : []
       });
     } catch (error) {
@@ -86,9 +95,15 @@ const AdminRevenue = () => {
   };
 
   const formatCompactCurrency = (amount) => {
-    if (amount >= 1000000) return `₩${(amount / 1000000).toFixed(1)}M`;
-    if (amount >= 1000) return `₩${(amount / 1000).toFixed(0)}K`;
-    return `₩${amount}`;
+    if (amount >= 100000000) return `${(amount / 100000000).toFixed(1)}억`;
+    if (amount >= 10000) return `${Math.round(amount / 10000).toLocaleString()}만`;
+    if (amount >= 1000) return `${Math.round(amount / 1000).toLocaleString()}천`;
+    return `₩${(amount || 0).toLocaleString()}`;
+  };
+
+  const renderPieLabel = ({ name, percent }) => {
+    if (percent < 0.05) return null;
+    return `${name} ${(percent * 100).toFixed(0)}%`;
   };
 
   const CustomTooltip = ({ active, payload, label }) => {
@@ -111,8 +126,6 @@ const AdminRevenue = () => {
     return <LoadingSpinner />;
   }
 
-  const hasData = data.totalRevenue > 0 || (Array.isArray(data.revenueTrend) && data.revenueTrend.some(t => t.donations > 0));
-
   return (
     <div className="admin-revenue">
       {/* Time Range Selector */}
@@ -130,20 +143,7 @@ const AdminRevenue = () => {
             <option value="year">지난 1년</option>
           </select>
         </div>
-        <button
-          onClick={fetchData}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 16px',
-            background: 'var(--color-primary)',
-            border: 'none',
-            borderRadius: '8px',
-            color: 'white',
-            cursor: 'pointer'
-          }}
-        >
+        <button onClick={fetchData} className="admin-refresh-btn">
           <RefreshCw size={14} />
           새로고침
         </button>
@@ -152,30 +152,41 @@ const AdminRevenue = () => {
       {/* Summary Cards */}
       <div className="revenue-summary-grid">
         <div className="revenue-card">
-          <div className="revenue-card-icon" style={{ backgroundColor: '#6366f120', color: '#6366f1' }}>
-            <DollarSign size={24} />
+          <div className="revenue-card-icon revenue-card-icon--primary">
+            <TrendingUp size={24} />
           </div>
           <div className="revenue-card-content">
-            <span className="revenue-card-label">총 수익</span>
+            <span className="revenue-card-label">총 후원금</span>
             <span className="revenue-card-value">{formatCurrency(data.totalRevenue)}</span>
           </div>
         </div>
         <div className="revenue-card">
-          <div className="revenue-card-icon" style={{ backgroundColor: '#10b98120', color: '#10b981' }}>
-            <TrendingUp size={24} />
+          <div className="revenue-card-icon revenue-card-icon--count">
+            <Hash size={24} />
           </div>
           <div className="revenue-card-content">
-            <span className="revenue-card-label">광고 수익</span>
-            <span className="revenue-card-value">{formatCurrency(data.adRevenue)}</span>
+            <span className="revenue-card-label">후원 건수</span>
+            <span className="revenue-card-value">{(data.donationCount || 0).toLocaleString()}건</span>
           </div>
         </div>
         <div className="revenue-card">
-          <div className="revenue-card-icon" style={{ backgroundColor: '#f59e0b20', color: '#f59e0b' }}>
-            <DollarSign size={24} />
+          <div className="revenue-card-icon revenue-card-icon--average">
+            <Activity size={24} />
           </div>
           <div className="revenue-card-content">
-            <span className="revenue-card-label">후원 수익</span>
-            <span className="revenue-card-value">{formatCurrency(data.donationRevenue)}</span>
+            <span className="revenue-card-label">평균 후원금</span>
+            <span className="revenue-card-value">{formatCurrency(data.averageDonation)}</span>
+          </div>
+        </div>
+        <div className="revenue-card">
+          <div className={`revenue-card-icon revenue-card-icon--growth ${data.growthRate < 0 ? 'negative' : ''}`}>
+            {data.growthRate >= 0 ? <ArrowUpRight size={24} /> : <ArrowDownRight size={24} />}
+          </div>
+          <div className="revenue-card-content">
+            <span className="revenue-card-label">전기 대비</span>
+            <span className={`revenue-card-value ${data.growthRate >= 0 ? 'text-positive' : 'text-negative'}`}>
+              {data.growthRate >= 0 ? '+' : ''}{data.growthRate}%
+            </span>
           </div>
         </div>
       </div>
@@ -185,32 +196,39 @@ const AdminRevenue = () => {
         {/* Revenue Trend Chart */}
         <div className="admin-chart-card large">
           <div className="chart-header">
-            <h3>수익 트렌드</h3>
+            <h3>후원 트렌드</h3>
           </div>
           <div className="chart-body">
             {Array.isArray(data.revenueTrend) && data.revenueTrend.some(t => t.donations > 0) ? (
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={data.revenueTrend}>
+                <AreaChart data={data.revenueTrend}>
+                  <defs>
+                    <linearGradient id="donationGradient" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="date" stroke="#94a3b8" fontSize={12} />
                   <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={formatCompactCurrency} />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend />
-                  <Line
+                  <Area
                     type="monotone"
                     dataKey="donations"
                     name="후원금"
                     stroke="#10b981"
                     strokeWidth={2}
+                    fill="url(#donationGradient)"
                     dot={false}
                   />
-                </LineChart>
+                </AreaChart>
               </ResponsiveContainer>
             ) : (
-              <div className="no-data-message" style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
-                <Activity size={48} style={{ opacity: 0.5, marginBottom: '16px' }} />
-                <p>수익 데이터가 없습니다</p>
-                <p style={{ fontSize: '12px' }}>플랫폼 연결 후 후원 데이터가 수집됩니다</p>
+              <div className="no-data-message">
+                <Activity size={48} />
+                <p>후원 데이터가 없습니다</p>
+                <p>플랫폼 연결 후 후원 데이터가 수집됩니다</p>
               </div>
             )}
           </div>
@@ -229,11 +247,13 @@ const AdminRevenue = () => {
                     data={data.platformRevenue}
                     cx="50%"
                     cy="50%"
-                    innerRadius={50}
-                    outerRadius={80}
+                    innerRadius={60}
+                    outerRadius={100}
                     paddingAngle={5}
                     dataKey="value"
                     nameKey="name"
+                    label={renderPieLabel}
+                    labelLine={true}
                   >
                     {data.platformRevenue.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -244,8 +264,8 @@ const AdminRevenue = () => {
                 </PieChart>
               </ResponsiveContainer>
             ) : (
-              <div className="no-data-message" style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
-                <DollarSign size={48} style={{ opacity: 0.5, marginBottom: '16px' }} />
+              <div className="no-data-message">
+                <TrendingUp size={48} />
                 <p>플랫폼별 데이터가 없습니다</p>
               </div>
             )}
@@ -265,12 +285,14 @@ const AdminRevenue = () => {
                   <XAxis dataKey="month" stroke="#94a3b8" fontSize={12} />
                   <YAxis stroke="#94a3b8" fontSize={12} tickFormatter={formatCompactCurrency} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="revenue" name="수익" fill="#6366f1" radius={[4, 4, 0, 0]} />
+                  <Legend />
+                  <Bar dataKey="prevRevenue" name="전월" fill="#334155" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="revenue" name="당월" fill="#6366f1" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="no-data-message" style={{ textAlign: 'center', padding: '60px 20px', color: '#94a3b8' }}>
-                <Calendar size={48} style={{ opacity: 0.5, marginBottom: '16px' }} />
+              <div className="no-data-message">
+                <Calendar size={48} />
                 <p>월별 데이터가 없습니다</p>
               </div>
             )}
@@ -292,6 +314,7 @@ const AdminRevenue = () => {
                   <th>순위</th>
                   <th>닉네임</th>
                   <th>총 후원금</th>
+                  <th>후원 건수</th>
                   <th>점유율</th>
                 </tr>
               </thead>
@@ -312,11 +335,12 @@ const AdminRevenue = () => {
                       </div>
                     </td>
                     <td>{formatCurrency(streamer.totalRevenue)}</td>
+                    <td>{(streamer.donationCount || 0).toLocaleString()}건</td>
                     <td>
                       <div className="share-bar">
                         <div
                           className="share-fill"
-                          style={{ width: `${parseFloat(streamer.share) * 10}%`, backgroundColor: '#6366f1' }}
+                          style={{ width: `${parseFloat(streamer.share)}%`, backgroundColor: '#6366f1' }}
                         />
                         <span>{streamer.share}%</span>
                       </div>
@@ -326,8 +350,8 @@ const AdminRevenue = () => {
               </tbody>
             </table>
           ) : (
-            <div className="no-data-message" style={{ textAlign: 'center', padding: '40px 20px', color: '#94a3b8' }}>
-              <Trophy size={48} style={{ opacity: 0.5, marginBottom: '16px' }} />
+            <div className="no-data-message">
+              <Trophy size={48} />
               <p>후원 데이터가 없습니다</p>
             </div>
           )}

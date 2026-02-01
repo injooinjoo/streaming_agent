@@ -27,10 +27,12 @@ const AdminViewership = ({ onStreamerSelect }) => {
   const { accessToken } = useAuth();
 
   useEffect(() => {
-    fetchData();
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => controller.abort();
   }, [selectedGame, timeRange]);
 
-  const fetchData = async () => {
+  const fetchData = async (signal) => {
     setLoading(true);
     setError(null);
 
@@ -40,7 +42,7 @@ const AdminViewership = ({ onStreamerSelect }) => {
     };
 
     try {
-      const response = await fetch(`${API_URL}/api/streamers?limit=20&sortBy=total_donations&sortOrder=desc`, { headers });
+      const response = await fetch(`${API_URL}/api/streamers?limit=20&sortBy=total_donations&sortOrder=desc`, { headers, signal });
 
       if (response.ok) {
         const result = await response.json();
@@ -64,11 +66,13 @@ const AdminViewership = ({ onStreamerSelect }) => {
         setStreamerData([]);
       }
     } catch (err) {
-      console.error('Failed to fetch viewership data:', err);
-      setError('불러오기 실패');
-      setStreamerData([]);
+      if (err.name !== 'AbortError') {
+        console.error('Failed to fetch viewership data:', err);
+        setError('불러오기 실패');
+        setStreamerData([]);
+      }
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 

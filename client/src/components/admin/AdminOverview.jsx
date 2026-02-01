@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Users, DollarSign, Megaphone, Activity, TrendingUp, Calendar, RefreshCw, Wifi } from 'lucide-react';
 import LoadingSpinner from '../shared/LoadingSpinner';
+import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
 
 const AdminOverview = () => {
+  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState({
     totalEvents: 0,
@@ -20,7 +22,6 @@ const AdminOverview = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
       const [eventsRes, donationsRes, connectionsRes, trendRes] = await Promise.all([

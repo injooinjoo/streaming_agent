@@ -5,6 +5,7 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import LoadingSpinner from '../shared/LoadingSpinner';
+import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
 
 const PLATFORM_COLORS = {
@@ -22,6 +23,7 @@ const PLATFORM_NAMES = {
 };
 
 const AdminPlatforms = () => {
+  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [platforms, setPlatforms] = useState([]);
   const [connections, setConnections] = useState({ soop: {}, chzzk: {} });
@@ -40,7 +42,6 @@ const AdminPlatforms = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
       const [eventsRes, donationsRes, connectionsRes, peakRes, cumulativeRes, monitorRes, nexonRes] = await Promise.all([

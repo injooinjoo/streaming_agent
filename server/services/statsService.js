@@ -64,6 +64,14 @@ const createStatsService = () => {
       startDate.setDate(startDate.getDate() - days);
       const startDateStr = startDate.toISOString().split("T")[0];
 
+      // Previous period for growth calculation
+      const prevEndDate = new Date(startDate);
+      const prevStartDate = new Date(prevEndDate);
+      prevStartDate.setDate(prevStartDate.getDate() - days);
+      const prevStartDateStr = prevStartDate.toISOString().split("T")[0];
+      const prevEndDateStr = prevEndDate.toISOString().split("T")[0];
+
+      // Current period
       const filter = buildChannelFilter(channelId, platform, 2);
       const whereConditions = ["event_type = 'donation'", `DATE(event_timestamp) >= ${p(1)}`, ...filter.conditions];
       const params = [startDateStr, ...filter.params];
@@ -77,11 +85,33 @@ const createStatsService = () => {
         params
       );
 
+      // Previous period
+      const prevFilter = buildChannelFilter(channelId, platform, 3);
+      const prevWhereConditions = ["event_type = 'donation'", `DATE(event_timestamp) >= ${p(1)}`, `DATE(event_timestamp) < ${p(2)}`, ...prevFilter.conditions];
+      const prevParams = [prevStartDateStr, prevEndDateStr, ...prevFilter.params];
+
+      const prevRow = await streamingDbGet(
+        `SELECT COALESCE(SUM(amount), 0) as "totalDonations"
+        FROM events
+        WHERE ${prevWhereConditions.join(' AND ')}`,
+        prevParams
+      );
+
+      const total = row?.totalDonations || 0;
+      const count = row?.donationCount || 0;
+      const prevTotal = prevRow?.totalDonations || 0;
+
+      const growthRate = prevTotal > 0
+        ? Number(((total - prevTotal) / prevTotal * 100).toFixed(1))
+        : (total > 0 ? 100 : 0);
+
       return {
-        totalRevenue: row?.totalDonations || 0,
-        donationRevenue: row?.totalDonations || 0,
-        donationCount: row?.donationCount || 0,
-        adRevenue: 0, // TODO: Add ad revenue calculation from overlayDb
+        totalRevenue: total,
+        donationRevenue: total,
+        donationCount: count,
+        averageDonation: count > 0 ? Math.round(total / count) : 0,
+        growthRate,
+        adRevenue: 0,
         period: `${days}일`,
       };
     },
@@ -207,6 +237,7 @@ const createStatsService = () => {
         id: index + 1,
         username: row.username || "익명",
         totalRevenue: Number(row.totalRevenue) || 0,
+        donationCount: Number(row.donationCount) || 0,
         share: totalSum > 0 ? ((Number(row.totalRevenue) / totalSum) * 100).toFixed(1) : 0,
       }));
     },
@@ -703,7 +734,7 @@ const createStatsService = () => {
           platform,
           event_timestamp as timestamp
         FROM events
-        WHERE event_type IN ('donation', 'subscribe', 'follow', 'subscription')
+        WHERE event_type IN ('donation', 'subscribe', 'follow')
         ORDER BY event_timestamp DESC
         LIMIT ${p(1)}`,
         [limit]
@@ -716,7 +747,7 @@ const createStatsService = () => {
           time: `${String(time.getHours()).padStart(2, '0')}:${String(time.getMinutes()).padStart(2, '0')}`,
           platform: row.platform || 'unknown',
           user: row.user || '익명',
-          type: row.type === 'subscription' ? 'subscribe' : row.type,
+          type: row.type,
           amount: row.amount || 0,
           message: row.message || ''
         };
@@ -741,7 +772,7 @@ const createStatsService = () => {
           MIN(event_timestamp) as "firstEvent",
           MAX(event_timestamp) as "lastEvent"
         FROM events
-        WHERE event_type IN ('donation', 'subscribe', 'subscription', 'follow')
+        WHERE event_type IN ('donation', 'subscribe', 'follow')
           AND DATE(event_timestamp) = ${p(1)}`,
         [dateStr]
       );
@@ -792,7 +823,7 @@ const createStatsService = () => {
           platform,
           COUNT(*) as count
         FROM events
-        WHERE event_type IN ('donation', 'subscribe', 'subscription', 'follow')
+        WHERE event_type IN ('donation', 'subscribe', 'follow')
           AND event_timestamp >= ${sql.dateSubtract(hours, 'hours')}
         GROUP BY ${sql.formatDate('event_timestamp', 'HH24:00')}, platform
         ORDER BY time`
@@ -839,11 +870,11 @@ const createStatsService = () => {
           SELECT platform,
             COUNT(*) as total_events,
             SUM(CASE WHEN event_type = 'donation' THEN 1 ELSE 0 END) as donations,
-            SUM(CASE WHEN event_type = 'subscription' THEN 1 ELSE 0 END) as subscriptions,
+            SUM(CASE WHEN event_type = 'subscribe' THEN 1 ELSE 0 END) as subscriptions,
             SUM(CASE WHEN event_type = 'follow' THEN 1 ELSE 0 END) as follows,
             COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount
           FROM events
-          WHERE event_type IN ('donation', 'subscribe', 'subscription', 'follow')
+          WHERE event_type IN ('donation', 'subscribe', 'follow')
           GROUP BY platform
         `),
         // Trend data - non-chat events only
@@ -852,7 +883,7 @@ const createStatsService = () => {
             ${sql.formatDate('event_timestamp', 'YYYY-MM-DD')} as date,
             COUNT(*) as events
           FROM events
-          WHERE event_type IN ('donation', 'subscribe', 'subscription', 'follow')
+          WHERE event_type IN ('donation', 'subscribe', 'follow')
             AND event_timestamp > ${sql.dateSubtract(7, 'days')}
           GROUP BY platform, ${sql.formatDate('event_timestamp', 'YYYY-MM-DD')}
           ORDER BY date
@@ -1432,10 +1463,10 @@ const createStatsService = () => {
       // - donationCount > 0: data exists, show actual values
       // - donationCount === 0: no donation data, show null (displays as "--")
       // - peakViewers === null: no broadcast data, show null
-      // - newSubs === 0: no subscription events, show null
+      // - newSubs >= 0: show actual count (0명 also valid)
       const hasDonationData = todayStats?.donationCount > 0;
       const hasBroadcastData = peakViewers?.peakViewers !== null && peakViewers?.peakViewers !== undefined;
-      const hasSubscribeData = subscribeCount?.newSubs > 0;
+      const hasSubscribeData = subscribeCount?.newSubs !== null && subscribeCount?.newSubs !== undefined;
 
       return {
         todayDonation: hasDonationData ? todayStats.todayDonation : null,

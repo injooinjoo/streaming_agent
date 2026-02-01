@@ -241,7 +241,7 @@ const createAdminRouter = (db, authenticateAdmin, developerLogin, designService 
                  COUNT(*) as total_events,
                  SUM(CASE WHEN event_type = 'donation' THEN 1 ELSE 0 END) as donations,
                  SUM(CASE WHEN event_type = 'chat' THEN 1 ELSE 0 END) as chats,
-                 SUM(CASE WHEN event_type = 'subscription' THEN 1 ELSE 0 END) as subscriptions,
+                 SUM(CASE WHEN event_type = 'subscribe' THEN 1 ELSE 0 END) as subscriptions,
                  SUM(CASE WHEN event_type = 'follow' THEN 1 ELSE 0 END) as follows,
                  COALESCE(SUM(CASE WHEN event_type = 'donation' THEN amount ELSE 0 END), 0) as donation_amount
           FROM events

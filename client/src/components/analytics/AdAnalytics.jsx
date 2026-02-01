@@ -5,6 +5,7 @@ import {
 } from 'recharts';
 import { DollarSign, Eye, MousePointerClick, Percent, Download, RefreshCw } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
 import AnalyticsCard from './shared/AnalyticsCard';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import TimeRangeSelector from './shared/TimeRangeSelector';
@@ -15,6 +16,7 @@ import { API_URL } from '../../config/api';
 
 const AdAnalytics = () => {
   const { resolvedTheme } = useTheme();
+  const { token } = useAuth();
   const isDark = resolvedTheme === 'dark';
 
   // 차트 다크모드 색상
@@ -46,7 +48,6 @@ const AdAnalytics = () => {
   }, [period]);
 
   const getAuthHeaders = () => {
-    const token = localStorage.getItem('token');
     return {
       'Content-Type': 'application/json',
       ...(token ? { 'Authorization': `Bearer ${token}` } : {})

@@ -29,12 +29,12 @@ const defaultSettings = {
   rangeMin: 0,
   rangeMax: 0,
   resetGifOnAlert: false,
-  showDonationTypes: {
-    star: true,
-    balloon: true,
-    video: true,
-    mission: true,
-    sticker: true
+  donationTypeSettings: {
+    star:    { enabled: true, label: '별풍선',         alertSound: '', alertImage: '', animation: 'bounceIn', textAnimation: 'tada', headerText: '별풍선 후원!' },
+    balloon: { enabled: true, label: '애드벌룬',       alertSound: '', alertImage: '', animation: 'bounceIn', textAnimation: 'tada', headerText: '애드벌룬 후원!' },
+    video:   { enabled: true, label: '영상풍선',       alertSound: '', alertImage: '', animation: 'bounceIn', textAnimation: 'tada', headerText: '영상풍선 후원!' },
+    mission: { enabled: true, label: '미션(도전,대결)', alertSound: '', alertImage: '', animation: 'bounceIn', textAnimation: 'tada', headerText: '미션 후원!' },
+    sticker: { enabled: true, label: '스티커',         alertSound: '', alertImage: '', animation: 'bounceIn', textAnimation: 'tada', headerText: '스티커 후원!' }
   },
   // Roulette settings
   useRoulette: false,
@@ -122,17 +122,23 @@ const AlertSettings = () => {
   const overlayHash = user?.userHash || null;
   const [activeNav, setActiveNav] = useState('theme');
   const [expandedSignatures, setExpandedSignatures] = useState({});
+  const [expandedDonationTypes, setExpandedDonationTypes] = useState({});
   const [draggedIdx, setDraggedIdx] = useState(null);
   const [testEvent, setTestEvent] = useState({
     sender: '테스트유저',
     amount: 10000,
-    message: '테스트 후원 메시지입니다!'
+    message: '테스트 후원 메시지입니다!',
+    donationType: 'star'
   });
   const [testData, setTestData] = useState({
     sender: '테스트유저',
     amount: 1000,
-    message: '응원합니다!'
+    message: '응원합니다!',
+    donationType: 'star'
   });
+  const [previewCycleIndex, setPreviewCycleIndex] = useState(0);
+  const [isAutoCycling, setIsAutoCycling] = useState(true);
+  const autoCycleTimerRef = useRef(null);
 
   const sectionRefs = {
     theme: useRef(null),
@@ -172,19 +178,63 @@ const AlertSettings = () => {
     return () => observer.disconnect();
   }, []);
 
+  // 미리보기 자동 순환
+  const enabledTypes = Object.entries(settings.donationTypeSettings)
+    .filter(([, v]) => v.enabled)
+    .map(([key]) => key);
+
+  useEffect(() => {
+    if (!isAutoCycling || enabledTypes.length === 0) {
+      if (autoCycleTimerRef.current) clearInterval(autoCycleTimerRef.current);
+      return;
+    }
+
+    const cyclePreview = () => {
+      setPreviewCycleIndex(prev => {
+        const nextIdx = (prev + 1) % enabledTypes.length;
+        const nextType = enabledTypes[nextIdx];
+        const typeSettings = settings.donationTypeSettings[nextType];
+        // 애니메이션 재시작을 위해 null → 설정
+        setTestEvent(null);
+        setTimeout(() => {
+          setTestEvent({
+            sender: '테스트유저',
+            amount: 1000,
+            message: '테스트 후원 메시지입니다!',
+            donationType: nextType
+          });
+        }, 100);
+        return nextIdx;
+      });
+    };
+
+    autoCycleTimerRef.current = setInterval(cyclePreview, 4000);
+    return () => clearInterval(autoCycleTimerRef.current);
+  }, [isAutoCycling, enabledTypes.join(','), settings.donationTypeSettings]);
+
   const fetchSettings = async () => {
     try {
       const res = await fetch(`${API_URL}/api/settings/alert`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
         const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+        // 하위 호환: 기존 showDonationTypes → donationTypeSettings 마이그레이션
+        let donationTypeSettings = { ...defaultSettings.donationTypeSettings };
+        if (parsed.donationTypeSettings) {
+          Object.keys(donationTypeSettings).forEach(key => {
+            donationTypeSettings[key] = { ...donationTypeSettings[key], ...(parsed.donationTypeSettings[key] || {}) };
+          });
+        } else if (parsed.showDonationTypes) {
+          Object.keys(parsed.showDonationTypes).forEach(key => {
+            if (donationTypeSettings[key]) {
+              donationTypeSettings[key].enabled = parsed.showDonationTypes[key];
+            }
+          });
+        }
         setSettings({
           ...defaultSettings,
           ...parsed,
-          showDonationTypes: {
-            ...defaultSettings.showDonationTypes,
-            ...(parsed.showDonationTypes || {})
-          },
+          donationTypeSettings,
           signatures: parsed.signatures || defaultSettings.signatures
         });
       }
@@ -230,6 +280,21 @@ const AlertSettings = () => {
         s.id === id ? { ...s, [field]: value } : s
       )
     });
+  };
+
+  // Donation type helpers
+  const updateDonationType = (typeKey, field, value) => {
+    setSettings({
+      ...settings,
+      donationTypeSettings: {
+        ...settings.donationTypeSettings,
+        [typeKey]: { ...settings.donationTypeSettings[typeKey], [field]: value }
+      }
+    });
+  };
+
+  const toggleDonationTypeExpand = (typeKey) => {
+    setExpandedDonationTypes(prev => ({ ...prev, [typeKey]: !prev[typeKey] }));
   };
 
   const toggleSignatureExpand = (id) => {
@@ -412,26 +477,88 @@ const AlertSettings = () => {
                 )}
 
                 <div className="settings-row-pair vertical">
-                  <div className="row-label">후원 종류</div>
-                  <div className="checkbox-grid-refined">
-                    {[
-                      { id: 'star', label: '별풍선' },
-                      { id: 'balloon', label: '애드벌룬' },
-                      { id: 'video', label: '영상풍선' },
-                      { id: 'mission', label: '미션(도전,대결)' },
-                      { id: 'sticker', label: '스티커' }
-                    ].map(type => (
-                      <label key={type.id}>
-                        <input
-                          type="checkbox"
-                          checked={settings.showDonationTypes[type.id]}
-                          onChange={(e) => setSettings({
-                            ...settings,
-                            showDonationTypes: { ...settings.showDonationTypes, [type.id]: e.target.checked }
-                          })}
-                        />
-                        {type.label}
-                      </label>
+                  <div className="row-label">후원 종류별 설정</div>
+                  <div className="donation-type-list">
+                    {Object.entries(settings.donationTypeSettings).map(([typeKey, typeConfig]) => (
+                      <div key={typeKey} className={`signature-item ${!typeConfig.enabled ? 'disabled-type' : ''}`}>
+                        <div className="signature-header">
+                          <label className={`toggle-button ${typeConfig.enabled ? 'active' : ''}`} style={{ marginRight: '8px' }}>
+                            <input
+                              type="checkbox"
+                              checked={typeConfig.enabled}
+                              onChange={(e) => updateDonationType(typeKey, 'enabled', e.target.checked)}
+                            />
+                            <div className="check-icon">{typeConfig.enabled && <Check size={10} />}</div>
+                          </label>
+                          <span className="signature-number" style={{ flex: 1 }}>{typeConfig.label}</span>
+                          <button
+                            className="btn-icon-small"
+                            onClick={() => toggleDonationTypeExpand(typeKey)}
+                            title="상세 설정"
+                          >
+                            {expandedDonationTypes[typeKey] ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </button>
+                        </div>
+
+                        {expandedDonationTypes[typeKey] && (
+                          <div className="signature-details">
+                            <div className="settings-row-pair">
+                              <div className="row-label">헤더 텍스트</div>
+                              <input
+                                type="text"
+                                className="styled-input"
+                                value={typeConfig.headerText}
+                                onChange={(e) => updateDonationType(typeKey, 'headerText', e.target.value)}
+                                placeholder="별풍선 후원!"
+                              />
+                            </div>
+                            <div className="settings-row-pair">
+                              <div className="row-label"><Music size={14} /> 알림음 URL</div>
+                              <input
+                                type="text"
+                                className="styled-input"
+                                value={typeConfig.alertSound}
+                                onChange={(e) => updateDonationType(typeKey, 'alertSound', e.target.value)}
+                                placeholder="https://example.com/sound.mp3"
+                              />
+                            </div>
+                            <div className="settings-row-pair">
+                              <div className="row-label"><ImageIcon size={14} /> 알림 이미지 URL</div>
+                              <input
+                                type="text"
+                                className="styled-input"
+                                value={typeConfig.alertImage}
+                                onChange={(e) => updateDonationType(typeKey, 'alertImage', e.target.value)}
+                                placeholder="https://example.com/image.gif"
+                              />
+                            </div>
+                            <div className="settings-row-pair">
+                              <div className="row-label">등장 애니메이션</div>
+                              <select
+                                value={typeConfig.animation}
+                                className="styled-select"
+                                onChange={(e) => updateDonationType(typeKey, 'animation', e.target.value)}
+                              >
+                                {animationOptions.map((anim) => (
+                                  <option key={anim.value} value={anim.value}>{anim.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                            <div className="settings-row-pair">
+                              <div className="row-label">텍스트 효과</div>
+                              <select
+                                value={typeConfig.textAnimation}
+                                className="styled-select"
+                                onChange={(e) => updateDonationType(typeKey, 'textAnimation', e.target.value)}
+                              >
+                                {textEffects.map((effect) => (
+                                  <option key={effect.value} value={effect.value}>{effect.label}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -833,16 +960,34 @@ const AlertSettings = () => {
           <div className="test-controls glass-premium">
             <div className="section-title-with-badge">
               <h4>테스트</h4>
+              <label className={`toggle-button ${isAutoCycling ? 'active' : ''}`} style={{ marginLeft: 'auto', fontSize: '12px' }}>
+                <input
+                  type="checkbox"
+                  checked={isAutoCycling}
+                  onChange={(e) => setIsAutoCycling(e.target.checked)}
+                />
+                <div className="check-icon">{isAutoCycling && <Check size={10} />}</div>
+                자동 순환
+              </label>
             </div>
 
+            {isAutoCycling && enabledTypes.length > 0 && (
+              <div className="settings-info-text" style={{ marginBottom: '8px', fontSize: '12px' }}>
+                <Info size={14} />
+                <span>활성화된 {enabledTypes.length}개 종류를 4초 간격으로 순환 중</span>
+              </div>
+            )}
+
             <div className="test-form" style={{ marginTop: '12px' }}>
-              <input
-                type="text"
-                className="styled-input"
-                placeholder="닉네임"
-                value={testData.sender}
-                onChange={(e) => setTestData({ ...testData, sender: e.target.value })}
-              />
+              <select
+                className="styled-select"
+                value={testData.donationType}
+                onChange={(e) => setTestData({ ...testData, donationType: e.target.value })}
+              >
+                {Object.entries(settings.donationTypeSettings).map(([key, config]) => (
+                  <option key={key} value={key}>{config.label}</option>
+                ))}
+              </select>
               <input
                 type="number"
                 className="styled-input"
@@ -853,25 +998,34 @@ const AlertSettings = () => {
               <input
                 type="text"
                 className="styled-input"
+                placeholder="닉네임"
+                value={testData.sender}
+                onChange={(e) => setTestData({ ...testData, sender: e.target.value })}
+              />
+              <input
+                type="text"
+                className="styled-input"
                 placeholder="메시지"
                 value={testData.message}
                 onChange={(e) => setTestData({ ...testData, message: e.target.value })}
-                style={{ gridColumn: 'span 2' }}
               />
             </div>
 
             <button
               className="btn-test-primary"
               onClick={() => {
-                // 애니메이션 재시작을 위해 잠시 null 후 다시 설정
+                // 수동 테스트 시 자동 순환 잠시 멈춤
+                setIsAutoCycling(false);
                 setTestEvent(null);
                 setTimeout(() => {
                   setTestEvent({
                     sender: testData.sender,
                     amount: testData.amount,
-                    message: testData.message
+                    message: testData.message,
+                    donationType: testData.donationType
                   });
-                  // 미리보기는 항상 표시 (null로 설정하지 않음)
+                  // 5초 후 자동 순환 재개
+                  setTimeout(() => setIsAutoCycling(true), 5000);
                 }, 100);
               }}
               style={{ marginTop: '16px' }}

@@ -101,8 +101,13 @@ const Dashboard = () => {
       items: [
         { id: 'dashboard', label: '대시보드', icon: <Layout size={18} /> },
         { id: 'chat', label: '채팅 오버레이', icon: <MessageSquare size={18} /> },
-        { id: 'alerts', label: '후원 알림', icon: <Bell size={18} /> },
-        { id: 'viewership', label: '시장 현황', icon: <Activity size={18} /> },
+        { id: 'alerts', label: '후원 알림', icon: <Bell size={18} /> }
+      ]
+    },
+    {
+      label: '시장 분석',
+      items: [
+        { id: 'viewership', label: '인기 방송', icon: <Activity size={18} /> },
         { id: 'game-catalog', label: '카테고리', icon: <Trophy size={18} /> }
       ]
     },
@@ -283,7 +288,7 @@ const Dashboard = () => {
               </div>
               <div className="stat-content">
                 <span className={`value sensitive-blur ${dashboardData.peakViewers === null ? 'no-data' : ''}`}>
-                  {dashboardData.peakViewers === null ? '--' : dashboardData.peakViewers.toLocaleString()}
+                  {dashboardData.peakViewers === null ? '--' : `${dashboardData.peakViewers.toLocaleString()}명`}
                 </span>
                 <span className="subtext">{dashboardData.peakViewers === null ? '데이터 수집 대기 중' : '이번 달 기준'}</span>
               </div>
@@ -299,7 +304,7 @@ const Dashboard = () => {
               </div>
               <div className="stat-content">
                 <span className={`value sensitive-blur ${dashboardData.newSubs === null ? 'no-data' : ''}`}>
-                  {dashboardData.newSubs === null ? '--' : dashboardData.newSubs.toLocaleString()}
+                  {dashboardData.newSubs === null ? '--' : `${dashboardData.newSubs.toLocaleString()}명`}
                 </span>
                 <span className="subtext">{dashboardData.newSubs === null ? '데이터 수집 대기 중' : '이번 달 기준'}</span>
               </div>

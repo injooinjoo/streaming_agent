@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronUp, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, User, Mail, Calendar, Users } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
 
 const AdminStreamers = ({ onStreamerSelect }) => {
+  const { token } = useAuth();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('total_donations');
@@ -14,13 +16,14 @@ const AdminStreamers = ({ onStreamerSelect }) => {
   const limit = 10;
 
   useEffect(() => {
-    fetchStreamers();
+    const controller = new AbortController();
+    fetchStreamers(controller.signal);
+    return () => controller.abort();
   }, [search, sortBy, sortOrder, page]);
 
-  const fetchStreamers = async () => {
+  const fetchStreamers = async (signal) => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
       const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
 
       const params = new URLSearchParams({
@@ -31,17 +34,19 @@ const AdminStreamers = ({ onStreamerSelect }) => {
         limit: limit.toString()
       });
 
-      const response = await fetch(`${API_URL}/api/streamers?${params}`, { headers });
+      const response = await fetch(`${API_URL}/api/streamers?${params}`, { headers, signal });
       const data = await response.json();
 
       setStreamers(data.streamers || []);
       setTotalPages(data.totalPages || 1);
       setTotalCount(data.totalCount || 0);
     } catch (error) {
-      console.error('Failed to fetch streamers:', error);
-      setStreamers([]);
+      if (error.name !== 'AbortError') {
+        console.error('Failed to fetch streamers:', error);
+        setStreamers([]);
+      }
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   };
 

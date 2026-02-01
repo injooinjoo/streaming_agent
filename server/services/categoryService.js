@@ -566,6 +566,145 @@ class CategoryService {
   }
 
   /**
+   * 카테고리 요약 통계 (현재 기간 + 이전 기간 비교)
+   * 소프트콘 스타일 요약 데이터
+   */
+  async getGameSummaryStats(gameId, period = "24h") {
+    const periodHours = { "24h": 24, "7d": 168, "30d": 720 };
+    const hours = periodHours[period] || 24;
+
+    const currentStart = isPostgres()
+      ? `NOW() - INTERVAL '${hours} hours'`
+      : `datetime('now', '-${hours} hours')`;
+    const prevStart = isPostgres()
+      ? `NOW() - INTERVAL '${hours * 2} hours'`
+      : `datetime('now', '-${hours * 2} hours')`;
+    const prevEnd = isPostgres()
+      ? `NOW() - INTERVAL '${hours} hours'`
+      : `datetime('now', '-${hours} hours')`;
+
+    // 현재 기간 집계
+    const currentSql = `
+      SELECT
+        MAX(sub.total_viewers) as peak_viewers,
+        ROUND(AVG(sub.total_viewers)) as avg_viewers,
+        MAX(sub.total_streamers) as peak_streamers,
+        ROUND(AVG(sub.total_streamers)) as avg_streamers,
+        COUNT(*) as data_points
+      FROM (
+        SELECT cs.recorded_at,
+          SUM(cs.viewer_count) as total_viewers,
+          SUM(cs.streamer_count) as total_streamers
+        FROM category_stats cs
+        JOIN category_game_mappings cgm
+          ON cs.platform = cgm.platform AND cs.platform_category_id = cgm.platform_category_id
+        WHERE cgm.unified_game_id = ${p(1)}
+          AND cs.recorded_at >= ${currentStart}
+        GROUP BY cs.recorded_at
+      ) sub
+    `;
+
+    // 이전 기간 집계
+    const prevSql = `
+      SELECT
+        MAX(sub.total_viewers) as peak_viewers,
+        ROUND(AVG(sub.total_viewers)) as avg_viewers,
+        MAX(sub.total_streamers) as peak_streamers,
+        ROUND(AVG(sub.total_streamers)) as avg_streamers,
+        COUNT(*) as data_points
+      FROM (
+        SELECT cs.recorded_at,
+          SUM(cs.viewer_count) as total_viewers,
+          SUM(cs.streamer_count) as total_streamers
+        FROM category_stats cs
+        JOIN category_game_mappings cgm
+          ON cs.platform = cgm.platform AND cs.platform_category_id = cgm.platform_category_id
+        WHERE cgm.unified_game_id = ${p(1)}
+          AND cs.recorded_at >= ${prevStart}
+          AND cs.recorded_at < ${prevEnd}
+        GROUP BY cs.recorded_at
+      ) sub
+    `;
+
+    // 어제 동시간 비교 (LIVE 카드용)
+    const yesterdayStart = isPostgres()
+      ? `NOW() - INTERVAL '24 hours' - INTERVAL '15 minutes'`
+      : `datetime('now', '-24 hours', '-15 minutes')`;
+    const yesterdayEnd = isPostgres()
+      ? `NOW() - INTERVAL '24 hours' + INTERVAL '15 minutes'`
+      : `datetime('now', '-24 hours', '+15 minutes')`;
+
+    const liveSql = `
+      SELECT
+        SUM(cs.viewer_count) as yesterday_viewers,
+        SUM(cs.streamer_count) as yesterday_streamers
+      FROM category_stats cs
+      JOIN category_game_mappings cgm
+        ON cs.platform = cgm.platform AND cs.platform_category_id = cgm.platform_category_id
+      WHERE cgm.unified_game_id = ${p(1)}
+        AND cs.recorded_at = (
+          SELECT cs2.recorded_at FROM category_stats cs2
+          JOIN category_game_mappings cgm2
+            ON cs2.platform = cgm2.platform AND cs2.platform_category_id = cgm2.platform_category_id
+          WHERE cgm2.unified_game_id = ${p(1)}
+            AND cs2.recorded_at >= ${yesterdayStart}
+            AND cs2.recorded_at <= ${yesterdayEnd}
+          ORDER BY cs2.recorded_at DESC
+          LIMIT 1
+        )
+    `;
+
+    const [current, previous, liveYesterday] = await Promise.all([
+      getOne(currentSql, [gameId]),
+      getOne(prevSql, [gameId]),
+      getOne(liveSql, [gameId])
+    ]);
+
+    const calc = (cur, prev) => {
+      const diff = (cur || 0) - (prev || 0);
+      const percent = prev ? (diff / prev) * 100 : 0;
+      return { diff: Math.round(diff * 10) / 10, percent: Math.round(percent * 10) / 10 };
+    };
+
+    const curViewership = Math.round((current?.avg_viewers || 0) * (current?.data_points || 0) * 15 / 60);
+    const prevViewership = Math.round((previous?.avg_viewers || 0) * (previous?.data_points || 0) * 15 / 60);
+
+    return {
+      current: {
+        peakViewers: Number(current?.peak_viewers || 0),
+        avgViewers: Number(current?.avg_viewers || 0),
+        viewership: curViewership,
+        peakStreamers: Number(current?.peak_streamers || 0),
+        avgStreamers: Number(current?.avg_streamers || 0),
+      },
+      previous: {
+        peakViewers: Number(previous?.peak_viewers || 0),
+        avgViewers: Number(previous?.avg_viewers || 0),
+        viewership: prevViewership,
+        peakStreamers: Number(previous?.peak_streamers || 0),
+        avgStreamers: Number(previous?.avg_streamers || 0),
+      },
+      changes: {
+        peakViewers: calc(current?.peak_viewers, previous?.peak_viewers),
+        avgViewers: calc(current?.avg_viewers, previous?.avg_viewers),
+        viewership: calc(curViewership, prevViewership),
+        peakStreamers: calc(current?.peak_streamers, previous?.peak_streamers),
+        avgStreamers: calc(current?.avg_streamers, previous?.avg_streamers),
+      },
+      liveComparison: {
+        viewers: {
+          yesterday: Number(liveYesterday?.yesterday_viewers || 0),
+          ...calc(0, liveYesterday?.yesterday_viewers) // 현재 live 값은 프론트에서 주입
+        },
+        streamers: {
+          yesterday: Number(liveYesterday?.yesterday_streamers || 0),
+          ...calc(0, liveYesterday?.yesterday_streamers)
+        }
+      }
+    };
+  }
+
+  /**
    * 플랫폼별 카테고리 목록 조회
    * @param {string} platform
    * @returns {Promise<Array>}

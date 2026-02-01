@@ -123,8 +123,8 @@ const createApp = ({
   app.use(cors());
   app.use(express.json());
 
-  // Static files (monitor dashboard)
-  app.use(express.static(path.join(__dirname, "public")));
+  // Static files (React client build + monitor dashboard)
+  // Note: Main static serving is done below after rate limiting setup
 
   // Request logging
   app.use(createRequestLogger());
@@ -149,8 +149,9 @@ const createApp = ({
   app.use("/api", standardLimiter);
 
   // ===== Frontend Static Files =====
-  // Serve React client build
-  const clientDistPath = path.join(__dirname, "../client/dist");
+  // Serve React client build (copied to server/public via build step)
+  // In Docker, client/dist doesn't exist - we use server/public instead
+  const clientDistPath = path.join(__dirname, "public");
   app.use(express.static(clientDistPath));
 
   // ===== Mount Routes =====
@@ -232,7 +233,7 @@ const createApp = ({
     if (req.path.startsWith("/api") || req.path.startsWith("/socket.io")) {
       return next();
     }
-    res.sendFile(path.join(__dirname, "../client/dist/index.html"));
+    res.sendFile(path.join(__dirname, "public/index.html"));
   });
 
   // ===== Error Handler =====

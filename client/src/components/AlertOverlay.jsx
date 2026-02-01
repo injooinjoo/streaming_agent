@@ -56,11 +56,30 @@ const AlertOverlay = ({
 
     socket.on('new-event', (event) => {
       if (event.type === 'donation') {
+        // 종류별 필터링: donationTypeSettings에서 비활성화된 종류는 무시
+        const donationType = event.content?.donationType || event.donationType;
+        if (donationType && settings.donationTypeSettings) {
+          // donationType을 settings 키로 매핑
+          const typeMap = { star_balloon: 'star', ad_balloon: 'balloon', video_balloon: 'video', cheese: 'star' };
+          const settingsKey = typeMap[donationType] || donationType;
+          const typeConfig = settings.donationTypeSettings[settingsKey];
+          if (typeConfig && !typeConfig.enabled) return;
+        }
+
         setActiveAlert(null);
         setTimeout(() => {
-          setActiveAlert(event);
+          setActiveAlert({
+            ...event,
+            sender: event.sender?.nickname || event.sender,
+            amount: event.content?.amount || event.amount,
+            message: event.content?.message || event.message,
+            donationType: event.content?.donationType || event.donationType
+          });
           if (settings.ttsVolume > 0) {
-            playTTS(`${event.sender}님이 ${event.amount}원 후원! ${event.message || ''}`);
+            const sender = event.sender?.nickname || event.sender;
+            const amount = event.content?.amount || event.amount;
+            const message = event.content?.message || event.message || '';
+            playTTS(`${sender}님이 ${amount}원 후원! ${message}`);
           }
           setTimeout(() => setActiveAlert(null), (settings.duration || 5) * 1000);
         }, 100);
@@ -91,6 +110,20 @@ const AlertOverlay = ({
 
   const activeSettings = previewMode && previewSettings ? previewSettings : settings;
   const displayAlert = previewMode ? previewEvent : activeAlert;
+
+  // 종류별 설정 조회 (fallback: 글로벌 기본값)
+  const getDonationTypeConfig = () => {
+    if (!displayAlert?.donationType || !activeSettings.donationTypeSettings) return {};
+    const typeConfig = activeSettings.donationTypeSettings[displayAlert.donationType];
+    if (!typeConfig) return {};
+    return typeConfig;
+  };
+
+  const typeConfig = getDonationTypeConfig();
+  const effectiveAnimation = typeConfig.animation || activeSettings.animation || 'bounceIn';
+  const effectiveTextAnimation = typeConfig.textAnimation || activeSettings.textAnimation || 'tada';
+  const effectiveHeaderText = typeConfig.headerText || 'NEW DONATION!';
+  const effectiveAlertImage = typeConfig.alertImage || '';
 
   // 폰트 외곽선 스타일 헬퍼
   const getOutlineStyle = () => {
@@ -124,7 +157,7 @@ const AlertOverlay = ({
       }}
     >
       <div
-        className={`alert-card glass animate-${activeSettings.animation}`}
+        className={`alert-card glass animate-${effectiveAnimation}`}
         style={{
           fontSize: `${activeSettings.fontSize || 28}px`,
           fontWeight: activeSettings.fontBold ? 'bold' : 'normal',
@@ -136,8 +169,13 @@ const AlertOverlay = ({
           ...getOutlineStyle()
         }}
       >
-        <div className={`alert-header gradient-text animate-${activeSettings.textAnimation}`}>
-          NEW DONATION!
+        {effectiveAlertImage && (
+          <div className="alert-image">
+            <img src={effectiveAlertImage} alt="alert" style={{ maxWidth: '100%', maxHeight: '120px', objectFit: 'contain' }} />
+          </div>
+        )}
+        <div className={`alert-header gradient-text animate-${effectiveTextAnimation}`}>
+          {effectiveHeaderText}
         </div>
         <div className="alert-sender" style={{ color: activeSettings.nickColor || '#ffc247' }}>
           {displayAlert.sender}

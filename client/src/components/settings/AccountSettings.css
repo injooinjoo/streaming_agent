@@ -78,7 +78,7 @@
   margin-bottom: 32px;
 }
 
-.platform-card {
+.platform-cards-grid .platform-card {
   background: var(--bg-card);
   border: 2px solid var(--border-light);
   border-radius: 16px;
@@ -88,7 +88,7 @@
   overflow: hidden;
 }
 
-.platform-card::before {
+.platform-cards-grid .platform-card::before {
   content: '';
   position: absolute;
   top: 0;
@@ -99,24 +99,24 @@
   transition: background 0.3s;
 }
 
-.platform-card.connected::before {
+.platform-cards-grid .platform-card.connected::before {
   background: linear-gradient(90deg, #10b981, #34d399);
 }
 
-.platform-card:hover {
+.platform-cards-grid .platform-card:hover {
   border-color: var(--primary);
   transform: translateY(-4px);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.08);
 }
 
-.platform-card-header {
+.platform-cards-grid .platform-card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
 }
 
-.platform-logo {
+.platform-cards-grid .platform-logo {
   width: 48px;
   height: 48px;
   border-radius: 12px;
@@ -128,13 +128,13 @@
   border: 1px solid var(--border-light);
 }
 
-.platform-logo img {
+.platform-cards-grid .platform-logo img {
   width: 100%;
   height: 100%;
   object-fit: contain;
 }
 
-.platform-name {
+.platform-cards-grid .platform-name {
   font-size: 16px;
   font-weight: 700;
   color: var(--text-main);
@@ -161,7 +161,7 @@
   color: var(--text-muted);
 }
 
-.platform-profile {
+.platform-cards-grid .platform-profile {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -203,30 +203,30 @@
   color: var(--text-muted);
 }
 
-.platform-actions {
+.platform-cards-grid .platform-actions {
   display: flex;
   gap: 8px;
   margin-top: 16px;
 }
 
-.platform-extra {
+.platform-cards-grid .platform-extra {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px solid var(--border-light);
 }
 
-.platform-extra .btn-full {
+.platform-cards-grid .platform-extra .btn-full {
   width: 100%;
 }
 
-.platform-tip {
+.platform-cards-grid .platform-tip {
   margin-top: 8px;
   font-size: 11px;
   color: var(--text-muted);
   line-height: 1.5;
 }
 
-.platform-connect-prompt {
+.platform-cards-grid .platform-connect-prompt {
   padding: 20px 12px;
   text-align: center;
   color: var(--text-muted);
@@ -845,6 +845,10 @@
     grid-template-columns: 1fr;
   }
 
+  .platform-grid {
+    grid-template-columns: 1fr;
+  }
+
   .security-options-grid {
     grid-template-columns: 1fr;
   }
@@ -928,20 +932,20 @@
     height: 14px;
   }
 
-  .platform-card {
+  .platform-cards-grid .platform-card {
     padding: 18px;
   }
 
-  .platform-logo {
+  .platform-cards-grid .platform-logo {
     width: 42px;
     height: 42px;
   }
 
-  .platform-name {
+  .platform-cards-grid .platform-name {
     font-size: 15px;
   }
 
-  .platform-profile {
+  .platform-cards-grid .platform-profile {
     padding: 12px;
   }
 
@@ -951,7 +955,7 @@
     font-size: 14px;
   }
 
-  .platform-actions {
+  .platform-cards-grid .platform-actions {
     flex-direction: column;
     gap: 8px;
   }

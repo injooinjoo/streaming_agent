@@ -217,6 +217,35 @@ function createCategoriesRouter(db, categoryService, authenticateToken, statsCac
   });
 
   /**
+   * GET /api/categories/:id/summary
+   * 카테고리 요약 통계 (현재 기간 + 이전 기간 비교)
+   */
+  router.get("/categories/:id/summary", async (req, res) => {
+    try {
+      const gameId = parseInt(req.params.id, 10);
+      const { period } = req.query;
+
+      if (isNaN(gameId)) {
+        return res.status(400).json({ success: false, error: "Invalid game ID" });
+      }
+
+      const validPeriods = ["24h", "7d", "30d"];
+      const selectedPeriod = validPeriods.includes(period) ? period : "24h";
+
+      const summary = await categoryService.getGameSummaryStats(gameId, selectedPeriod);
+
+      res.json({
+        success: true,
+        data: summary,
+        period: selectedPeriod,
+      });
+    } catch (error) {
+      console.error("[categories] GET /categories/:id/summary error:", error.message);
+      res.status(500).json({ success: false, error: error.message });
+    }
+  });
+
+  /**
    * POST /api/categories/refresh
    * 강제 새로고침 (관리자 전용)
    */
