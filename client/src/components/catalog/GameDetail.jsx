@@ -458,7 +458,7 @@ const StreamerRankingTab = ({ gameId, onStreamerSelect }) => {
       </div>
 
       <div className="game-tab-table glass-premium">
-        <div className="game-data-table">
+        <div className="game-data-table streamer-ranking-table">
           <div className="game-data-table__header">
             <div className="game-data-table__col rank-col">#</div>
             <div className="game-data-table__col name-col">스트리머</div>
@@ -539,7 +539,7 @@ const GrowthRankingTab = ({ gameId, onStreamerSelect }) => {
       </div>
 
       <div className="game-tab-table glass-premium">
-        <div className="game-data-table">
+        <div className="game-data-table growth-ranking-table">
           <div className="game-data-table__header">
             <div className="game-data-table__col rank-col">#</div>
             <div className="game-data-table__col name-col">스트리머</div>

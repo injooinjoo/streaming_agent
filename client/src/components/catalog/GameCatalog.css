@@ -1595,17 +1595,15 @@
   text-overflow: ellipsis;
 }
 
-/* Streamer with 7 columns */
-.game-data-table__header:has(.rank-col) {
-  grid-template-columns: 50px minmax(160px, 2fr) 80px 100px 100px 80px 100px;
-}
-
-.game-data-table__row:has(.rank-col) {
+/* Streamer ranking with 7 columns */
+.streamer-ranking-table .game-data-table__header,
+.streamer-ranking-table .game-data-table__row {
   grid-template-columns: 50px minmax(160px, 2fr) 80px 100px 100px 80px 100px;
 }
 
 /* Growth ranking with 6 columns */
-.game-data-table__header:has(.rank-col):not(:has(.title-col)):nth-child(1) {
+.growth-ranking-table .game-data-table__header,
+.growth-ranking-table .game-data-table__row {
   grid-template-columns: 50px minmax(160px, 2fr) 80px 100px 100px 100px;
 }
 
@@ -1706,9 +1704,15 @@
     grid-template-columns: 50px 1fr 80px 80px 80px 120px;
   }
 
-  .game-data-table__header:has(.rank-col),
-  .game-data-table__row:has(.rank-col) {
+  .streamer-ranking-table .game-data-table__header,
+  .streamer-ranking-table .game-data-table__row {
     grid-template-columns: 40px minmax(140px, 2fr) 70px 80px 80px 70px 80px;
+    font-size: 12px;
+  }
+
+  .growth-ranking-table .game-data-table__header,
+  .growth-ranking-table .game-data-table__row {
+    grid-template-columns: 40px minmax(140px, 2fr) 70px 80px 80px 80px;
     font-size: 12px;
   }
 }
@@ -1811,16 +1815,22 @@
     gap: 4px;
   }
 
-  .game-data-table__header:has(.rank-col),
-  .game-data-table__row:has(.rank-col) {
+  .streamer-ranking-table .game-data-table__header,
+  .streamer-ranking-table .game-data-table__row {
     grid-template-columns: 36px minmax(120px, 1fr) 60px 70px 70px;
   }
 
-  .game-data-table__col.title-col,
-  .game-data-table__header .game-data-table__col:nth-child(6),
-  .game-data-table__row .game-data-table__col:nth-child(6),
-  .game-data-table__header .game-data-table__col:nth-child(7),
-  .game-data-table__row .game-data-table__col:nth-child(7) {
+  .streamer-ranking-table .game-data-table__col:nth-child(6),
+  .streamer-ranking-table .game-data-table__col:nth-child(7) {
+    display: none;
+  }
+
+  .growth-ranking-table .game-data-table__header,
+  .growth-ranking-table .game-data-table__row {
+    grid-template-columns: 36px minmax(120px, 1fr) 60px 70px 70px 70px;
+  }
+
+  .game-data-table__col.title-col {
     display: none;
   }
 
