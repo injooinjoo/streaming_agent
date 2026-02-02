@@ -522,6 +522,31 @@
   margin: 0;
 }
 
+.btn-navigate-connect {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 10px 20px;
+  background: var(--accent-primary, #6366f1);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.btn-navigate-connect:hover {
+  background: var(--accent-hover, #4f46e5);
+  transform: translateY(-1px);
+}
+
+.btn-navigate-connect:active {
+  transform: translateY(0);
+}
+
 /* OBS Guide Steps */
 .obs-steps {
   display: flex;

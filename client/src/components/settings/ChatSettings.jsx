@@ -326,29 +326,29 @@ const ChatSettings = () => {
         </div>
       </div>
 
+      {/* Sticky Navigation Bars (Anchor Links) - Full width above content + preview */}
+      <div className="sticky-tabs">
+        {[
+          { id: 'theme', label: '테마', icon: <Palette size={14}/> },
+          { id: 'detail', label: '상세', icon: <Settings size={14}/> },
+          { id: 'filtering', label: '필터링', icon: <Shield size={14}/> },
+          { id: 'notif', label: '알림', icon: <BellRing size={14}/> },
+          { id: 'widget', label: '위젯', icon: <Layout size={14}/> },
+          { id: 'color', label: '색상', icon: <Palette size={14}/> },
+          { id: 'font', label: '폰트 · 배경', icon: <Type size={14}/> }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            className={`settings-tab-btn ${activeNav === tab.id ? 'active' : ''}`}
+            onClick={() => scrollToSection(tab.id)}
+          >
+            {tab.icon} {tab.label}
+          </button>
+        ))}
+      </div>
+
       <div className="chat-settings-container">
         <div className="chat-settings-main">
-          {/* Sticky Navigation Bars (Anchor Links) */}
-          <div className="sticky-tabs">
-            {[
-              { id: 'theme', label: '테마', icon: <Palette size={14}/> },
-              { id: 'detail', label: '상세', icon: <Settings size={14}/> },
-              { id: 'filtering', label: '필터링', icon: <Shield size={14}/> },
-              { id: 'notif', label: '알림', icon: <BellRing size={14}/> },
-              { id: 'widget', label: '위젯', icon: <Layout size={14}/> },
-              { id: 'color', label: '색상', icon: <Palette size={14}/> },
-              { id: 'font', label: '폰트 · 배경', icon: <Type size={14}/> }
-            ].map(tab => (
-              <button 
-                key={tab.id}
-                className={`settings-tab-btn ${activeNav === tab.id ? 'active' : ''}`}
-                onClick={() => scrollToSection(tab.id)}
-              >
-                {tab.icon} {tab.label}
-              </button>
-            ))}
-          </div>
-
           <div className="scrolling-content-sections">
             {/* Section: Theme */}
             <section ref={sectionRefs.theme} className="settings-section" data-section="theme">

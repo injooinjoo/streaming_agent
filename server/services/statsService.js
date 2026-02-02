@@ -1072,80 +1072,78 @@ const createStatsService = () => {
         return result;
       }
 
-      // For viewers and channels, prefer broadcast-level deduped totals (_broadcast_total_)
-      // to avoid category overlap double-counting. Falls back to category-level aggregation.
-      const field = type === 'channels' ? 'streamer_count' : 'viewer_count';
+      // Query broadcasts table directly for accurate data consistent with summary endpoint.
+      // Deduplicates by channel_id per hour to avoid double-counting.
+      const viewerField = type === 'channels'
+        ? 'COUNT(DISTINCT channel_id)'
+        : 'SUM(max_viewers)';
 
-      // Try broadcast-level totals first (accurate unique channel sums)
-      // Convert recorded_at to KST (UTC+9) for correct Korean timezone grouping
-      const broadcastTotalData = await streamingDbAll(
+      const trendData = await streamingDbAll(
         isPostgres()
-          ? `
-            SELECT
-              TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:00') as time_key,
-              TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'HH24:00') as time_display,
-              platform,
-              MAX(${field}) as total
-            FROM category_stats
-            WHERE platform_category_id = '_broadcast_total_'
-              AND recorded_at >= NOW() - INTERVAL '${hours} hours'
-            GROUP BY TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:00'), TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'HH24:00'), platform
-            ORDER BY time_key
-          `
-          : `
-            SELECT
-              strftime('%Y-%m-%d %H:00', recorded_at, '+9 hours') as time_key,
-              strftime('%H:00', recorded_at, '+9 hours') as time_display,
-              platform,
-              MAX(${field}) as total
-            FROM category_stats
-            WHERE platform_category_id = '_broadcast_total_'
-              AND recorded_at >= datetime('now', '-${hours} hours')
-            GROUP BY strftime('%Y-%m-%d %H', recorded_at, '+9 hours'), platform
-            ORDER BY time_key
-          `
-      );
-
-      const useBroadcastTotals = broadcastTotalData && broadcastTotalData.length > 0;
-
-      // Fallback: category-level aggregation with dedup (legacy behavior)
-      // Also using KST timezone conversion
-      const trendData = useBroadcastTotals ? broadcastTotalData : await streamingDbAll(
-        isPostgres()
-          ? `
-            SELECT time_key, time_display, platform, SUM(max_value) as total
-            FROM (
+          ? type === 'channels'
+            ? `
               SELECT
-                TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:00') as time_key,
-                TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'HH24:00') as time_display,
+                TO_CHAR(updated_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:00') as time_key,
+                TO_CHAR(updated_at AT TIME ZONE 'Asia/Seoul', 'HH24:00') as time_display,
                 platform,
-                platform_category_id,
-                MAX(${field}) as max_value
-              FROM category_stats
-              WHERE recorded_at >= NOW() - INTERVAL '${hours} hours'
-                AND platform_category_id != '_broadcast_total_'
-              GROUP BY TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:00'), TO_CHAR(recorded_at AT TIME ZONE 'Asia/Seoul', 'HH24:00'), platform, platform_category_id
-            ) sub
-            GROUP BY time_key, time_display, platform
-            ORDER BY time_key
-          `
-          : `
-            SELECT time_key, time_display, platform, SUM(max_value) as total
-            FROM (
+                COUNT(DISTINCT channel_id) as total
+              FROM broadcasts
+              WHERE updated_at >= NOW() - INTERVAL '${hours} hours'
+                AND current_viewer_count > 0
+              GROUP BY TO_CHAR(updated_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:00'),
+                       TO_CHAR(updated_at AT TIME ZONE 'Asia/Seoul', 'HH24:00'),
+                       platform
+              ORDER BY time_key
+            `
+            : `
+              SELECT time_key, time_display, platform, SUM(max_viewers) as total
+              FROM (
+                SELECT
+                  TO_CHAR(updated_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:00') as time_key,
+                  TO_CHAR(updated_at AT TIME ZONE 'Asia/Seoul', 'HH24:00') as time_display,
+                  platform,
+                  channel_id,
+                  MAX(current_viewer_count) as max_viewers
+                FROM broadcasts
+                WHERE updated_at >= NOW() - INTERVAL '${hours} hours'
+                  AND current_viewer_count > 0
+                GROUP BY TO_CHAR(updated_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD HH24:00'),
+                         TO_CHAR(updated_at AT TIME ZONE 'Asia/Seoul', 'HH24:00'),
+                         platform, channel_id
+              ) per_channel
+              GROUP BY time_key, time_display, platform
+              ORDER BY time_key
+            `
+          : type === 'channels'
+            ? `
               SELECT
-                strftime('%Y-%m-%d %H:00', recorded_at, '+9 hours') as time_key,
-                strftime('%H:00', recorded_at, '+9 hours') as time_display,
+                strftime('%Y-%m-%d %H:00', updated_at, '+9 hours') as time_key,
+                strftime('%H:00', updated_at, '+9 hours') as time_display,
                 platform,
-                platform_category_id,
-                MAX(${field}) as max_value
-              FROM category_stats
-              WHERE recorded_at >= datetime('now', '-${hours} hours')
-                AND platform_category_id != '_broadcast_total_'
-              GROUP BY strftime('%Y-%m-%d %H', recorded_at, '+9 hours'), platform, platform_category_id
-            ) sub
-            GROUP BY time_key, time_display, platform
-            ORDER BY time_key
-          `
+                COUNT(DISTINCT channel_id) as total
+              FROM broadcasts
+              WHERE updated_at >= datetime('now', '-${hours} hours')
+                AND current_viewer_count > 0
+              GROUP BY strftime('%Y-%m-%d %H', updated_at, '+9 hours'), platform
+              ORDER BY time_key
+            `
+            : `
+              SELECT time_key, time_display, platform, SUM(max_viewers) as total
+              FROM (
+                SELECT
+                  strftime('%Y-%m-%d %H:00', updated_at, '+9 hours') as time_key,
+                  strftime('%H:00', updated_at, '+9 hours') as time_display,
+                  platform,
+                  channel_id,
+                  MAX(current_viewer_count) as max_viewers
+                FROM broadcasts
+                WHERE updated_at >= datetime('now', '-${hours} hours')
+                  AND current_viewer_count > 0
+                GROUP BY strftime('%Y-%m-%d %H', updated_at, '+9 hours'), platform, channel_id
+              ) per_channel
+              GROUP BY time_key, time_display, platform
+              ORDER BY time_key
+            `
       );
 
       // Build map keyed by full date+hour for correct chronological ordering

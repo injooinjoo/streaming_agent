@@ -82,6 +82,7 @@ const Dashboard = () => {
 
   const [dashboardData, setDashboardData] = useState(() => getCachedDashboardData() || defaultDashboardData);
   const [dashboardLoading, setDashboardLoading] = useState(!getCachedDashboardData());
+  const [lastFetchedAt, setLastFetchedAt] = useState(getCachedDashboardData() ? new Date() : null);
 
   const { user, isAuthenticated, logout, loading: authLoading } = useAuth();
   const { resolvedTheme, toggleTheme } = useTheme();
@@ -214,6 +215,7 @@ const Dashboard = () => {
         const data = await res.json();
         console.log('[Dashboard] API Response:', { myCategories: data.myCategories, topCategories: data.topCategories?.length });
         setDashboardData(data);
+        setLastFetchedAt(new Date());
         // 캐시에 저장
         try {
           localStorage.setItem('dashboardData', JSON.stringify({
@@ -273,8 +275,16 @@ const Dashboard = () => {
         <div className="animate-fade">
           <header className="page-header">
             <div className="page-title">
-              <h1>환영합니다!</h1>
-              <p>오늘의 스트림 현황을 확인해보세요.</p>
+              <h1>{user?.displayName || '스트리머'}님, 안녕하세요!</h1>
+              <p>
+                {new Date().getMonth() + 1}월 방송 현황
+                {' · '}
+                {dashboardLoading
+                  ? '업데이트 중...'
+                  : lastFetchedAt
+                    ? `마지막 업데이트: ${lastFetchedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`
+                    : '데이터 로딩 대기 중'}
+              </p>
             </div>
             <div className="header-buttons">
               <button className="btn btn-outline">
@@ -526,6 +536,12 @@ const Dashboard = () => {
                       <div style={{ width: '100%', height: 180 }}>
                         <ResponsiveContainer>
                           <BarChart data={dashboardData.hourlyActivity} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                            <defs>
+                              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.9} />
+                                <stop offset="100%" stopColor="#6366f1" stopOpacity={0.7} />
+                              </linearGradient>
+                            </defs>
                             <XAxis
                               dataKey="hour"
                               tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
@@ -536,9 +552,10 @@ const Dashboard = () => {
                             <Tooltip
                               contentStyle={{
                                 background: 'var(--bg-card)',
-                                border: '1px solid var(--border-medium)',
+                                border: '1px solid rgba(139, 92, 246, 0.3)',
                                 borderRadius: '8px',
-                                fontSize: '12px'
+                                fontSize: '12px',
+                                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.15)'
                               }}
                               formatter={(value, name) => [
                                 formatFullNumber(value),
@@ -546,7 +563,7 @@ const Dashboard = () => {
                               ]}
                               labelFormatter={(label) => `${label} 시`}
                             />
-                            <Bar dataKey="viewers" fill="var(--primary-color)" radius={[3, 3, 0, 0]} />
+                            <Bar dataKey="viewers" fill="url(#barGradient)" radius={[4, 4, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -561,6 +578,12 @@ const Dashboard = () => {
                       <div style={{ width: '100%', height: 180 }}>
                         <ResponsiveContainer>
                           <AreaChart data={[...dashboardData.weeklyTrend].reverse()} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
+                            <defs>
+                              <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.05} />
+                              </linearGradient>
+                            </defs>
                             <XAxis
                               dataKey="date"
                               tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
@@ -570,9 +593,10 @@ const Dashboard = () => {
                             <Tooltip
                               contentStyle={{
                                 background: 'var(--bg-card)',
-                                border: '1px solid var(--border-medium)',
+                                border: '1px solid rgba(59, 130, 246, 0.3)',
                                 borderRadius: '8px',
-                                fontSize: '12px'
+                                fontSize: '12px',
+                                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)'
                               }}
                               formatter={(value, name) => [
                                 formatFullNumber(value),
@@ -582,10 +606,9 @@ const Dashboard = () => {
                             <Area
                               type="monotone"
                               dataKey="activeViewers"
-                              stroke="var(--primary-color)"
-                              fill="var(--primary-color)"
-                              fillOpacity={0.15}
-                              strokeWidth={2}
+                              stroke="#3b82f6"
+                              fill="url(#areaGradient)"
+                              strokeWidth={2.5}
                             />
                           </AreaChart>
                         </ResponsiveContainer>
@@ -780,6 +803,10 @@ const Dashboard = () => {
 
     if (activeTab === 'viewership') {
       return <ViewershipDashboard onStreamerSelect={handleStreamerSelect} />;
+    }
+
+    if (activeTab === 'game') {
+      return <ActiveComponent onNavigate={setActiveTab} />;
     }
 
     if (ActiveComponent) return <ActiveComponent />;

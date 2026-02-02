@@ -61,7 +61,7 @@ const overlayTypes = [
   { id: 'profile', name: '프로필', icon: <User size={16} /> }
 ];
 
-const GameSettings = () => {
+const GameSettings = ({ onNavigate }) => {
   const { user } = useAuth();
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
@@ -269,6 +269,12 @@ const GameSettings = () => {
             <Link2 size={48} />
             <h3>연동된 게임이 없습니다</h3>
             <p>계정 설정 &gt; 게임 연동 탭에서 게임 플랫폼을 연동해주세요</p>
+            {onNavigate && (
+              <button className="btn-navigate-connect" onClick={() => onNavigate('account')}>
+                <Link2 size={16} />
+                연동하러 가기
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -315,6 +321,12 @@ const GameSettings = () => {
             <Gamepad2 size={48} />
             <h3>연동된 게임이 없습니다</h3>
             <p>계정 설정 &gt; 게임 연동 탭에서 플랫폼을 활성화하고 게임을 선택해주세요</p>
+            {onNavigate && (
+              <button className="btn-navigate-connect" onClick={() => onNavigate('account')}>
+                <Link2 size={16} />
+                연동하러 가기
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -368,6 +380,12 @@ const GameSettings = () => {
             <Link2 size={48} />
             <h3>연동된 게임이 없습니다</h3>
             <p>플랫폼을 연동하면 오버레이 URL이 생성됩니다</p>
+            {onNavigate && (
+              <button className="btn-navigate-connect" onClick={() => onNavigate('account')}>
+                <Link2 size={16} />
+                연동하러 가기
+              </button>
+            )}
           </div>
         )}
       </div>
