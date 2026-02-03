@@ -11,6 +11,8 @@ export const TEMPLATE_TYPES = [
   { id: 'download-cta', label: '다운로드' },
   { id: 'friend-invite', label: '친구 초대' },
   { id: 'new-update', label: '업데이트' },
+  { id: 'promo-code', label: '프로모션' },
+  { id: 'mission-gauge', label: '미션 게이지' },
 ];
 
 export const GAME_FILTERS = [
@@ -500,6 +502,200 @@ export const NEXON_TEMPLATES = [
       updateTitle: '네온 드리프트 시즌',
       highlights: ['신규 트랙 10개', '레전드 카트 3종', '커스터마이징 확장'],
       ctaText: '시즌 시작',
+    }
+  },
+
+  // ===== 프로모션 코드 =====
+  {
+    id: 'maple-promo',
+    type: 'promo-code',
+    game: 'maplestory',
+    gameIcon: '🍁',
+    title: '메이플 프로모션 코드',
+    description: '특별 프로모션 아이템 지급',
+    color: GAME_COLORS.maplestory,
+    previewData: {
+      promoCode: 'MAPLE-VIP-2026',
+      promoTitle: '스트리머 특별 프로모션',
+      benefit: '펫 장비 세트 + 경험치 쿠폰 10개',
+      validUntil: '2026.02.28까지',
+      ctaText: '코드 입력하기',
+    }
+  },
+  {
+    id: 'fc-promo',
+    type: 'promo-code',
+    game: 'fconline',
+    gameIcon: '⚽',
+    title: 'FC온라인 프로모션',
+    description: '시즌 한정 프로모션',
+    color: GAME_COLORS.fconline,
+    previewData: {
+      promoCode: 'FC-PROMO-TOTY',
+      promoTitle: 'TOTY 시즌 특별 코드',
+      benefit: 'TOTY 선수팩 + BP 50,000',
+      validUntil: '선착순 500명',
+      ctaText: '프로모션 참여',
+    }
+  },
+  {
+    id: 'sa-promo',
+    type: 'promo-code',
+    game: 'suddenattack',
+    gameIcon: '🔫',
+    title: '서든 프로모션 코드',
+    description: '신규/복귀 유저 프로모션',
+    color: GAME_COLORS.suddenattack,
+    previewData: {
+      promoCode: 'SA-COMEBACK-26',
+      promoTitle: '전우 복귀 프로모션',
+      benefit: '영구 무기 선택권 + 부스트 30일',
+      validUntil: '2026.03.31까지',
+      ctaText: '코드 등록',
+    }
+  },
+  {
+    id: 'dnf-promo',
+    type: 'promo-code',
+    game: 'dnf',
+    gameIcon: '⚔️',
+    title: '던파 프로모션 코드',
+    description: '네오 각성 기념 프로모션',
+    color: GAME_COLORS.dnf,
+    previewData: {
+      promoCode: 'DNF-NEO-AWAKE',
+      promoTitle: '각성 프로모션 코드',
+      benefit: '에픽 무기 선택 상자 + 골드 1억',
+      validUntil: '이번 달 말까지',
+      ctaText: '프로모션 받기',
+    }
+  },
+  {
+    id: 'kart-promo',
+    type: 'promo-code',
+    game: 'kart',
+    gameIcon: '🏎️',
+    title: '카트 프로모션 코드',
+    description: '그랑프리 시즌 프로모션',
+    color: GAME_COLORS.kart,
+    previewData: {
+      promoCode: 'KART-GP-S3',
+      promoTitle: '그랑프리 시즌3 특별코드',
+      benefit: '전설 카트 7일 + 루찌 1,000개',
+      validUntil: '시즌 종료까지',
+      ctaText: '코드 사용',
+    }
+  },
+
+  // ===== 미션 게이지 =====
+  {
+    id: 'maple-mission',
+    type: 'mission-gauge',
+    game: 'maplestory',
+    gameIcon: '🍁',
+    title: '메이플 시청 미션',
+    description: '시청 시간 달성 보상',
+    color: GAME_COLORS.maplestory,
+    previewData: {
+      missionTitle: '시청 미션 달성하기',
+      current: 73,
+      goal: 100,
+      unit: '시간',
+      milestones: [
+        { at: 25, reward: '경험치 쿠폰 x5' },
+        { at: 50, reward: '메소 주머니 x3' },
+        { at: 75, reward: '큐브 x10' },
+        { at: 100, reward: '전설 등급 장비 상자' },
+      ],
+      ctaText: '미션 참여하기',
+    }
+  },
+  {
+    id: 'fc-mission',
+    type: 'mission-gauge',
+    game: 'fconline',
+    gameIcon: '⚽',
+    title: 'FC 시청 챌린지',
+    description: '시청 목표 달성 시 선수팩',
+    color: GAME_COLORS.fconline,
+    previewData: {
+      missionTitle: '시청 챌린지 진행 중',
+      current: 450,
+      goal: 1000,
+      unit: '명',
+      milestones: [
+        { at: 250, reward: 'BP 10,000' },
+        { at: 500, reward: '강화 보호권 x1' },
+        { at: 750, reward: '선수팩 x1' },
+        { at: 1000, reward: 'TOTY 선수 선택권' },
+      ],
+      ctaText: '챌린지 확인',
+    }
+  },
+  {
+    id: 'sa-mission',
+    type: 'mission-gauge',
+    game: 'suddenattack',
+    gameIcon: '🔫',
+    title: '서든 킬 미션',
+    description: '방송 중 킬 수 달성 도전',
+    color: GAME_COLORS.suddenattack,
+    previewData: {
+      missionTitle: '킬 미션 게이지',
+      current: 187,
+      goal: 300,
+      unit: '킬',
+      milestones: [
+        { at: 50, reward: '탄약 보급 상자' },
+        { at: 100, reward: '무기 스킨 랜덤 박스' },
+        { at: 200, reward: '영구 캐릭터 스킨' },
+        { at: 300, reward: '전설 무기 선택권' },
+      ],
+      ctaText: '미션 현황',
+    }
+  },
+  {
+    id: 'dnf-mission',
+    type: 'mission-gauge',
+    game: 'dnf',
+    gameIcon: '⚔️',
+    title: '던파 레이드 미션',
+    description: '레이드 클리어 미션 게이지',
+    color: GAME_COLORS.dnf,
+    previewData: {
+      missionTitle: '레이드 클리어 미션',
+      current: 8,
+      goal: 20,
+      unit: '회',
+      milestones: [
+        { at: 5, reward: '세리아의 선물 상자' },
+        { at: 10, reward: '에픽 소울 x5' },
+        { at: 15, reward: '무색 큐브 1,000개' },
+        { at: 20, reward: '전설 에픽 선택 상자' },
+      ],
+      ctaText: '미션 도전',
+    }
+  },
+  {
+    id: 'kart-mission',
+    type: 'mission-gauge',
+    game: 'kart',
+    gameIcon: '🏎️',
+    title: '카트 레이싱 미션',
+    description: '레이싱 완주 미션',
+    color: GAME_COLORS.kart,
+    previewData: {
+      missionTitle: '레이싱 완주 게이지',
+      current: 32,
+      goal: 50,
+      unit: '판',
+      milestones: [
+        { at: 10, reward: '부스터 x5' },
+        { at: 20, reward: '레어 카트 3일' },
+        { at: 35, reward: '커스텀 풍선 세트' },
+        { at: 50, reward: '전설 카트 영구 지급' },
+      ],
+      ctaText: '미션 진행',
     }
   },
 ];

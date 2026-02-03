@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Eye, Gift, Download, Users, Bell, QrCode, Sparkles, Tag, X } from 'lucide-react';
+import { Eye, Gift, Download, Users, Bell, QrCode, Sparkles, Tag, X, Ticket, Target } from 'lucide-react';
 import { TEMPLATE_TYPES, GAME_FILTERS, NEXON_TEMPLATES } from './gameTemplateData';
 import './GameTemplateGallery.css';
 
@@ -11,6 +11,8 @@ const TYPE_ICONS = {
   'download-cta': <Download size={12} />,
   'friend-invite': <Users size={12} />,
   'new-update': <Bell size={12} />,
+  'promo-code': <Ticket size={12} />,
+  'mission-gauge': <Target size={12} />,
 };
 
 const TYPE_COLORS = {
@@ -20,6 +22,8 @@ const TYPE_COLORS = {
   'download-cta': '#3b82f6',
   'friend-invite': '#8b5cf6',
   'new-update': '#06b6d4',
+  'promo-code': '#f472b6',
+  'mission-gauge': '#a78bfa',
 };
 
 const MiniQR = ({ url, size = 64 }) => (
@@ -103,6 +107,35 @@ const MiniPreview = ({ template }) => {
           <div className="mini-update-count">{previewData.highlights.length}개 변경사항</div>
         </div>
       );
+
+    case 'promo-code':
+      return (
+        <div className="mini-preview-content mini-promo">
+          <Ticket size={18} style={{ color: color[0], marginBottom: 4 }} />
+          <div className="mini-promo-code" style={{ borderColor: `${color[0]}88` }}>
+            {previewData.promoCode}
+          </div>
+          <div className="mini-promo-benefit">{previewData.benefit}</div>
+        </div>
+      );
+
+    case 'mission-gauge': {
+      const percent = Math.round((previewData.current / previewData.goal) * 100);
+      return (
+        <div className="mini-preview-content mini-mission">
+          <div className="mini-mission-title">{previewData.missionTitle}</div>
+          <div className="mini-mission-bar-wrap">
+            <div
+              className="mini-mission-bar-fill"
+              style={{ width: `${percent}%`, background: `linear-gradient(90deg, ${color[0]}, ${color[1]})` }}
+            />
+          </div>
+          <div className="mini-mission-label">
+            {previewData.current}/{previewData.goal} {previewData.unit} ({percent}%)
+          </div>
+        </div>
+      );
+    }
 
     default:
       return null;
@@ -254,6 +287,74 @@ const FullPreview = ({ template, onClose }) => {
             </button>
           </div>
         );
+
+      case 'promo-code':
+        return (
+          <div className="full-preview-promo">
+            <div className="full-promo-header">
+              <Ticket size={28} style={{ color: color[0] }} />
+              <span>{gameIcon} {previewData.promoTitle}</span>
+            </div>
+            <div className="full-promo-code-box" style={{ borderColor: color[0] }}>
+              <div className="full-promo-code">{previewData.promoCode}</div>
+              <div className="full-promo-copy-hint">클릭하여 복사</div>
+            </div>
+            <div className="full-promo-benefit">
+              <span className="reward-icon">🎁</span> {previewData.benefit}
+            </div>
+            <div className="full-promo-valid">
+              <span className="expiry-icon">⏰</span> {previewData.validUntil}
+            </div>
+            <button className="full-cta-btn" style={{ background: `linear-gradient(135deg, ${color[0]}, ${color[1]})` }}>
+              {previewData.ctaText}
+            </button>
+          </div>
+        );
+
+      case 'mission-gauge': {
+        const pct = Math.round((previewData.current / previewData.goal) * 100);
+        return (
+          <div className="full-preview-mission">
+            <div className="full-mission-header">
+              <Target size={24} style={{ color: color[0] }} />
+              <span>{gameIcon} {previewData.missionTitle}</span>
+            </div>
+            <div className="full-mission-gauge-wrap">
+              <div className="full-mission-gauge-bg">
+                <div
+                  className="full-mission-gauge-fill"
+                  style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${color[0]}, ${color[1]})` }}
+                />
+              </div>
+              <div className="full-mission-gauge-label">
+                <span className="full-mission-current">{previewData.current}</span>
+                <span className="full-mission-sep">/</span>
+                <span className="full-mission-goal">{previewData.goal} {previewData.unit}</span>
+                <span className="full-mission-pct" style={{ color: color[0] }}>({pct}%)</span>
+              </div>
+            </div>
+            <div className="full-mission-milestones">
+              {previewData.milestones.map((m, i) => {
+                const reached = previewData.current >= (m.at / previewData.goal) * previewData.goal;
+                return (
+                  <div key={i} className={`full-milestone ${reached ? 'reached' : ''}`}>
+                    <div className="milestone-dot" style={{ background: reached ? color[0] : 'rgba(255,255,255,0.2)' }}>
+                      {reached ? '✓' : m.at}
+                    </div>
+                    <div className="milestone-info">
+                      <div className="milestone-at">{m.at}{previewData.unit} 달성</div>
+                      <div className="milestone-reward">{m.reward}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <button className="full-cta-btn" style={{ background: `linear-gradient(135deg, ${color[0]}, ${color[1]})` }}>
+              {previewData.ctaText}
+            </button>
+          </div>
+        );
+      }
 
       default:
         return null;

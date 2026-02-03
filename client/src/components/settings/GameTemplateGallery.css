@@ -784,6 +784,276 @@
   flex-shrink: 0;
 }
 
+/* ===== Promo Code Mini ===== */
+.mini-promo {
+  gap: 6px;
+}
+
+.mini-promo-code {
+  padding: 6px 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  letter-spacing: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mini-promo-benefit {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== Promo Code Full ===== */
+.full-preview-promo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 360px;
+}
+
+.full-promo-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.full-promo-code-box {
+  padding: 18px 36px;
+  border: 3px solid;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  text-align: center;
+  position: relative;
+}
+
+.full-promo-code-box::before,
+.full-promo-code-box::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: #0f172a;
+  border-radius: 50%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.full-promo-code-box::before { left: -12px; }
+.full-promo-code-box::after { right: -12px; }
+
+.full-promo-code {
+  color: white;
+  font-size: 24px;
+  font-weight: 800;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  letter-spacing: 3px;
+}
+
+.full-promo-copy-hint {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  margin-top: 6px;
+}
+
+.full-promo-benefit,
+.full-promo-valid {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ===== Mission Gauge Mini ===== */
+.mini-mission {
+  gap: 8px;
+  width: 100%;
+  padding: 0 10px;
+}
+
+.mini-mission-title {
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mini-mission-bar-wrap {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.mini-mission-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.8s ease;
+}
+
+.mini-mission-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ===== Mission Gauge Full ===== */
+.full-preview-mission {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 400px;
+  width: 100%;
+}
+
+.full-mission-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.full-mission-gauge-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.full-mission-gauge-bg {
+  width: 100%;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.full-mission-gauge-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 1s ease;
+  position: relative;
+}
+
+.full-mission-gauge-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: gaugeShine 2s ease-in-out infinite;
+}
+
+@keyframes gaugeShine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.full-mission-gauge-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+}
+
+.full-mission-current {
+  color: white;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.full-mission-sep {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 20px;
+}
+
+.full-mission-goal {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.full-mission-pct {
+  font-size: 14px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.full-mission-milestones {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.full-milestone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.2s;
+}
+
+.full-milestone.reached {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.milestone-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: white;
+  flex-shrink: 0;
+}
+
+.milestone-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.milestone-at {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+}
+
+.milestone-reward {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 /* =============================================
    Responsive
    ============================================= */
