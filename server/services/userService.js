@@ -91,7 +91,7 @@ const createUserService = (_db) => {
 
       const result = await dbRun(
         `INSERT INTO users (email, password_hash, display_name, overlay_hash)
-         VALUES (?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?) RETURNING id`,
         [email, passwordHash, displayName, overlayHash]
       );
 
@@ -117,7 +117,7 @@ const createUserService = (_db) => {
 
       const result = await dbRun(
         `INSERT INTO users (email, display_name, avatar_url, oauth_provider, oauth_id, overlay_hash, platform, channel_id)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
         [email, displayName, avatarUrl, provider, oauthId, overlayHash, provider, finalChannelId]
       );
 

@@ -51,8 +51,11 @@ const authenticateToken = (req, res, next) => {
     return res.status(401).json({ error: "인증이 필요합니다." });
   }
 
-  // 개발/데모용 자동 로그인 토큰 바이패스
+  // 개발/데모용 자동 로그인 토큰 바이패스 (프로덕션에서는 거부)
   if (token === 'auto-login-token') {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: "유효하지 않은 토큰입니다." });
+    }
     req.user = getDemoUserWithHash();
     return next();
   }
@@ -82,8 +85,11 @@ const createAuthMiddleware = (tokenService) => {
       return res.status(401).json({ error: "인증이 필요합니다." });
     }
 
-    // 개발/데모용 자동 로그인 토큰 바이패스
+    // 개발/데모용 자동 로그인 토큰 바이패스 (프로덕션에서는 거부)
     if (token === 'auto-login-token') {
+      if (process.env.NODE_ENV === 'production') {
+        return res.status(403).json({ error: "유효하지 않은 토큰입니다." });
+      }
       req.user = getDemoUserWithHash();
       return next();
     }

@@ -22,8 +22,11 @@ const authenticateAdmin = (req, res, next) => {
     return res.status(401).json({ error: "인증이 필요합니다." });
   }
 
-  // 개발/데모용 자동 로그인 토큰 바이패스 (admin 역할 부여)
+  // 개발/데모용 자동 로그인 토큰 바이패스 (프로덕션에서는 거부)
   if (token === 'auto-login-token') {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: "관리자 권한이 필요합니다." });
+    }
     req.user = {
       id: 1,
       email: 'devil0108@soop.co.kr',
