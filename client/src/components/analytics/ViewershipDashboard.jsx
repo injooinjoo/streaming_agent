@@ -6,7 +6,7 @@ import { Clock, Users, TrendingUp, DollarSign, RefreshCw, LogIn, Monitor, Gamepa
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../shared/LoadingSpinner';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import { formatCompactKo, formatFullNumber, formatCurrency } from '../../utils/formatters';
 import './ViewershipDashboard.css';
 
@@ -60,7 +60,7 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
       ...(accessToken && { 'Authorization': `Bearer ${accessToken}` })
     };
     try {
-      const res = await fetch(`${API_URL}/api/stats/realtime/trend?type=${type}`, { headers });
+      const res = await mockFetch(`${API_URL}/api/stats/realtime/trend?type=${type}`, { headers });
       if (res.ok) {
         const data = await res.json();
         setRealtimeTrend(data);
@@ -79,7 +79,7 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
       const params = new URLSearchParams({ limit: '20' });
       if (platform) params.set('platform', platform);
       if (type === 'peak') params.set('hours', '18');
-      const res = await fetch(`${API_URL}/api/stats/ranking/${type}?${params}`, { headers });
+      const res = await mockFetch(`${API_URL}/api/stats/ranking/${type}?${params}`, { headers });
       if (res.ok) return await res.json();
     } catch (err) {
       console.error(`Failed to fetch ${type} ranking:`, err);

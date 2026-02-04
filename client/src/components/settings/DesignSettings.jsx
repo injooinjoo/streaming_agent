@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { RefreshCw, Save } from 'lucide-react';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 
 const defaultSettings = {
   soopIconSet: 'default',
@@ -20,7 +20,7 @@ const DesignSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/settings/design`);
+      const res = await mockFetch(`${API_URL}/api/settings/design`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
         setSettings({ ...defaultSettings, ...JSON.parse(data.value) });
@@ -37,7 +37,7 @@ const DesignSettings = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch(`${API_URL}/api/settings`, {
+      await mockFetch(`${API_URL}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'design', value: settings })

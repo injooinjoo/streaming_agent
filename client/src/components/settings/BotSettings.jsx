@@ -5,7 +5,7 @@ import {
   Power, Edit2
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import socket from '../../config/socket';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './BotSettings.css';
@@ -45,7 +45,7 @@ const BotSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/user-settings/bot`, {
+      const res = await mockFetch(`${API_URL}/api/user-settings/bot`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -62,7 +62,7 @@ const BotSettings = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch(`${API_URL}/api/user-settings`, {
+      await mockFetch(`${API_URL}/api/user-settings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

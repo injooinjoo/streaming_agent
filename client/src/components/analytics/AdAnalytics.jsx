@@ -13,7 +13,7 @@ import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
 import './AnalyticsPage.css';
 
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 
 const AdAnalytics = () => {
   const { resolvedTheme } = useTheme();
@@ -61,9 +61,9 @@ const AdAnalytics = () => {
 
     try {
       const [trendRes, slotsRes, revenueRes] = await Promise.all([
-        fetch(`${API_URL}/api/ads/trend?days=${days}`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/api/ads/slots`, { headers: getAuthHeaders() }),
-        fetch(`${API_URL}/api/ads/revenue`, { headers: getAuthHeaders() })
+        mockFetch(`${API_URL}/api/ads/trend?days=${days}`, { headers: getAuthHeaders() }),
+        mockFetch(`${API_URL}/api/ads/slots`, { headers: getAuthHeaders() }),
+        mockFetch(`${API_URL}/api/ads/revenue`, { headers: getAuthHeaders() })
       ]);
 
       // Handle unauthorized

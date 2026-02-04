@@ -6,7 +6,7 @@ import {
   Monitor, RefreshCw, AlertCircle, Calendar, Copy, Link, ExternalLink
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import { formatCurrency, formatFullNumber, formatPercent } from '../../utils/formatters';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './AdSettings.css';

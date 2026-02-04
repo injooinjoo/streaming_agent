@@ -8,28 +8,44 @@ import { platforms } from '../data/mockData';
 // 서비스 강점 데이터
 const features = [
   {
-    icon: <Link2 size={24} />,
+    icon: <Link2 size={22} />,
     title: '자동 링크 생성',
     description: '업로드 시 설명란에 수익 추적 링크가 자동 삽입됩니다',
-    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+    bgGradient: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
+    borderColor: 'rgba(102, 126, 234, 0.3)',
+    accentColor: '#667eea',
+    visual: '🔗'
   },
   {
-    icon: <Layers size={24} />,
+    icon: <Layers size={22} />,
     title: '3사 동시 업로드',
     description: 'YouTube Shorts, TikTok, Instagram Reels 한 번에 업로드',
-    gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+    gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+    bgGradient: 'linear-gradient(135deg, rgba(240, 147, 251, 0.08) 0%, rgba(245, 87, 108, 0.08) 100%)',
+    borderColor: 'rgba(240, 147, 251, 0.3)',
+    accentColor: '#f093fb',
+    visual: '📤'
   },
   {
-    icon: <BarChart3 size={24} />,
+    icon: <BarChart3 size={22} />,
     title: '통합 분석',
     description: '모든 플랫폼의 조회수, 클릭, 전환을 한 곳에서 분석',
-    gradient: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)'
+    gradient: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
+    bgGradient: 'linear-gradient(135deg, rgba(17, 153, 142, 0.08) 0%, rgba(56, 239, 125, 0.08) 100%)',
+    borderColor: 'rgba(17, 153, 142, 0.3)',
+    accentColor: '#11998e',
+    visual: '📊'
   },
   {
-    icon: <Sparkles size={24} />,
+    icon: <Sparkles size={22} />,
     title: 'AI 인사이트',
     description: 'AI가 최적 업로드 시간, 해시태그, 성과 예측을 제안합니다',
-    gradient: 'linear-gradient(135deg, #FF9A3C 0%, #FF6B35 100%)'
+    gradient: 'linear-gradient(135deg, #FF9A3C 0%, #FF6B35 100%)',
+    bgGradient: 'linear-gradient(135deg, rgba(255, 154, 60, 0.08) 0%, rgba(255, 107, 53, 0.08) 100%)',
+    borderColor: 'rgba(255, 154, 60, 0.3)',
+    accentColor: '#FF9A3C',
+    visual: '✨'
   }
 ];
 
@@ -150,14 +166,26 @@ const VodUpload = () => {
       {/* Feature Highlights 섹션 */}
       <div className="vod-features-grid">
         {features.map((feature, idx) => (
-          <div key={idx} className="vod-feature-card">
-            <div className="vod-feature-icon" style={{ background: feature.gradient }}>
+          <div 
+            key={idx} 
+            className="vod-feature-card-enhanced"
+            style={{ 
+              '--card-gradient': feature.bgGradient,
+              '--card-border': feature.borderColor,
+              '--card-accent': feature.accentColor,
+              '--icon-gradient': feature.gradient
+            }}
+          >
+            <div className="vod-feature-card-glow" />
+            <div className="vod-feature-visual">{feature.visual}</div>
+            <div className="vod-feature-icon-enhanced">
               {feature.icon}
             </div>
-            <div className="vod-feature-content">
-              <div className="vod-feature-title">{feature.title}</div>
-              <div className="vod-feature-desc">{feature.description}</div>
+            <div className="vod-feature-content-enhanced">
+              <div className="vod-feature-title-enhanced">{feature.title}</div>
+              <div className="vod-feature-desc-enhanced">{feature.description}</div>
             </div>
+            <div className="vod-feature-shine" />
           </div>
         ))}
       </div>

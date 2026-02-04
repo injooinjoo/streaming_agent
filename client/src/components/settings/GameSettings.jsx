@@ -4,7 +4,7 @@ import {
   Gamepad2, Check, Trophy, Crosshair, User, Link2, Monitor, LayoutGrid
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import { formatFullNumber } from '../../utils/formatters';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import GameTemplateGallery from './GameTemplateGallery';
@@ -78,7 +78,7 @@ const GameSettings = ({ onNavigate }) => {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/settings/game`);
+      const res = await mockFetch(`${API_URL}/api/settings/game`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
         setSettings(JSON.parse(data.value));

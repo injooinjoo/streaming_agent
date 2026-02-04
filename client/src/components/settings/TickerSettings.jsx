@@ -6,7 +6,7 @@ import {
   Clock, Hash, User, Trash2, Plus, Volume2, Send
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import { OverlayPreviewWrapper } from './shared';
 import TickerOverlay from '../TickerOverlay';
 import './ChatSettings.css';
@@ -104,7 +104,7 @@ const TickerSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/settings/ticker`);
+      const res = await mockFetch(`${API_URL}/api/settings/ticker`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
         setSettings({ ...defaultSettings, ...JSON.parse(data.value) });
@@ -117,7 +117,7 @@ const TickerSettings = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch(`${API_URL}/api/settings`, {
+      await mockFetch(`${API_URL}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'ticker', value: settings })

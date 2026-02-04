@@ -13,7 +13,7 @@ import ChartContainer from './shared/ChartContainer';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './AnalyticsPage.css';
 
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
@@ -75,10 +75,10 @@ const ContentAnalytics = () => {
 
     try {
       const [donationsRes, chatsRes, growthRes, hourlyRes] = await Promise.all([
-        fetch(`${API_URL}/api/stats/content/category-donations?${params}`, { headers }),
-        fetch(`${API_URL}/api/stats/content/category-chats?${params}`, { headers }),
-        fetch(`${API_URL}/api/stats/content/category-growth?${params}`, { headers }),
-        fetch(`${API_URL}/api/stats/content/hourly-by-category?${params}`, { headers })
+        mockFetch(`${API_URL}/api/stats/content/category-donations?${params}`, { headers }),
+        mockFetch(`${API_URL}/api/stats/content/category-chats?${params}`, { headers }),
+        mockFetch(`${API_URL}/api/stats/content/category-growth?${params}`, { headers }),
+        mockFetch(`${API_URL}/api/stats/content/hourly-by-category?${params}`, { headers })
       ]);
 
       const [donations, chats, growth, hourly] = await Promise.all([

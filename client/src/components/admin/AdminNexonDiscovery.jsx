@@ -9,7 +9,7 @@ import {
 } from 'recharts';
 import { useAuth } from '../../contexts/AuthContext';
 import LoadingSpinner from '../shared/LoadingSpinner';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import { formatCompactKo } from '../../utils/formatters';
 
 const AdminNexonDiscovery = ({ onStreamerSelect }) => {
@@ -38,7 +38,7 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
     try {
       // Fetch broadcasters (actual streamers who have broadcast)
       const [broadcastersRes] = await Promise.all([
-        fetch(`${API_URL}/api/broadcasters?limit=20&nexonOnly=true`, { headers })
+        mockFetch(`${API_URL}/api/broadcasters?limit=20&nexonOnly=true`, { headers })
       ]);
 
       if (broadcastersRes.ok) {

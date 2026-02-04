@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_URL } from '../config/api';
+import { API_URL, mockFetch } from '../config/api';
 
 /**
  * 설정 폼 관리를 위한 커스텀 훅
@@ -42,7 +42,7 @@ const useSettingsForm = (settingsKey, defaultSettings, options = {}) => {
     setError(null);
 
     try {
-      const res = await fetch(`${API_URL}/api/settings/${settingsKey}`);
+      const res = await mockFetch(`${API_URL}/api/settings/${settingsKey}`);
 
       if (!res.ok) {
         throw new Error(`설정 조회 실패: ${res.status}`);
@@ -75,7 +75,7 @@ const useSettingsForm = (settingsKey, defaultSettings, options = {}) => {
     setError(null);
 
     try {
-      const res = await fetch(`${API_URL}/api/settings`, {
+      const res = await mockFetch(`${API_URL}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: settingsKey, value: settings })

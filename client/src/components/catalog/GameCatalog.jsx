@@ -8,7 +8,7 @@ import {
   Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import { formatNumber } from '../../utils/formatters';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './GameCatalog.css';
 
@@ -37,9 +37,9 @@ const GameCatalog = ({ onGameSelect }) => {
 
     try {
       const [gamesRes, statsRes, trendsRes] = await Promise.all([
-        fetch(`${API_URL}/api/categories?limit=100`),
-        fetch(`${API_URL}/api/categories/stats`),
-        fetch(`${API_URL}/api/categories/trends?limit=20&days=7`)
+        mockFetch(`${API_URL}/api/categories?limit=100`),
+        mockFetch(`${API_URL}/api/categories/stats`),
+        mockFetch(`${API_URL}/api/categories/trends?limit=20&days=7`)
       ]);
 
       if (!gamesRes.ok || !statsRes.ok) {

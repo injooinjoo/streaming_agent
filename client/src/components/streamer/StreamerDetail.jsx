@@ -10,7 +10,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { formatCompactKo, formatFullNumber, formatCurrency } from '../../utils/formatters';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import './StreamerDetail.css';
 
 const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#ec4899', '#8b5cf6'];
@@ -71,7 +71,7 @@ const StreamerDetail = ({ personId: propPersonId, onBack }) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_URL}/api/streamer/${personId}`);
+      const res = await mockFetch(`${API_URL}/api/streamer/${personId}`);
       const json = await res.json();
       if (json.success) {
         setProfile(json.data);
@@ -344,7 +344,7 @@ const StatsTab = ({ personId, tabData, setTabData }) => {
     if (tabData[key]) { setData(tabData[key]); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/streamer/${personId}/stats?period=${period}`);
+      const res = await mockFetch(`${API_URL}/api/streamer/${personId}/stats?period=${period}`);
       const json = await res.json();
       if (json.success) {
         setData(json.data);
@@ -457,7 +457,7 @@ const CategoriesTab = ({ personId, tabData, setTabData }) => {
     if (tabData[key]) { setData(tabData[key]); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/streamer/${personId}/categories?period=${period}`);
+      const res = await mockFetch(`${API_URL}/api/streamer/${personId}/categories?period=${period}`);
       const json = await res.json();
       if (json.success) {
         setData(json.data);
@@ -545,7 +545,7 @@ const RankingTab = ({ personId, tabData, setTabData }) => {
     if (tabData[key]) { setData(tabData[key]); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/streamer/${personId}/ranking?period=${period}`);
+      const res = await mockFetch(`${API_URL}/api/streamer/${personId}/ranking?period=${period}`);
       const json = await res.json();
       if (json.success) {
         setData(json.data);
@@ -648,7 +648,7 @@ const BroadcastsTab = ({ personId, tabData, setTabData, onSelectBroadcast }) => 
     if (tabData[key]) { setData(tabData[key]); return; }
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/streamer/${personId}/broadcasts?page=${page}&limit=${limit}`);
+      const res = await mockFetch(`${API_URL}/api/streamer/${personId}/broadcasts?page=${page}&limit=${limit}`);
       const json = await res.json();
       if (json.success) {
         setData(json.data);
@@ -724,7 +724,7 @@ const SegmentsTab = ({ personId, tabData, setTabData }) => {
         return;
       }
       try {
-        const res = await fetch(`${API_URL}/api/streamer/${personId}/broadcasts?page=1&limit=20`);
+        const res = await mockFetch(`${API_URL}/api/streamer/${personId}/broadcasts?page=1&limit=20`);
         const json = await res.json();
         if (json.success) {
           setBroadcasts(json.data.broadcasts || []);
@@ -746,7 +746,7 @@ const SegmentsTab = ({ personId, tabData, setTabData }) => {
       if (tabData[key]) { setData(tabData[key]); return; }
       setLoading(true);
       try {
-        const res = await fetch(`${API_URL}/api/streamer/${personId}/broadcasts/${broadcastId}/segments`);
+        const res = await mockFetch(`${API_URL}/api/streamer/${personId}/broadcasts/${broadcastId}/segments`);
         const json = await res.json();
         if (json.success) {
           setData(json.data);

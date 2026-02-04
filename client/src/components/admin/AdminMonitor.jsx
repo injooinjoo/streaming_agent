@@ -7,6 +7,7 @@ import {
 import Chart from 'chart.js/auto';
 import './AdminMonitor.css';
 import { formatFullNumber, formatCurrency } from '../../utils/formatters';
+import { mockFetch } from '../../config/api';
 
 const API_BASE = '/api/monitor';
 const PAGE_SIZE = 30;
@@ -83,7 +84,7 @@ const AdminMonitor = () => {
   // 통계 로드
   const loadStats = async () => {
     try {
-      const res = await fetch(`${API_BASE}/stats`);
+      const res = await mockFetch(`${API_BASE}/stats`);
       const data = await res.json();
       setStats(data);
     } catch (error) {
@@ -94,7 +95,7 @@ const AdminMonitor = () => {
   // 시계열 차트 로드
   const loadTimeseries = async () => {
     try {
-      const res = await fetch(`${API_BASE}/stats/timeseries?hours=24`);
+      const res = await mockFetch(`${API_BASE}/stats/timeseries?hours=24`);
       const data = await res.json();
 
       // 시청자 차트 데이터 처리
@@ -226,7 +227,7 @@ const AdminMonitor = () => {
   const loadBroadcasts = async (page = 1) => {
     try {
       const liveOnly = broadcastFilter === 'live' ? 'true' : 'false';
-      const res = await fetch(`${API_BASE}/broadcasts?page=${page}&limit=${PAGE_SIZE}&live_only=${liveOnly}`);
+      const res = await mockFetch(`${API_BASE}/broadcasts?page=${page}&limit=${PAGE_SIZE}&live_only=${liveOnly}`);
       const data = await res.json();
       setBroadcasts(data);
       setCurrentPages(prev => ({ ...prev, broadcasts: page }));
@@ -238,7 +239,7 @@ const AdminMonitor = () => {
   // 인원 목록 로드
   const loadPersons = async (page = 1) => {
     try {
-      const res = await fetch(`${API_BASE}/persons?page=${page}&limit=${PAGE_SIZE}&type=${personFilter}`);
+      const res = await mockFetch(`${API_BASE}/persons?page=${page}&limit=${PAGE_SIZE}&type=${personFilter}`);
       const data = await res.json();
       setPersons(data);
       setCurrentPages(prev => ({ ...prev, persons: page }));
@@ -254,7 +255,7 @@ const AdminMonitor = () => {
       if (eventFilter === 'all' && !includeChat) {
         typeParam = 'no_chat';
       }
-      const res = await fetch(`${API_BASE}/events?page=${page}&limit=${PAGE_SIZE}&type=${typeParam}`);
+      const res = await mockFetch(`${API_BASE}/events?page=${page}&limit=${PAGE_SIZE}&type=${typeParam}`);
       const data = await res.json();
       setEvents(data);
       setCurrentPages(prev => ({ ...prev, events: page }));
@@ -266,7 +267,7 @@ const AdminMonitor = () => {
   // 세그먼트 로드
   const loadSegments = async (page = 1) => {
     try {
-      const res = await fetch(`${API_BASE}/segments?page=${page}&limit=${PAGE_SIZE}`);
+      const res = await mockFetch(`${API_BASE}/segments?page=${page}&limit=${PAGE_SIZE}`);
       const data = await res.json();
       setSegments(data);
       setCurrentPages(prev => ({ ...prev, segments: page }));
@@ -278,7 +279,7 @@ const AdminMonitor = () => {
   // 카테고리 로드
   const loadCategories = async (page = 1) => {
     try {
-      const res = await fetch(`${API_BASE}/categories?page=${page}&limit=${PAGE_SIZE}&platform=${categoryFilter}`);
+      const res = await mockFetch(`${API_BASE}/categories?page=${page}&limit=${PAGE_SIZE}&platform=${categoryFilter}`);
       const data = await res.json();
       setCategories(data);
       setCurrentPages(prev => ({ ...prev, categories: page }));
@@ -290,7 +291,7 @@ const AdminMonitor = () => {
   // 참여 기록 로드
   const loadEngagement = async (page = 1) => {
     try {
-      const res = await fetch(`${API_BASE}/engagement?page=${page}&limit=${PAGE_SIZE}`);
+      const res = await mockFetch(`${API_BASE}/engagement?page=${page}&limit=${PAGE_SIZE}`);
       const data = await res.json();
       setEngagement(data);
       setCurrentPages(prev => ({ ...prev, engagement: page }));
@@ -304,7 +305,7 @@ const AdminMonitor = () => {
     setModalOpen(true);
     setModalLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/persons/${personId}`);
+      const res = await mockFetch(`${API_BASE}/persons/${personId}`);
       const data = await res.json();
       setModalPerson(data);
     } catch (error) {

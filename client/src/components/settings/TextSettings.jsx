@@ -4,7 +4,7 @@ import {
   Image as ImageIcon, HelpCircle, ExternalLink, Info,
   Monitor, Palette, Settings, RotateCcw, AlignLeft
 } from 'lucide-react';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import './ChatSettings.css';
 
 const defaultSettings = {
@@ -104,7 +104,7 @@ const TextSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/settings/text`);
+      const res = await mockFetch(`${API_URL}/api/settings/text`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
         const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
@@ -118,7 +118,7 @@ const TextSettings = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch(`${API_URL}/api/settings`, {
+      await mockFetch(`${API_URL}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'text', value: settings })

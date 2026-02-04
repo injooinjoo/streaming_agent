@@ -10,7 +10,7 @@ import AnalyticsCard from './shared/AnalyticsCard';
 import TimeRangeSelector from './shared/TimeRangeSelector';
 import ChartContainer from './shared/ChartContainer';
 import LoadingSpinner from '../shared/LoadingSpinner';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import './AnalyticsPage.css';
 
 const ViewerAnalytics = () => {
@@ -69,10 +69,10 @@ const ViewerAnalytics = () => {
 
     try {
       const [summaryRes, hourlyRes, dailyRes, timelineRes] = await Promise.all([
-        fetch(`${API_URL}/api/stats/chat/summary?${params}`, { headers }),
-        fetch(`${API_URL}/api/stats/chat/hourly?${params}`, { headers }),
-        fetch(`${API_URL}/api/stats/chat/daily?weeks=${Math.ceil(days / 7)}&${params}`, { headers }),
-        fetch(`${API_URL}/api/stats/activity/timeline?${params}`, { headers })
+        mockFetch(`${API_URL}/api/stats/chat/summary?${params}`, { headers }),
+        mockFetch(`${API_URL}/api/stats/chat/hourly?${params}`, { headers }),
+        mockFetch(`${API_URL}/api/stats/chat/daily?weeks=${Math.ceil(days / 7)}&${params}`, { headers }),
+        mockFetch(`${API_URL}/api/stats/activity/timeline?${params}`, { headers })
       ]);
 
       const [summaryData, hourly, daily, timeline] = await Promise.all([

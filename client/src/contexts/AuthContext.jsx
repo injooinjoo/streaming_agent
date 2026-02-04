@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { API_URL } from '../config/api';
+import { API_URL, mockFetch } from '../config/api';
 
 const AuthContext = createContext(null);
 
@@ -23,7 +23,7 @@ export const AuthProvider = ({ children }) => {
   // 서버에서 감스트 유저 정보 가져오기 (overlayHash 포함)
   const fetchGamstUser = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/auth/me`, {
+      const res = await mockFetch(`${API_URL}/api/auth/me`, {
         headers: {
           'Authorization': 'Bearer auto-login-token',
         },

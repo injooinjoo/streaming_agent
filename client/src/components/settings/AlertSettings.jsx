@@ -5,7 +5,7 @@ import {
   Monitor, Palette, Settings, RotateCcw, Filter, List,
   GripVertical, Plus, Trash2, ChevronDown, ChevronUp, Music, Play
 } from 'lucide-react';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { OverlayPreviewWrapper } from './shared';
 import AlertOverlay from '../AlertOverlay';
@@ -214,7 +214,7 @@ const AlertSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/settings/alert`);
+      const res = await mockFetch(`${API_URL}/api/settings/alert`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
         const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
@@ -325,7 +325,7 @@ const AlertSettings = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch(`${API_URL}/api/settings`, {
+      await mockFetch(`${API_URL}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'alert', value: settings })

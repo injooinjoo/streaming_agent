@@ -7,7 +7,7 @@ import {
   DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, ChevronDown, Disc,
   Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket, Trophy, Heart, Clock, Video
 } from 'lucide-react';
-import { API_URL } from '../config/api';
+import { API_URL, mockFetch } from '../config/api';
 import { formatCurrency, formatFullNumber } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -183,7 +183,7 @@ const Dashboard = () => {
       if (user?.channelId) params.set('channelId', user.channelId);
       const queryString = params.toString();
       const url = `${API_URL}/api/events${queryString ? `?${queryString}` : ''}`;
-      const res = await fetch(url);
+      const res = await mockFetch(url);
       const data = await res.json();
       setEvents(data);
     } catch (e) {
@@ -205,7 +205,7 @@ const Dashboard = () => {
       const queryString = params.toString();
       const url = `${API_URL}/api/stats/dashboard${queryString ? `?${queryString}` : ''}`;
       console.log('[Dashboard] Fetching URL:', url);
-      const res = await fetch(url);
+      const res = await mockFetch(url);
       console.log('[Dashboard] Response status:', res.status, res.ok);
       if (res.ok) {
         const data = await res.json();

@@ -1,5 +1,20 @@
 # ===========================================
-# Stage 1: Install Server Dependencies
+# Stage 1: Build Client
+# ===========================================
+FROM node:20-alpine AS client-builder
+
+WORKDIR /app/client
+
+# Copy package files and install dependencies
+COPY client/package*.json ./
+RUN npm ci
+
+# Copy client source and build
+COPY client/ ./
+RUN npm run build
+
+# ===========================================
+# Stage 2: Install Server Dependencies
 # ===========================================
 FROM node:20-alpine AS server-deps
 
@@ -15,7 +30,7 @@ COPY server/package*.json ./
 RUN npm ci --omit=dev
 
 # ===========================================
-# Stage 2: Production Image
+# Stage 3: Production Image
 # ===========================================
 FROM node:20-alpine AS production
 
@@ -34,20 +49,23 @@ COPY --from=server-deps /app/server/node_modules ./server/node_modules
 # Copy server source (includes public/ with monitor.html)
 COPY server/ ./server/
 
+# Copy client build output to server/public
+COPY --from=client-builder /app/client/dist ./server/public
+
 # Set ownership to non-root user
 RUN chown -R nodejs:nodejs /app
 
 # Switch to non-root user
 USER nodejs
 
-# Set environment variables (Cloud Run uses PORT=8080 by default)
+# Set environment variables
 ENV NODE_ENV=production
 ENV PORT=8080
 
-# Expose port (Cloud Run expects 8080)
+# Expose port
 EXPOSE 8080
 
-# Health check (Cloud Run also supports HTTP startup/liveness probes)
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 

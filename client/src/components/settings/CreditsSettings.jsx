@@ -4,7 +4,7 @@ import {
   Film, Check, Play, StopCircle, GripVertical, RotateCcw
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import socket from '../../config/socket';
 import { OverlayPreviewWrapper } from './shared';
 import CreditsOverlay from '../CreditsOverlay';
@@ -70,7 +70,7 @@ const CreditsSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/user-settings/credits`, {
+      const res = await mockFetch(`${API_URL}/api/user-settings/credits`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -87,7 +87,7 @@ const CreditsSettings = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch(`${API_URL}/api/user-settings`, {
+      await mockFetch(`${API_URL}/api/user-settings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

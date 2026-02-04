@@ -9,7 +9,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { formatCompactKo, formatFullNumber, formatGrowth } from '../../utils/formatters';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './GameCatalog.css';
 
@@ -231,7 +231,7 @@ const StatsTab = ({ gameId }) => {
   const fetchData = async (p) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/categories/${gameId}/daily-stats?period=${p}`);
+      const res = await mockFetch(`${API_URL}/api/categories/${gameId}/daily-stats?period=${p}`);
       const result = await res.json();
       if (result.success) setData(result.data || []);
     } catch (err) { console.error('DailyStats error:', err); }
@@ -312,7 +312,7 @@ const PlatformTab = ({ gameId }) => {
   const fetchData = async (p) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/categories/${gameId}/platform-stats?period=${p}`);
+      const res = await mockFetch(`${API_URL}/api/categories/${gameId}/platform-stats?period=${p}`);
       const result = await res.json();
       if (result.success) setData(result.data);
     } catch (err) { console.error('PlatformStats error:', err); }
@@ -422,7 +422,7 @@ const StreamerRankingTab = ({ gameId, onStreamerSelect }) => {
   const fetchData = async (p, s) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/categories/${gameId}/streamer-ranking?period=${p}&sortBy=${s}`);
+      const res = await mockFetch(`${API_URL}/api/categories/${gameId}/streamer-ranking?period=${p}&sortBy=${s}`);
       const result = await res.json();
       if (result.success) setData(result.data || []);
     } catch (err) { console.error('StreamerRanking error:', err); }
@@ -514,7 +514,7 @@ const GrowthRankingTab = ({ gameId, onStreamerSelect }) => {
   const fetchData = async (p) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/categories/${gameId}/growth-ranking?period=${p}`);
+      const res = await mockFetch(`${API_URL}/api/categories/${gameId}/growth-ranking?period=${p}`);
       const result = await res.json();
       if (result.success) setData(result.data || []);
     } catch (err) { console.error('GrowthRanking error:', err); }
@@ -607,7 +607,7 @@ const RankingHistoryTab = ({ gameId, onStreamerSelect }) => {
   const fetchData = async (date) => {
     setLoading(true);
     try {
-      const res = await fetch(`${API_URL}/api/categories/${gameId}/ranking-history?date=${date}`);
+      const res = await mockFetch(`${API_URL}/api/categories/${gameId}/ranking-history?date=${date}`);
       const result = await res.json();
       if (result.success) setData(result.data || []);
     } catch (err) { console.error('RankingHistory error:', err); }
@@ -705,9 +705,9 @@ const GameDetail = ({ gameId, onBack, onStreamerSelect }) => {
     setError(null);
     try {
       const [detailRes, summaryRes, trendRes] = await Promise.all([
-        fetch(`${API_URL}/api/categories/${gameId}`),
-        fetch(`${API_URL}/api/categories/${gameId}/summary?period=${selectedPeriod}`),
-        fetch(`${API_URL}/api/categories/${gameId}/stats?period=7d`)
+        mockFetch(`${API_URL}/api/categories/${gameId}`),
+        mockFetch(`${API_URL}/api/categories/${gameId}/summary?period=${selectedPeriod}`),
+        mockFetch(`${API_URL}/api/categories/${gameId}/stats?period=7d`)
       ]);
 
       if (!detailRes.ok) throw new Error('불러오기 실패');
@@ -748,7 +748,7 @@ const GameDetail = ({ gameId, onBack, onStreamerSelect }) => {
 
   const fetchSummary = async (period) => {
     try {
-      const res = await fetch(`${API_URL}/api/categories/${gameId}/summary?period=${period}`);
+      const res = await mockFetch(`${API_URL}/api/categories/${gameId}/summary?period=${period}`);
       if (res.ok) {
         const result = await res.json();
         if (result.success) setSummaryStats(result.data);

@@ -7,7 +7,7 @@ import {
   Clock, Megaphone, Pin, Volume2, AlertCircle, Check,
   Image as ImageIcon
 } from 'lucide-react';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { OverlayPreviewWrapper } from './shared';
 import ChatOverlay from '../ChatOverlay';
@@ -234,7 +234,7 @@ const ChatSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/settings/chat`);
+      const res = await mockFetch(`${API_URL}/api/settings/chat`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
         const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
@@ -246,7 +246,7 @@ const ChatSettings = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch(`${API_URL}/api/settings`, {
+      await mockFetch(`${API_URL}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'chat', value: settings })

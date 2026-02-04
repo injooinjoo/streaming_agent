@@ -5,7 +5,7 @@ import {
   AlertCircle, HelpCircle
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import socket from '../../config/socket';
 import { OverlayPreviewWrapper } from './shared';
 import RouletteOverlay from '../RouletteOverlay';
@@ -64,7 +64,7 @@ const RouletteSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/user-settings/roulette`, {
+      const res = await mockFetch(`${API_URL}/api/user-settings/roulette`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -81,7 +81,7 @@ const RouletteSettings = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch(`${API_URL}/api/user-settings`, {
+      await mockFetch(`${API_URL}/api/user-settings`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

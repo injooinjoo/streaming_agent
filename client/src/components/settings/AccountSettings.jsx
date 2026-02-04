@@ -8,7 +8,7 @@ import {
   RefreshCw, Gamepad2, Save
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import './AccountSettings.css';
 import './GameSettings.css';
 
@@ -104,7 +104,7 @@ const AccountSettings = () => {
   const fetchConnectionStatus = async () => {
     setLoadingConnections(true);
     try {
-      const response = await fetch(`${API_URL}/api/connections/status`);
+      const response = await mockFetch(`${API_URL}/api/connections/status`);
       const data = await response.json();
       setConnectionStatus(data);
     } catch (error) {
@@ -117,7 +117,7 @@ const AccountSettings = () => {
   // 게임 연동 관련 함수들
   const fetchGameSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/settings/game`);
+      const res = await mockFetch(`${API_URL}/api/settings/game`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
         setGameSettings(prev => ({ ...prev, ...JSON.parse(data.value) }));
@@ -132,7 +132,7 @@ const AccountSettings = () => {
   const saveGameSettings = async () => {
     setSavingGame(true);
     try {
-      await fetch(`${API_URL}/api/settings`, {
+      await mockFetch(`${API_URL}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'game', value: gameSettings })

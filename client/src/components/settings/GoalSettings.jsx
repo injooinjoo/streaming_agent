@@ -6,7 +6,7 @@ import {
   Play
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
 import { formatFullNumber } from '../../utils/formatters';
 import { OverlayPreviewWrapper } from './shared';
 import GoalOverlay from '../GoalOverlay';
@@ -119,7 +119,7 @@ const GoalSettings = () => {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/api/settings/goal`);
+      const res = await mockFetch(`${API_URL}/api/settings/goal`);
       const data = await res.json();
       if (data.value && data.value !== '{}') {
         const parsed = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
@@ -131,7 +131,7 @@ const GoalSettings = () => {
   const saveSettings = async () => {
     setSaving(true);
     try {
-      await fetch(`${API_URL}/api/settings`, {
+      await mockFetch(`${API_URL}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'goal', value: settings })
