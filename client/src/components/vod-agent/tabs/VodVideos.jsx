@@ -163,6 +163,9 @@ const VodVideos = () => {
                       {video.status === 'published' ? '게시됨' : video.status === 'processing' ? '처리중' : '오류'}
                     </span>
                   </div>
+                  {video.game && (
+                    <div className="vod-video-game-tag">{video.game}</div>
+                  )}
                 </div>
                 <div className="vod-video-info">
                   <div className="vod-video-title">{video.title}</div>
@@ -304,6 +307,20 @@ const VodVideos = () => {
               {/* 헤더 */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
                 <div>
+                  {selectedVideo.game && (
+                    <div style={{ 
+                      display: 'inline-block',
+                      padding: '4px 10px', 
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
+                      borderRadius: '6px', 
+                      fontSize: '12px', 
+                      fontWeight: 600, 
+                      color: 'white',
+                      marginBottom: '8px'
+                    }}>
+                      {selectedVideo.game}
+                    </div>
+                  )}
                   <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-main)', marginBottom: '8px' }}>
                     {selectedVideo.title}
                   </h2>

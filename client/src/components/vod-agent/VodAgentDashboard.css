@@ -517,11 +517,17 @@
   color: #ef4444;
 }
 
-/* 비디오 카드 그리드 */
+/* 비디오 카드 그리드 - 세로형 쇼츠 */
 .vod-video-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+@media (min-width: 1400px) {
+  .vod-video-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  }
 }
 
 .vod-video-card {
@@ -540,8 +546,8 @@
 
 .vod-video-thumbnail {
   position: relative;
-  aspect-ratio: 16/9;
-  background: var(--bg-page);
+  aspect-ratio: 9/16;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
   overflow: hidden;
 }
 
@@ -549,6 +555,20 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+/* 게임 태그 */
+.vod-video-game-tag {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  padding: 4px 8px;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: white;
 }
 
 .vod-video-status-overlay {

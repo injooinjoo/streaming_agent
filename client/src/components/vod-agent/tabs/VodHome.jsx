@@ -259,6 +259,9 @@ const VodHome = ({ onNavigate }) => {
                       {video.status === 'published' ? '게시됨' : video.status === 'processing' ? '처리중' : '오류'}
                     </span>
                   </div>
+                  {video.game && (
+                    <div className="vod-video-game-tag">{video.game}</div>
+                  )}
                 </div>
                 <div className="vod-video-info">
                   <div className="vod-video-title">{video.title}</div>
