@@ -1,0 +1,1107 @@
+/* =============================================
+   Game Template Gallery Styles
+   ============================================= */
+
+.template-gallery {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ===== Filter Tabs ===== */
+.template-filter-section {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.template-type-tabs {
+  display: flex;
+  gap: 6px;
+  background: var(--bg-hover);
+  padding: 5px;
+  border-radius: 12px;
+  min-width: max-content;
+}
+
+.template-type-tab {
+  padding: 8px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.template-type-tab:hover {
+  color: var(--text-main);
+  background: var(--bg-card);
+}
+
+.template-type-tab.active {
+  background: var(--bg-card);
+  color: var(--text-main);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.template-type-tab .tab-icon {
+  display: flex;
+  align-items: center;
+}
+
+/* ===== Game Filter Tabs ===== */
+.template-game-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.template-game-tab {
+  padding: 8px 14px;
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.template-game-tab:hover {
+  border-color: var(--border-medium);
+  color: var(--text-main);
+}
+
+.template-game-tab.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: white;
+}
+
+/* ===== Result Count ===== */
+.template-count {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ===== Card Grid ===== */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 1024px) {
+  .template-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .template-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ===== Template Card ===== */
+.template-card {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.template-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.template-card.selected {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.3), 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* ===== Card Preview Area ===== */
+.template-card-preview {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  padding: 20px;
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.template-card-game-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* ===== Mini Preview Content ===== */
+.mini-preview-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  width: 100%;
+}
+
+/* QR Mini */
+.mini-qr {
+  gap: 10px;
+}
+
+.mini-qr-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mini-game-icon {
+  font-size: 18px;
+}
+
+.mini-cta {
+  padding: 5px 14px;
+  border-radius: 16px;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Event Mini */
+.mini-event {
+  padding: 12px;
+  border-radius: 10px;
+  gap: 6px;
+}
+
+.mini-event-badge {
+  padding: 3px 10px;
+  border-radius: 12px;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.mini-event-title {
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mini-event-period {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+}
+
+/* Coupon Mini */
+.mini-coupon {
+  gap: 6px;
+}
+
+.mini-coupon-code {
+  padding: 6px 14px;
+  border: 2px dashed rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  letter-spacing: 1px;
+}
+
+.mini-coupon-reward {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Download Mini */
+.mini-download {
+  gap: 6px;
+}
+
+.mini-download-icon {
+  font-size: 28px;
+}
+
+.mini-download-name {
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.mini-download-btn {
+  padding: 5px 16px;
+  border-radius: 16px;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* Invite Mini */
+.mini-invite {
+  gap: 6px;
+}
+
+.mini-invite-code {
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+}
+
+.mini-invite-count {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+}
+
+/* Update Mini */
+.mini-update {
+  padding: 12px;
+  border-radius: 10px;
+  gap: 6px;
+}
+
+.mini-update-version {
+  padding: 3px 10px;
+  border-radius: 12px;
+  color: white;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.mini-update-title {
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mini-update-count {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+}
+
+/* ===== Card Info Area ===== */
+.template-card-info {
+  padding: 14px;
+}
+
+.template-card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 4px;
+}
+
+.template-card-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+.template-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.template-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.template-preview-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.template-preview-btn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+/* =============================================
+   Full Preview (Selected Template)
+   ============================================= */
+
+.full-preview-wrapper {
+  margin-top: 20px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border-light);
+}
+
+.full-preview-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-hover);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.full-preview-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.full-preview-close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.full-preview-close:hover {
+  background: var(--bg-card);
+  color: var(--text-main);
+}
+
+.full-preview-area {
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  padding: 40px;
+  min-height: 280px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.full-preview-info {
+  padding: 10px 16px;
+  background: var(--bg-hover);
+  border-top: 1px solid var(--border-light);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+/* ===== Full Preview Shared ===== */
+.full-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 24px;
+  border: none;
+  border-radius: 20px;
+  color: white;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: default;
+  margin-top: 12px;
+  transition: transform 0.15s;
+}
+
+.full-cta-large {
+  padding: 14px 32px;
+  font-size: 16px;
+  border-radius: 24px;
+}
+
+/* ===== QR Preview ===== */
+.full-preview-qr {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  max-width: 320px;
+}
+
+.full-qr-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.full-game-icon {
+  font-size: 36px;
+}
+
+.full-qr-subtitle {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+
+.full-qr-tagline {
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.full-qr-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.full-qr-code-wrapper {
+  padding: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.full-qr-scan-text {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+/* ===== Event Preview ===== */
+.full-preview-event {
+  max-width: 380px;
+  width: 100%;
+}
+
+.full-event-banner {
+  border-radius: 16px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.full-event-badge {
+  padding: 5px 14px;
+  border-radius: 16px;
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.full-event-title {
+  color: white;
+  font-size: 22px;
+  font-weight: 800;
+  margin: 4px 0 0;
+}
+
+.full-event-subtitle {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 14px;
+  margin: 0;
+}
+
+.full-event-period,
+.full-event-reward {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ===== Coupon Preview ===== */
+.full-preview-coupon {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 340px;
+}
+
+.full-coupon-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.full-coupon-code-box {
+  padding: 16px 32px;
+  border: 3px dashed;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  text-align: center;
+}
+
+.full-coupon-code {
+  color: white;
+  font-size: 22px;
+  font-weight: 800;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  letter-spacing: 2px;
+}
+
+.full-coupon-copy-hint {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  margin-top: 6px;
+}
+
+.full-coupon-reward,
+.full-coupon-expiry {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ===== Download CTA Preview ===== */
+.full-preview-download {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  max-width: 360px;
+  text-align: center;
+}
+
+.full-download-icon {
+  font-size: 48px;
+}
+
+.full-download-name {
+  color: white;
+  font-size: 24px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.full-download-tagline {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+  margin: 0;
+}
+
+.full-download-stats {
+  display: flex;
+  gap: 28px;
+  padding: 16px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 4px 0;
+}
+
+.full-download-stat {
+  text-align: center;
+}
+
+.full-download-stat .stat-value {
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.full-download-stat .stat-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+/* ===== Friend Invite Preview ===== */
+.full-preview-invite {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 380px;
+  width: 100%;
+}
+
+.full-invite-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.full-invite-body {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  justify-content: center;
+}
+
+.full-invite-left {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.full-invite-code-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.full-invite-code {
+  padding: 10px 18px;
+  border: 2px solid;
+  border-radius: 10px;
+  color: white;
+  font-size: 16px;
+  font-weight: 800;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  letter-spacing: 1px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.full-invite-count {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.full-invite-reward {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+/* ===== Update Preview ===== */
+.full-preview-update {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 360px;
+  text-align: center;
+}
+
+.full-update-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.full-update-version {
+  padding: 5px 14px;
+  border-radius: 16px;
+  color: white;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.full-update-game {
+  font-size: 24px;
+}
+
+.full-update-title {
+  color: white;
+  font-size: 20px;
+  font-weight: 800;
+  margin: 0;
+}
+
+.full-update-highlights {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+  width: 100%;
+}
+
+.full-update-highlights li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 14px;
+}
+
+.highlight-bullet {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ===== Promo Code Mini ===== */
+.mini-promo {
+  gap: 6px;
+}
+
+.mini-promo-code {
+  padding: 6px 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  letter-spacing: 1px;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.mini-promo-benefit {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== Promo Code Full ===== */
+.full-preview-promo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 360px;
+}
+
+.full-promo-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.full-promo-code-box {
+  padding: 18px 36px;
+  border: 3px solid;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.06);
+  text-align: center;
+  position: relative;
+}
+
+.full-promo-code-box::before,
+.full-promo-code-box::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: #0f172a;
+  border-radius: 50%;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.full-promo-code-box::before { left: -12px; }
+.full-promo-code-box::after { right: -12px; }
+
+.full-promo-code {
+  color: white;
+  font-size: 24px;
+  font-weight: 800;
+  font-family: 'SF Mono', 'Monaco', 'Menlo', monospace;
+  letter-spacing: 3px;
+}
+
+.full-promo-copy-hint {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 11px;
+  margin-top: 6px;
+}
+
+.full-promo-benefit,
+.full-promo-valid {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ===== Mission Gauge Mini ===== */
+.mini-mission {
+  gap: 8px;
+  width: 100%;
+  padding: 0 10px;
+}
+
+.mini-mission-title {
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.mini-mission-bar-wrap {
+  width: 100%;
+  height: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.mini-mission-bar-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.8s ease;
+}
+
+.mini-mission-label {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+/* ===== Mission Gauge Full ===== */
+.full-preview-mission {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  max-width: 400px;
+  width: 100%;
+}
+
+.full-mission-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: white;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.full-mission-gauge-wrap {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.full-mission-gauge-bg {
+  width: 100%;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.full-mission-gauge-fill {
+  height: 100%;
+  border-radius: 10px;
+  transition: width 1s ease;
+  position: relative;
+}
+
+.full-mission-gauge-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: gaugeShine 2s ease-in-out infinite;
+}
+
+@keyframes gaugeShine {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.full-mission-gauge-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 4px;
+}
+
+.full-mission-current {
+  color: white;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.full-mission-sep {
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 20px;
+}
+
+.full-mission-goal {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.full-mission-pct {
+  font-size: 14px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.full-mission-milestones {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.full-milestone {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.2s;
+}
+
+.full-milestone.reached {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.milestone-dot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  color: white;
+  flex-shrink: 0;
+}
+
+.milestone-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.milestone-at {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+}
+
+.milestone-reward {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* =============================================
+   Responsive
+   ============================================= */
+
+@media (max-width: 768px) {
+  .full-preview-area {
+    padding: 24px 16px;
+  }
+
+  .full-invite-body {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .full-download-stats {
+    gap: 16px;
+  }
+
+  .template-type-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+@media (max-width: 480px) {
+  .template-card-preview {
+    min-height: 120px;
+    padding: 16px;
+  }
+
+  .template-card-info {
+    padding: 12px;
+  }
+
+  .full-preview-area {
+    padding: 20px 12px;
+    min-height: 240px;
+  }
+
+  .full-event-title {
+    font-size: 18px;
+  }
+
+  .full-coupon-code {
+    font-size: 16px;
+  }
+
+  .full-download-name {
+    font-size: 20px;
+  }
+}

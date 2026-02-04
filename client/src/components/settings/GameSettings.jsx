@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import {
   Copy, ExternalLink,
-  Gamepad2, Check, Trophy, Crosshair, User, Link2, Monitor
+  Gamepad2, Check, Trophy, Crosshair, User, Link2, Monitor, LayoutGrid
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { API_URL } from '../../config/api';
 import { formatFullNumber } from '../../utils/formatters';
 import LoadingSpinner from '../shared/LoadingSpinner';
+import GameTemplateGallery from './GameTemplateGallery';
 import './GameSettings.css';
 
 // 플랫폼 정보 (게임 목록 참조용)
@@ -69,6 +70,7 @@ const GameSettings = ({ onNavigate }) => {
   const [copied, setCopied] = useState('');
   const [selectedOverlayType, setSelectedOverlayType] = useState('stats');
   const [selectedGame, setSelectedGame] = useState('lol');
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
 
   const overlayUrl = overlayHash
     ? `${window.location.origin}/overlay/${overlayHash}/game`
@@ -260,6 +262,18 @@ const GameSettings = ({ onNavigate }) => {
             </a>
           </div>
         </div>
+      </div>
+
+      {/* 템플릿 갤러리 */}
+      <div className="settings-card">
+        <div className="card-header">
+          <h3><LayoutGrid size={20} style={{ marginRight: 8, verticalAlign: 'middle' }} />오버레이 템플릿</h3>
+          <p>넥슨 게임 오버레이 예제를 미리보고 방송에 활용하세요</p>
+        </div>
+        <GameTemplateGallery
+          onSelectTemplate={setSelectedTemplate}
+          selectedTemplate={selectedTemplate}
+        />
       </div>
 
       {/* 연동 안내 */}
