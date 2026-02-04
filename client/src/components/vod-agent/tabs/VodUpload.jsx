@@ -15,7 +15,7 @@ const features = [
     bgGradient: 'linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%)',
     borderColor: 'rgba(102, 126, 234, 0.3)',
     accentColor: '#667eea',
-    visual: '🔗'
+    visualType: 'link'
   },
   {
     icon: <Layers size={22} />,
@@ -25,7 +25,7 @@ const features = [
     bgGradient: 'linear-gradient(135deg, rgba(240, 147, 251, 0.08) 0%, rgba(245, 87, 108, 0.08) 100%)',
     borderColor: 'rgba(240, 147, 251, 0.3)',
     accentColor: '#f093fb',
-    visual: '📤'
+    visualType: 'platforms'
   },
   {
     icon: <BarChart3 size={22} />,
@@ -35,7 +35,7 @@ const features = [
     bgGradient: 'linear-gradient(135deg, rgba(17, 153, 142, 0.08) 0%, rgba(56, 239, 125, 0.08) 100%)',
     borderColor: 'rgba(17, 153, 142, 0.3)',
     accentColor: '#11998e',
-    visual: '📊'
+    visualType: 'chart'
   },
   {
     icon: <Sparkles size={22} />,
@@ -45,9 +45,65 @@ const features = [
     bgGradient: 'linear-gradient(135deg, rgba(255, 154, 60, 0.08) 0%, rgba(255, 107, 53, 0.08) 100%)',
     borderColor: 'rgba(255, 154, 60, 0.3)',
     accentColor: '#FF9A3C',
-    visual: '✨'
+    visualType: 'ai'
   }
 ];
+
+// 시각적 요소 렌더링 함수
+const FeatureVisual = ({ type, accentColor }) => {
+  switch (type) {
+    case 'link':
+      return (
+        <div className="feature-visual-link">
+          <div className="link-flow">
+            <div className="link-box" style={{ borderColor: accentColor }}>
+              <span style={{ color: accentColor }}>vod.link/abc</span>
+            </div>
+            <div className="link-arrow" style={{ color: accentColor }}>→</div>
+            <div className="link-coin">💰</div>
+          </div>
+        </div>
+      );
+    case 'platforms':
+      return (
+        <div className="feature-visual-platforms">
+          <div className="platform-stack">
+            <div className="platform-item" style={{ background: '#FF0000' }}><Youtube size={16} /></div>
+            <div className="platform-item" style={{ background: '#000000' }}><Music2 size={16} /></div>
+            <div className="platform-item" style={{ background: '#E4405F' }}><Instagram size={16} /></div>
+          </div>
+          <div className="upload-indicator" style={{ background: accentColor }}>
+            <Upload size={14} />
+          </div>
+        </div>
+      );
+    case 'chart':
+      return (
+        <div className="feature-visual-chart">
+          <div className="mini-bars">
+            <div className="mini-bar" style={{ height: '40%', background: accentColor, opacity: 0.5 }} />
+            <div className="mini-bar" style={{ height: '70%', background: accentColor, opacity: 0.7 }} />
+            <div className="mini-bar" style={{ height: '55%', background: accentColor, opacity: 0.6 }} />
+            <div className="mini-bar" style={{ height: '90%', background: accentColor }} />
+            <div className="mini-bar" style={{ height: '75%', background: accentColor, opacity: 0.8 }} />
+          </div>
+          <div className="trend-line" style={{ borderColor: accentColor }} />
+        </div>
+      );
+    case 'ai':
+      return (
+        <div className="feature-visual-ai">
+          <div className="ai-brain-icon">🧠</div>
+          <div className="ai-suggestions">
+            <span className="ai-tag" style={{ background: `${accentColor}20`, color: accentColor }}>#추천</span>
+            <span className="ai-tag" style={{ background: `${accentColor}20`, color: accentColor }}>🕐 19:00</span>
+          </div>
+        </div>
+      );
+    default:
+      return null;
+  }
+};
 
 const VodUpload = () => {
   const [dragOver, setDragOver] = useState(false);
@@ -177,13 +233,17 @@ const VodUpload = () => {
             }}
           >
             <div className="vod-feature-card-glow" />
-            <div className="vod-feature-visual">{feature.visual}</div>
-            <div className="vod-feature-icon-enhanced">
-              {feature.icon}
+            <div className="vod-feature-visual-box">
+              <FeatureVisual type={feature.visualType} accentColor={feature.accentColor} />
             </div>
-            <div className="vod-feature-content-enhanced">
-              <div className="vod-feature-title-enhanced">{feature.title}</div>
-              <div className="vod-feature-desc-enhanced">{feature.description}</div>
+            <div className="vod-feature-bottom">
+              <div className="vod-feature-icon-enhanced">
+                {feature.icon}
+              </div>
+              <div className="vod-feature-content-enhanced">
+                <div className="vod-feature-title-enhanced">{feature.title}</div>
+                <div className="vod-feature-desc-enhanced">{feature.description}</div>
+              </div>
             </div>
             <div className="vod-feature-shine" />
           </div>
