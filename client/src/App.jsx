@@ -28,6 +28,7 @@ const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const MyDesigns = lazy(() => import('./components/designer/MyDesigns'));
 const DesignCustomizer = lazy(() => import('./components/designer/DesignCustomizer'));
 const StreamerDetail = lazy(() => import('./components/streamer/StreamerDetail'));
+const VodAgentDashboard = lazy(() => import('./components/vod-agent/VodAgentDashboard'));
 
 function App() {
   // 모바일 브라우저 주소창 대응 viewport height 설정
@@ -58,6 +59,9 @@ function App() {
             <Routes>
             {/* 메인 */}
             <Route path="/" element={<Dashboard />} />
+
+            {/* VOD 에이전트 */}
+            <Route path="/vod-agent" element={<VodAgentDashboard />} />
 
             {/* 채널 정보 페이지 */}
             <Route path="/channel/:channelId" element={<ChannelPage />} />

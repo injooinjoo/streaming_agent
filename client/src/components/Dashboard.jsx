@@ -5,7 +5,7 @@ import {
   HelpCircle, ExternalLink, Settings,
   RefreshCw, Megaphone, Palette, Sparkles, Activity, TrendingUp, MousePointerClick,
   DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, ChevronDown, Disc,
-  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket, Trophy, Heart, Clock
+  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket, Trophy, Heart, Clock, Video
 } from 'lucide-react';
 import { API_URL } from '../config/api';
 import { formatCurrency, formatFullNumber } from '../utils/formatters';
@@ -118,51 +118,47 @@ const Dashboard = () => {
     setActiveTab('viewership');
   };
 
+  // 네비게이션: 큰 분류(내 방송 분석 / 내 방송 설정)로 정돈
   const menuGroups = [
     {
-      label: '메인 메뉴',
+      label: '홈',
       items: [
-        { id: 'dashboard', label: '대시보드', icon: <Layout size={18} /> },
-        { id: 'chat', label: '채팅 오버레이', icon: <MessageSquare size={18} /> },
-        { id: 'alerts', label: '후원 알림', icon: <Bell size={18} /> }
+        { id: 'dashboard', label: '대시보드', icon: <Layout size={18} /> }
       ]
     },
     {
-      label: '시장 분석',
+      label: '내 방송 분석',
       items: [
+        { id: 'analytics-revenue', label: '수익 분석', icon: <DollarSign size={18} /> },
+        { id: 'analytics-viewers', label: '시청자 분석', icon: <Users size={18} /> },
+        { id: 'analytics-content', label: '콘텐츠 분석', icon: <PieChart size={18} /> },
+        { id: 'analytics-ads', label: '광고 분석', icon: <TrendingUp size={18} /> },
         { id: 'viewership', label: '인기 방송', icon: <Activity size={18} /> },
         { id: 'game-catalog', label: '카테고리', icon: <Trophy size={18} /> }
       ]
     },
     {
-      label: '커스텀 위젯',
+      label: '내 방송 설정',
       items: [
+        { id: 'chat', label: '채팅 오버레이', icon: <MessageSquare size={18} /> },
+        { id: 'alerts', label: '후원 알림', icon: <Bell size={18} /> },
         { id: 'game', label: '게임 오버레이', icon: <Gamepad2 size={18} /> },
-        { id: 'subtitles', label: '자막 설정', icon: <FileText size={18} /> },
+        { id: 'subtitles', label: '자막', icon: <FileText size={18} /> },
         { id: 'goals', label: '목표치 위젯', icon: <BarChart3 size={18} /> },
         { id: 'ticker', label: '뉴스 티커', icon: <Megaphone size={18} /> },
         { id: 'roulette', label: '룰렛', icon: <Disc size={18} /> },
         { id: 'emoji', label: '이모지 리액션', icon: <Smile size={18} /> },
-        { id: 'voting', label: '투표 시스템', icon: <Vote size={18} /> },
+        { id: 'voting', label: '투표', icon: <Vote size={18} /> },
         { id: 'credits', label: '엔딩 크레딧', icon: <Film size={18} /> },
         { id: 'bot', label: '챗봇', icon: <Bot size={18} /> },
+        { id: 'ads', label: '광고 위젯', icon: <Megaphone size={18} /> }
+      ]
+    },
+    {
+      label: '디자인',
+      items: [
         { id: 'design', label: '디자인 커스터마이저', icon: <Palette size={18} /> },
         { id: 'marketplace', label: '디자인 마켓', icon: <Store size={18} /> }
-      ]
-    },
-    {
-      label: '분석',
-      items: [
-        { id: 'analytics-revenue', label: '수익 분석', icon: <DollarSign size={18} /> },
-        { id: 'analytics-viewers', label: '시청자 분석', icon: <Users size={18} /> },
-        { id: 'analytics-content', label: '콘텐츠 분석', icon: <PieChart size={18} /> }
-      ]
-    },
-    {
-      label: '광고 관리',
-      items: [
-        { id: 'ads', label: '광고 위젯', icon: <Megaphone size={18} /> },
-        { id: 'analytics-ads', label: '광고 분석', icon: <TrendingUp size={18} /> }
       ]
     }
   ];
@@ -960,6 +956,15 @@ const Dashboard = () => {
               title="계정 설정"
             >
               <Settings size={18} />
+            </button>
+            <button
+              className="btn btn-primary"
+              onClick={() => navigate('/vod-agent')}
+              title="VOD 에이전트"
+              style={{ borderRadius: 'var(--radius-full)' }}
+            >
+              <Video size={16} />
+              VOD 에이전트
             </button>
             <button
               className="btn btn-secondary"
