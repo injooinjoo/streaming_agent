@@ -25,12 +25,39 @@ export const platforms = {
   },
 };
 
+// 넥슨 게임별 썸네일 이미지 (공식 CDN)
+const gameImages = {
+  maplestory: [
+    'https://ssl.nexon.com/s2/game/maplestory/renewal/common/bg_main.jpg',
+    'https://lwi.nexon.com/maplestory/common/guide/character/img_job_warrior.png',
+  ],
+  dnf: [
+    'https://ssl.nexon.com/s2/game/dnf/2019/promotion/img_character01.png',
+    'https://ssl.nexon.com/s2/game/dnf/2019/promotion/img_character02.png',
+  ],
+  fc: [
+    'https://ssl.nexon.com/s2/game/fc/2023/gnb/logo_fconline.png',
+    'https://ssl.nexon.com/s2/game/fc/2023/main/img_player.png',
+  ],
+  kart: [
+    'https://ssl.nexon.com/s2/game/kart/2020/gnb/logo_kart.png',
+    'https://ssl.nexon.com/s2/game/kart/drift/main/img_dao.png',
+  ],
+  mabinogi: [
+    'https://ssl.nexon.com/s2/game/mabinogi/renewal/common/logo.png',
+  ],
+  baramnara: [
+    'https://ssl.nexon.com/s2/game/baram/gnb/logo.png',
+  ],
+};
+
 // 영상 데이터 - 넥슨 게임 쇼츠
 export const videos = [
   {
     id: 'v1',
     title: '메이플 검은마법사 원킬 각성기 미쳤다',
-    thumbnail: 'https://picsum.photos/seed/maple1/270/480',
+    thumbnail: '/assets/vod-thumbnails/maple-boss.jpg',
+    thumbnailBg: 'linear-gradient(135deg, #FF9A3C 0%, #FF6B35 50%, #F7418F 100%)',
     platforms: ['shorts', 'tiktok', 'reels'],
     uploadedAt: '2026-02-01T14:30:00Z',
     status: 'published',
@@ -48,7 +75,8 @@ export const videos = [
   {
     id: 'v2',
     title: '던파 눈먼 자의 탑 솔플 클리어 꿀팁',
-    thumbnail: 'https://picsum.photos/seed/dnf1/270/480',
+    thumbnail: '/assets/vod-thumbnails/dnf-raid.jpg',
+    thumbnailBg: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
     platforms: ['shorts', 'tiktok'],
     uploadedAt: '2026-01-28T10:15:00Z',
     status: 'published',
@@ -65,7 +93,8 @@ export const videos = [
   {
     id: 'v3',
     title: 'FC온라인 손흥민 40m 중거리 슛 ㄷㄷ',
-    thumbnail: 'https://picsum.photos/seed/fc1/270/480',
+    thumbnail: '/assets/vod-thumbnails/fc-goal.jpg',
+    thumbnailBg: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)',
     platforms: ['shorts', 'tiktok', 'reels'],
     uploadedAt: '2026-01-25T18:45:00Z',
     status: 'published',
@@ -83,7 +112,8 @@ export const videos = [
   {
     id: 'v4',
     title: '카트라이더 드리프트 황금 부스터 타이밍',
-    thumbnail: 'https://picsum.photos/seed/kart1/270/480',
+    thumbnail: '/assets/vod-thumbnails/kart-drift.jpg',
+    thumbnailBg: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
     platforms: ['shorts', 'reels'],
     uploadedAt: '2026-01-22T09:00:00Z',
     status: 'published',
@@ -100,7 +130,8 @@ export const videos = [
   {
     id: 'v5',
     title: '마비노기 신규 던전 보스 패턴 분석',
-    thumbnail: 'https://picsum.photos/seed/mabi1/270/480',
+    thumbnail: '/assets/vod-thumbnails/mabi-dungeon.jpg',
+    thumbnailBg: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
     platforms: ['tiktok', 'reels'],
     uploadedAt: '2026-01-20T15:20:00Z',
     status: 'published',
@@ -117,7 +148,8 @@ export const videos = [
   {
     id: 'v6',
     title: '바람의나라 전직 퀘스트 최단루트 공략',
-    thumbnail: 'https://picsum.photos/seed/baram1/270/480',
+    thumbnail: '/assets/vod-thumbnails/baram-quest.jpg',
+    thumbnailBg: 'linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)',
     platforms: ['shorts', 'tiktok', 'reels'],
     uploadedAt: '2026-01-18T12:00:00Z',
     status: 'published',
@@ -135,7 +167,8 @@ export const videos = [
   {
     id: 'v7',
     title: '메이플 신캐 데몬어벤져 스킬트리 추천',
-    thumbnail: 'https://picsum.photos/seed/maple2/270/480',
+    thumbnail: '/assets/vod-thumbnails/maple-skill.jpg',
+    thumbnailBg: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
     platforms: ['shorts', 'tiktok'],
     uploadedAt: '2026-02-02T11:00:00Z',
     status: 'published',
@@ -152,7 +185,8 @@ export const videos = [
   {
     id: 'v8',
     title: '던파 시즌 신규 레이드 첫 클리어',
-    thumbnail: 'https://picsum.photos/seed/dnf2/270/480',
+    thumbnail: '/assets/vod-thumbnails/dnf-clear.jpg',
+    thumbnailBg: 'linear-gradient(135deg, #30cfd0 0%, #330867 100%)',
     platforms: ['shorts', 'tiktok', 'reels'],
     uploadedAt: '2026-02-03T16:30:00Z',
     status: 'published',
@@ -170,7 +204,8 @@ export const videos = [
   {
     id: 'v9',
     title: 'FC온라인 새 시즌 메타 스쿼드 추천',
-    thumbnail: 'https://picsum.photos/seed/fc2/270/480',
+    thumbnail: '/assets/vod-thumbnails/fc-squad.jpg',
+    thumbnailBg: 'linear-gradient(135deg, #0ba360 0%, #3cba92 100%)',
     platforms: ['shorts'],
     uploadedAt: '2026-02-03T08:00:00Z',
     status: 'processing',
@@ -186,7 +221,8 @@ export const videos = [
   {
     id: 'v10',
     title: '카트라이더 신규 맵 숨겨진 지름길',
-    thumbnail: 'https://picsum.photos/seed/kart2/270/480',
+    thumbnail: '/assets/vod-thumbnails/kart-shortcut.jpg',
+    thumbnailBg: 'linear-gradient(135deg, #ff0844 0%, #ffb199 100%)',
     platforms: ['tiktok'],
     uploadedAt: '2026-02-02T16:30:00Z',
     status: 'error',
