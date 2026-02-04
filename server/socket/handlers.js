@@ -6,8 +6,15 @@
  * Stores events to Supabase via statsStorageService
  */
 
+const fs = require("fs");
+const path = require("path");
 const { getOne, isPostgres } = require("../db/connections");
 const statsStorage = require("../services/statsStorageService");
+
+// #region agent log
+const agentLogPath = path.join(__dirname, "..", "..", ".cursor", "debug.log");
+const agentLog = (obj) => { try { fs.appendFileSync(agentLogPath, JSON.stringify({ ...obj, timestamp: Date.now(), sessionId: "debug-session" }) + "\n"); } catch (e) {} };
+// #endregion
 
 /**
  * Get placeholder for parameterized queries
@@ -39,6 +46,9 @@ const setupSocketHandlers = (io, options = {}) => {
 
   io.on("connection", (socket) => {
     console.log("A user connected:", socket.id);
+    // #region agent log
+    agentLog({ location: "handlers.js:connection", message: "Socket connected", data: { socketId: socket.id }, hypothesisId: "A" });
+    // #endregion
 
     // ===== Overlay Room Management =====
 
@@ -47,6 +57,9 @@ const setupSocketHandlers = (io, options = {}) => {
      */
     socket.on("join-overlay", async (hash) => {
       if (!hash) return;
+      // #region agent log
+      agentLog({ location: "handlers.js:join-overlay", message: "join-overlay received", data: { hash, socketId: socket.id }, hypothesisId: "C,D" });
+      // #endregion
 
       socket.join(`overlay:${hash}`);
       console.log(`Socket ${socket.id} joined room overlay:${hash}`);
@@ -119,6 +132,9 @@ const setupSocketHandlers = (io, options = {}) => {
 
       } catch (error) {
         console.error(`[Overlay] Auto-connect failed for ${hash}:`, error.message);
+        // #region agent log
+        agentLog({ location: "handlers.js:join-overlay-catch", message: "join-overlay auto-connect failed", data: { hash, error: error.message }, hypothesisId: "D" });
+        // #endregion
         socket.emit("overlay-status", { status: "error", message: error.message });
       }
     });
@@ -128,6 +144,9 @@ const setupSocketHandlers = (io, options = {}) => {
      */
     socket.on("leave-overlay", (hash) => {
       if (!hash) return;
+      // #region agent log
+      agentLog({ location: "handlers.js:leave-overlay", message: "leave-overlay received", data: { hash, socketId: socket.id }, hypothesisId: "C" });
+      // #endregion
 
       socket.leave(`overlay:${hash}`);
       console.log(`Socket ${socket.id} left room overlay:${hash}`);

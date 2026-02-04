@@ -1,40 +1,48 @@
+# Google Cloud Build - Streaming Agent → Cloud Run
+# 사용: gcloud builds submit --config=cloudbuild.yaml .
+# 환경 변수(JWT_SECRET, JWT_REFRESH_SECRET 등)는 배포 후 콘솔 또는 gcloud run services update로 설정
+
 steps:
-  # Build the container image using Dockerfile
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['build', '-t', 'gcr.io/$PROJECT_ID/streaming-agent:latest', '.']
-
-  # Push the container image to Container Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', 'gcr.io/$PROJECT_ID/streaming-agent:latest']
-
-  # Deploy container image to Cloud Run
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
+  # 1. 클라이언트 빌드 후 server/public에 복사
+  - name: 'node:20-alpine'
+    id: 'client-build'
+    entrypoint: 'sh'
     args:
-      - 'run'
-      - 'deploy'
-      - 'streaming-agent'
-      - '--image'
+      - '-c'
+      - |
+        set -e
+        cd client
+        npm ci
+        npm run build
+        mkdir -p ../server/public
+        cp -r dist/* ../server/public/
+    dir: '.'
+
+  # 2. Docker 이미지 빌드 ($BUILD_ID는 로컬 submit 시에도 있음, $SHORT_SHA는 리포 트리거에서만)
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'docker-build'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/streaming-agent:$BUILD_ID'
+      - '-t'
       - 'gcr.io/$PROJECT_ID/streaming-agent:latest'
-      - '--region'
-      - 'asia-northeast3'
-      - '--allow-unauthenticated'
-      - '--port'
-      - '3001'
-      - '--memory'
-      - '512Mi'
-      - '--max-instances'
-      - '3'
-      - '--concurrency'
-      - '250'
-      - '--no-cpu-boost'
-      - '--timeout'
-      - '300'
-      - '--set-env-vars'
-      # 맥미니 로컬 DB 사용 (공유기 포트포워딩 필요: 외부 5432 → 맥미니 IP:5432)
-      - 'NODE_ENV=production,ENABLE_CRAWLER=false,DB_MODE=local,DATABASE_URL_LOCAL=postgresql://streaming_user:nwM3FaljSbiSgYGcNcg4nRX@211.109.172.124:5432/streaming_agent,DATABASE_SSL=false,JWT_SECRET=strmag-prod-jwt-sign-key-2026-x7k9m2,JWT_REFRESH_SECRET=strmag-prod-jwt-refresh-sign-key-2026-p4n8v3,ADMIN_ACCESS_CODE=dev-admin-2026'
-      # Supabase로 전환 시 위 줄을 아래로 교체:
-      # - 'ENABLE_CRAWLER=false,DB_MODE=supabase,DATABASE_URL_SUPABASE=postgresql://postgres:<PASSWORD>@db.xxx.supabase.co:5432/postgres'
+      - '.'
+    waitFor: ['client-build']
+
+  # 3. Container Registry에 푸시
+  - name: 'gcr.io/cloud-builders/docker'
+    id: 'docker-push'
+    args: ['push', 'gcr.io/$PROJECT_ID/streaming-agent:latest']
+    waitFor: ['docker-build']
+
+  # 배포는 로컬에서 한 번만 실행 (DB·JWT 필요).
+  # docs/DEPLOYMENT.md "Cloud Run 첫 배포" 참고.
+  # 예: gcloud run deploy streaming-agent --image gcr.io/streaming-agent-484514/streaming-agent:latest --region asia-northeast3 --allow-unauthenticated --port 8080 --memory 1Gi --set-env-vars "NODE_ENV=production,DATABASE_URL_SUPABASE=postgresql://...,JWT_SECRET=...,JWT_REFRESH_SECRET=..."
 
 images:
+  - 'gcr.io/$PROJECT_ID/streaming-agent:$BUILD_ID'
   - 'gcr.io/$PROJECT_ID/streaming-agent:latest'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

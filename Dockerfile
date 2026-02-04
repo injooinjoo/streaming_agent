@@ -40,16 +40,16 @@ RUN chown -R nodejs:nodejs /app
 # Switch to non-root user
 USER nodejs
 
-# Set environment variables
+# Set environment variables (Cloud Run uses PORT=8080 by default)
 ENV NODE_ENV=production
-ENV PORT=3001
+ENV PORT=8080
 
-# Expose port
-EXPOSE 3001
+# Expose port (Cloud Run expects 8080)
+EXPOSE 8080
 
-# Health check
+# Health check (Cloud Run also supports HTTP startup/liveness probes)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3001/health || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
 # Use dumb-init as entrypoint for proper signal handling
 ENTRYPOINT ["dumb-init", "--"]

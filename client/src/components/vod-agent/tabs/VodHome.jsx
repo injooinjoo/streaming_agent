@@ -252,14 +252,8 @@ const VodHome = ({ onNavigate }) => {
                 onMouseEnter={() => setHoveredVideo(video.id)}
                 onMouseLeave={() => setHoveredVideo(null)}
               >
-                <div 
-                  className="vod-video-thumbnail"
-                  style={{ background: video.thumbnailBg || 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' }}
-                >
-                  <div className="vod-thumbnail-content">
-                    <div className="vod-thumbnail-game-icon">{video.game?.charAt(0)}</div>
-                    <div className="vod-thumbnail-title">{video.title}</div>
-                  </div>
+                <div className="vod-video-thumbnail">
+                  <img src={video.thumbnail} alt={video.title} />
                   <div className="vod-video-status-overlay">
                     <span className={`vod-status-badge ${video.status}`}>
                       {video.status === 'published' ? '게시됨' : video.status === 'processing' ? '처리중' : '오류'}

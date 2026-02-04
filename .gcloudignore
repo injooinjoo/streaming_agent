@@ -60,8 +60,7 @@ gcs-key.json
 # Documentation (optional - can include if needed)
 # docs/
 
-# Client source (already built in server/public)
-client/src/
+# Client: node_modules/dist 제외 (Cloud Build에서 npm ci && build 함). client/src 는 업로드 필요
 client/node_modules/
 client/dist/
 

@@ -706,8 +706,18 @@ const ChatOverlay = ({
     fetchSettings();
 
     if (userHash) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/80c0a9e4-2eba-4c84-9403-d1deac15aad6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatOverlay.jsx:join-overlay',message:'Emitting join-overlay',data:{userHash,socketConnected:socket.connected},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'C,E'})}).catch(()=>{});
+      // #endregion
       socket.emit("join-overlay", userHash);
     }
+
+    const onConnect = () => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/80c0a9e4-2eba-4c84-9403-d1deac15aad6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'ChatOverlay.jsx:connect',message:'Socket connect fired (rejoin?)',data:{userHash},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A,H1'})}).catch(()=>{});
+      // #endregion
+    };
+    socket.on("connect", onConnect);
 
     socket.on("new-event", (event) => {
       // 명령어 처리
@@ -757,6 +767,7 @@ const ChatOverlay = ({
     });
 
     return () => {
+      socket.off("connect", onConnect);
       if (userHash) {
         socket.emit("leave-overlay", userHash);
       }

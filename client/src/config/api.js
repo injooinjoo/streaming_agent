@@ -17,6 +17,10 @@ const getBaseUrl = () => {
 
 export const API_URL = getBaseUrl();
 
+// #region agent log
+if (typeof fetch !== 'undefined') { fetch('http://127.0.0.1:7242/ingest/80c0a9e4-2eba-4c84-9403-d1deac15aad6',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'api.js:getBaseUrl',message:'API_URL resolved',data:{API_URL,PROD:!!import.meta.env.PROD},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'B'})}).catch(()=>{}); }
+// #endregion
+
 export const getSocketUrl = () => API_URL;
 
 export const getApiUrl = (path) => `${API_URL}${path}`;

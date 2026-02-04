@@ -156,14 +156,8 @@ const VodVideos = () => {
 
             return (
               <div key={video.id} className="vod-video-card" onClick={() => setSelectedVideo(video)}>
-                <div 
-                  className="vod-video-thumbnail"
-                  style={{ background: video.thumbnailBg || 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' }}
-                >
-                  <div className="vod-thumbnail-content">
-                    <div className="vod-thumbnail-game-icon">{video.game?.charAt(0)}</div>
-                    <div className="vod-thumbnail-title">{video.title}</div>
-                  </div>
+                <div className="vod-video-thumbnail">
+                  <img src={video.thumbnail} alt={video.title} />
                   <div className="vod-video-status-overlay">
                     <span className={`vod-status-badge ${video.status}`}>
                       {video.status === 'published' ? '게시됨' : video.status === 'processing' ? '처리중' : '오류'}
@@ -233,22 +227,17 @@ const VodVideos = () => {
                   <tr key={video.id} onClick={() => setSelectedVideo(video)} style={{ cursor: 'pointer' }}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div
+                        <img
+                          src={video.thumbnail}
+                          alt={video.title}
                           style={{ 
-                            width: '60px', 
-                            height: '80px', 
+                            width: '54px', 
+                            height: '72px', 
                             borderRadius: '8px', 
-                            background: video.thumbnailBg || 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            objectFit: 'cover',
                             flexShrink: 0
                           }}
-                        >
-                          <span style={{ fontSize: '20px', fontWeight: 800, color: 'white', textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
-                            {video.game?.charAt(0)}
-                          </span>
-                        </div>
+                        />
                         <div>
                           <div style={{ fontWeight: 600, marginBottom: '4px' }}>{video.title}</div>
                           <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{video.game}</div>
@@ -364,45 +353,17 @@ const VodVideos = () => {
               </div>
 
               {/* 썸네일 */}
-              <div 
-                style={{ 
-                  marginBottom: '24px',
-                  height: '200px',
-                  borderRadius: '12px',
-                  background: selectedVideo.thumbnailBg || 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '12px'
-                }}
-              >
-                <div style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '16px',
-                  background: 'rgba(255, 255, 255, 0.2)',
-                  backdropFilter: 'blur(8px)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '32px',
-                  fontWeight: 800,
-                  color: 'white',
-                  textShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
-                }}>
-                  {selectedVideo.game?.charAt(0)}
-                </div>
-                <div style={{
-                  fontSize: '16px',
-                  fontWeight: 700,
-                  color: 'white',
-                  textShadow: '0 2px 8px rgba(0, 0, 0, 0.5)',
-                  textAlign: 'center',
-                  padding: '0 24px'
-                }}>
-                  {selectedVideo.title}
-                </div>
+              <div style={{ marginBottom: '24px', textAlign: 'center' }}>
+                <img
+                  src={selectedVideo.thumbnail}
+                  alt={selectedVideo.title}
+                  style={{ 
+                    maxWidth: '200px', 
+                    height: 'auto', 
+                    borderRadius: '12px',
+                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.2)'
+                  }}
+                />
               </div>
 
               {/* 플랫폼별 통계 */}

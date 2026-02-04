@@ -179,7 +179,12 @@
 }
 
 .nav-group {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.nav-group:not(:first-child) {
+  padding-top: 12px;
+  border-top: 1px solid var(--border-light);
 }
 
 .group-label-btn {
