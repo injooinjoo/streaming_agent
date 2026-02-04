@@ -698,6 +698,72 @@
   background: var(--bg-hover);
 }
 
+/* Feature Highlights 그리드 */
+.vod-features-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1200px) {
+  .vod-features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .vod-features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vod-feature-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-light);
+  border-radius: 14px;
+  transition: all 0.25s ease;
+}
+
+.vod-feature-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+  border-color: var(--border-medium);
+}
+
+.vod-feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  flex-shrink: 0;
+}
+
+.vod-feature-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.vod-feature-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.vod-feature-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 /* 업로드 영역 */
 .vod-upload-zone {
   border: 2px dashed var(--border-medium);

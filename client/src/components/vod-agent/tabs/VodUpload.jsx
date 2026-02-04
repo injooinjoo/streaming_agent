@@ -1,9 +1,37 @@
 import { useState } from 'react';
 import {
   Upload, Video, Youtube, Music2, Instagram, Link2, Calendar,
-  Check, AlertCircle, X, Copy, ExternalLink
+  Check, AlertCircle, X, Copy, ExternalLink, Layers, BarChart3, Sparkles
 } from 'lucide-react';
 import { platforms } from '../data/mockData';
+
+// 서비스 강점 데이터
+const features = [
+  {
+    icon: <Link2 size={24} />,
+    title: '자동 링크 생성',
+    description: '업로드 시 설명란에 수익 추적 링크가 자동 삽입됩니다',
+    gradient: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+  },
+  {
+    icon: <Layers size={24} />,
+    title: '3사 동시 업로드',
+    description: 'YouTube Shorts, TikTok, Instagram Reels 한 번에 업로드',
+    gradient: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)'
+  },
+  {
+    icon: <BarChart3 size={24} />,
+    title: '통합 분석',
+    description: '모든 플랫폼의 조회수, 클릭, 전환을 한 곳에서 분석',
+    gradient: 'linear-gradient(135deg, #11998e 0%, #38ef7d 100%)'
+  },
+  {
+    icon: <Sparkles size={24} />,
+    title: 'AI 인사이트',
+    description: 'AI가 최적 업로드 시간, 해시태그, 성과 예측을 제안합니다',
+    gradient: 'linear-gradient(135deg, #FF9A3C 0%, #FF6B35 100%)'
+  }
+];
 
 const VodUpload = () => {
   const [dragOver, setDragOver] = useState(false);
@@ -118,6 +146,21 @@ const VodUpload = () => {
           <p>릴스, 쇼츠, 틱톡에 한 번에 업로드하세요</p>
         </div>
       </header>
+
+      {/* Feature Highlights 섹션 */}
+      <div className="vod-features-grid">
+        {features.map((feature, idx) => (
+          <div key={idx} className="vod-feature-card">
+            <div className="vod-feature-icon" style={{ background: feature.gradient }}>
+              {feature.icon}
+            </div>
+            <div className="vod-feature-content">
+              <div className="vod-feature-title">{feature.title}</div>
+              <div className="vod-feature-desc">{feature.description}</div>
+            </div>
+          </div>
+        ))}
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: uploadedFile ? '1fr 400px' : '1fr', gap: '24px' }}>
         {/* 메인 폼 영역 */}
