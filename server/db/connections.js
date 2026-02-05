@@ -104,7 +104,14 @@ const initializeDatabase = async () => {
     client: config.client,
   });
 
-  return initializePostgres();
+  try {
+    return await initializePostgres();
+  } catch (err) {
+    // Fallback to mock mode if PostgreSQL connection fails
+    dbLogger.warn("PostgreSQL connection failed, falling back to mock mode", { error: err.message });
+    pool = createMockPool();
+    return pool;
+  }
 };
 
 /**
