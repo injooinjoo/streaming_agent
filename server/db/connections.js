@@ -4,6 +4,7 @@
  *
  * Usage:
  * - All environments use PostgreSQL via DATABASE_URL
+ * - Set USE_MOCK_DATA=true to skip database connection entirely
  */
 
 const { getConfig, isPostgres, isSQLite, getSQLHelpers } = require("../config/database.config");
@@ -11,6 +12,9 @@ const { db: dbLogger } = require("../services/logger");
 
 // Database instance
 let pool = null;
+
+// Mock mode flag
+const USE_MOCK_DATA = process.env.USE_MOCK_DATA === 'true';
 
 /**
  * Initialize PostgreSQL database (Supabase)
@@ -61,10 +65,38 @@ const initializePostgres = async () => {
 };
 
 /**
+ * Create a mock database pool for when USE_MOCK_DATA=true
+ * Returns empty results for all queries
+ */
+const createMockPool = () => {
+  dbLogger.info("Using mock database mode - no PostgreSQL connection");
+  return {
+    query: async (sql, params = []) => {
+      dbLogger.debug("Mock query executed", { sql: sql.substring(0, 100) });
+      return { rows: [], rowCount: 0 };
+    },
+    connect: async () => ({
+      query: async () => ({ rows: [], rowCount: 0 }),
+      release: () => {},
+    }),
+    end: async () => {
+      dbLogger.info("Mock pool closed");
+    },
+    _isMock: true,
+  };
+};
+
+/**
  * Initialize database
  * @returns {Promise<pg.Pool>}
  */
 const initializeDatabase = async () => {
+  // Skip PostgreSQL if mock mode is enabled
+  if (USE_MOCK_DATA) {
+    pool = createMockPool();
+    return pool;
+  }
+
   const config = getConfig();
 
   dbLogger.info("Initializing database...", {

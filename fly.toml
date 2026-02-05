@@ -12,6 +12,7 @@ primary_region = 'nrt'
   ENABLE_CRAWLER = 'false'
   NODE_ENV = 'production'
   PORT = '8080'
+  USE_MOCK_DATA = 'true'
 
 [http_service]
   internal_port = 8080
