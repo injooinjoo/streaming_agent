@@ -12,6 +12,127 @@ import LoadingSpinner from '../shared/LoadingSpinner';
 import { API_URL, mockFetch } from '../../config/api';
 import { formatCompactKo } from '../../utils/formatters';
 
+// 넥슨 IP 인텔리전스 목업 데이터
+const MOCK_IP_INTELLIGENCE = [
+  {
+    id: 'maplestory',
+    name: '메이플스토리',
+    mentionCount: 125000,
+    sentiment: 78,
+    trend: 12,
+    trendType: 'up',
+    insight: '신규 업데이트 이후 복귀 유저 증가세, 보스 레이드 컨텐츠 호평'
+  },
+  {
+    id: 'fc-online',
+    name: 'FC 온라인',
+    mentionCount: 98000,
+    sentiment: 65,
+    trend: -3,
+    trendType: 'down',
+    insight: '시즌 말기 피로감 언급 증가, 신규 이벤트 기대감 존재'
+  },
+  {
+    id: 'kartrider',
+    name: '카트라이더: 드리프트',
+    mentionCount: 67000,
+    sentiment: 82,
+    trend: 8,
+    trendType: 'up',
+    insight: '신규 캐릭터 업데이트 호응, 경쟁전 시스템 개선 요청'
+  },
+  {
+    id: 'dnf',
+    name: '던전앤파이터',
+    mentionCount: 89000,
+    sentiment: 71,
+    trend: 0,
+    trendType: 'stable',
+    insight: '꾸준한 팬층 유지, 레이드 컨텐츠 난이도 조정 요청'
+  }
+];
+
+// 시청자 관심 키워드 목업 데이터
+const MOCK_INTEREST_KEYWORDS = [
+  { keyword: '보스레이드', value: 85 },
+  { keyword: 'PvP', value: 72 },
+  { keyword: '캐릭터육성', value: 90 },
+  { keyword: '이벤트', value: 68 },
+  { keyword: '신규컨텐츠', value: 78 },
+  { keyword: '커스터마이징', value: 55 },
+  { keyword: '길드활동', value: 62 },
+  { keyword: '랭킹경쟁', value: 75 }
+];
+
+// 넥슨 스트리머 목업 데이터
+const MOCK_NEXON_STREAMERS = [
+  {
+    id: 1,
+    name: '메이플의전설',
+    channelId: 'maple_legend_kr',
+    platform: 'chzzk',
+    avgViewers: 8500,
+    chatVelocity: 180,
+    donationConversion: 4.2,
+    nexonAffinity: 95,
+    sentiment: 82,
+    trend: 'up',
+    mainNexonIP: '메이플스토리'
+  },
+  {
+    id: 2,
+    name: 'FC마스터',
+    channelId: 'fc_master_2024',
+    platform: 'chzzk',
+    avgViewers: 12000,
+    chatVelocity: 220,
+    donationConversion: 3.8,
+    nexonAffinity: 88,
+    sentiment: 75,
+    trend: 'stable',
+    mainNexonIP: 'FC 온라인'
+  },
+  {
+    id: 3,
+    name: '카트신',
+    channelId: 'kart_god_kr',
+    platform: 'twitch',
+    avgViewers: 5200,
+    chatVelocity: 95,
+    donationConversion: 5.1,
+    nexonAffinity: 92,
+    sentiment: 88,
+    trend: 'up',
+    mainNexonIP: '카트라이더'
+  },
+  {
+    id: 4,
+    name: '던파장인',
+    channelId: 'dnf_master_kr',
+    platform: 'chzzk',
+    avgViewers: 6800,
+    chatVelocity: 145,
+    donationConversion: 4.5,
+    nexonAffinity: 90,
+    sentiment: 79,
+    trend: 'stable',
+    mainNexonIP: '던전앤파이터'
+  },
+  {
+    id: 5,
+    name: '바람의나라BJ',
+    channelId: 'baram_bj',
+    platform: 'afreeca',
+    avgViewers: 3200,
+    chatVelocity: 78,
+    donationConversion: 6.2,
+    nexonAffinity: 85,
+    sentiment: 72,
+    trend: 'down',
+    mainNexonIP: '바람의나라'
+  }
+];
+
 const AdminNexonDiscovery = ({ onStreamerSelect }) => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,14 +188,17 @@ const AdminNexonDiscovery = ({ onStreamerSelect }) => {
         setStreamersData([]);
       }
 
-      // These would come from separate API endpoints when implemented
-      setIpIntelligence([]);
-      setInterestKeywords([]);
+      // IP 인텔리전스 & 키워드 데이터 (목업 사용)
+      setIpIntelligence(MOCK_IP_INTELLIGENCE);
+      setInterestKeywords(MOCK_INTEREST_KEYWORDS);
 
     } catch (err) {
       console.error('Failed to fetch discovery data:', err);
       setError('불러오기 실패');
-      setStreamersData([]);
+      // API 실패 시 목업 데이터 사용
+      setStreamersData(MOCK_NEXON_STREAMERS);
+      setIpIntelligence(MOCK_IP_INTELLIGENCE);
+      setInterestKeywords(MOCK_INTEREST_KEYWORDS);
     } finally {
       setLoading(false);
     }

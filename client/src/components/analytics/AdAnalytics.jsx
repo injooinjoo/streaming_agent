@@ -15,6 +15,44 @@ import './AnalyticsPage.css';
 
 import { API_URL, mockFetch } from '../../config/api';
 
+// 광고 수익 트렌드 목업 데이터
+const generateMockRevenueTrend = () => {
+  const trend = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
+    trend.push({
+      date: dateStr,
+      impressions: Math.floor(Math.random() * 50000) + 30000,
+      clicks: Math.floor(Math.random() * 1500) + 500,
+      revenue: Math.floor(Math.random() * 150000) + 80000
+    });
+  }
+  return trend;
+};
+
+const MOCK_REVENUE_TIMELINE = generateMockRevenueTrend();
+
+// 슬롯별 성과 목업 데이터
+const MOCK_SLOT_PERFORMANCE = [
+  { slot: '상단 배너', impressions: 125000, clicks: 3750, ctr: '3.00%', cpm: 2400, revenue: 300000, status: 'active' },
+  { slot: '하단 배너', impressions: 98000, clicks: 1960, ctr: '2.00%', cpm: 1800, revenue: 176400, status: 'active' },
+  { slot: '프리롤 광고', impressions: 45000, clicks: 2250, ctr: '5.00%', cpm: 4500, revenue: 202500, status: 'active' },
+  { slot: '오버레이 코너', impressions: 67000, clicks: 1340, ctr: '2.00%', cpm: 1500, revenue: 100500, status: 'paused' },
+  { slot: '채팅 옆 배너', impressions: 82000, clicks: 1640, ctr: '2.00%', cpm: 1200, revenue: 98400, status: 'active' }
+];
+
+// 광고 요약 목업 데이터
+const MOCK_AD_SUMMARY = {
+  totalImpressions: 417000,
+  totalClicks: 10940,
+  totalRevenue: 877800,
+  ctr: 2.62,
+  avgRevenuePerClick: 80,
+  pendingSettlement: 250000
+};
+
 const AdAnalytics = () => {
   const { resolvedTheme } = useTheme();
   const { token } = useAuth();
@@ -110,6 +148,10 @@ const AdAnalytics = () => {
 
     } catch (err) {
       console.error('Failed to fetch ad data:', err);
+      // API 실패 시 목업 데이터 사용
+      setRevenueTimeline(MOCK_REVENUE_TIMELINE);
+      setSlotPerformance(MOCK_SLOT_PERFORMANCE);
+      setSummary(MOCK_AD_SUMMARY);
     } finally {
       setLoading(false);
     }

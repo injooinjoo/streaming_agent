@@ -17,6 +17,52 @@ import { API_URL, mockFetch } from '../../config/api';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
+// 카테고리별 후원 목업 데이터
+const MOCK_CATEGORY_DONATIONS = [
+  { name: '리그 오브 레전드', value: 2850000, percent: 32 },
+  { name: 'Just Chatting', value: 1950000, percent: 22 },
+  { name: '발로란트', value: 1450000, percent: 16 },
+  { name: '메이플스토리', value: 1200000, percent: 14 },
+  { name: 'FC 온라인', value: 850000, percent: 10 },
+  { name: '기타', value: 500000, percent: 6 }
+];
+
+// 카테고리별 채팅 목업 데이터
+const MOCK_CATEGORY_CHATS = [
+  { name: 'Just Chatting', value: 125000, percent: 28 },
+  { name: '리그 오브 레전드', value: 98000, percent: 22 },
+  { name: '발로란트', value: 78000, percent: 18 },
+  { name: '메이플스토리', value: 65000, percent: 15 },
+  { name: 'FC 온라인', value: 45000, percent: 10 },
+  { name: '기타', value: 32000, percent: 7 }
+];
+
+// 카테고리별 성장 목업 데이터
+const MOCK_CATEGORY_GROWTH = [
+  { name: '발로란트', growth: 25 },
+  { name: '메이플스토리', growth: 18 },
+  { name: 'Just Chatting', growth: 12 },
+  { name: '리그 오브 레전드', growth: 5 },
+  { name: 'FC 온라인', growth: -3 },
+  { name: '배틀그라운드', growth: -8 }
+];
+
+// 시간대별 활동 목업 데이터
+const MOCK_HOURLY_BY_CATEGORY = [
+  { hour: '0시', donations: 45, chats: 2500 },
+  { hour: '2시', donations: 25, chats: 1200 },
+  { hour: '4시', donations: 10, chats: 450 },
+  { hour: '6시', donations: 8, chats: 320 },
+  { hour: '8시', donations: 22, chats: 1100 },
+  { hour: '10시', donations: 55, chats: 3200 },
+  { hour: '12시', donations: 85, chats: 5500 },
+  { hour: '14시', donations: 120, chats: 7800 },
+  { hour: '16시', donations: 165, chats: 9500 },
+  { hour: '18시', donations: 210, chats: 12500 },
+  { hour: '20시', donations: 285, chats: 18000 },
+  { hour: '22시', donations: 195, chats: 14500 }
+];
+
 const ContentAnalytics = () => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -88,10 +134,10 @@ const ContentAnalytics = () => {
         hourlyRes.ok ? hourlyRes.json() : []
       ]);
 
-      setCategoryDonations(Array.isArray(donations) ? donations : []);
-      setCategoryChats(Array.isArray(chats) ? chats : []);
-      setCategoryGrowth(Array.isArray(growth) ? growth : []);
-      setHourlyByCategory(Array.isArray(hourly) ? hourly : []);
+      setCategoryDonations(Array.isArray(donations) && donations.length > 0 ? donations : MOCK_CATEGORY_DONATIONS);
+      setCategoryChats(Array.isArray(chats) && chats.length > 0 ? chats : MOCK_CATEGORY_CHATS);
+      setCategoryGrowth(Array.isArray(growth) && growth.length > 0 ? growth : MOCK_CATEGORY_GROWTH);
+      setHourlyByCategory(Array.isArray(hourly) && hourly.length > 0 ? hourly : MOCK_HOURLY_BY_CATEGORY);
 
       // Calculate summary
       const totalDonations = (donations || []).reduce((sum, c) => sum + (c.value || 0), 0);
@@ -126,6 +172,19 @@ const ContentAnalytics = () => {
 
     } catch (err) {
       console.error('Failed to fetch content data:', err);
+      // API 실패 시 목업 데이터 사용
+      setCategoryDonations(MOCK_CATEGORY_DONATIONS);
+      setCategoryChats(MOCK_CATEGORY_CHATS);
+      setCategoryGrowth(MOCK_CATEGORY_GROWTH);
+      setHourlyByCategory(MOCK_HOURLY_BY_CATEGORY);
+      setSummary({
+        totalCategories: 6,
+        topCategory: '리그 오브 레전드',
+        totalDonations: 8800000,
+        totalChats: 443000,
+        peakHour: '20시',
+        avgViewerGrowth: 8
+      });
     } finally {
       setLoading(false);
     }

@@ -12,6 +12,59 @@ import { API_URL, mockFetch } from '../../config/api';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import './GameCatalog.css';
 
+// 게임 목록 목업 데이터
+const MOCK_GAMES = [
+  { id: 1, name: 'League of Legends', nameKr: '리그 오브 레전드', genre: 'MOBA', genres: ['MOBA', 'Strategy'], totalViewers: 125000, totalStreamers: 450, platforms: ['chzzk', 'soop', 'twitch'], imageUrl: null },
+  { id: 2, name: 'Just Chatting', nameKr: 'Just Chatting', genre: 'IRL', genres: ['Talk Show'], totalViewers: 98000, totalStreamers: 680, platforms: ['chzzk', 'soop', 'twitch'], imageUrl: null },
+  { id: 3, name: 'VALORANT', nameKr: '발로란트', genre: 'FPS', genres: ['FPS', 'Tactical'], totalViewers: 75000, totalStreamers: 320, platforms: ['chzzk', 'twitch'], imageUrl: null },
+  { id: 4, name: 'MapleStory', nameKr: '메이플스토리', genre: 'RPG', genres: ['MMORPG', 'Side-Scroller'], totalViewers: 62000, totalStreamers: 180, platforms: ['chzzk', 'soop'], imageUrl: null },
+  { id: 5, name: 'FC Online', nameKr: 'FC 온라인', genre: 'Sports', genres: ['Sports', 'Soccer'], totalViewers: 58000, totalStreamers: 210, platforms: ['soop', 'chzzk'], imageUrl: null },
+  { id: 6, name: 'PUBG', nameKr: '배틀그라운드', genre: 'Battle Royale', genres: ['Battle Royale', 'Shooter'], totalViewers: 45000, totalStreamers: 150, platforms: ['chzzk', 'soop', 'twitch'], imageUrl: null },
+  { id: 7, name: 'Minecraft', nameKr: '마인크래프트', genre: 'Sandbox', genres: ['Sandbox', 'Survival'], totalViewers: 38000, totalStreamers: 220, platforms: ['chzzk', 'twitch'], imageUrl: null },
+  { id: 8, name: 'StarCraft', nameKr: '스타크래프트', genre: 'RTS', genres: ['RTS', 'Strategy'], totalViewers: 32000, totalStreamers: 85, platforms: ['soop'], imageUrl: null },
+  { id: 9, name: 'Overwatch 2', nameKr: '오버워치 2', genre: 'FPS', genres: ['FPS', 'Hero Shooter'], totalViewers: 28000, totalStreamers: 120, platforms: ['chzzk', 'twitch'], imageUrl: null },
+  { id: 10, name: 'Lost Ark', nameKr: '로스트아크', genre: 'MMORPG', genres: ['MMORPG', 'Action RPG'], totalViewers: 25000, totalStreamers: 95, platforms: ['chzzk', 'soop'], imageUrl: null },
+  { id: 11, name: 'Diablo IV', nameKr: '디아블로 IV', genre: 'Action RPG', genres: ['Action RPG', 'Hack and Slash'], totalViewers: 22000, totalStreamers: 75, platforms: ['chzzk', 'twitch'], imageUrl: null },
+  { id: 12, name: 'Dungeon & Fighter', nameKr: '던전앤파이터', genre: 'Action RPG', genres: ['Action RPG', 'Beat \'em up'], totalViewers: 18000, totalStreamers: 60, platforms: ['chzzk', 'soop'], imageUrl: null }
+];
+
+// 통계 목업 데이터
+const MOCK_STATS = {
+  total_viewers: 626000,
+  total_streamers: 2645,
+  total_games: 12,
+  soop_categories: 8,
+  chzzk_categories: 11,
+  twitch_categories: 7,
+  shared_categories: 6
+};
+
+// 트렌드 목업 데이터
+const generateMockTrends = () => {
+  const categories = [
+    { key: 'lol', id: 1, name: '리그 오브 레전드', totalViewers: 125000 },
+    { key: 'chat', id: 2, name: 'Just Chatting', totalViewers: 98000 },
+    { key: 'val', id: 3, name: '발로란트', totalViewers: 75000 },
+    { key: 'maple', id: 4, name: '메이플스토리', totalViewers: 62000 },
+    { key: 'fc', id: 5, name: 'FC 온라인', totalViewers: 58000 }
+  ];
+  
+  const dailyData = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const entry = { date: date.toISOString().split('T')[0] };
+    categories.forEach(cat => {
+      entry[cat.key] = Math.floor(cat.totalViewers * (0.7 + Math.random() * 0.6));
+    });
+    dailyData.push(entry);
+  }
+  
+  return { categories, dailyData };
+};
+
+const MOCK_TRENDS = generateMockTrends();
+
 // 차트 색상 팔레트 (상위 20개용)
 const CHART_COLORS = [
   '#8b5cf6', '#06b6d4', '#10b981', '#f59e0b', '#ef4444',
@@ -68,7 +121,11 @@ const GameCatalog = ({ onGameSelect }) => {
       }
     } catch (err) {
       console.error('GameCatalog fetch error:', err);
-      setError(err.message);
+      // API 실패 시 목업 데이터 사용
+      setGames(MOCK_GAMES);
+      setStats(MOCK_STATS);
+      setTrends(MOCK_TRENDS);
+      setError(null); // 에러 대신 목업 표시
     } finally {
       setLoading(false);
       setTrendsLoading(false);

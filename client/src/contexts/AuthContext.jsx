@@ -89,6 +89,7 @@ export const AuthProvider = ({ children }) => {
     token: isAuthenticated ? 'auto-login-token' : null,
     accessToken: isAuthenticated ? 'auto-login-token' : null,
     loading,
+    isLoading: loading, // ProtectedRoute 호환성
     isAuthenticated,
     register,
     login,

@@ -12,6 +12,83 @@ import { mockFetch } from '../../config/api';
 const API_BASE = '/api/monitor';
 const PAGE_SIZE = 30;
 
+// 통계 목업 데이터
+const MOCK_STATS = {
+  broadcasts: { live: 45, total_24h: 320 },
+  persons: { total: 12580, broadcasters: 890, viewers: 11690 },
+  events: { total_24h: 458000, donations_24h: 3200, chats_24h: 454800 },
+  viewers: { current: 185000, peak_24h: 425000 },
+  revenue: { total_24h: 12500000, avg_donation: 15000 }
+};
+
+// 방송 목록 목업 데이터
+const MOCK_BROADCASTS = {
+  data: [
+    { id: 1, title: '오늘의 게임 방송', broadcaster_name: '우왁굳', platform: 'chzzk', is_live: true, current_viewers: 45000, peak_viewers: 52000, started_at: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), category_name: '종합게임' },
+    { id: 2, title: '랭크 올리기', broadcaster_name: '김도', platform: 'soop', is_live: true, current_viewers: 38000, peak_viewers: 42000, started_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), category_name: 'Just Chatting' },
+    { id: 3, title: '신규 패치 체험', broadcaster_name: '풍월량', platform: 'chzzk', is_live: true, current_viewers: 32000, peak_viewers: 38000, started_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), category_name: '리그 오브 레전드' },
+    { id: 4, title: '토크쇼', broadcaster_name: '침착맨', platform: 'soop', is_live: false, current_viewers: 0, peak_viewers: 45000, started_at: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), category_name: 'Just Chatting' },
+    { id: 5, title: '래디언트 가기', broadcaster_name: '랄로', platform: 'twitch', is_live: true, current_viewers: 22000, peak_viewers: 28000, started_at: new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString(), category_name: '발로란트' }
+  ],
+  pagination: { total: 320, page: 1, limit: 30, totalPages: 11 }
+};
+
+// 인원 목록 목업 데이터
+const MOCK_PERSONS = {
+  data: [
+    { id: 1, nickname: '우왁굳', platform: 'chzzk', type: 'broadcaster', total_viewers: 2500000, broadcast_count: 180 },
+    { id: 2, nickname: '김도', platform: 'soop', type: 'broadcaster', total_viewers: 1850000, broadcast_count: 220 },
+    { id: 3, nickname: '열혈팬1', platform: 'chzzk', type: 'viewer', total_chats: 15000, total_donations: 850000 },
+    { id: 4, nickname: '풍월량', platform: 'chzzk', type: 'broadcaster', total_viewers: 1200000, broadcast_count: 150 },
+    { id: 5, nickname: '시청자A', platform: 'soop', type: 'viewer', total_chats: 8500, total_donations: 320000 }
+  ],
+  pagination: { total: 12580, page: 1, limit: 30, totalPages: 420 }
+};
+
+// 이벤트 목업 데이터
+const MOCK_EVENTS = {
+  data: [
+    { id: 1, event_type: 'donation', sender: '황금손', amount: 50000, message: '오늘도 화이팅!', created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(), broadcaster_name: '우왁굳' },
+    { id: 2, event_type: 'subscription', sender: '팬심이', tier: 1, created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(), broadcaster_name: '김도' },
+    { id: 3, event_type: 'donation', sender: '후원왕', amount: 100000, message: '대박나세요!', created_at: new Date(Date.now() - 25 * 60 * 1000).toISOString(), broadcaster_name: '풍월량' },
+    { id: 4, event_type: 'follow', sender: '새팬', created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString(), broadcaster_name: '침착맨' },
+    { id: 5, event_type: 'donation', sender: '응원단', amount: 30000, message: '힘내세요~', created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(), broadcaster_name: '랄로' }
+  ],
+  pagination: { total: 3200, page: 1, limit: 30, totalPages: 107 }
+};
+
+// 세그먼트 목업 데이터
+const MOCK_SEGMENTS = {
+  data: [
+    { id: 1, broadcast_id: 1, start_time: '00:00:00', end_time: '01:30:00', category_name: '리그 오브 레전드', avg_viewers: 42000, peak_viewers: 48000 },
+    { id: 2, broadcast_id: 1, start_time: '01:30:00', end_time: '03:00:00', category_name: 'Just Chatting', avg_viewers: 38000, peak_viewers: 45000 },
+    { id: 3, broadcast_id: 2, start_time: '00:00:00', end_time: '02:00:00', category_name: 'FC 온라인', avg_viewers: 35000, peak_viewers: 42000 }
+  ],
+  pagination: { total: 1250, page: 1, limit: 30, totalPages: 42 }
+};
+
+// 카테고리 목업 데이터
+const MOCK_CATEGORIES = {
+  data: [
+    { id: 1, name: '리그 오브 레전드', name_kr: '리그 오브 레전드', platform: 'all', broadcast_count: 85, total_viewers: 125000 },
+    { id: 2, name: 'Just Chatting', name_kr: 'Just Chatting', platform: 'all', broadcast_count: 120, total_viewers: 98000 },
+    { id: 3, name: 'VALORANT', name_kr: '발로란트', platform: 'all', broadcast_count: 65, total_viewers: 75000 },
+    { id: 4, name: 'MapleStory', name_kr: '메이플스토리', platform: 'chzzk', broadcast_count: 45, total_viewers: 62000 },
+    { id: 5, name: 'FC Online', name_kr: 'FC 온라인', platform: 'soop', broadcast_count: 55, total_viewers: 58000 }
+  ],
+  pagination: { total: 150, page: 1, limit: 30, totalPages: 5 }
+};
+
+// 참여 기록 목업 데이터
+const MOCK_ENGAGEMENT = {
+  data: [
+    { id: 1, person_nickname: '열혈팬1', broadcast_title: '오늘의 방송', chat_count: 250, donation_total: 50000, watched_minutes: 180 },
+    { id: 2, person_nickname: '시청자A', broadcast_title: '랭크 방송', chat_count: 180, donation_total: 30000, watched_minutes: 120 },
+    { id: 3, person_nickname: '팬심이', broadcast_title: '토크쇼', chat_count: 320, donation_total: 100000, watched_minutes: 240 }
+  ],
+  pagination: { total: 8500, page: 1, limit: 30, totalPages: 284 }
+};
+
 // 날짜 포맷 (KST)
 const formatDate = (dateStr) => {
   if (!dateStr) return '-';
@@ -86,9 +163,11 @@ const AdminMonitor = () => {
     try {
       const res = await mockFetch(`${API_BASE}/stats`);
       const data = await res.json();
-      setStats(data);
+      setStats(data?.broadcasts ? data : MOCK_STATS);
     } catch (error) {
       console.error('Failed to load stats:', error);
+      // API 실패 시 목업 데이터 사용
+      setStats(MOCK_STATS);
     }
   };
 
@@ -229,10 +308,13 @@ const AdminMonitor = () => {
       const liveOnly = broadcastFilter === 'live' ? 'true' : 'false';
       const res = await mockFetch(`${API_BASE}/broadcasts?page=${page}&limit=${PAGE_SIZE}&live_only=${liveOnly}`);
       const data = await res.json();
-      setBroadcasts(data);
+      setBroadcasts(data?.data?.length > 0 ? data : MOCK_BROADCASTS);
       setCurrentPages(prev => ({ ...prev, broadcasts: page }));
     } catch (error) {
       console.error('Failed to load broadcasts:', error);
+      // API 실패 시 목업 데이터 사용
+      setBroadcasts(MOCK_BROADCASTS);
+      setCurrentPages(prev => ({ ...prev, broadcasts: page }));
     }
   };
 
@@ -241,10 +323,13 @@ const AdminMonitor = () => {
     try {
       const res = await mockFetch(`${API_BASE}/persons?page=${page}&limit=${PAGE_SIZE}&type=${personFilter}`);
       const data = await res.json();
-      setPersons(data);
+      setPersons(data?.data?.length > 0 ? data : MOCK_PERSONS);
       setCurrentPages(prev => ({ ...prev, persons: page }));
     } catch (error) {
       console.error('Failed to load persons:', error);
+      // API 실패 시 목업 데이터 사용
+      setPersons(MOCK_PERSONS);
+      setCurrentPages(prev => ({ ...prev, persons: page }));
     }
   };
 
@@ -257,10 +342,13 @@ const AdminMonitor = () => {
       }
       const res = await mockFetch(`${API_BASE}/events?page=${page}&limit=${PAGE_SIZE}&type=${typeParam}`);
       const data = await res.json();
-      setEvents(data);
+      setEvents(data?.data?.length > 0 ? data : MOCK_EVENTS);
       setCurrentPages(prev => ({ ...prev, events: page }));
     } catch (error) {
       console.error('Failed to load events:', error);
+      // API 실패 시 목업 데이터 사용
+      setEvents(MOCK_EVENTS);
+      setCurrentPages(prev => ({ ...prev, events: page }));
     }
   };
 
@@ -269,10 +357,13 @@ const AdminMonitor = () => {
     try {
       const res = await mockFetch(`${API_BASE}/segments?page=${page}&limit=${PAGE_SIZE}`);
       const data = await res.json();
-      setSegments(data);
+      setSegments(data?.data?.length > 0 ? data : MOCK_SEGMENTS);
       setCurrentPages(prev => ({ ...prev, segments: page }));
     } catch (error) {
       console.error('Failed to load segments:', error);
+      // API 실패 시 목업 데이터 사용
+      setSegments(MOCK_SEGMENTS);
+      setCurrentPages(prev => ({ ...prev, segments: page }));
     }
   };
 
@@ -281,10 +372,13 @@ const AdminMonitor = () => {
     try {
       const res = await mockFetch(`${API_BASE}/categories?page=${page}&limit=${PAGE_SIZE}&platform=${categoryFilter}`);
       const data = await res.json();
-      setCategories(data);
+      setCategories(data?.data?.length > 0 ? data : MOCK_CATEGORIES);
       setCurrentPages(prev => ({ ...prev, categories: page }));
     } catch (error) {
       console.error('Failed to load categories:', error);
+      // API 실패 시 목업 데이터 사용
+      setCategories(MOCK_CATEGORIES);
+      setCurrentPages(prev => ({ ...prev, categories: page }));
     }
   };
 
@@ -293,10 +387,13 @@ const AdminMonitor = () => {
     try {
       const res = await mockFetch(`${API_BASE}/engagement?page=${page}&limit=${PAGE_SIZE}`);
       const data = await res.json();
-      setEngagement(data);
+      setEngagement(data?.data?.length > 0 ? data : MOCK_ENGAGEMENT);
       setCurrentPages(prev => ({ ...prev, engagement: page }));
     } catch (error) {
       console.error('Failed to load engagement:', error);
+      // API 실패 시 목업 데이터 사용
+      setEngagement(MOCK_ENGAGEMENT);
+      setCurrentPages(prev => ({ ...prev, engagement: page }));
     }
   };
 

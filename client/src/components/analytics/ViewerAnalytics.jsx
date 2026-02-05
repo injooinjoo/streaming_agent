@@ -13,6 +13,64 @@ import LoadingSpinner from '../shared/LoadingSpinner';
 import { API_URL, mockFetch } from '../../config/api';
 import './AnalyticsPage.css';
 
+// 시간대별 시청자 데이터 목업
+const MOCK_HOURLY_DATA = [
+  { hour: '0시', viewers: 1250, chats: 3500 },
+  { hour: '2시', viewers: 890, chats: 2100 },
+  { hour: '4시', viewers: 420, chats: 850 },
+  { hour: '6시', viewers: 280, chats: 520 },
+  { hour: '8시', viewers: 650, chats: 1800 },
+  { hour: '10시', viewers: 1100, chats: 3200 },
+  { hour: '12시', viewers: 1850, chats: 5200 },
+  { hour: '14시', viewers: 2200, chats: 6800 },
+  { hour: '16시', viewers: 2800, chats: 8500 },
+  { hour: '18시', viewers: 3500, chats: 12000 },
+  { hour: '20시', viewers: 4200, chats: 15500 },
+  { hour: '22시', viewers: 3800, chats: 13000 }
+];
+
+// 요일별 시청자 데이터 목업
+const MOCK_DAY_OF_WEEK_DATA = [
+  { day: '월', viewers: 8500, chats: 25000 },
+  { day: '화', viewers: 7800, chats: 22000 },
+  { day: '수', viewers: 8200, chats: 24500 },
+  { day: '목', viewers: 9100, chats: 28000 },
+  { day: '금', viewers: 11500, chats: 38000 },
+  { day: '토', viewers: 15200, chats: 52000 },
+  { day: '일', viewers: 14800, chats: 48000 }
+];
+
+// 활동 타임라인 목업 (최근 7일)
+const generateMockTimeline = () => {
+  const timeline = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toISOString().split('T')[0];
+    timeline.push({
+      date: dateStr,
+      activeViewers: Math.floor(Math.random() * 3000) + 2000,
+      totalChats: Math.floor(Math.random() * 15000) + 8000,
+      engagementCount: Math.floor(Math.random() * 500) + 200
+    });
+  }
+  return timeline;
+};
+
+const MOCK_ACTIVITY_TIMELINE = generateMockTimeline();
+
+// 요약 데이터 목업
+const MOCK_SUMMARY = {
+  uniqueViewers: 12580,
+  totalChats: 156890,
+  activeChannels: 45,
+  activeDays: 7,
+  peakHour: '20:00 - 22:00',
+  peakViewerCount: 4200,
+  peakChatCount: 15500,
+  peakBroadcastViewers: 8500
+};
+
 const ViewerAnalytics = () => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -99,10 +157,20 @@ const ViewerAnalytics = () => {
       })) : []);
 
       // Timeline is already in correct format
-      setActivityTimeline(Array.isArray(timeline) ? timeline : []);
+      setActivityTimeline(Array.isArray(timeline) && timeline.length > 0 ? timeline : MOCK_ACTIVITY_TIMELINE);
+
+      // 데이터가 비어있으면 목업 사용
+      if (!summaryData?.uniqueViewers) setSummary(MOCK_SUMMARY);
+      if (!Array.isArray(hourly) || hourly.length === 0) setHourlyData(MOCK_HOURLY_DATA);
+      if (!Array.isArray(daily) || daily.length === 0) setDayOfWeekData(MOCK_DAY_OF_WEEK_DATA);
 
     } catch (err) {
       console.error('Failed to fetch viewer data:', err);
+      // API 실패 시 목업 데이터 사용
+      setSummary(MOCK_SUMMARY);
+      setHourlyData(MOCK_HOURLY_DATA);
+      setDayOfWeekData(MOCK_DAY_OF_WEEK_DATA);
+      setActivityTimeline(MOCK_ACTIVITY_TIMELINE);
     } finally {
       setLoading(false);
     }

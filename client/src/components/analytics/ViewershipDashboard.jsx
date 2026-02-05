@@ -10,6 +10,83 @@ import { API_URL, mockFetch } from '../../config/api';
 import { formatCompactKo, formatFullNumber, formatCurrency } from '../../utils/formatters';
 import './ViewershipDashboard.css';
 
+// 실시간 트렌드 목업 데이터
+const MOCK_REALTIME_TREND = [
+  { time: '00:00', chzzk: 145000, soop: 89000, twitch: 42000 },
+  { time: '02:00', chzzk: 98000, soop: 65000, twitch: 28000 },
+  { time: '04:00', chzzk: 52000, soop: 38000, twitch: 15000 },
+  { time: '06:00', chzzk: 35000, soop: 22000, twitch: 12000 },
+  { time: '08:00', chzzk: 68000, soop: 45000, twitch: 25000 },
+  { time: '10:00', chzzk: 125000, soop: 78000, twitch: 38000 },
+  { time: '12:00', chzzk: 180000, soop: 95000, twitch: 52000 },
+  { time: '14:00', chzzk: 220000, soop: 115000, twitch: 65000 },
+  { time: '16:00', chzzk: 265000, soop: 138000, twitch: 78000 },
+  { time: '18:00', chzzk: 320000, soop: 175000, twitch: 95000 },
+  { time: '20:00', chzzk: 385000, soop: 210000, twitch: 118000 },
+  { time: '22:00', chzzk: 350000, soop: 195000, twitch: 105000 }
+];
+
+// 실시간 요약 목업 데이터
+const MOCK_REALTIME_SUMMARY = {
+  totalViewers: 713000,
+  platforms: [
+    { platform: 'chzzk', name: '치지직', viewers: 385000, channels: 1250, peak: 425000 },
+    { platform: 'soop', name: 'SOOP', viewers: 210000, channels: 890, peak: 245000 },
+    { platform: 'twitch', name: '트위치', viewers: 118000, channels: 520, peak: 135000 }
+  ]
+};
+
+// 실시간 방송 랭킹 목업 데이터
+const MOCK_LIVE_BROADCASTS = [
+  { rank: 1, channelId: 'ch1', broadcasterName: '우왁굳', platform: 'chzzk', categoryName: '종합게임', title: '주간 왁굳 방송', currentViewers: 45000, startedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 1 },
+  { rank: 2, channelId: 'ch2', broadcasterName: '김도', platform: 'soop', categoryName: 'Just Chatting', title: '오늘도 즐거운 방송', currentViewers: 38000, startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 2 },
+  { rank: 3, channelId: 'ch3', broadcasterName: '풍월량', platform: 'chzzk', categoryName: '리그 오브 레전드', title: '솔랭 도전기', currentViewers: 32000, startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 3 },
+  { rank: 4, channelId: 'ch4', broadcasterName: '침착맨', platform: 'soop', categoryName: 'Just Chatting', title: '침착맨의 침착한 방송', currentViewers: 28000, startedAt: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 4 },
+  { rank: 5, channelId: 'ch5', broadcasterName: '랄로', platform: 'twitch', categoryName: '발로란트', title: '래디언트 가즈아!', currentViewers: 22000, startedAt: new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 5 },
+  { rank: 6, channelId: 'ch6', broadcasterName: '아구', platform: 'chzzk', categoryName: '메이플스토리', title: '보스 레이드 공략', currentViewers: 18500, startedAt: new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 6 },
+  { rank: 7, channelId: 'ch7', broadcasterName: '샌드박스', platform: 'soop', categoryName: '스타크래프트', title: '프로게이머와 래더', currentViewers: 15000, startedAt: new Date(Date.now() - 3.5 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 7 },
+  { rank: 8, channelId: 'ch8', broadcasterName: '쫀득', platform: 'chzzk', categoryName: 'FC 온라인', title: '월드클래스 뽑기', currentViewers: 12500, startedAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 8 }
+];
+
+// 피크 시청자 랭킹 목업 데이터
+const MOCK_PEAK_BROADCASTS = [
+  { rank: 1, channelId: 'ch1', broadcasterName: '우왁굳', platform: 'chzzk', categoryName: '종합게임', title: '주간 왁굳 방송', peakViewers: 85000, isLive: true, startedAt: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 1 },
+  { rank: 2, channelId: 'ch2', broadcasterName: '김도', platform: 'soop', categoryName: 'Just Chatting', title: '오늘도 즐거운 방송', peakViewers: 62000, isLive: true, startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 2 },
+  { rank: 3, channelId: 'ch9', broadcasterName: '감스트', platform: 'soop', categoryName: 'FC 온라인', title: 'FC 온라인 대회', peakViewers: 55000, isLive: false, startedAt: new Date(Date.now() - 8 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 9 },
+  { rank: 4, channelId: 'ch3', broadcasterName: '풍월량', platform: 'chzzk', categoryName: '리그 오브 레전드', title: '솔랭 도전기', peakViewers: 48000, isLive: true, startedAt: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 3 },
+  { rank: 5, channelId: 'ch10', broadcasterName: '따효니', platform: 'chzzk', categoryName: '배틀그라운드', title: '펍지 스쿼드', peakViewers: 42000, isLive: false, startedAt: new Date(Date.now() - 10 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 10 },
+  { rank: 6, channelId: 'ch4', broadcasterName: '침착맨', platform: 'soop', categoryName: 'Just Chatting', title: '침착맨의 침착한 방송', peakViewers: 38000, isLive: true, startedAt: new Date(Date.now() - 1.5 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 4 },
+  { rank: 7, channelId: 'ch5', broadcasterName: '랄로', platform: 'twitch', categoryName: '발로란트', title: '래디언트 가즈아!', peakViewers: 35000, isLive: true, startedAt: new Date(Date.now() - 2.5 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 5 },
+  { rank: 8, channelId: 'ch11', broadcasterName: '제이슬', platform: 'twitch', categoryName: 'Just Chatting', title: '새벽 토크쇼', peakViewers: 28000, isLive: false, startedAt: new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString(), profileImageUrl: null, personId: 11 }
+];
+
+// 카테고리 목업 데이터
+const MOCK_CATEGORIES = [
+  { id: 1, name: 'League of Legends', nameKr: '리그 오브 레전드', totalViewers: 125000, platforms: ['chzzk', 'soop', 'twitch'], imageUrl: null },
+  { id: 2, name: 'Just Chatting', nameKr: 'Just Chatting', totalViewers: 98000, platforms: ['chzzk', 'soop', 'twitch'], imageUrl: null },
+  { id: 3, name: 'VALORANT', nameKr: '발로란트', totalViewers: 75000, platforms: ['chzzk', 'twitch'], imageUrl: null },
+  { id: 4, name: 'MapleStory', nameKr: '메이플스토리', totalViewers: 62000, platforms: ['chzzk', 'soop'], imageUrl: null },
+  { id: 5, name: 'FC Online', nameKr: 'FC 온라인', totalViewers: 58000, platforms: ['soop', 'chzzk'], imageUrl: null },
+  { id: 6, name: 'PUBG', nameKr: '배틀그라운드', totalViewers: 45000, platforms: ['chzzk', 'soop', 'twitch'], imageUrl: null },
+  { id: 7, name: 'Minecraft', nameKr: '마인크래프트', totalViewers: 38000, platforms: ['chzzk', 'twitch'], imageUrl: null },
+  { id: 8, name: 'StarCraft', nameKr: '스타크래프트', totalViewers: 32000, platforms: ['soop'], imageUrl: null },
+  { id: 9, name: 'Overwatch 2', nameKr: '오버워치 2', totalViewers: 28000, platforms: ['chzzk', 'twitch'], imageUrl: null },
+  { id: 10, name: 'Lost Ark', nameKr: '로스트아크', totalViewers: 25000, platforms: ['chzzk', 'soop'], imageUrl: null }
+];
+
+// 어제 요약 목업 데이터
+const MOCK_YESTERDAY_SUMMARY = {
+  date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+  startTime: '09:00',
+  endTime: '23:30',
+  duration: '14시간 30분',
+  avgViewers: 285000,
+  peakViewers: 425000,
+  chatCount: 1250000,
+  donationAmount: 12500000,
+  donationCount: 3200
+};
+
 const ViewershipDashboard = ({ onStreamerSelect }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('viewers'); // viewers | channels | chats
@@ -133,10 +210,24 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
         fetchRanking('live', liveRankPlatform),
         fetchRanking('peak', peakRankPlatform)
       ]);
-      setLiveBroadcasts(liveData);
-      setPeakBroadcasts(peakData);
+      setLiveBroadcasts(liveData.length > 0 ? liveData : MOCK_LIVE_BROADCASTS);
+      setPeakBroadcasts(peakData.length > 0 ? peakData : MOCK_PEAK_BROADCASTS);
+      
+      // API 데이터가 없으면 목업 사용
+      if (!realtimeSummaryData) setRealtimeSummary(MOCK_REALTIME_SUMMARY);
+      if (realtimeTrendData.length === 0) setRealtimeTrend(MOCK_REALTIME_TREND);
+      if ((categoriesData.data || []).length === 0) setCategories(MOCK_CATEGORIES);
+      if (!yesterday?.date) setYesterdaySummary(MOCK_YESTERDAY_SUMMARY);
     } catch (err) {
       console.error('Failed to fetch viewership data:', err);
+      // API 실패 시 목업 데이터 사용
+      setRealtimeSummary(MOCK_REALTIME_SUMMARY);
+      setRealtimeTrend(MOCK_REALTIME_TREND);
+      setLiveBroadcasts(MOCK_LIVE_BROADCASTS);
+      setPeakBroadcasts(MOCK_PEAK_BROADCASTS);
+      setCategories(MOCK_CATEGORIES);
+      setYesterdaySummary(MOCK_YESTERDAY_SUMMARY);
+      setViewerTrend(MOCK_REALTIME_TREND);
     } finally {
       setLoading(false);
     }

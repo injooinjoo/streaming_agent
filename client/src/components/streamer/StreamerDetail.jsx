@@ -15,6 +15,55 @@ import './StreamerDetail.css';
 
 const PIE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#a855f7', '#06b6d4', '#ec4899', '#8b5cf6'];
 
+// 스트리머 프로필 목업 데이터
+const MOCK_STREAMER_PROFILE = {
+  person: {
+    id: 1,
+    nickname: '샘플 스트리머',
+    platform: 'chzzk',
+    profile_image_url: null,
+    channel_id: 'sample_channel_123'
+  },
+  stats: {
+    total_broadcasts: 156,
+    total_duration_minutes: 28500,
+    avg_duration_minutes: 182,
+    total_viewers: 450000,
+    avg_viewers: 2885,
+    peak_viewers: 15800,
+    last_broadcast_at: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  },
+  live: null,
+  recentBroadcasts: [
+    { id: 1, title: '오늘의 게임 방송', category_name: '리그 오브 레전드', started_at: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), duration_minutes: 240, peak_viewer_count: 8500, avg_viewer_count: 5200 },
+    { id: 2, title: '주말 마라톤 방송', category_name: 'Just Chatting', started_at: new Date(Date.now() - 72 * 60 * 60 * 1000).toISOString(), duration_minutes: 360, peak_viewer_count: 12000, avg_viewer_count: 7800 },
+    { id: 3, title: '신규 게임 체험', category_name: '발로란트', started_at: new Date(Date.now() - 120 * 60 * 60 * 1000).toISOString(), duration_minutes: 180, peak_viewer_count: 6500, avg_viewer_count: 4200 }
+  ],
+  topCategories: [
+    { name: '리그 오브 레전드', total_duration: 8500, total_viewers: 180000, broadcast_count: 45 },
+    { name: 'Just Chatting', total_duration: 5200, total_viewers: 120000, broadcast_count: 38 },
+    { name: '발로란트', total_duration: 3800, total_viewers: 85000, broadcast_count: 28 },
+    { name: '메이플스토리', total_duration: 2500, total_viewers: 52000, broadcast_count: 18 }
+  ],
+  hourlyPattern: [
+    { hour: '0시', viewers: 1250 }, { hour: '2시', viewers: 850 },
+    { hour: '4시', viewers: 320 }, { hour: '6시', viewers: 180 },
+    { hour: '8시', viewers: 450 }, { hour: '10시', viewers: 1100 },
+    { hour: '12시', viewers: 2200 }, { hour: '14시', viewers: 2800 },
+    { hour: '16시', viewers: 3500 }, { hour: '18시', viewers: 4800 },
+    { hour: '20시', viewers: 6200 }, { hour: '22시', viewers: 5500 }
+  ],
+  dayOfWeekPattern: [
+    { day: '월', viewers: 8500, broadcasts: 4 },
+    { day: '화', viewers: 7800, broadcasts: 3 },
+    { day: '수', viewers: 9200, broadcasts: 4 },
+    { day: '목', viewers: 8100, broadcasts: 3 },
+    { day: '금', viewers: 12500, broadcasts: 5 },
+    { day: '토', viewers: 18500, broadcasts: 6 },
+    { day: '일', viewers: 16200, broadcasts: 5 }
+  ]
+};
+
 const PLATFORM_LOGOS = {
   soop: '/assets/logos/soop.png',
   chzzk: '/assets/logos/chzzk.png',
@@ -73,13 +122,17 @@ const StreamerDetail = ({ personId: propPersonId, onBack }) => {
     try {
       const res = await mockFetch(`${API_URL}/api/streamer/${personId}`);
       const json = await res.json();
-      if (json.success) {
+      if (json.success && json.data) {
         setProfile(json.data);
       } else {
-        setError(json.error || '스트리머를 찾을 수 없습니다');
+        // API 실패 시 목업 데이터 사용
+        console.log('Using mock streamer data');
+        setProfile(MOCK_STREAMER_PROFILE);
       }
     } catch (err) {
-      setError('데이터를 불러오는 중 오류가 발생했습니다');
+      console.error('Profile fetch error:', err);
+      // API 오류 시 목업 데이터 사용
+      setProfile(MOCK_STREAMER_PROFILE);
     } finally {
       setLoading(false);
     }

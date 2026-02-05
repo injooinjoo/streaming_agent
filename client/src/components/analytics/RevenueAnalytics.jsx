@@ -17,6 +17,49 @@ import './AnalyticsPage.css';
 
 import { API_URL, mockFetch } from '../../config/api';
 
+// 수익 트렌드 목업 데이터
+const generateMockRevenueTrend = () => {
+  const data = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
+    data.push({
+      date: dateStr,
+      donation: Math.floor(Math.random() * 500000) + 200000,
+      subscription: Math.floor(Math.random() * 100000) + 50000,
+      ads: Math.floor(Math.random() * 80000) + 30000
+    });
+  }
+  return data;
+};
+
+const MOCK_REVENUE_DATA = generateMockRevenueTrend();
+
+// 플랫폼별 수익 목업 데이터
+const MOCK_PLATFORM_DATA = [
+  { name: 'Chzzk', value: 2850000, color: '#00c896' },
+  { name: 'SOOP', value: 1650000, color: '#5c3cff' },
+  { name: 'Twitch', value: 450000, color: '#9146ff' }
+];
+
+// 탑 도네이터 목업 데이터
+const MOCK_TOP_DONORS = [
+  { rank: 1, name: '황금손', amount: 850000, count: 45, platforms: ['chzzk'] },
+  { rank: 2, name: '후원왕', amount: 620000, count: 32, platforms: ['soop'] },
+  { rank: 3, name: '팬심이', amount: 480000, count: 28, platforms: ['chzzk', 'soop'] },
+  { rank: 4, name: '응원단장', amount: 350000, count: 22, platforms: ['chzzk'] },
+  { rank: 5, name: '열혈팬', amount: 280000, count: 18, platforms: ['twitch'] }
+];
+
+// 수익 요약 목업 데이터
+const MOCK_REVENUE_SUMMARY = {
+  totalRevenue: 4950000,
+  donationRevenue: 4950000,
+  donationCount: 245,
+  adRevenue: 280000
+};
+
 const RevenueAnalytics = () => {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
@@ -125,9 +168,19 @@ const RevenueAnalytics = () => {
         platforms: [d.platform || 'unknown']
       })) : []);
 
-      setSummary(sum);
+      setSummary(sum?.donationRevenue ? sum : MOCK_REVENUE_SUMMARY);
+      
+      // 데이터가 비어있으면 목업 사용
+      if (!Array.isArray(trend) || trend.length === 0) setRevenueData(MOCK_REVENUE_DATA);
+      if (!Array.isArray(platforms) || platforms.length === 0) setPlatformData(MOCK_PLATFORM_DATA);
+      if (!Array.isArray(donors) || donors.length === 0) setTopDonors(MOCK_TOP_DONORS);
     } catch (err) {
       console.error('Failed to fetch revenue data:', err);
+      // API 실패 시 목업 데이터 사용
+      setRevenueData(MOCK_REVENUE_DATA);
+      setPlatformData(MOCK_PLATFORM_DATA);
+      setTopDonors(MOCK_TOP_DONORS);
+      setSummary(MOCK_REVENUE_SUMMARY);
     } finally {
       setLoading(false);
     }
