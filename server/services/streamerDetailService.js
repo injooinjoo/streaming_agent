@@ -11,6 +11,7 @@ const { getOne, getAll, isPostgres } = require("../db/connections");
 const { getSQLHelpers } = require("../config/database.config");
 
 const p = (index) => isPostgres() ? `$${index}` : '?';
+const buildPlatformLogo = (platform) => (platform ? `/assets/logos/${platform}.png` : null);
 
 const createStreamerDetailService = () => {
   const sql = getSQLHelpers();
@@ -94,12 +95,35 @@ const createStreamerDetailService = () => {
       );
 
       return {
-        person,
+        person: person
+          ? {
+              ...person,
+              avatarUrl: person.profile_image_url || null,
+              logoUrl: buildPlatformLogo(person.platform),
+            }
+          : null,
         stats: broadcastStats || {},
-        live: liveBroadcast,
+        live: liveBroadcast
+          ? {
+              ...liveBroadcast,
+              imageUrl: liveBroadcast.thumbnail_url || null,
+              thumbnailUrl: liveBroadcast.thumbnail_url || null,
+              logoUrl: buildPlatformLogo(person.platform),
+            }
+          : null,
         eventStats: eventStats || {},
-        recentBroadcasts: recentBroadcasts || [],
-        categories: categoryBreakdown || [],
+        recentBroadcasts: (recentBroadcasts || []).map((broadcast) => ({
+          ...broadcast,
+          imageUrl: broadcast.thumbnail_url || null,
+          thumbnailUrl: broadcast.thumbnail_url || null,
+          logoUrl: buildPlatformLogo(broadcast.platform || person.platform),
+        })),
+        categories: (categoryBreakdown || []).map((category) => ({
+          ...category,
+          imageUrl: null,
+          thumbnailUrl: null,
+          logoUrl: buildPlatformLogo(person.platform),
+        })),
       };
     },
 
@@ -132,7 +156,12 @@ const createStreamerDetailService = () => {
       );
 
       return {
-        broadcasts: broadcasts || [],
+        broadcasts: (broadcasts || []).map((broadcast) => ({
+          ...broadcast,
+          imageUrl: broadcast.thumbnail_url || null,
+          thumbnailUrl: broadcast.thumbnail_url || null,
+          logoUrl: buildPlatformLogo(broadcast.platform),
+        })),
         total: countRow?.total || 0,
         page,
         limit,
@@ -167,7 +196,11 @@ const createStreamerDetailService = () => {
         [personId, startDateStr]
       );
 
-      return rows || [];
+      return (rows || []).map((row) => ({
+        ...row,
+        imageUrl: null,
+        thumbnailUrl: null,
+      }));
     },
 
     /**
@@ -333,7 +366,14 @@ const createStreamerDetailService = () => {
       );
 
       return {
-        broadcast,
+        broadcast: broadcast
+          ? {
+              ...broadcast,
+              imageUrl: null,
+              thumbnailUrl: null,
+              logoUrl: buildPlatformLogo(broadcast.platform),
+            }
+          : null,
         segments: segments || [],
         snapshots: snapshots || [],
       };

@@ -7,8 +7,9 @@
   transition: filter 0.3s ease;
 }
 
-[data-streaming-mode="true"] .sensitive-blur:hover {
-  filter: blur(4px) !important;
+[data-streaming-mode="true"] .analytics-page .recharts-default-tooltip .recharts-tooltip-item-value {
+  filter: blur(8px) !important;
+  user-select: none !important;
 }
 
 .analytics-page {

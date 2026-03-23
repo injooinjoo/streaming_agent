@@ -1,274 +1,185 @@
-import React, { useState, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, MessageSquare, Bell, Target, Newspaper, Subtitles, Mail, ChevronDown, ChevronUp, RefreshCw } from 'lucide-react';
-import { API_URL } from '../../config/api';
-import { useAuth } from '../../contexts/AuthContext';
+import { useRef } from 'react';
+import { Navigate } from 'react-router-dom';
+import { Bell, Layers3, MessageSquare, Sparkles, Subtitles, Target } from 'lucide-react';
+import { PUBLIC_DEMO_MODE, PUBLIC_HOME_PATH } from '../../config/appMode';
+import {
+  LogoChip,
+  MediaHero,
+  PosterCard,
+  SectionCard,
+  StatusBadge,
+} from '../shared/studio';
+import { getPlatformLogo } from '../../utils/mediaAssets';
+import LoginAccessCard from './LoginAccessCard';
 import './AuthForm.css';
 
-// Overlay feature data
 const overlayFeatures = [
   {
     key: 'chat',
-    name: '채팅',
+    name: '채팅 오버레이',
     icon: MessageSquare,
-    description: '실시간 채팅 오버레이',
-    badge: '26+ 테마'
+    description: '브랜드 톤에 맞춘 채팅 UI를 실시간으로 적용합니다.',
+    badge: '26+ 테마',
+    imageUrl:
+      'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80',
   },
   {
     key: 'alert',
-    name: '알림',
+    name: '후원 알림',
     icon: Bell,
-    description: '후원/구독 알림 표시',
-    badge: 'TTS 지원'
+    description: '후원과 구독 알림을 대표 카드처럼 세련되게 노출합니다.',
+    badge: 'TTS 지원',
+    imageUrl:
+      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=900&q=80',
   },
   {
     key: 'goal',
-    name: '목표',
+    name: '목표 그래프',
     icon: Target,
-    description: '목표치 그래프 위젯',
-    badge: '실시간'
-  },
-  {
-    key: 'ticker',
-    name: '전광판',
-    icon: Newspaper,
-    description: '뉴스 티커 스타일 표시',
-    badge: '커스텀'
+    description: '진행률을 수치보다 화면 흐름 중심으로 표현합니다.',
+    badge: '실시간 반영',
+    imageUrl:
+      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=900&q=80',
   },
   {
     key: 'subtitle',
-    name: '자막',
+    name: '후원 자막',
     icon: Subtitles,
-    description: '후원 자막 오버레이',
-    badge: '다양한 스타일'
+    description: '짧은 자막과 강조 애니메이션으로 몰입감을 높입니다.',
+    badge: '다중 스타일',
+    imageUrl:
+      'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=900&q=80',
   },
 ];
 
-// OAuth Provider Icons
-const SoopIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <circle cx="12" cy="12" r="10" />
-    <text x="12" y="16" textAnchor="middle" fontSize="10" fill="white" fontWeight="bold">S</text>
-  </svg>
-);
-
-const NaverIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M16.273 12.845 7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727z"/>
-  </svg>
-);
-
-const GoogleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24">
-    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-  </svg>
-);
-
-const TwitchIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/>
-  </svg>
-);
+const trustMarks = [
+  { label: '실시간 동기화', value: 'Socket.io' },
+  { label: '지원 플랫폼', value: 'SOOP / CHZZK / YouTube / Twitch' },
+  { label: '운영 허브', value: '오버레이 / 자산 / 마켓 / 분석' },
+];
 
 const LoginPage = () => {
-  const [showEmailForm, setShowEmailForm] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const navigate = useNavigate();
   const loginSectionRef = useRef(null);
-  const { login, loginAsGamst } = useAuth();
+
+  if (PUBLIC_DEMO_MODE) {
+    return <Navigate to={PUBLIC_HOME_PATH} replace />;
+  }
 
   const scrollToLogin = () => {
-    loginSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleOAuthLogin = (provider) => {
-    window.location.href = `${API_URL}/api/auth/${provider}`;
-  };
-
-  const handleEmailLogin = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      await login(email, password);
-      navigate('/');
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    loginSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
-    <div className="landing-container">
-      {/* Header */}
-      <header className="landing-header">
-        <div className="header-logo">StreamAgent</div>
-      </header>
-
-      {/* Hero Section */}
-      <section className="landing-hero">
-        <div className="hero-content">
-          <div className="hero-badge">스트리머를 위한 올인원 솔루션</div>
-          <h1 className="hero-title">
-            방송을 더 특별하게,<br />
-            <span className="hero-highlight">StreamAgent</span>
-          </h1>
-          <p className="hero-description">
-            채팅, 알림, 목표, 전광판, 자막까지<br />
-            모든 오버레이를 한 곳에서 관리하세요
-          </p>
-          <button className="hero-cta" onClick={scrollToLogin}>
-            지금 시작하기
-          </button>
-        </div>
-      </section>
-
-      {/* Features Section */}
-      <section className="landing-features">
-        <div className="features-header">
-          <h2>주요 기능</h2>
-          <p>스트리밍에 필요한 모든 오버레이</p>
-        </div>
-        <div className="features-grid">
-          {overlayFeatures.map((feature) => (
-            <div key={feature.key} className="feature-card">
-              <div className="feature-icon-wrapper">
-                <feature.icon size={28} />
-              </div>
-              <h3 className="feature-title">{feature.name}</h3>
-              <p className="feature-description">{feature.description}</p>
-              <span className="feature-badge">{feature.badge}</span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Login Section */}
-      <section className="landing-login" ref={loginSectionRef}>
-        <div className="auth-card">
-          <div className="auth-header">
-            <div className="auth-logo">StreamAgent</div>
-            <h1 className="auth-title">로그인</h1>
-            <p className="auth-subtitle">계정을 연결하여 시작하세요</p>
-          </div>
-
-          {error && <div className="auth-error">{error}</div>}
-
-          <div className="oauth-buttons">
-            <button
-              className="oauth-button soop"
-              onClick={() => handleOAuthLogin('soop')}
-            >
-              <img src="/assets/logos/soop.png" alt="SOOP" style={{ height: '20px', borderRadius: '4px' }} />
-              숲(SOOP)으로 계속하기
-            </button>
-            <button
-              className="oauth-button naver"
-              onClick={() => handleOAuthLogin('naver')}
-            >
-              <NaverIcon />
-              네이버로 계속하기
-            </button>
-            <button
-              className="oauth-button google"
-              onClick={() => handleOAuthLogin('google')}
-            >
-              <GoogleIcon />
-              Google로 계속하기
-            </button>
-            <button
-              className="oauth-button twitch"
-              onClick={() => handleOAuthLogin('twitch')}
-            >
-              <TwitchIcon />
-              Twitch로 계속하기
-            </button>
-            <button
-              className="oauth-button email"
-              onClick={() => setShowEmailForm(!showEmailForm)}
-            >
-              <Mail size={20} />
-              이메일로 로그인
-              {showEmailForm ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-            </button>
-
-            <div className="demo-divider">
-              <span>데모 체험</span>
-            </div>
-
-            <button
-              className="oauth-button gamst"
-              onClick={async () => {
-                await loginAsGamst();
-                navigate('/');
-              }}
-            >
-              <img src="/assets/logos/soop.png" alt="SOOP" style={{ height: '20px', borderRadius: '4px' }} />
-              감스트로 살기
-            </button>
-          </div>
-
-          {/* Email Login Form */}
-          {showEmailForm && (
+    <div className="auth-landing">
+      <section className="auth-landing__hero">
+        <MediaHero
+          accent="blue"
+          eyebrow={
             <>
-              <div className="auth-divider">
-                <span>이메일 로그인</span>
-              </div>
-
-              <form className="auth-form" onSubmit={handleEmailLogin}>
-                <div className="form-group">
-                  <label className="form-label">이메일</label>
-                  <input
-                    type="email"
-                    className="form-input"
-                    placeholder="example@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">비밀번호</label>
-                  <input
-                    type="password"
-                    className="form-input"
-                    placeholder="비밀번호를 입력하세요"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <button type="submit" className="auth-button" disabled={loading}>
-                  {loading ? (
-                    <RefreshCw size={18} className="spin" />
-                  ) : (
-                    <>
-                      <LogIn size={18} />
-                      로그인
-                    </>
-                  )}
-                </button>
-              </form>
+              <StatusBadge className="studio-accent--blue" icon={<Sparkles size={14} />}>
+                실시간 오버레이 스튜디오
+              </StatusBadge>
+              <LogoChip logoUrl={getPlatformLogo('soop')} label="SOOP" />
+              <LogoChip logoUrl={getPlatformLogo('chzzk')} label="CHZZK" />
             </>
-          )}
-
-          <div className="auth-footer">
-            계정이 없으신가요?
-            <Link to="/register" className="auth-link">회원가입</Link>
-          </div>
-        </div>
+          }
+          title="브랜드처럼 보이는 오버레이, 운영 화면도 같은 밀도로"
+          description="로그인 화면부터 서비스 쉘과 같은 톤을 유지하도록 재구성했습니다. 왼쪽은 시각 중심 브랜드 블록, 오른쪽은 바로 진입 가능한 인증 카드로 정리했습니다."
+          media={{
+            imageUrl:
+              'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+            badge: 'StreamAgent',
+            aspect: 'portrait',
+          }}
+          stats={[
+            { label: '지원 오버레이', value: '10종' },
+            { label: '플랫폼', value: '4개' },
+            { label: '운영 툴', value: '통합' },
+          ]}
+          actions={
+            <>
+              <button className="btn btn-primary" onClick={scrollToLogin}>
+                지금 시작하기
+              </button>
+              <button
+                className="btn btn-outline"
+                onClick={() => window.scrollTo({ top: window.innerHeight, behavior: 'smooth' })}
+              >
+                기능 먼저 보기
+              </button>
+            </>
+          }
+          insights={[
+            {
+              kicker: 'Access',
+              title: '로그인 카드가 바로 보이는 구조',
+              body: '서비스 첫 진입에서도 기능 소개와 인증 흐름이 분리되지 않도록 한 화면에 정리했습니다.',
+            },
+            {
+              kicker: 'Visual',
+              title: '텍스트보다 브랜드 무드가 먼저 보이도록',
+              body: '이미지, 로고, 배지 위주 구성으로 첫인상을 더 빠르게 전달합니다.',
+            },
+          ]}
+          overlay={
+            <div ref={loginSectionRef}>
+              <LoginAccessCard
+                className="auth-card--embedded studio-auth-card"
+                title="스튜디오 입장"
+                subtitle="계정을 연결하고 오버레이 운영 허브를 바로 시작하세요."
+              />
+            </div>
+          }
+        />
       </section>
+
+      <section className="auth-landing__trust">
+        {trustMarks.map((mark) => (
+          <div key={mark.label} className="auth-trust-card">
+            <span className="auth-trust-card__label">{mark.label}</span>
+            <strong className="auth-trust-card__value">{mark.value}</strong>
+          </div>
+        ))}
+      </section>
+
+      <SectionCard
+        accent="blue"
+        className="auth-feature-section"
+        title="방송 운영자가 자주 여는 화면"
+        description="텍스트 설명 대신 기능별 대표 이미지를 먼저 보여주고, 핵심 요약만 짧게 남겼습니다."
+      >
+        <div className="auth-feature-grid">
+          {overlayFeatures.map((feature) => (
+            <PosterCard
+              key={feature.key}
+              accent="blue"
+              eyebrow={feature.badge}
+              title={feature.name}
+              description={feature.description}
+              imageUrl={feature.imageUrl}
+              logoUrl={getPlatformLogo('soop')}
+              badge="Overlay"
+            />
+          ))}
+
+          <article className="auth-feature-card auth-feature-card--wide">
+            <div className="auth-feature-card__icon">
+              <Layers3 size={24} />
+            </div>
+            <div className="auth-feature-card__body">
+              <div className="auth-feature-card__header">
+                <h3>운영 스튜디오 전체 흐름</h3>
+                <StatusBadge className="studio-accent--blue">통합 허브</StatusBadge>
+              </div>
+              <p>
+                로그인 이후에는 N-CONNECT, 오버레이 설정, 디자인 자산, 마켓플레이스, 채널 상세가
+                같은 톤의 쉘 안에서 이어집니다. 시작 화면부터 실제 서비스 문법을 그대로 가져와
+                경험이 끊기지 않도록 정리했습니다.
+              </p>
+            </div>
+          </article>
+        </div>
+      </SectionCard>
     </div>
   );
 };

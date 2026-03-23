@@ -5,12 +5,17 @@
   transition: filter 0.3s ease;
 }
 
-[data-streaming-mode="true"] .sensitive-blur:hover {
-  filter: blur(4px) !important;
+[data-streaming-mode="true"] .viewership-dashboard .recharts-default-tooltip .recharts-tooltip-item-value {
+  filter: blur(8px) !important;
+  user-select: none !important;
 }
 
 .viewership-dashboard {
   padding: 0;
+}
+
+.viewership-section {
+  scroll-margin-top: 96px;
 }
 
 /* 실시간 대시보드 섹션 */
@@ -1153,5 +1158,98 @@
 
   .ranking-viewers-value {
     font-size: 12px;
+  }
+}
+
+@media (max-width: 1024px) {
+  .realtime-dashboard-section,
+  .viewership-header-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .realtime-tabs,
+  .ranking-platform-tabs,
+  .viewership-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  .realtime-tabs::-webkit-scrollbar,
+  .ranking-platform-tabs::-webkit-scrollbar,
+  .viewership-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .realtime-tabs button,
+  .ranking-platform-tabs button,
+  .viewership-tab {
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .realtime-chart-card,
+  .realtime-ranking-card,
+  .viewership-total-card {
+    padding: 18px;
+  }
+
+  .realtime-platform-item {
+    padding: 12px;
+  }
+
+  .ranking-name,
+  .ranking-meta {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 430px) {
+  .realtime-dashboard-section,
+  .viewership-header-section {
+    gap: 16px;
+  }
+
+  .realtime-total-viewers,
+  .viewership-total-value {
+    font-size: 2.4rem;
+  }
+
+  .realtime-platform-item {
+    flex-wrap: wrap;
+  }
+
+  .realtime-platform-viewers {
+    width: 100%;
+    text-align: left;
+  }
+
+  .ranking-item {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: start;
+  }
+
+  .ranking-viewers {
+    width: 100%;
+    text-align: left;
+    padding-left: 40px;
+  }
+}
+
+@media (max-width: 390px) {
+  .realtime-chart-card,
+  .realtime-ranking-card,
+  .viewership-total-card {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 360px) {
+  .realtime-total-viewers,
+  .viewership-total-value {
+    font-size: 2.1rem;
   }
 }

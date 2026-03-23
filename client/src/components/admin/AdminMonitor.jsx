@@ -681,7 +681,7 @@ const AdminMonitor = () => {
               </select>
             </div>
             <div className="monitor-table-wrapper">
-              <table className="monitor-table">
+              <table className="monitor-table monitor-table--broadcasts">
                 <thead>
                   <tr>
                     <th>플랫폼</th>
@@ -737,7 +737,7 @@ const AdminMonitor = () => {
               </select>
             </div>
             <div className="monitor-table-wrapper">
-              <table className="monitor-table">
+              <table className="monitor-table monitor-table--persons">
                 <thead>
                   <tr>
                     <th>플랫폼</th>
@@ -781,7 +781,7 @@ const AdminMonitor = () => {
               <span className="monitor-table-title">참여 기록</span>
             </div>
             <div className="monitor-table-wrapper">
-              <table className="monitor-table">
+              <table className="monitor-table monitor-table--engagement">
                 <thead>
                   <tr>
                     <th>플랫폼</th>
@@ -848,7 +848,7 @@ const AdminMonitor = () => {
               </div>
             </div>
             <div className="monitor-table-wrapper">
-              <table className="monitor-table">
+              <table className="monitor-table monitor-table--events">
                 <thead>
                   <tr>
                     <th>플랫폼</th>
@@ -888,7 +888,7 @@ const AdminMonitor = () => {
               <span className="monitor-table-title">방송 세그먼트</span>
             </div>
             <div className="monitor-table-wrapper">
-              <table className="monitor-table">
+              <table className="monitor-table monitor-table--segments">
                 <thead>
                   <tr>
                     <th>플랫폼</th>
@@ -937,7 +937,7 @@ const AdminMonitor = () => {
               </select>
             </div>
             <div className="monitor-table-wrapper">
-              <table className="monitor-table">
+              <table className="monitor-table monitor-table--categories">
                 <thead>
                   <tr>
                     <th>썸네일</th>

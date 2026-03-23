@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 /**
  * 섹션 네비게이션을 위한 커스텀 훅
@@ -16,10 +16,13 @@ const useSectionNavigation = (sectionIds, options = {}) => {
   const {
     defaultSection,
     rootMargin = '-100px 0px -70% 0px',
-    threshold = 0
+    threshold = 0,
+    selector = '.settings-section',
+    refreshDeps = [],
   } = options;
 
   const [activeNav, setActiveNav] = useState(defaultSection || sectionIds[0]);
+  const refreshDepsKey = JSON.stringify(refreshDeps);
 
   // 각 섹션에 대한 ref 생성
   const sectionRefs = useMemo(() => {
@@ -71,13 +74,13 @@ const useSectionNavigation = (sectionIds, options = {}) => {
     const observer = new IntersectionObserver(handleIntersect, observerOptions);
 
     // 섹션들을 관찰
-    const sections = document.querySelectorAll('.settings-section');
+    const sections = document.querySelectorAll(selector);
     sections.forEach(section => {
       observer.observe(section);
     });
 
     return () => observer.disconnect();
-  }, [sectionIds, rootMargin, threshold]);
+  }, [refreshDepsKey, rootMargin, sectionIds, selector, threshold]);
 
   return {
     // 상태

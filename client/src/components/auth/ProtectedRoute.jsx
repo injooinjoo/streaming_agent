@@ -5,6 +5,7 @@
 
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { PUBLIC_DEMO_MODE, PUBLIC_HOME_PATH } from '../../config/appMode';
 import LoadingSpinner from '../shared/LoadingSpinner';
 
 /**
@@ -17,7 +18,7 @@ import LoadingSpinner from '../shared/LoadingSpinner';
 const ProtectedRoute = ({
   children,
   requiredRoles = [],
-  redirectTo = '/login'
+  redirectTo = PUBLIC_DEMO_MODE ? PUBLIC_HOME_PATH : '/login'
 }) => {
   const { isAuthenticated, user, isLoading } = useAuth();
   const location = useLocation();

@@ -1,0 +1,191 @@
+export const streamerGuideTopics = [
+  {
+    id: 'platforms',
+    label: '플랫폼 비교',
+    headline: '치지직, SOOP, 유튜브 라이브의 운영 포인트를 한 번에 비교하세요.',
+    summary:
+      '플랫폼마다 수익 구조와 화질 정책, 노출 방식이 달라 방송 목표에 맞는 조합을 먼저 정하는 것이 중요합니다. 동시 송출 여부와 채널 연동 상태를 함께 점검하면 초기 세팅 시간을 크게 줄일 수 있습니다.',
+    points: [
+      '플랫폼별 수수료, 정산 방식, 노출 알고리즘을 한 장표처럼 비교해두면 운영 판단이 빨라집니다.',
+      '동시 송출 전에는 업로드 대역폭과 플랫폼별 스트림 키 관리 방식을 먼저 확인해야 합니다.',
+      '방송 시작 전에 연결 상태와 공지/프로필 동기화 흐름을 미리 맞춰두면 운영 실수가 줄어듭니다.',
+    ],
+    actions: [
+      {
+        id: 'platforms-account',
+        type: 'account-subtab',
+        category: '연동 점검',
+        title: '플랫폼 연동 상태 확인',
+        description: '채널 연결, 스트림 키 관리, 기본 계정 연결 흐름을 바로 점검합니다.',
+        subTab: 'connection',
+        buttonLabel: '연동 확인',
+      },
+      {
+        id: 'platforms-simulstream',
+        type: 'external-link',
+        category: '공식 자료',
+        title: '유튜브 동시 송출 가이드',
+        description: '멀티 출력 구성, 업로드 속도 계산, 인코더 선택 기준을 공식 도움말로 확인합니다.',
+        url: 'https://support.google.com/youtube/answer/16404722',
+        buttonLabel: '외부 자료 보기',
+      },
+    ],
+  },
+  {
+    id: 'obs-setup',
+    label: 'OBS / 장비',
+    headline: '원컴, 투컴, 오디오 체인을 방송 환경에 맞게 최적화하세요.',
+    summary:
+      'OBS와 장비 세팅은 무조건 높은 숫자보다 안정성이 먼저입니다. 인코더 선택, 장면 소스 구성, 마이크 필터 체인을 함께 잡아두면 방송 퀄리티와 운영 편의가 동시에 올라갑니다.',
+    points: [
+      '원컴은 게임 프레임과 송출 안정성의 균형이 중요하고, 투컴은 캡처 카드와 오디오 라우팅을 먼저 정리해야 합니다.',
+      '비트레이트와 키프레임 간격은 플랫폼 권장값과 실제 업로드 속도를 함께 보고 결정해야 합니다.',
+      '노이즈 캔슬링은 마이크 필터와 GPU 기반 보정 기능을 과하게 겹치지 않는 것이 안정적입니다.',
+    ],
+    actions: [
+      {
+        id: 'obs-chat-layout',
+        type: 'internal-tab',
+        category: '내부 설정',
+        title: '채팅/소스 레이아웃 점검',
+        description: '브라우저 소스 배치와 화면 여백을 현재 오버레이 설정 안에서 바로 확인합니다.',
+        targetTab: 'chat',
+        buttonLabel: '설정 열기',
+      },
+      {
+        id: 'obs-quick-start',
+        type: 'external-link',
+        category: '공식 자료',
+        title: 'OBS 공식 퀵스타트',
+        description: '오토 설정, 장면/소스 추가, 오디오 입력 확인까지 기본 흐름을 빠르게 복습합니다.',
+        url: 'https://obsproject.com/kb/quick-start-guide',
+        buttonLabel: '외부 자료 보기',
+      },
+      {
+        id: 'obs-nvidia-broadcast',
+        type: 'external-link',
+        category: 'AI 오디오',
+        title: 'NVIDIA Broadcast 설정',
+        description: 'RTX 기반 노이즈 제거와 가상 마이크 연결 순서를 공식 가이드로 확인합니다.',
+        url: 'https://www.nvidia.com/en-us/geforce/guides/broadcast-app-setup-guide/',
+        buttonLabel: '외부 자료 보기',
+      },
+    ],
+  },
+  {
+    id: 'free-assets',
+    label: '저작권 프리 에셋',
+    headline: '안전하게 사용할 수 있는 음원, 폰트, 디자인 자산의 출발점을 모았습니다.',
+    summary:
+      '저작권 이슈는 방송 채널 전체에 영향을 줄 수 있어 출처와 사용 범위를 먼저 확인해야 합니다. 내부 마켓 자산과 검증된 외부 소스를 함께 써서 방송 톤을 빠르게 맞출 수 있습니다.',
+    points: [
+      'BGM과 효과음은 라이선스 범위와 재배포 금지 여부를 꼭 확인한 뒤 방송 포맷에 맞게 정리합니다.',
+      '폰트는 상업 이용 가능 여부뿐 아니라 한글 지원 범위와 가독성까지 함께 보는 것이 좋습니다.',
+      '오버레이와 전환 화면은 내부 마켓과 직접 제작 자산을 섞어 쓰면 일관된 브랜딩을 만들기 쉽습니다.',
+    ],
+    actions: [
+      {
+        id: 'assets-marketplace',
+        type: 'internal-tab',
+        category: '내부 자산',
+        title: '디자인 마켓 바로가기',
+        description: '오버레이, 화면 전환, 구성 요소를 마켓에서 확인하고 바로 적용합니다.',
+        targetTab: 'marketplace',
+        buttonLabel: '설정 열기',
+      },
+      {
+        id: 'assets-google-fonts',
+        type: 'external-link',
+        category: '폰트',
+        title: 'Google Fonts',
+        description: '상업적으로 사용할 수 있는 오픈소스 폰트를 찾고 한글 지원 여부를 확인합니다.',
+        url: 'https://fonts.google.com/',
+        buttonLabel: '외부 자료 보기',
+      },
+      {
+        id: 'assets-pixabay-music',
+        type: 'external-link',
+        category: 'BGM',
+        title: 'Pixabay Music',
+        description: '방송용 BGM과 분위기별 무료 음원을 빠르게 탐색할 수 있는 라이브러리입니다.',
+        url: 'https://pixabay.com/music/',
+        buttonLabel: '외부 자료 보기',
+      },
+    ],
+  },
+  {
+    id: 'revenue-tax',
+    label: '수익 / 세무',
+    headline: '정산 구조와 신고 준비를 분리해두면 수익 관리가 훨씬 단순해집니다.',
+    summary:
+      '플랫폼 정산과 광고 수익은 들어오는 경로가 달라서 기록 방식도 나눠두는 편이 좋습니다. 방송 운영 화면에서 광고 흐름을 보면서, 세무 신고는 홈택스 기준으로 체크리스트화하면 누락을 줄일 수 있습니다.',
+    points: [
+      '플랫폼별 정산 주기와 수수료 구조를 월 단위로 정리해두면 실제 순수익 계산이 쉬워집니다.',
+      '스폰서, 협찬, 광고 수익은 일반 후원과 섞지 말고 계약 단위로 따로 기록하는 것이 안전합니다.',
+      '종합소득세 신고 전에는 입금 내역, 증빙 자료, 필요경비 분류를 미리 정리해두는 것이 핵심입니다.',
+    ],
+    actions: [
+      {
+        id: 'revenue-ads',
+        type: 'internal-tab',
+        category: '내부 설정',
+        title: '광고 수익 화면 열기',
+        description: '광고 슬롯과 캠페인 흐름을 확인하며 방송 내 수익 포인트를 점검합니다.',
+        targetTab: 'ads',
+        buttonLabel: '설정 열기',
+      },
+      {
+        id: 'revenue-hometax',
+        type: 'external-link',
+        category: '공식 자료',
+        title: '홈택스 바로가기',
+        description: '종합소득세 신고, 제출 내역 확인, 전자신고 흐름을 공식 서비스에서 이어갑니다.',
+        url: 'https://www.hometax.go.kr/',
+        buttonLabel: '외부 자료 보기',
+      },
+    ],
+  },
+  {
+    id: 'chat-bot',
+    label: '채팅 관리 / 봇',
+    headline: '채팅 분위기와 봇 응답은 운영 규칙을 먼저 정할수록 강해집니다.',
+    summary:
+      '악성 시청자 대응은 감정적인 대응보다 규칙 자동화가 더 효과적입니다. 봇 명령어, 금칙어, 공지 메시지를 함께 관리하면 채팅 속도와 분위기를 안정적으로 유지할 수 있습니다.',
+    points: [
+      '자주 묻는 질문, 후원 안내, 디스코드 링크는 봇 명령어로 고정해두면 운영 부담이 줄어듭니다.',
+      '금칙어와 링크 제한은 기본값만 두기보다 방송 장르와 시청자층에 맞춰 주기적으로 손봐야 합니다.',
+      '어그로 대응은 경고 문구, 삭제, 타임아웃 순서를 팀 규칙처럼 정해두면 일관성을 유지하기 쉽습니다.',
+    ],
+    actions: [
+      {
+        id: 'chat-bot-settings',
+        type: 'internal-tab',
+        category: '내부 설정',
+        title: '봇 설정 열기',
+        description: '명령어, 자동 응답, 관리 규칙을 현재 봇 설정 화면에서 바로 수정합니다.',
+        targetTab: 'bot',
+        buttonLabel: '설정 열기',
+      },
+      {
+        id: 'chat-overlay-settings',
+        type: 'internal-tab',
+        category: '채팅 화면',
+        title: '채팅 오버레이 점검',
+        description: '필터링 결과가 실제 채팅 레이아웃에서 어떻게 보이는지 함께 확인합니다.',
+        targetTab: 'chat',
+        buttonLabel: '설정 열기',
+      },
+      {
+        id: 'chat-nightbot-docs',
+        type: 'external-link',
+        category: '공식 자료',
+        title: 'Nightbot 명령어 문서',
+        description: '기본 명령어, 커스텀 명령어, 스팸 필터 옵션을 공식 문서에서 확인합니다.',
+        url: 'https://docs.nightbot.tv/commands/commandlist',
+        buttonLabel: '외부 자료 보기',
+      },
+    ],
+  },
+];
+
+export const defaultStreamerGuideTopicId = streamerGuideTopics[0]?.id || null;

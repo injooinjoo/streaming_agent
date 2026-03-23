@@ -9,6 +9,7 @@ import {
 import {
   dashboardStats, platformStats, weeklyViewsData, videos, platforms
 } from '../data/mockData';
+import SensitiveValue from '../../shared/SensitiveValue';
 
 const VodHome = ({ onNavigate }) => {
   const [hoveredVideo, setHoveredVideo] = useState(null);
@@ -48,7 +49,7 @@ const VodHome = ({ onNavigate }) => {
     <div className="animate-fade">
       <header className="vod-page-header">
         <div className="vod-page-title">
-          <h1>VOD 에이전트 대시보드</h1>
+          <h1>동영상 대시보드</h1>
           <p>멀티 플랫폼 쇼츠 업로드 및 수익 관리</p>
         </div>
       </header>
@@ -63,7 +64,7 @@ const VodHome = ({ onNavigate }) => {
             </div>
           </div>
           <div className="vod-stat-content">
-            <span className="vod-stat-value">{dashboardStats.totalVideos}</span>
+            <SensitiveValue className="vod-stat-value">{dashboardStats.totalVideos}</SensitiveValue>
             <div className="vod-stat-change positive">
               <TrendingUp size={14} />
               <span>이번 주 +2</span>
@@ -79,7 +80,7 @@ const VodHome = ({ onNavigate }) => {
             </div>
           </div>
           <div className="vod-stat-content">
-            <span className="vod-stat-value">{formatNumber(dashboardStats.totalViews)}</span>
+            <SensitiveValue className="vod-stat-value">{formatNumber(dashboardStats.totalViews)}</SensitiveValue>
             <div className="vod-stat-change positive">
               <TrendingUp size={14} />
               <span>+{dashboardStats.viewsGrowth}%</span>
@@ -95,7 +96,7 @@ const VodHome = ({ onNavigate }) => {
             </div>
           </div>
           <div className="vod-stat-content">
-            <span className="vod-stat-value">{formatCurrency(dashboardStats.totalRevenue)}</span>
+            <SensitiveValue className="vod-stat-value">{formatCurrency(dashboardStats.totalRevenue)}</SensitiveValue>
             <div className="vod-stat-change positive">
               <TrendingUp size={14} />
               <span>+{dashboardStats.revenueGrowth}%</span>
@@ -111,7 +112,7 @@ const VodHome = ({ onNavigate }) => {
             </div>
           </div>
           <div className="vod-stat-content">
-            <span className="vod-stat-value">{dashboardStats.activeLinks}</span>
+            <SensitiveValue className="vod-stat-value">{dashboardStats.activeLinks}</SensitiveValue>
             <div className="vod-stat-change" style={{ color: 'var(--text-muted)' }}>
               <span>총 트래킹 링크</span>
             </div>
@@ -155,19 +156,19 @@ const VodHome = ({ onNavigate }) => {
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>조회수</div>
                   <div style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-main)' }}>
-                    {formatNumber(stats.totalViews)}
+                    <SensitiveValue>{formatNumber(stats.totalViews)}</SensitiveValue>
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>참여율</div>
                   <div style={{ fontSize: '18px', fontWeight: 700, color: platforms[key].color }}>
-                    {stats.avgEngagement}%
+                    <SensitiveValue>{stats.avgEngagement}%</SensitiveValue>
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>좋아요</div>
                   <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-main)' }}>
-                    {formatNumber(stats.totalLikes)}
+                    <SensitiveValue>{formatNumber(stats.totalLikes)}</SensitiveValue>
                   </div>
                 </div>
                 <div>
@@ -279,15 +280,15 @@ const VodHome = ({ onNavigate }) => {
                   </div>
                   <div className="vod-video-stats">
                     <div className="vod-video-stat">
-                      <div className="vod-video-stat-value">{formatNumber(totalViews)}</div>
+                      <SensitiveValue className="vod-video-stat-value">{formatNumber(totalViews)}</SensitiveValue>
                       <div className="vod-video-stat-label">조회수</div>
                     </div>
                     <div className="vod-video-stat">
-                      <div className="vod-video-stat-value">{formatNumber(totalLikes)}</div>
+                      <SensitiveValue className="vod-video-stat-value">{formatNumber(totalLikes)}</SensitiveValue>
                       <div className="vod-video-stat-label">좋아요</div>
                     </div>
                     <div className="vod-video-stat">
-                      <div className="vod-video-stat-value">{formatCurrency(video.revenue)}</div>
+                      <SensitiveValue className="vod-video-stat-value">{formatCurrency(video.revenue)}</SensitiveValue>
                       <div className="vod-video-stat-label">수익</div>
                     </div>
                   </div>

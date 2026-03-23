@@ -4,6 +4,54 @@
  */
 
 const express = require("express");
+const { authorizeRoles } = require("../middleware/auth");
+
+const STREAMER_ROLES = ["user", "creator", "streamer", "admin", "superadmin"];
+const ADVERTISER_ROLES = ["advertiser", "admin", "superadmin"];
+const ROLE_ERROR_MESSAGE = "이 기능에 접근할 권한이 없습니다.";
+
+const parseJsonIfNeeded = (value) => {
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+};
+
+const normalizeCampaignPayload = (body = {}) => ({
+  name: body.name,
+  contentType: body.contentType || body.content_type || "image",
+  contentUrl: body.contentUrl || body.content_url,
+  clickUrl: body.clickUrl || body.click_url || null,
+  budgetDaily: Number(body.budgetDaily ?? body.budget_daily ?? 0),
+  budgetTotal: Number(body.budgetTotal ?? body.budget_total ?? 0),
+  cpm: Number(body.cpm ?? 0),
+  cpc: Number(body.cpc ?? 0),
+  startDate: body.startDate || body.start_date || null,
+  endDate: body.endDate || body.end_date || null,
+  targetStreamers: parseJsonIfNeeded(body.targetStreamers ?? body.target_streamers ?? "all"),
+  targetCategories: parseJsonIfNeeded(body.targetCategories ?? body.target_categories ?? []),
+});
+
+const normalizeCampaignUpdatePayload = (payload) => ({
+  name: payload.name,
+  content_type: payload.contentType || "image",
+  content_url: payload.contentUrl,
+  click_url: payload.clickUrl,
+  budget_daily: payload.budgetDaily || 0,
+  budget_total: payload.budgetTotal || 0,
+  cpm: payload.cpm || 0,
+  cpc: payload.cpc || 0,
+  start_date: payload.startDate,
+  end_date: payload.endDate,
+  target_streamers:
+    typeof payload.targetStreamers === "string" ? payload.targetStreamers : JSON.stringify(payload.targetStreamers || []),
+  target_categories: payload.targetCategories ? JSON.stringify(payload.targetCategories) : null,
+});
 
 /**
  * Create ads router
@@ -14,14 +62,12 @@ const express = require("express");
  */
 const createAdsRouter = (adService, userService, authenticateToken) => {
   const router = express.Router();
+  const requireStreamer = [authenticateToken, authorizeRoles(STREAMER_ROLES, ROLE_ERROR_MESSAGE)];
+  const requireAdvertiser = [authenticateToken, authorizeRoles(ADVERTISER_ROLES, ROLE_ERROR_MESSAGE)];
 
   // ===== Ad Slots API (Streamer) =====
 
-  /**
-   * GET /api/ads/slots
-   * Get user's ad slots with stats
-   */
-  router.get("/ads/slots", authenticateToken, async (req, res) => {
+  router.get("/ads/slots", ...requireStreamer, async (req, res) => {
     try {
       const slots = await adService.getSlotsWithStats(req.user.id);
       res.json({ slots });
@@ -30,15 +76,11 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  /**
-   * POST /api/ads/slots
-   * Create new ad slot
-   */
-  router.post("/ads/slots", authenticateToken, async (req, res) => {
+  router.post("/ads/slots", ...requireStreamer, async (req, res) => {
     const { name, type, position, size, enabled } = req.body;
 
     if (!name) {
-      return res.status(400).json({ error: "슬롯 이름을 입력해주세요." });
+      return res.status(400).json({ error: "광고 슬롯 이름을 입력해주세요." });
     }
 
     try {
@@ -64,7 +106,6 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
         revenue: 0,
       };
 
-      // Notify overlay about new slot
       if (req.user.overlayHash) {
         adService.notifySlotUpdate(req.user.overlayHash, { slots: [newSlot] });
       }
@@ -75,16 +116,12 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  /**
-   * PUT /api/ads/slots/:id
-   * Update ad slot
-   */
-  router.put("/ads/slots/:id", authenticateToken, async (req, res) => {
-    const { id } = req.params;
+  router.put("/ads/slots/:id", ...requireStreamer, async (req, res) => {
+    const slotId = Number.parseInt(req.params.id, 10);
     const { name, type, position, size, enabled } = req.body;
 
     try {
-      const updated = await adService.updateSlot(parseInt(id), req.user.id, {
+      const updated = await adService.updateSlot(slotId, req.user.id, {
         name,
         type,
         positionX: position?.x,
@@ -95,12 +132,11 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
       });
 
       if (!updated) {
-        return res.status(404).json({ error: "슬롯을 찾을 수 없습니다." });
+        return res.status(404).json({ error: "광고 슬롯을 찾을 수 없습니다." });
       }
 
-      // Notify overlay about slot update
       if (req.user.overlayHash) {
-        adService.notifySlotUpdate(req.user.overlayHash, { slotId: id });
+        adService.notifySlotUpdate(req.user.overlayHash, { slotId: req.params.id });
       }
 
       res.json({ success: true });
@@ -109,23 +145,18 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  /**
-   * DELETE /api/ads/slots/:id
-   * Delete ad slot
-   */
-  router.delete("/ads/slots/:id", authenticateToken, async (req, res) => {
-    const { id } = req.params;
+  router.delete("/ads/slots/:id", ...requireStreamer, async (req, res) => {
+    const slotId = Number.parseInt(req.params.id, 10);
 
     try {
-      const deleted = await adService.deleteSlot(parseInt(id), req.user.id);
+      const deleted = await adService.deleteSlot(slotId, req.user.id);
 
       if (!deleted) {
-        return res.status(404).json({ error: "슬롯을 찾을 수 없습니다." });
+        return res.status(404).json({ error: "광고 슬롯을 찾을 수 없습니다." });
       }
 
-      // Notify overlay about slot deletion
       if (req.user.overlayHash) {
-        adService.notifySlotUpdate(req.user.overlayHash, { deletedSlotId: id });
+        adService.notifySlotUpdate(req.user.overlayHash, { deletedSlotId: req.params.id });
       }
 
       res.json({ success: true });
@@ -134,21 +165,16 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  /**
-   * PUT /api/ads/slots (batch)
-   * Batch save all slots
-   */
-  router.put("/ads/slots", authenticateToken, async (req, res) => {
+  router.put("/ads/slots", ...requireStreamer, async (req, res) => {
     const { slots } = req.body;
 
     if (!Array.isArray(slots)) {
-      return res.status(400).json({ error: "슬롯 배열을 제공해주세요." });
+      return res.status(400).json({ error: "광고 슬롯 배열을 전달해주세요." });
     }
 
     try {
       await adService.batchSaveSlots(req.user.id, slots);
 
-      // Notify overlay about slots update
       if (req.user.overlayHash) {
         adService.notifySlotUpdate(req.user.overlayHash, { userHash: req.user.overlayHash });
         adService.notifyAdsRefresh(req.user.overlayHash);
@@ -162,10 +188,6 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
 
   // ===== Overlay Ads API (Public) =====
 
-  /**
-   * GET /api/overlay/:hash/ads/slots
-   * Get ad slots for OBS overlay
-   */
   router.get("/overlay/:hash/ads/slots", async (req, res) => {
     const { hash } = req.params;
 
@@ -191,10 +213,6 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  /**
-   * GET /api/overlay/:hash/ads/active
-   * Get active campaigns for overlay
-   */
   router.get("/overlay/:hash/ads/active", async (req, res) => {
     const { hash } = req.params;
 
@@ -213,17 +231,12 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
 
   // ===== Impression/Click Tracking =====
 
-  /**
-   * POST /api/ads/impression
-   * Record ad impression
-   */
   router.post("/ads/impression", async (req, res) => {
     const { slotId, campaignId, userHash } = req.body;
 
     try {
       const user = await userService.findByOverlayHash(userHash);
       const streamerId = user?.id || null;
-
       const campaign = await adService.getCampaignById(campaignId);
       const revenue = campaign ? campaign.cpm / 1000 : 0;
 
@@ -234,17 +247,12 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  /**
-   * POST /api/ads/click
-   * Record ad click
-   */
   router.post("/ads/click", async (req, res) => {
     const { slotId, campaignId, userHash } = req.body;
 
     try {
       const user = await userService.findByOverlayHash(userHash);
       const streamerId = user?.id || null;
-
       const campaign = await adService.getCampaignById(campaignId);
       const revenue = campaign ? campaign.cpc : 0;
 
@@ -255,13 +263,9 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  // ===== Revenue & Settlement =====
+  // ===== Revenue & Settlement (Streamer) =====
 
-  /**
-   * GET /api/ads/revenue
-   * Get user's ad revenue stats
-   */
-  router.get("/ads/revenue", authenticateToken, async (req, res) => {
+  router.get("/ads/revenue", ...requireStreamer, async (req, res) => {
     try {
       const revenue = await adService.getStreamerRevenueDetails(req.user.id);
       res.json(revenue);
@@ -270,13 +274,9 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  /**
-   * GET /api/ads/trend
-   * Get user's ad revenue trend
-   */
-  router.get("/ads/trend", authenticateToken, async (req, res) => {
+  router.get("/ads/trend", ...requireStreamer, async (req, res) => {
     try {
-      const days = parseInt(req.query.days, 10) || 7;
+      const days = Number.parseInt(req.query.days, 10) || 7;
       const trend = await adService.getStreamerRevenueTrend(req.user.id, days);
       res.json(trend);
     } catch (err) {
@@ -284,11 +284,7 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  /**
-   * GET /api/ads/settlements
-   * Get user's settlement history
-   */
-  router.get("/ads/settlements", authenticateToken, async (req, res) => {
+  router.get("/ads/settlements", ...requireStreamer, async (req, res) => {
     try {
       const settlements = await adService.getSettlements(req.user.id);
       res.json({ settlements });
@@ -299,11 +295,7 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
 
   // ===== Campaigns API (Advertiser) =====
 
-  /**
-   * GET /api/ads/campaigns
-   * Get advertiser's campaigns
-   */
-  router.get("/ads/campaigns", authenticateToken, async (req, res) => {
+  router.get("/ads/campaigns", ...requireAdvertiser, async (req, res) => {
     try {
       const campaigns = await adService.getCampaignsWithStats(req.user.id);
       res.json({ campaigns });
@@ -312,64 +304,34 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  /**
-   * POST /api/ads/campaigns
-   * Create new campaign
-   */
-  router.post("/ads/campaigns", authenticateToken, async (req, res) => {
-    const {
-      name,
-      contentType,
-      contentUrl,
-      clickUrl,
-      budgetDaily,
-      budgetTotal,
-      cpm,
-      cpc,
-      startDate,
-      endDate,
-      targetStreamers,
-      targetCategories,
-    } = req.body;
+  router.post("/ads/campaigns", ...requireAdvertiser, async (req, res) => {
+    const payload = normalizeCampaignPayload(req.body);
 
-    if (!name || !contentUrl) {
-      return res.status(400).json({ error: "캠페인 이름과 콘텐츠 URL을 입력해주세요." });
+    if (!payload.name || !payload.contentUrl) {
+      return res.status(400).json({ error: "캠페인 이름과 광고 소재 URL을 입력해주세요." });
     }
 
     try {
-      const result = await adService.createCampaign(req.user.id, {
-        name,
-        contentType: contentType || "image",
-        contentUrl,
-        clickUrl,
-        budgetDaily: budgetDaily || 0,
-        budgetTotal: budgetTotal || 0,
-        cpm: cpm || 0,
-        cpc: cpc || 0,
-        startDate,
-        endDate,
-        targetStreamers: targetStreamers || "all",
-        targetCategories,
-      });
-
+      const result = await adService.createCampaign(req.user.id, payload);
       res.json({ success: true, campaignId: result.id });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
   });
 
-  /**
-   * PUT /api/ads/campaigns/:id
-   * Update campaign
-   */
-  router.put("/ads/campaigns/:id", authenticateToken, async (req, res) => {
-    const { id } = req.params;
+  router.put("/ads/campaigns/:id", ...requireAdvertiser, async (req, res) => {
+    const campaignId = Number.parseInt(req.params.id, 10);
+    const payload = normalizeCampaignPayload(req.body);
 
     try {
-      const updated = await adService.updateCampaign(parseInt(id), req.user.id, req.body);
+      const updated = await adService.updateCampaign(
+        campaignId,
+        req.user.id,
+        normalizeCampaignUpdatePayload(payload)
+      );
 
       if (!updated) {
-        return res.status(404).json({ error: "캠페인을 찾을 수 없거나 권한이 없습니다." });
+        return res.status(404).json({ error: "캠페인을 찾을 수 없거나 수정 권한이 없습니다." });
       }
 
       res.json({ success: true });
@@ -378,21 +340,17 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  /**
-   * PUT /api/ads/campaigns/:id/status
-   * Update campaign status
-   */
-  router.put("/ads/campaigns/:id/status", authenticateToken, async (req, res) => {
-    const { id } = req.params;
+  router.put("/ads/campaigns/:id/status", ...requireAdvertiser, async (req, res) => {
+    const campaignId = Number.parseInt(req.params.id, 10);
     const { status } = req.body;
-
     const validStatuses = ["active", "paused"];
+
     if (!validStatuses.includes(status)) {
-      return res.status(400).json({ error: "유효하지 않은 상태입니다." });
+      return res.status(400).json({ error: "유효하지 않은 상태값입니다." });
     }
 
     try {
-      const updated = await adService.updateCampaignStatus(parseInt(id), status, req.user.id);
+      const updated = await adService.updateCampaignStatus(campaignId, status, req.user.id);
 
       if (!updated) {
         return res.status(404).json({ error: "캠페인을 찾을 수 없습니다." });
@@ -405,18 +363,14 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  /**
-   * DELETE /api/ads/campaigns/:id
-   * Delete campaign
-   */
-  router.delete("/ads/campaigns/:id", authenticateToken, async (req, res) => {
-    const { id } = req.params;
+  router.delete("/ads/campaigns/:id", ...requireAdvertiser, async (req, res) => {
+    const campaignId = Number.parseInt(req.params.id, 10);
 
     try {
-      const deleted = await adService.deleteCampaign(parseInt(id), req.user.id);
+      const deleted = await adService.deleteCampaign(campaignId, req.user.id);
 
       if (!deleted) {
-        return res.status(404).json({ error: "캠페인을 찾을 수 없거나 권한이 없습니다." });
+        return res.status(404).json({ error: "캠페인을 찾을 수 없거나 삭제 권한이 없습니다." });
       }
 
       res.json({ success: true });
@@ -425,15 +379,11 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
     }
   });
 
-  /**
-   * GET /api/ads/campaigns/:id/stats
-   * Get campaign stats
-   */
-  router.get("/ads/campaigns/:id/stats", authenticateToken, async (req, res) => {
-    const { id } = req.params;
+  router.get("/ads/campaigns/:id/stats", ...requireAdvertiser, async (req, res) => {
+    const campaignId = Number.parseInt(req.params.id, 10);
 
     try {
-      const stats = await adService.getCampaignStats(parseInt(id), req.user.id);
+      const stats = await adService.getCampaignStats(campaignId, req.user.id);
 
       if (!stats) {
         return res.status(404).json({ error: "캠페인을 찾을 수 없습니다." });
@@ -447,11 +397,7 @@ const createAdsRouter = (adService, userService, authenticateToken) => {
 
   // ===== Utility API =====
 
-  /**
-   * GET /api/users/streamers
-   * Get list of streamers for targeting
-   */
-  router.get("/users/streamers", authenticateToken, async (req, res) => {
+  router.get("/users/streamers", ...requireAdvertiser, async (req, res) => {
     try {
       const streamers = await userService.getStreamersForTargeting();
       res.json(streamers);

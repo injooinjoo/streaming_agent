@@ -1,16 +1,152 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import {
-  User, Link2, BarChart3, Settings, Bell, MessageSquare,
-  TrendingUp, Users, Eye, Calendar, ExternalLink, Copy, Check,
-  ChevronRight, Play, Pause, RefreshCw, Shield, Star, Award,
-  Activity, DollarSign, Clock, Zap, Globe, Youtube, Monitor,
-  Hash, AtSign, MapPin, Sparkles, ChevronDown, Heart
+  ArrowLeft,
+  BarChart3,
+  Check,
+  Copy,
+  ExternalLink,
+  Globe,
+  Heart,
+  Link2,
+  Play,
+  Settings,
+  Sparkles,
+  Users,
+  Eye,
 } from 'lucide-react';
-import { API_URL } from '../../config/api';
 import { formatCompactKo, formatCurrency, formatFullNumber } from '../../utils/formatters';
+import { getPlatformLogo, normalizeMediaEntity } from '../../utils/mediaAssets';
 import LoadingSpinner from '../shared/LoadingSpinner';
+import {
+  AppShell,
+  EmptyState,
+  EntityCard,
+  FormSection,
+  InsightStrip,
+  MediaHero,
+  MediaRail,
+  MetricCard,
+  PosterCard,
+  SectionCard,
+  SidebarSection,
+  StatusBadge,
+  StickyActionDock,
+} from '../shared/studio';
 import './ChannelPage.css';
+
+const navItems = [
+  { id: 'overview', label: '개요', icon: Sparkles },
+  { id: 'stats', label: '성과', icon: BarChart3 },
+  { id: 'streams', label: '최근 방송', icon: Play },
+  { id: 'connections', label: '플랫폼 연결', icon: Link2 },
+  { id: 'settings', label: '채널 설정', icon: Settings },
+];
+
+const mockChannelData = {
+  id: 'demo-channel',
+  displayName: '데모 스트리머',
+  username: 'demo_streamer',
+  avatarUrl:
+    'https://images.unsplash.com/photo-1527980965255-d3b416303d12?auto=format&fit=crop&w=320&q=80',
+  coverUrl:
+    'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1400&q=80',
+  bio: '게임, 토크, 협업 방송을 오가며 브랜드 톤과 방송 운영 완성도를 함께 챙기는 크리에이터 채널입니다.',
+  verified: true,
+  level: 42,
+  createdAt: '2023-05-15',
+  region: '서울',
+  platforms: [
+    {
+      id: 'soop',
+      name: 'SOOP',
+      connected: true,
+      followers: 15420,
+      channelUrl: 'https://www.sooplive.co.kr/demo',
+      imageUrl:
+        'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80',
+      description: '핵심 라이브 채널과 멤버십 동선을 운영하는 메인 플랫폼',
+    },
+    {
+      id: 'chzzk',
+      name: 'CHZZK',
+      connected: true,
+      followers: 8350,
+      channelUrl: 'https://chzzk.naver.com/demo',
+      imageUrl:
+        'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=900&q=80',
+      description: '토크와 협업형 콘텐츠를 빠르게 소화하는 서브 채널',
+    },
+    {
+      id: 'youtube',
+      name: 'YouTube',
+      connected: false,
+      followers: 0,
+      channelUrl: '',
+      imageUrl:
+        'https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?auto=format&fit=crop&w=900&q=80',
+      description: '하이라이트와 아카이브 재가공 채널',
+    },
+  ],
+  stats: {
+    totalFollowers: 23770,
+    totalViews: 1250000,
+    avgViewers: 342,
+    peakViewers: 1580,
+    totalStreams: 156,
+    totalHours: 892,
+    totalDonations: 4520000,
+    lastStreamDate: '2026-03-15',
+  },
+  recentStreams: [
+    {
+      id: 1,
+      title: '[LoL] 시즌 막판 듀오 랭크',
+      date: '2026-03-15',
+      duration: '4시간 32분',
+      viewers: 485,
+      category: 'League of Legends',
+      platform: 'soop',
+      thumbnailUrl:
+        'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=900&q=80',
+      kicker: 'Ranked Night',
+    },
+    {
+      id: 2,
+      title: '시청자 사연 읽기 + 심야 토크',
+      date: '2026-03-14',
+      duration: '3시간 15분',
+      viewers: 312,
+      category: 'Just Chatting',
+      platform: 'chzzk',
+      thumbnailUrl:
+        'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=900&q=80',
+      kicker: 'Late Talk',
+    },
+    {
+      id: 3,
+      title: '콜라보 썸네일 제작 방송',
+      date: '2026-03-12',
+      duration: '2시간 45분',
+      viewers: 428,
+      category: 'Creative',
+      platform: 'youtube',
+      thumbnailUrl:
+        'https://images.unsplash.com/photo-1492619375914-88005aa9e8fb?auto=format&fit=crop&w=900&q=80',
+      kicker: 'Creative',
+    },
+  ],
+  badges: [
+    { id: 'partner', name: '파트너', tone: 'default' },
+    { id: 'top100', name: 'TOP 100', tone: 'default' },
+    { id: 'verified', name: '공식 인증', tone: 'success' },
+  ],
+  socialLinks: [
+    { platform: 'X', url: 'https://twitter.com/demo', label: '@demo_streamer' },
+    { platform: 'Instagram', url: 'https://instagram.com/demo', label: '@demo_streamer' },
+    { platform: 'Discord', url: 'https://discord.gg/demo', label: 'Demo Server' },
+  ],
+};
 
 const ChannelPage = () => {
   const { channelId } = useParams();
@@ -21,69 +157,23 @@ const ChannelPage = () => {
   const [copied, setCopied] = useState(false);
   const [liveStatus, setLiveStatus] = useState(null);
 
-  // 네비게이션 메뉴 항목
-  const navItems = [
-    { id: 'overview', label: '채널 개요', icon: <User size={18} /> },
-    { id: 'stats', label: '통계', icon: <BarChart3 size={18} /> },
-    { id: 'streams', label: '방송 기록', icon: <Play size={18} /> },
-    { id: 'connections', label: '플랫폼 연결', icon: <Link2 size={18} /> },
-    { id: 'settings', label: '채널 설정', icon: <Settings size={18} /> },
-  ];
-
-  // 채널 데이터 가져오기 (Mock 데이터)
   useEffect(() => {
     const fetchChannelData = async () => {
       setLoading(true);
-      try {
-        // 실제 API 호출 예시
-        // const res = await fetch(`${API_URL}/api/channel/${channelId}`);
-        // const data = await res.json();
 
-        // Mock 데이터 (setTimeout 제거 - 불필요한 500ms 지연 방지)
+      try {
         setChannelData({
-          id: channelId || 'demo-channel',
-          displayName: '데모 스트리머',
-          username: 'demo_streamer',
-          avatar: null,
-          bio: '안녕하세요! 다양한 게임과 소통 방송을 진행하는 스트리머입니다. 😊',
-          verified: true,
-          level: 42,
-          createdAt: '2023-05-15',
-          platforms: [
-            { id: 'soop', name: 'SOOP', connected: true, followers: 15420, channelUrl: 'https://www.sooplive.co.kr/demo' },
-            { id: 'chzzk', name: '치지직', connected: true, followers: 8350, channelUrl: 'https://chzzk.naver.com/demo' },
-            { id: 'youtube', name: '유튜브', connected: false, followers: 0 },
-          ],
-          stats: {
-            totalFollowers: 23770,
-            totalViews: 1250000,
-            avgViewers: 342,
-            peakViewers: 1580,
-            totalStreams: 156,
-            totalHours: 892,
-            totalDonations: 4520000,
-            lastStreamDate: '2026-01-19',
-          },
-          recentStreams: [
-            { id: 1, title: '[LOL] 랭크 도전! 목표는 다이아몬드', date: '2026-01-19', duration: '4h 32m', viewers: 485, category: 'League of Legends' },
-            { id: 2, title: '신작 게임 리뷰 + 시청자 참여', date: '2026-01-18', duration: '3h 15m', viewers: 312, category: 'Just Chatting' },
-            { id: 3, title: '팬아트 리뷰하며 소통방송', date: '2026-01-17', duration: '2h 45m', viewers: 428, category: 'Art' },
-          ],
-          badges: [
-            { id: 'partner', name: '파트너', icon: <Shield size={14} />, color: '#6366f1' },
-            { id: 'top100', name: 'TOP 100', icon: <Award size={14} />, color: '#f59e0b' },
-            { id: 'verified', name: '인증됨', icon: <Check size={14} />, color: '#10b981' },
-          ],
-          socialLinks: [
-            { platform: 'twitter', url: 'https://twitter.com/demo', label: '@demo_streamer' },
-            { platform: 'instagram', url: 'https://instagram.com/demo', label: '@demo_streamer' },
-            { platform: 'discord', url: 'https://discord.gg/demo', label: 'Demo Server' },
-          ]
+          ...mockChannelData,
+          id: channelId || mockChannelData.id,
         });
-        setLiveStatus({ isLive: true, viewers: 523, startedAt: new Date(Date.now() - 7200000) });
-        setLoading(false);
-      } catch (error) {
-        console.error('Failed to fetch channel data:', error);
+        setLiveStatus({
+          isLive: true,
+          viewers: 523,
+          startedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
+          title: '실시간 토크 + 오버레이 세팅 방송',
+          category: 'Just Chatting',
+        });
+      } finally {
         setLoading(false);
       }
     };
@@ -92,396 +182,343 @@ const ChannelPage = () => {
   }, [channelId]);
 
   const copyChannelUrl = async () => {
-    const url = `${window.location.origin}/channel/${channelData?.id}`;
+    if (!channelData) return;
+
+    const url = `${window.location.origin}/channel/${channelData.id}`;
     await navigator.clipboard.writeText(url);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 1800);
   };
 
-  const formatNumber = (num) => formatCompactKo(num);
+  const connectedPlatforms = useMemo(
+    () => channelData?.platforms.filter((platform) => platform.connected) || [],
+    [channelData]
+  );
 
-  const formatDuration = (ms) => {
-    const hours = Math.floor(ms / 3600000);
-    const minutes = Math.floor((ms % 3600000) / 60000);
-    return `${hours}시간 ${minutes}분`;
-  };
+  const liveDuration = useMemo(() => {
+    if (!liveStatus?.startedAt) return '';
 
-  const getPlatformLogo = (platformId) => {
-    const logos = {
-      soop: '/assets/logos/soop.png',
-      chzzk: '/assets/logos/chzzk.png',
-      youtube: '/assets/logos/youtube.png',
-      twitch: '/assets/logos/twitch.png',
-    };
-    return logos[platformId];
-  };
+    const elapsed = Date.now() - liveStatus.startedAt.getTime();
+    const hours = Math.floor(elapsed / 3600000);
+    const minutes = Math.floor((elapsed % 3600000) / 60000);
+    return `${hours}시간 ${minutes}분 진행 중`;
+  }, [liveStatus]);
 
   if (loading) {
     return (
-      <div className="channel-page">
-        <LoadingSpinner fullHeight />
-      </div>
+      <AppShell accent="blue">
+        <div className="channel-studio channel-studio--loading">
+          <LoadingSpinner fullHeight text="채널 정보를 불러오는 중입니다..." />
+        </div>
+      </AppShell>
     );
   }
 
   if (!channelData) {
     return (
-      <div className="channel-page">
-        <div className="channel-not-found">
-          <User size={48} />
-          <h2>채널을 찾을 수 없습니다</h2>
-          <p>요청하신 채널이 존재하지 않거나 비공개 상태입니다.</p>
-          <button className="btn btn-primary" onClick={() => navigate('/')}>
-            홈으로 돌아가기
-          </button>
+      <AppShell accent="blue">
+        <div className="channel-studio">
+          <EmptyState
+            icon={<Users size={28} />}
+            title="채널 정보를 찾을 수 없습니다"
+            description="요청한 채널이 존재하지 않거나 공개 상태가 아닙니다."
+            action={
+              <button className="btn btn-primary" onClick={() => navigate('/streaming-agent')}>
+                홈으로 이동
+              </button>
+            }
+          />
         </div>
-      </div>
+      </AppShell>
     );
   }
 
+  const heroMedia = normalizeMediaEntity(channelData, {
+    imageUrl: channelData.coverUrl,
+    avatarUrl: channelData.avatarUrl,
+    platform: connectedPlatforms[0]?.id,
+    label: channelData.displayName,
+  });
+
+  const overviewInsights = [
+    {
+      kicker: 'Brand',
+      title: '방송과 채널 페이지 톤이 잘 맞춰진 채널',
+      body: '최근 방송 썸네일과 플랫폼 소개가 모두 같은 다크 톤으로 정리되어 브랜드 일관성이 좋습니다.',
+    },
+    {
+      kicker: 'Growth',
+      title: '실시간 토크형 콘텐츠에서 반응이 특히 강함',
+      body: '게임 방송보다 토크와 협업형 방송에서 시청자 체류가 더 오래 유지되는 흐름입니다.',
+    },
+    {
+      kicker: 'Ops',
+      title: 'SOOP 메인, CHZZK 보조 운영 구조',
+      body: '메인 라이브와 토크형 서브 운영을 분리해 채널 성격을 분명하게 가져가고 있습니다.',
+    },
+  ];
+
   const renderOverview = () => (
-    <div className="channel-section overview-section animate-fade">
-      {/* 프로필 헤더 */}
-      <div className="profile-header-card">
-        <div className="profile-banner">
-          {liveStatus?.isLive && (
-            <div className="live-indicator">
-              <span className="live-dot"></span>
-              LIVE
-            </div>
-          )}
-        </div>
-        <div className="profile-content">
-          <div className="profile-avatar-wrapper">
-            <div className="profile-avatar large">
-              {channelData.avatar ? (
-                <img src={channelData.avatar} alt={channelData.displayName} />
-              ) : (
-                <span>{channelData.displayName.charAt(0).toUpperCase()}</span>
-              )}
-            </div>
-            {channelData.verified && (
-              <div className="verified-badge" title="인증된 스트리머">
-                <Check size={12} />
-              </div>
-            )}
-          </div>
-          <div className="profile-info">
-            <div className="profile-name-row">
-              <h1>{channelData.displayName}</h1>
-              <div className="profile-badges">
-                {channelData.badges.map(badge => (
-                  <span
-                    key={badge.id}
-                    className="profile-badge"
-                    style={{ backgroundColor: `${badge.color}20`, color: badge.color }}
-                  >
-                    {badge.icon}
-                    {badge.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className="profile-username">@{channelData.username}</div>
-            <p className="profile-bio">{channelData.bio}</p>
-            <div className="profile-meta">
-              <span><Calendar size={14} /> {channelData.createdAt} 가입</span>
-              <span><Star size={14} /> 레벨 {channelData.level}</span>
-            </div>
-          </div>
-          <div className="profile-actions">
-            <button className="btn btn-primary">
-              <Heart size={16} /> 팔로우
-            </button>
-            <button className="btn btn-outline" onClick={copyChannelUrl}>
-              {copied ? <Check size={16} /> : <Copy size={16} />}
-              {copied ? '복사됨' : '공유'}
-            </button>
-          </div>
-        </div>
-      </div>
+    <div className="channel-studio__section-stack">
+      <MediaRail
+        title="최근 방송 포스터"
+        description="텍스트 줄 목록 대신 최근 방송을 썸네일 중심 카드로 바로 훑을 수 있게 구성했습니다."
+      >
+        {channelData.recentStreams.map((stream) => {
+          const media = normalizeMediaEntity(stream, {
+            platform: stream.platform,
+            label: stream.title,
+          });
 
-      {/* 라이브 상태 */}
-      {liveStatus?.isLive && (
-        <div className="live-status-card">
-          <div className="live-header">
-            <div className="live-badge">
-              <span className="live-dot"></span>
-              현재 방송 중
-            </div>
-            <span className="live-duration">
-              <Clock size={14} /> {formatDuration(Date.now() - liveStatus.startedAt.getTime())} 방송 중
-            </span>
-          </div>
-          <div className="live-stats">
-            <div className="live-stat">
-              <Eye size={18} />
-              <span className="live-stat-value">{formatFullNumber(liveStatus.viewers || 0)}</span>
-              <span className="live-stat-label">시청자</span>
-            </div>
-          </div>
-          <button className="btn btn-primary btn-full">
-            <ExternalLink size={16} /> 방송 시청하기
-          </button>
-        </div>
-      )}
+          return (
+            <PosterCard
+              key={stream.id}
+              accent="blue"
+              eyebrow={stream.kicker}
+              title={stream.title}
+              description={`${stream.date} · ${stream.duration} · ${stream.category}`}
+              imageUrl={media.thumbnailUrl}
+              logoUrl={media.logoUrl}
+              badge={stream.platform.toUpperCase()}
+              stats={[
+                { label: '시청', value: `${formatFullNumber(stream.viewers)}명`, sensitive: true },
+                { label: '카테고리', value: stream.category },
+              ]}
+              action={<button className="btn btn-outline">방송 보기</button>}
+            />
+          );
+        })}
+      </MediaRail>
 
-      {/* 퀵 통계 */}
-      <div className="quick-stats-grid">
-        <div className="quick-stat-card">
-          <div className="quick-stat-icon" style={{ backgroundColor: 'rgba(99, 102, 241, 0.1)', color: '#6366f1' }}>
-            <Users size={20} />
-          </div>
-          <div className="quick-stat-content">
-            <span className="quick-stat-value">{formatNumber(channelData.stats.totalFollowers)}</span>
-            <span className="quick-stat-label">총 팔로워</span>
-          </div>
-        </div>
-        <div className="quick-stat-card">
-          <div className="quick-stat-icon" style={{ backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
-            <Eye size={20} />
-          </div>
-          <div className="quick-stat-content">
-            <span className="quick-stat-value">{formatNumber(channelData.stats.totalViews)}</span>
-            <span className="quick-stat-label">총 조회수</span>
-          </div>
-        </div>
-        <div className="quick-stat-card">
-          <div className="quick-stat-icon" style={{ backgroundColor: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' }}>
-            <TrendingUp size={20} />
-          </div>
-          <div className="quick-stat-content">
-            <span className="quick-stat-value">{channelData.stats.avgViewers}</span>
-            <span className="quick-stat-label">평균 시청자</span>
-          </div>
-        </div>
-        <div className="quick-stat-card">
-          <div className="quick-stat-icon" style={{ backgroundColor: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' }}>
-            <Zap size={20} />
-          </div>
-          <div className="quick-stat-content">
-            <span className="quick-stat-value">{formatNumber(channelData.stats.peakViewers)}</span>
-            <span className="quick-stat-label">최고 동시시청</span>
-          </div>
-        </div>
-      </div>
+      <section className="channel-studio__entity-grid">
+        {connectedPlatforms.map((platform) => {
+          const media = normalizeMediaEntity(platform, {
+            imageUrl: platform.imageUrl,
+            platform: platform.id,
+            label: platform.name,
+          });
 
-      {/* 연결된 플랫폼 */}
-      <div className="section-card">
-        <div className="section-header">
-          <h3><Globe size={18} /> 연결된 플랫폼</h3>
-        </div>
-        <div className="platforms-list">
-          {channelData.platforms.filter(p => p.connected).map(platform => (
-            <div key={platform.id} className="platform-item">
-              <div className="platform-info">
-                <img src={getPlatformLogo(platform.id)} alt={platform.name} className="platform-logo" />
-                <div className="platform-details">
-                  <span className="platform-name">{platform.name}</span>
-                  <span className="platform-followers">
-                    <Users size={12} /> {formatNumber(platform.followers)} 팔로워
-                  </span>
-                </div>
-              </div>
-              <a href={platform.channelUrl} target="_blank" rel="noopener noreferrer" className="platform-link">
-                <ExternalLink size={14} />
-              </a>
-            </div>
-          ))}
-        </div>
-      </div>
+          return (
+            <EntityCard
+              key={platform.id}
+              accent="blue"
+              eyebrow="Platform"
+              title={platform.name}
+              description={platform.description}
+              coverUrl={media.imageUrl}
+              avatarUrl={getPlatformLogo(platform.id)}
+              logoUrl={media.logoUrl}
+              badge={platform.connected ? '연결됨' : '대기'}
+              stats={[
+                { label: '팔로워', value: formatCompactKo(platform.followers), sensitive: true },
+                { label: '상태', value: platform.connected ? '운영 중' : '연결 전' },
+              ]}
+              action={
+                platform.channelUrl ? (
+                  <a href={platform.channelUrl} target="_blank" rel="noreferrer" className="btn btn-outline">
+                    <ExternalLink size={16} />
+                    채널 열기
+                  </a>
+                ) : (
+                  <button className="btn btn-primary">연결 시작</button>
+                )
+              }
+            />
+          );
+        })}
+      </section>
 
-      {/* 최근 방송 */}
-      <div className="section-card">
-        <div className="section-header">
-          <h3><Play size={18} /> 최근 방송</h3>
-          <button className="section-link" onClick={() => setActiveSection('streams')}>
-            전체 보기 <ChevronRight size={14} />
-          </button>
-        </div>
-        <div className="recent-streams-list">
-          {channelData.recentStreams.map(stream => (
-            <div key={stream.id} className="stream-item">
-              <div className="stream-thumbnail">
-                <Play size={20} />
-              </div>
-              <div className="stream-info">
-                <h4 className="stream-title">{stream.title}</h4>
-                <div className="stream-meta">
-                  <span><Calendar size={12} /> {stream.date}</span>
-                  <span><Clock size={12} /> {stream.duration}</span>
-                  <span><Eye size={12} /> {stream.viewers} 시청자</span>
-                </div>
-                <span className="stream-category">{stream.category}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
+      <SectionCard
+        accent="blue"
+        title="운영 인사이트"
+        description="숫자만 나열하지 않고 현재 채널 운영의 강점을 한 문장씩 빠르게 읽을 수 있도록 정리했습니다."
+      >
+        <InsightStrip items={overviewInsights} />
+      </SectionCard>
     </div>
   );
 
   const renderStats = () => (
-    <div className="channel-section stats-section animate-fade">
-      <h2><BarChart3 size={20} /> 채널 통계</h2>
+    <div className="channel-studio__section-stack channel-studio__section-stack--stats">
+      <SectionCard
+        accent="blue"
+        title="채널 성과 요약"
+        description="핵심 지표와 최근 흐름을 한 번에 확인할 수 있도록 재구성했습니다."
+      >
+        <div className="channel-studio__stats-board">
+          <div className="channel-studio__stats-row">
+            <span>누적 후원</span>
+            <strong>{formatCurrency(channelData.stats.totalDonations)}</strong>
+          </div>
+          <div className="channel-studio__stats-row">
+            <span>총 방송 수</span>
+            <strong>{channelData.stats.totalStreams}회</strong>
+          </div>
+          <div className="channel-studio__stats-row">
+            <span>누적 방송 시간</span>
+            <strong>{channelData.stats.totalHours}시간</strong>
+          </div>
+          <div className="channel-studio__stats-row">
+            <span>마지막 방송</span>
+            <strong>{channelData.stats.lastStreamDate}</strong>
+          </div>
+        </div>
+      </SectionCard>
 
-      <div className="stats-overview-grid">
-        <div className="stat-card large">
-          <div className="stat-icon"><DollarSign size={24} /></div>
-          <div className="stat-info">
-            <span className="stat-label">총 후원 수익</span>
-            <span className="stat-value">{formatCurrency(channelData.stats.totalDonations || 0)}</span>
-          </div>
+      <SectionCard
+        accent="blue"
+        title="콘텐츠 메모"
+        description="브랜드와 운영 방향을 설명형 문장으로 간단히 남겨두는 공간입니다."
+      >
+        <div className="channel-studio__editorial-note">
+          <p>
+            평균 시청자 규모는 안정적으로 유지되고 있으며, 심야 토크와 협업형 방송에서 피크가 크게
+            올라가는 패턴이 반복됩니다.
+          </p>
+          <p>
+            게임과 토크를 오가는 편성 구조라서 썸네일, 알림, 채팅 오버레이 톤을 동일하게 맞추면 채널
+            인상이 더 선명해질 수 있습니다.
+          </p>
         </div>
-        <div className="stat-card">
-          <div className="stat-icon"><Play size={24} /></div>
-          <div className="stat-info">
-            <span className="stat-label">총 방송 횟수</span>
-            <span className="stat-value">{channelData.stats.totalStreams}회</span>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon"><Clock size={24} /></div>
-          <div className="stat-info">
-            <span className="stat-label">총 방송 시간</span>
-            <span className="stat-value">{channelData.stats.totalHours}시간</span>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon"><Calendar size={24} /></div>
-          <div className="stat-info">
-            <span className="stat-label">마지막 방송</span>
-            <span className="stat-value">{channelData.stats.lastStreamDate}</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="stats-chart-placeholder">
-        <Activity size={48} />
-        <p>상세 통계 차트가 여기에 표시됩니다</p>
-      </div>
+      </SectionCard>
     </div>
   );
 
   const renderStreams = () => (
-    <div className="channel-section streams-section animate-fade">
-      <h2><Play size={20} /> 방송 기록</h2>
+    <MediaRail
+      title="방송 아카이브"
+      description="최근 방송을 방송 썸네일 카드로 정리해 어떤 콘텐츠가 반복되고 있는지 바로 보이게 했습니다."
+    >
+      {channelData.recentStreams.map((stream) => {
+        const media = normalizeMediaEntity(stream, {
+          platform: stream.platform,
+          label: stream.title,
+        });
 
-      <div className="streams-filter">
-        <button className="filter-btn active">전체</button>
-        <button className="filter-btn">이번 주</button>
-        <button className="filter-btn">이번 달</button>
-      </div>
-
-      <div className="streams-list">
-        {channelData.recentStreams.map(stream => (
-          <div key={stream.id} className="stream-card">
-            <div className="stream-thumbnail large">
-              <Play size={32} />
-            </div>
-            <div className="stream-content">
-              <h3>{stream.title}</h3>
-              <div className="stream-meta">
-                <span><Calendar size={14} /> {stream.date}</span>
-                <span><Clock size={14} /> {stream.duration}</span>
-                <span><Eye size={14} /> {stream.viewers} 시청자</span>
-              </div>
-              <div className="stream-category-tag">{stream.category}</div>
-            </div>
-            <div className="stream-actions">
-              <button className="btn btn-outline btn-sm">다시보기</button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
+        return (
+          <PosterCard
+            key={stream.id}
+            accent="blue"
+            eyebrow={stream.date}
+            title={stream.title}
+            description={`${stream.duration} · ${stream.category}`}
+            imageUrl={media.imageUrl}
+            logoUrl={media.logoUrl}
+            badge={`${formatCompactKo(stream.viewers)} 시청`}
+            stats={[
+              { label: '플랫폼', value: stream.platform.toUpperCase() },
+              { label: '시청자', value: `${formatFullNumber(stream.viewers)}명`, sensitive: true },
+            ]}
+            action={<button className="btn btn-outline">상세 보기</button>}
+          />
+        );
+      })}
+    </MediaRail>
   );
 
   const renderConnections = () => (
-    <div className="channel-section connections-section animate-fade">
-      <h2><Link2 size={20} /> 플랫폼 연결</h2>
+    <section className="channel-studio__entity-grid">
+      {channelData.platforms.map((platform) => {
+        const media = normalizeMediaEntity(platform, {
+          imageUrl: platform.imageUrl,
+          platform: platform.id,
+          label: platform.name,
+        });
 
-      <div className="connections-grid">
-        {channelData.platforms.map(platform => (
-          <div key={platform.id} className={`connection-card ${platform.connected ? 'connected' : ''}`}>
-            <div className="connection-header">
-              <img src={getPlatformLogo(platform.id)} alt={platform.name} className="connection-logo" />
-              <span className={`connection-status ${platform.connected ? 'active' : ''}`}>
-                {platform.connected ? '연결됨' : '미연결'}
-              </span>
-            </div>
-            <h3>{platform.name}</h3>
-            {platform.connected ? (
-              <>
-                <div className="connection-stats">
-                  <span><Users size={14} /> {formatNumber(platform.followers)} 팔로워</span>
-                </div>
-                <div className="connection-actions">
-                  <button className="btn btn-outline btn-sm">재연결</button>
-                  <button className="btn btn-danger-ghost btn-sm">연결 해제</button>
-                </div>
-              </>
-            ) : (
-              <div className="connection-actions">
-                <button className="btn btn-primary btn-sm">
-                  <Link2 size={14} /> 연결하기
-                </button>
+        return (
+          <EntityCard
+            key={platform.id}
+            accent="blue"
+            eyebrow={platform.connected ? 'Connected' : 'Pending'}
+            title={platform.name}
+            description={
+              platform.connected
+                ? `${formatCompactKo(platform.followers)} 팔로워와 연결된 공개 채널입니다.`
+                : '아직 계정 연결이 완료되지 않았습니다.'
+            }
+            coverUrl={media.imageUrl}
+            avatarUrl={getPlatformLogo(platform.id)}
+            logoUrl={media.logoUrl}
+            badge={platform.connected ? '활성' : '비활성'}
+            stats={[
+              { label: '팔로워', value: formatCompactKo(platform.followers), sensitive: true },
+              { label: 'URL', value: platform.channelUrl ? '연결됨' : '미설정' },
+            ]}
+            action={
+              <div className="channel-studio__connection-actions">
+                {platform.connected ? (
+                  <>
+                    <button className="btn btn-outline">설정 보기</button>
+                    <a href={platform.channelUrl} target="_blank" rel="noreferrer" className="btn btn-primary">
+                      채널 열기
+                    </a>
+                  </>
+                ) : (
+                  <button className="btn btn-primary">연결 시작</button>
+                )}
               </div>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
+            }
+          />
+        );
+      })}
+    </section>
   );
 
   const renderSettings = () => (
-    <div className="channel-section settings-section animate-fade">
-      <h2><Settings size={20} /> 채널 설정</h2>
+    <div className="channel-studio__settings-layout">
+      <FormSection
+        accent="blue"
+        title="기본 정보"
+        description="공개 채널명과 소개 문구, 지역 정보를 정리합니다."
+      >
+        <div className="channel-studio__field-grid">
+          <label className="channel-studio__field">
+            <span>채널 이름</span>
+            <input type="text" defaultValue={channelData.displayName} />
+          </label>
+          <label className="channel-studio__field">
+            <span>대표 지역</span>
+            <input type="text" defaultValue={channelData.region} />
+          </label>
+          <label className="channel-studio__field channel-studio__field--full">
+            <span>채널 소개</span>
+            <textarea rows={4} defaultValue={channelData.bio} />
+          </label>
+        </div>
+      </FormSection>
 
-      <div className="settings-group">
-        <h3>기본 정보</h3>
-        <div className="setting-item">
-          <label>채널 이름</label>
-          <input type="text" defaultValue={channelData.displayName} />
+      <FormSection
+        accent="blue"
+        title="노출 옵션"
+        description="방송 공지와 후원 하이라이트 노출 규칙을 관리합니다."
+      >
+        <div className="channel-studio__toggle-list">
+          <div className="channel-studio__toggle-card">
+            <div>
+              <strong>방송 시작 알림</strong>
+              <p>라이브 시작 시 팔로워에게 자동 공지와 알림을 발송합니다.</p>
+            </div>
+            <input type="checkbox" defaultChecked />
+          </div>
+          <div className="channel-studio__toggle-card">
+            <div>
+              <strong>후원 하이라이트 노출</strong>
+              <p>최근 후원과 반응을 채널 상단에서 미리 볼 수 있게 유지합니다.</p>
+            </div>
+            <input type="checkbox" defaultChecked />
+          </div>
         </div>
-        <div className="setting-item">
-          <label>채널 소개</label>
-          <textarea defaultValue={channelData.bio} rows={3} />
-        </div>
-      </div>
+      </FormSection>
 
-      <div className="settings-group">
-        <h3>알림 설정</h3>
-        <div className="setting-toggle">
-          <div className="setting-info">
-            <span>방송 시작 알림</span>
-            <p>방송 시작 시 팔로워에게 알림 전송</p>
-          </div>
-          <div className="toggle-switch">
-            <input type="checkbox" id="broadcast-notify" defaultChecked />
-            <label htmlFor="broadcast-notify"></label>
-          </div>
-        </div>
-        <div className="setting-toggle">
-          <div className="setting-info">
-            <span>후원 알림</span>
-            <p>새로운 후원 시 알림 받기</p>
-          </div>
-          <div className="toggle-switch">
-            <input type="checkbox" id="donation-notify" defaultChecked />
-            <label htmlFor="donation-notify"></label>
-          </div>
-        </div>
-      </div>
-
-      <button className="btn btn-primary">변경사항 저장</button>
+      <StickyActionDock
+        secondaryAction={<button className="btn btn-outline">초기화</button>}
+        primaryAction={<button className="btn btn-primary">변경 사항 저장</button>}
+      />
     </div>
   );
 
   const renderContent = () => {
     switch (activeSection) {
-      case 'overview':
-        return renderOverview();
       case 'stats':
         return renderStats();
       case 'streams':
@@ -490,66 +527,191 @@ const ChannelPage = () => {
         return renderConnections();
       case 'settings':
         return renderSettings();
+      case 'overview':
       default:
         return renderOverview();
     }
   };
 
   return (
-    <div className="channel-page">
-      {/* 왼쪽 네비게이션 */}
-      <aside className="channel-sidebar">
-        <div className="sidebar-header">
-          <button className="back-btn" onClick={() => navigate('/')}>
-            <ChevronRight size={18} style={{ transform: 'rotate(180deg)' }} />
-            <span>돌아가기</span>
-          </button>
-        </div>
-
-        <div className="sidebar-profile">
-          <div className="profile-avatar">
-            {channelData.avatar ? (
-              <img src={channelData.avatar} alt={channelData.displayName} />
-            ) : (
-              <span>{channelData.displayName.charAt(0).toUpperCase()}</span>
-            )}
-            {liveStatus?.isLive && <span className="live-ring"></span>}
-          </div>
-          <div className="profile-info">
-            <span className="profile-name">{channelData.displayName}</span>
-            <span className="profile-username">@{channelData.username}</span>
-          </div>
-        </div>
-
-        <nav className="sidebar-nav">
-          {navItems.map(item => (
-            <button
-              key={item.id}
-              className={`nav-item ${activeSection === item.id ? 'active' : ''}`}
-              onClick={() => setActiveSection(item.id)}
-            >
-              {item.icon}
-              <span>{item.label}</span>
+    <AppShell accent="blue">
+      <div className="channel-studio">
+        <aside className="channel-studio__rail">
+          <SidebarSection compact>
+            <button className="channel-studio__back" onClick={() => navigate(-1)}>
+              <ArrowLeft size={16} />
+              돌아가기
             </button>
-          ))}
-        </nav>
+          </SidebarSection>
 
-        <div className="sidebar-footer">
-          <div className="quick-links">
-            {channelData.socialLinks.map((link, i) => (
-              <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" title={link.label}>
-                <Globe size={16} />
-              </a>
-            ))}
-          </div>
-        </div>
-      </aside>
+          <SidebarSection title="Channel">
+            <div className="channel-studio__identity-card">
+              <div className="channel-studio__avatar">
+                {channelData.avatarUrl ? (
+                  <img src={channelData.avatarUrl} alt={channelData.displayName} />
+                ) : (
+                  <span>{channelData.displayName.charAt(0)}</span>
+                )}
+              </div>
+              <div>
+                <strong>{channelData.displayName}</strong>
+                <span>@{channelData.username}</span>
+              </div>
+              <div className="channel-studio__identity-badges">
+                {channelData.verified ? <StatusBadge tone="success">인증됨</StatusBadge> : null}
+                {liveStatus?.isLive ? <StatusBadge tone="danger">LIVE</StatusBadge> : null}
+              </div>
+            </div>
+          </SidebarSection>
 
-      {/* 메인 콘텐츠 */}
-      <main className="channel-main">
-        {renderContent()}
-      </main>
-    </div>
+          <SidebarSection title="탐색">
+            <nav className="channel-studio__nav">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={activeSection === item.id ? 'active' : ''}
+                    onClick={() => setActiveSection(item.id)}
+                  >
+                    <Icon size={16} />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </SidebarSection>
+
+          <SidebarSection title="소셜">
+            <div className="channel-studio__social-links">
+              {channelData.socialLinks.map((link) => (
+                <a key={link.platform} href={link.url} target="_blank" rel="noreferrer">
+                  <Globe size={15} />
+                  <span>{link.label}</span>
+                </a>
+              ))}
+            </div>
+          </SidebarSection>
+        </aside>
+
+        <main className="channel-studio__main">
+          <MediaHero
+            accent="blue"
+            eyebrow={
+              <>
+                <StatusBadge className="studio-accent--blue" icon={<Sparkles size={14} />}>
+                  Creator Channel
+                </StatusBadge>
+                {connectedPlatforms.map((platform) => (
+                  <StatusBadge key={platform.id}>{platform.name}</StatusBadge>
+                ))}
+              </>
+            }
+            title={channelData.displayName}
+            description={`${channelData.bio} 현재 ${connectedPlatforms.length}개 플랫폼과 연결되어 있으며, 평균 ${formatCompactKo(
+              channelData.stats.avgViewers
+            )}명의 시청자가 유입되고 있습니다.`}
+            media={{
+              imageUrl: heroMedia.imageUrl,
+              logoUrl: heroMedia.logoUrl,
+              label: channelData.displayName,
+              badge: liveStatus?.isLive ? 'LIVE NOW' : 'Archive',
+              aspect: 'portrait',
+            }}
+            stats={[
+              { label: '생성일', value: channelData.createdAt },
+              { label: '지역', value: channelData.region },
+              { label: '연결 플랫폼', value: `${connectedPlatforms.length}개` },
+            ]}
+            actions={
+              <>
+                <button className="btn btn-primary">
+                  <Heart size={16} />
+                  팔로우
+                </button>
+                <button className="btn btn-outline" onClick={copyChannelUrl}>
+                  {copied ? <Check size={16} /> : <Copy size={16} />}
+                  {copied ? '복사됨' : '채널 공유'}
+                </button>
+              </>
+            }
+            insights={overviewInsights.slice(0, 2)}
+            overlay={
+              liveStatus?.isLive ? (
+                <div className="channel-studio__live-panel">
+                  <div>
+                    <StatusBadge tone="danger">LIVE</StatusBadge>
+                    <h3>{liveStatus.title}</h3>
+                    <p>{liveDuration}</p>
+                  </div>
+                  <div className="channel-studio__live-stats">
+                    <div>
+                      <span>현재 시청자</span>
+                      <strong>{formatFullNumber(liveStatus.viewers)}명</strong>
+                    </div>
+                    <div>
+                      <span>라이브 카테고리</span>
+                      <strong>{liveStatus.category}</strong>
+                    </div>
+                  </div>
+                </div>
+              ) : null
+            }
+          />
+
+          <section className="channel-studio__metrics">
+            <MetricCard
+              accent="blue"
+              tone="audience"
+              label="팔로워"
+              value={`${formatCompactKo(channelData.stats.totalFollowers)}명`}
+              meta="전체 플랫폼 합산"
+              sensitiveValue
+              icon={<Users size={18} />}
+            />
+            <MetricCard
+              accent="blue"
+              tone="activity"
+              label="누적 조회"
+              value={`${formatCompactKo(channelData.stats.totalViews)}회`}
+              meta="라이브와 VOD 포함"
+              sensitiveValue
+              icon={<Eye size={18} />}
+            />
+            <MetricCard
+              accent="blue"
+              tone="growth"
+              label="평균 시청"
+              value={`${formatFullNumber(channelData.stats.avgViewers)}명`}
+              meta={`피크 ${formatFullNumber(channelData.stats.peakViewers)}명`}
+              sensitiveValue
+              sensitiveMeta
+              icon={<BarChart3 size={18} />}
+            />
+          </section>
+
+          {renderContent()}
+
+          {activeSection !== 'settings' ? (
+            <StickyActionDock
+              secondaryAction={
+                <button className="btn btn-outline" onClick={() => setActiveSection('connections')}>
+                  <Link2 size={16} />
+                  플랫폼 연결 보기
+                </button>
+              }
+              primaryAction={
+                <button className="btn btn-primary" onClick={() => setActiveSection('streams')}>
+                  <Play size={16} />
+                  최근 방송 보기
+                </button>
+              }
+            />
+          ) : null}
+        </main>
+      </div>
+    </AppShell>
   );
 };
 

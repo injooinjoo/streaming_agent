@@ -30,6 +30,7 @@ const {
   createDesignsRouter,
   createMarketplaceRouter,
   createStreamerRouter,
+  createNConnectRouter,
 } = require("./routes");
 const { createHealthRouter } = require("./routes/health");
 
@@ -189,6 +190,10 @@ const createApp = ({
   // Marketplace routes (public design browsing, install) - uses designService
   const marketplaceRouter = createMarketplaceRouter(designService, authMiddleware, statsCacheService);
   app.use("/api", marketplaceRouter);
+
+  // N-CONNECT routes (ranking, notices, membership status)
+  const nConnectRouter = createNConnectRouter(userService, settingsService, authMiddleware);
+  app.use("/api", nConnectRouter);
 
   // Stats routes (events, donations, revenue, viewer sessions) - uses both databases
   const statsRouter = createStatsRouter(

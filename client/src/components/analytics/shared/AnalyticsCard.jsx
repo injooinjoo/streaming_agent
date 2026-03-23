@@ -1,7 +1,8 @@
 import React from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import SensitiveValue from '../../shared/SensitiveValue';
 
-const AnalyticsCard = ({ title, value, change, trend, icon, subtitle, onClick }) => {
+const AnalyticsCard = ({ title, value, change, trend, icon, subtitle, onClick, sensitiveSubtitle = false }) => {
   const getTrendIcon = () => {
     if (trend === 'up') return <TrendingUp size={14} />;
     if (trend === 'down') return <TrendingDown size={14} />;
@@ -24,7 +25,7 @@ const AnalyticsCard = ({ title, value, change, trend, icon, subtitle, onClick })
         {icon && <div className="analytics-card-icon">{icon}</div>}
       </div>
       <div className="analytics-card-content">
-        <span className="analytics-card-value sensitive-blur">{value}</span>
+        <SensitiveValue className="analytics-card-value">{value}</SensitiveValue>
         {change && (
           <span className={`analytics-card-change ${getTrendClass()}`}>
             {getTrendIcon()}
@@ -32,7 +33,13 @@ const AnalyticsCard = ({ title, value, change, trend, icon, subtitle, onClick })
           </span>
         )}
       </div>
-      {subtitle && <span className="analytics-card-subtitle">{subtitle}</span>}
+      {subtitle ? (
+        sensitiveSubtitle ? (
+          <SensitiveValue className="analytics-card-subtitle">{subtitle}</SensitiveValue>
+        ) : (
+          <span className="analytics-card-subtitle">{subtitle}</span>
+        )
+      ) : null}
     </div>
   );
 };

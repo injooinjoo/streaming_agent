@@ -2,6 +2,79 @@
 // 통합 목업 데이터 - 스트리밍 에이전트
 // ============================================
 
+const getNConnectTier = (rank) => {
+  if (rank <= 5) return '핵심 파트너';
+  if (rank <= 15) return '핵심 성장 파트너';
+  if (rank <= 35) return '안정적 기여 파트너';
+  if (rank <= 65) return '참여 유지';
+  return '동기부여';
+};
+
+const getSalaryBand = (rank) => {
+  if (rank <= 5) return '월 3,250만원';
+  if (rank <= 15) return '월 1,550만원';
+  if (rank <= 35) return '월 650만원';
+  if (rank <= 65) return '월 140만원';
+  return '월 30만원';
+};
+
+const getIncentiveBand = (rank) => {
+  if (rank <= 5) return '월 1,400만원';
+  if (rank <= 15) return '월 600만원';
+  if (rank <= 35) return '월 150만원';
+  if (rank <= 65) return '월 55만원';
+  return '월 10만원';
+};
+
+const nconnectCreatorSeed = [
+  { displayName: '감스트', platform: 'soop' },
+  { displayName: '이상호', platform: 'soop' },
+  { displayName: '괴물쥐', platform: 'chzzk' },
+  { displayName: '팡이요', platform: 'soop' },
+  { displayName: '풍월량', platform: 'chzzk' },
+  { displayName: '한동숙', platform: 'chzzk' },
+  { displayName: '두치와뿌꾸', platform: 'soop' },
+  { displayName: '탬탬버린', platform: 'chzzk' },
+  { displayName: '김민교', platform: 'soop' },
+  { displayName: '러너', platform: 'chzzk' },
+  { displayName: '안녕수야', platform: 'soop' },
+  { displayName: '따효니', platform: 'chzzk' },
+  { displayName: '울프', platform: 'chzzk' },
+  { displayName: '킴성태', platform: 'soop' },
+  { displayName: '텐코 시부키', platform: 'chzzk' },
+  { displayName: '제갈금자', platform: 'soop' },
+  { displayName: '서새봄', platform: 'chzzk' },
+  { displayName: '타요', platform: 'soop' },
+  { displayName: '빅헤드', platform: 'chzzk' },
+  { displayName: '깨박이', platform: 'soop' },
+];
+
+const buildNConnectRanking = () =>
+  Array.from({ length: 100 }, (_, index) => {
+    const rank = index + 1;
+    const creator = nconnectCreatorSeed[index] || {
+      displayName: `N커넥터 ${String(rank).padStart(2, '0')}`,
+      platform: rank % 2 === 0 ? 'chzzk' : 'soop',
+    };
+    const activityPoints = Math.max(340, 1880 - index * 14);
+    const viewershipPoints = Math.max(260, 1420 - index * 10);
+    const ingamePoints = Math.max(180, 980 - index * 7);
+
+    return {
+      rank,
+      personId: 1000 + rank,
+      displayName: creator.displayName,
+      platform: creator.platform,
+      tier: getNConnectTier(rank),
+      totalPoints: activityPoints + viewershipPoints + ingamePoints,
+      activityPoints,
+      viewershipPoints,
+      ingamePoints,
+      monthlySalaryBand: getSalaryBand(rank),
+      monthlyIncentiveBand: getIncentiveBand(rank),
+    };
+  });
+
 // =====================
 // Dashboard 관련 데이터
 // =====================
@@ -208,6 +281,205 @@ export const adMock = {
 // =====================
 // Game Catalog 데이터
 // =====================
+export const adSettingsMock = {
+  slots: [
+    {
+      id: 1,
+      name: '하단 메인 배너',
+      type: 'banner',
+      position: { x: 2, y: 84 },
+      size: { width: 320, height: 100 },
+      enabled: true,
+      impressions: 12540,
+      clicks: 342,
+      revenue: 45000,
+    },
+    {
+      id: 2,
+      name: '우측 상단 코너',
+      type: 'corner',
+      position: { x: 82, y: 2 },
+      size: { width: 200, height: 200 },
+      enabled: true,
+      impressions: 8320,
+      clicks: 156,
+      revenue: 28000,
+    },
+    {
+      id: 3,
+      name: '이벤트 팝업',
+      type: 'popup',
+      position: { x: 34, y: 18 },
+      size: { width: 480, height: 270 },
+      enabled: false,
+      impressions: 2950,
+      clicks: 41,
+      revenue: 4000,
+    },
+  ],
+  summary: {
+    totalImpressions: 23810,
+    totalClicks: 539,
+    totalRevenue: 77000,
+    ctr: 2.26,
+    avgRevenuePerClick: 143,
+    pendingSettlement: 42000,
+  },
+  settlements: [
+    {
+      period: '2026-03',
+      revenue: 42000,
+      impressions: 23810,
+      clicks: 539,
+      status: 'pending',
+      paidDate: null,
+    },
+    {
+      period: '2026-02',
+      revenue: 118000,
+      impressions: 62400,
+      clicks: 1412,
+      status: 'paid',
+      paidDate: '2026-03-05',
+    },
+    {
+      period: '2026-01',
+      revenue: 96000,
+      impressions: 51120,
+      clicks: 1188,
+      status: 'paid',
+      paidDate: '2026-02-05',
+    },
+  ],
+};
+
+export const advertiserCampaignsMock = [
+  {
+    id: 101,
+    name: '봄 시즌 신작 런칭',
+    content_type: 'image',
+    content_url: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=800&q=80',
+    click_url: 'https://brand.example.com/spring-launch',
+    budget_daily: 150000,
+    budget_total: 1800000,
+    budget_spent: 620000,
+    spent: 620000,
+    cpm: 3200,
+    cpc: 180,
+    start_date: '2026-03-01',
+    end_date: '2026-03-31',
+    target_streamers: 'all',
+    target_categories: ['game', 'talk'],
+    status: 'active',
+    impressions: 184000,
+    clicks: 5120,
+    created_at: '2026-02-25T09:00:00Z',
+  },
+  {
+    id: 102,
+    name: '브랜드 인지도 영상 캠페인',
+    content_type: 'video',
+    content_url: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4',
+    click_url: 'https://brand.example.com/awareness',
+    budget_daily: 120000,
+    budget_total: 1400000,
+    budget_spent: 410000,
+    spent: 410000,
+    cpm: 2800,
+    cpc: 150,
+    start_date: '2026-03-04',
+    end_date: '2026-03-28',
+    target_streamers: JSON.stringify(['1', '2', '3']),
+    target_categories: ['music', 'talk'],
+    status: 'active',
+    impressions: 126000,
+    clicks: 2680,
+    created_at: '2026-02-27T13:30:00Z',
+  },
+  {
+    id: 103,
+    name: '사전예약 리타겟팅',
+    content_type: 'image',
+    content_url: 'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=800&q=80',
+    click_url: 'https://brand.example.com/preregister',
+    budget_daily: 90000,
+    budget_total: 900000,
+    budget_spent: 180000,
+    spent: 180000,
+    cpm: 2100,
+    cpc: 120,
+    start_date: '2026-03-10',
+    end_date: '2026-03-26',
+    target_streamers: 'all',
+    target_categories: ['game'],
+    status: 'paused',
+    impressions: 54000,
+    clicks: 1320,
+    created_at: '2026-03-02T11:00:00Z',
+  },
+  {
+    id: 104,
+    name: '라이브 커머스 사전 홍보',
+    content_type: 'image',
+    content_url: 'https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=800&q=80',
+    click_url: 'https://brand.example.com/live-commerce',
+    budget_daily: 70000,
+    budget_total: 650000,
+    budget_spent: 0,
+    spent: 0,
+    cpm: 1800,
+    cpc: 90,
+    start_date: '2026-03-20',
+    end_date: '2026-04-05',
+    target_streamers: JSON.stringify(['2', '4']),
+    target_categories: ['talk', 'education'],
+    status: 'pending',
+    impressions: 0,
+    clicks: 0,
+    created_at: '2026-03-15T08:20:00Z',
+  },
+];
+
+export const advertiserBillingMock = {
+  summary: {
+    monthlySpent: 1030000,
+    remainingBudget: 3720000,
+    activeCampaigns: 2,
+    pendingInvoice: 480000,
+  },
+  monthlyStatements: [
+    {
+      month: '2026-03',
+      amount: 480000,
+      status: 'scheduled',
+      dueDate: '2026-04-05',
+      paidDate: null,
+    },
+    {
+      month: '2026-02',
+      amount: 760000,
+      status: 'paid',
+      dueDate: '2026-03-05',
+      paidDate: '2026-03-04',
+    },
+    {
+      month: '2026-01',
+      amount: 920000,
+      status: 'paid',
+      dueDate: '2026-02-05',
+      paidDate: '2026-02-05',
+    },
+  ],
+};
+
+export const advertiserStreamersMock = [
+  { id: '1', displayName: '감스트', viewersAvg: 5200 },
+  { id: '2', displayName: '수피', viewersAvg: 3100 },
+  { id: '3', displayName: '뮤직온', viewersAvg: 2100 },
+  { id: '4', displayName: '토크웨이브', viewersAvg: 1700 },
+  { id: '5', displayName: '게임연구소', viewersAvg: 980 },
+];
+
 export const catalogMock = {
   games: [
     { id: 1, name: 'League of Legends', nameKr: '리그 오브 레전드', genre: 'MOBA', genres: ['MOBA', 'Strategy'], imageUrl: null, totalViewers: 125000, totalStreamers: 450, platforms: ['soop', 'chzzk'] },
@@ -245,6 +517,80 @@ export const catalogMock = {
       { date: '2026-02-04', lol: 125000, maple: 89000, fc: 67000, val: 58000, dnf: 45000 }
     ]
   }
+};
+
+const buildNConnectContentsMock = () => {
+  const nexonPublishers = {
+    2: 'NEXON',
+    3: 'NEXON',
+    5: 'NEXON',
+    8: 'NEXON',
+  };
+
+  const weightsByGame = {
+    2: { soop: 0.58, chzzk: 0.42 },
+    3: { soop: 0.53, chzzk: 0.47 },
+    5: { soop: 0.49, chzzk: 0.51 },
+    8: { soop: 0.61, chzzk: 0.39 },
+  };
+
+  const items = catalogMock.games
+    .filter((game) => [2, 3, 5, 8].includes(game.id))
+    .map((game) => {
+      const weights = weightsByGame[game.id] || { soop: 0.5, chzzk: 0.5 };
+      const soopViewers = Math.round(game.totalViewers * weights.soop);
+      const chzzkViewers = game.totalViewers - soopViewers;
+      const soopStreamers = Math.round(game.totalStreamers * weights.soop);
+      const chzzkStreamers = game.totalStreamers - soopStreamers;
+
+      return {
+        gameId: game.id,
+        name: game.name,
+        nameKr: game.nameKr,
+        genre: game.genre,
+        publisher: nexonPublishers[game.id],
+        imageUrl: game.imageUrl,
+        totalViewers: game.totalViewers,
+        totalStreamers: game.totalStreamers,
+        updatedAt: '2026-03-18T14:20:00+09:00',
+        platforms: [
+          {
+            platform: 'soop',
+            categoryId: `soop-${game.id}`,
+            categoryName: game.nameKr,
+            viewerCount: soopViewers,
+            streamerCount: soopStreamers,
+            thumbnailUrl: game.imageUrl,
+          },
+          {
+            platform: 'chzzk',
+            categoryId: `chzzk-${game.id}`,
+            categoryName: game.nameKr,
+            viewerCount: chzzkViewers,
+            streamerCount: chzzkStreamers,
+            thumbnailUrl: game.imageUrl,
+          },
+        ],
+      };
+    })
+    .sort((left, right) => right.totalViewers - left.totalViewers);
+
+  return {
+    summary: {
+      liveGames: items.length,
+      totalViewers: items.reduce((sum, item) => sum + item.totalViewers, 0),
+      totalStreamers: items.reduce((sum, item) => sum + item.totalStreamers, 0),
+      topGameName: items[0]?.nameKr || null,
+    },
+    items,
+    meta: {
+      platform: 'all',
+      sort: 'viewers',
+      limit: 24,
+      total: items.length,
+      updatedAt: '2026-03-18T14:20:00+09:00',
+    },
+  };
 };
 
 // =====================
@@ -499,6 +845,29 @@ export const settingsMock = {
     theme: 'dark',
     position: 'bottom-right',
     opacity: 0.9
+  },
+  game: {
+    nexon: {
+      enabled: true,
+      accountId: 'nexon_creator_01',
+      selectedGames: ['maplestory', 'fconline', 'suddenattack']
+    },
+    riot: {
+      enabled: false,
+      region: 'kr',
+      gameName: '',
+      tagLine: '',
+      selectedGames: ['lol', 'valorant', 'tft']
+    },
+    pubg: {
+      enabled: false,
+      platform: 'steam',
+      playerName: ''
+    },
+    steam: {
+      enabled: false,
+      steamId: ''
+    }
   }
 };
 
@@ -518,6 +887,14 @@ export const userSettingsMock = {
   }
 };
 
+export const userSettingValuesMock = {
+  bot: {},
+  credits: {},
+  emoji: {},
+  roulette: {},
+  voting: {},
+};
+
 // =====================
 // Auth 데이터
 // =====================
@@ -527,6 +904,49 @@ export const authUserMock = {
   displayName: '게임하는소희',
   platform: 'soop',
   channelId: 'ch_sohee_001',
-  role: 'streamer',
+  role: 'admin',
+  overlayHash: 'demo-overlay-hash',
   createdAt: '2025-06-15T10:00:00Z'
 };
+
+export const nconnectRankingMock = buildNConnectRanking();
+export const nconnectContentsMock = buildNConnectContentsMock();
+
+export const nconnectNoticesMock = [
+  {
+    id: 'notice-preseason-launch',
+    title: 'N-CONNECT 프리시즌 운영 일정 안내',
+    category: '운영',
+    isPinned: true,
+    publishedAt: '2026-04-09T09:00:00+09:00',
+    summary: 'SOOP은 2026년 4월 9일, 치지직은 2026년 4월 23일부터 프리시즌이 순차적으로 시작됩니다.',
+    body: 'N-CONNECT 프리시즌은 2026년 4월 9일 SOOP에서 먼저 시작되며, 치지직은 2026년 4월 23일부터 합류합니다.\n\n프리시즌 데이터 기간은 2026년 4월부터 9월까지이며, 기여도 체계 검증 단계인 만큼 순위 간 보상 차등폭을 최소화하여 운영합니다.\n\n정규 시즌 1은 2026년 10월부터 12월까지 운영되며, 시즌별 누적 기여도 순위와 월별 성장 지표를 바탕으로 월급 및 인센티브가 지급됩니다.'
+  },
+  {
+    id: 'notice-account-promo',
+    title: '계정 연동 프로모션 보상 기준 공지',
+    category: '보상',
+    isPinned: true,
+    publishedAt: '2026-04-09T09:30:00+09:00',
+    summary: '기본 보상 5,000원과 추천 코드 1건당 1,000원 지급 기준을 안내합니다.',
+    body: '계정 연동 프로모션은 기본 보상과 추천 코드 보상으로 구성됩니다.\n\n기본 보상은 SOOP과 넥슨에서만 사용할 수 있는 전용 문화상품권 5,000원이며, 1차 10만 명 한정으로 운영합니다.\n\n추천 코드 보상은 추천 1건당 넥슨캐시 1,000원이며, 1인당 최대 100만 원까지 적립할 수 있습니다.\n\n두 보상 모두 월 1회 기준 시점에 연동 유지 여부를 확인한 뒤 지급됩니다.'
+  },
+  {
+    id: 'notice-chzzk-prereg',
+    title: '치지직 사전예약 운영 안내',
+    category: '일정',
+    isPinned: false,
+    publishedAt: '2026-04-10T11:00:00+09:00',
+    summary: '치지직 스트리머는 2026년 4월 9일부터 4월 23일까지 사전예약 혜택을 받을 수 있습니다.',
+    body: '치지직은 프리시즌 본 오픈 전까지 2주간 사전예약을 운영합니다.\n\n사전예약은 계정 연동 사전예약과 N-CONNECT 참여 사전예약으로 나뉘며, 계정 연동 사전예약은 넥슨캐시 혜택, 멤버십 사전예약은 굿즈 선배송 혜택을 중심으로 설계됩니다.'
+  },
+  {
+    id: 'notice-goods-policy',
+    title: '웰컴 굿즈 지급 조건 안내',
+    category: '굿즈',
+    isPinned: false,
+    publishedAt: '2026-05-01T10:00:00+09:00',
+    summary: 'N-CONNECT 웰컴 굿즈는 가입 후 넥슨 게임 카테고리 방송 10시간을 달성한 베스트/프로 이상 스트리머에게 지급됩니다.',
+    body: '웰컴 굿즈는 N-CONNECT에 가입한 스트리머의 소속감을 높이고 방송에서 노출 가능한 아이템으로 구성됩니다.\n\n구성품은 사원증, NFC 명함, 앞접시 그릇, 한글 수저 세트이며 단가는 5만 원 미만으로 유지합니다.\n\n매월 말일 기준으로 지급 대상자를 선정하고, 익월 18일 발송을 목표로 운영합니다.'
+  }
+];

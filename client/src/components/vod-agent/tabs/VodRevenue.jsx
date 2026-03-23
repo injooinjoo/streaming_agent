@@ -9,6 +9,7 @@ import {
 import {
   revenueData, revenueHistory, linkRevenueData, settlementHistory
 } from '../data/mockData';
+import SensitiveValue from '../../shared/SensitiveValue';
 
 const VodRevenue = () => {
   const [timeRange, setTimeRange] = useState('6m');
@@ -66,7 +67,9 @@ const VodRevenue = () => {
             </div>
           </div>
           <div className="vod-stat-content">
-            <span className="vod-stat-value" style={{ color: '#10b981' }}>{formatCurrency(revenueData.total)}</span>
+            <SensitiveValue className="vod-stat-value" style={{ color: '#10b981' }}>
+              {formatCurrency(revenueData.total)}
+            </SensitiveValue>
             <div className="vod-stat-change positive">
               <TrendingUp size={14} />
               <span>+{revenueData.growthRate}%</span>
@@ -82,7 +85,7 @@ const VodRevenue = () => {
             </div>
           </div>
           <div className="vod-stat-content">
-            <span className="vod-stat-value">{formatCurrency(revenueData.thisMonth)}</span>
+            <SensitiveValue className="vod-stat-value">{formatCurrency(revenueData.thisMonth)}</SensitiveValue>
             <div className="vod-stat-change" style={{ color: 'var(--text-muted)' }}>
               <span>진행중</span>
             </div>
@@ -97,7 +100,7 @@ const VodRevenue = () => {
             </div>
           </div>
           <div className="vod-stat-content">
-            <span className="vod-stat-value">{formatCurrency(revenueData.pending)}</span>
+            <SensitiveValue className="vod-stat-value">{formatCurrency(revenueData.pending)}</SensitiveValue>
             <div className="vod-stat-change" style={{ color: 'var(--text-muted)' }}>
               <span>다음 정산일: 3월 1일</span>
             </div>
@@ -112,7 +115,7 @@ const VodRevenue = () => {
             </div>
           </div>
           <div className="vod-stat-content">
-            <span className="vod-stat-value">{formatCurrency(revenueData.available)}</span>
+            <SensitiveValue className="vod-stat-value">{formatCurrency(revenueData.available)}</SensitiveValue>
             <button className="btn btn-primary btn-sm" style={{ marginTop: '8px' }}>
               출금 요청
             </button>
@@ -210,9 +213,9 @@ const VodRevenue = () => {
                   </td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontFamily: 'monospace', fontSize: '13px', color: 'var(--primary)' }}>
+                      <SensitiveValue style={{ fontFamily: 'monospace', fontSize: '13px', color: 'var(--primary)' }}>
                         {item.link}
-                      </span>
+                      </SensitiveValue>
                       <button
                         className="btn btn-icon btn-ghost btn-sm"
                         onClick={() => copyLink(item.link)}
@@ -222,10 +225,10 @@ const VodRevenue = () => {
                       </button>
                     </div>
                   </td>
-                  <td>{formatNumber(item.clicks)}</td>
-                  <td>{formatNumber(item.conversions)}</td>
+                  <td><SensitiveValue>{formatNumber(item.clicks)}</SensitiveValue></td>
+                  <td><SensitiveValue>{formatNumber(item.conversions)}</SensitiveValue></td>
                   <td>
-                    <span style={{
+                    <SensitiveValue style={{
                       padding: '4px 8px',
                       borderRadius: '20px',
                       background: item.ctr > 5.5 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(251, 191, 36, 0.1)',
@@ -234,10 +237,12 @@ const VodRevenue = () => {
                       fontWeight: 500
                     }}>
                       {item.ctr}%
-                    </span>
+                    </SensitiveValue>
                   </td>
-                  <td style={{ fontWeight: 600, color: '#10b981' }}>
-                    {formatCurrency(item.revenue)}
+                  <td>
+                    <SensitiveValue style={{ fontWeight: 600, color: '#10b981' }}>
+                      {formatCurrency(item.revenue)}
+                    </SensitiveValue>
                   </td>
                 </tr>
               ))}
@@ -271,7 +276,7 @@ const VodRevenue = () => {
             {settlementHistory.map((item) => (
               <tr key={item.id}>
                 <td>{new Date(item.date).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })}</td>
-                <td style={{ fontWeight: 600 }}>{formatCurrency(item.amount)}</td>
+                <td><SensitiveValue style={{ fontWeight: 600 }}>{formatCurrency(item.amount)}</SensitiveValue></td>
                 <td>{item.method}</td>
                 <td>{getSettlementStatusBadge(item.status)}</td>
               </tr>

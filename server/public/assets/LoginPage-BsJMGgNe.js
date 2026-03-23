@@ -1,0 +1,1 @@
+import{r,j as t}from"./vendor-react-j21uwZlR.js";import{P as o}from"./index-DJv2pxW3.js";/* empty css                         *//* empty css                 */import{N as e}from"./vendor-router-CPviAh-3.js";import"./vendor-icons-_TP8MnKl.js";const f=()=>(r.useRef(null),t.jsx(e,{to:o,replace:!0}));export{f as default};

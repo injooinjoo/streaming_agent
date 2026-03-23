@@ -1,14 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { Clock, Users, TrendingUp, DollarSign, RefreshCw, LogIn, Monitor, Gamepad2, Flame, Trophy } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import useSectionNavigation from '../../hooks/useSectionNavigation';
 import LoadingSpinner from '../shared/LoadingSpinner';
 import { API_URL, mockFetch } from '../../config/api';
 import { formatCompactKo, formatFullNumber, formatCurrency } from '../../utils/formatters';
+import { DEFAULT_VIEWERSHIP_SECTION, VIEWERSHIP_DASHBOARD_SECTIONS } from '../viewership/viewershipSections';
 import './ViewershipDashboard.css';
+
+const VIEWERSHIP_SECTION_IDS = VIEWERSHIP_DASHBOARD_SECTIONS.map((section) => section.id);
 
 // 실시간 트렌드 목업 데이터
 const MOCK_REALTIME_TREND = [
@@ -87,7 +91,7 @@ const MOCK_YESTERDAY_SUMMARY = {
   donationCount: 3200
 };
 
-const ViewershipDashboard = ({ onStreamerSelect }) => {
+const ViewershipDashboard = ({ activeSection, onSectionChange, onGameSelect, onStreamerSelect, hideHeader = false }) => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('viewers'); // viewers | channels | chats
   const [realtimeSummary, setRealtimeSummary] = useState(null);
@@ -113,6 +117,21 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
 
   const { isAuthenticated, accessToken, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const { activeNav: observedSection } = useSectionNavigation(VIEWERSHIP_SECTION_IDS, {
+    defaultSection: activeSection || DEFAULT_VIEWERSHIP_SECTION,
+    rootMargin: '-120px 0px -55% 0px',
+    selector: '.viewership-section',
+    refreshDeps: [
+      loading,
+      authError,
+      isAuthenticated,
+      realtimeTrend.length,
+      viewerTrend.length,
+      categories.length,
+      liveBroadcasts.length,
+      peakBroadcasts.length,
+    ],
+  });
 
   useEffect(() => {
     if (authLoading) return; // Wait for auth to finish loading
@@ -129,7 +148,12 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
     if (isAuthenticated && !loading) {
       fetchRealtimeTrend(activeTab);
     }
-  }, [activeTab]);
+  }, [activeTab, isAuthenticated, loading]);
+
+  useEffect(() => {
+    if (!observedSection) return;
+    onSectionChange?.(observedSection);
+  }, [observedSection, onSectionChange]);
 
   const fetchRealtimeTrend = async (type = 'viewers') => {
     const headers = {
@@ -175,11 +199,11 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
 
     try {
       const [yesterdayRes, trendRes, categoriesRes, realtimeSummaryRes, realtimeTrendRes] = await Promise.all([
-        fetch(`${API_URL}/api/stats/yesterday`, { headers }),
-        fetch(`${API_URL}/api/stats/hourly-by-platform`, { headers }),
-        fetch(`${API_URL}/api/categories?limit=10`, { headers }),
-        fetch(`${API_URL}/api/stats/realtime/summary`, { headers }),
-        fetch(`${API_URL}/api/stats/realtime/trend?type=${activeTab}`, { headers })
+        mockFetch(`${API_URL}/api/stats/yesterday`, { headers }),
+        mockFetch(`${API_URL}/api/stats/hourly-by-platform`, { headers }),
+        mockFetch(`${API_URL}/api/categories?limit=10`, { headers }),
+        mockFetch(`${API_URL}/api/stats/realtime/summary`, { headers }),
+        mockFetch(`${API_URL}/api/stats/realtime/trend?type=${activeTab}`, { headers })
       ]);
 
       // Check if any request requires auth
@@ -314,18 +338,21 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
 
   return (
     <div className="viewership-dashboard analytics-page">
-      <header className="page-header">
-        <div className="page-title">
-          <h1>시장 현황</h1>
-          <p>SOOP, 치지직, 트위치 한국어 전체 시청자 수를 실시간으로 확인하세요.</p>
-        </div>
-        <button className="btn-outline" onClick={fetchData} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <RefreshCw size={16} /> 새로고침
-        </button>
-      </header>
+      {!hideHeader && (
+        <header className="page-header">
+          <div className="page-title">
+            <h1>시장 현황</h1>
+            <p>SOOP, 치지직, 트위치 한국어 전체 시청자 수를 실시간으로 확인하세요.</p>
+          </div>
+          <button className="btn-outline" onClick={fetchData} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <RefreshCw size={16} /> 새로고침
+          </button>
+        </header>
+      )}
 
       {/* 실시간 대시보드 섹션 */}
-      <section className="realtime-dashboard-section">
+      <div className="viewership-section" data-section="market-overview">
+        <section className="realtime-dashboard-section">
         {/* 왼쪽: 차트 */}
         <div className="realtime-chart-card">
           <div className="realtime-chart-header">
@@ -428,10 +455,12 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
             {updateTime}
           </div>
         </div>
-      </section>
+        </section>
+      </div>
 
       {/* 방송 랭킹 섹션 */}
-      <section className="broadcast-ranking-section">
+      <div className="viewership-section" data-section="live-rankings">
+        <section className="broadcast-ranking-section">
         {/* 실시간 방송 랭킹 */}
         <div className="ranking-card">
           <div className="ranking-header">
@@ -541,10 +570,12 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
             )}
           </div>
         </div>
-      </section>
+        </section>
+      </div>
 
       {/* 어제 방송 요약 */}
-      <div className="yesterday-summary-section">
+      <div className="viewership-section" data-section="yesterday-summary">
+        <div className="yesterday-summary-section">
         <div className="section-title">
           <Clock size={18} />
           어제 방송 요약 ({yesterdaySummary.date})
@@ -583,10 +614,12 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
             <div className="summary-card-sub"><span className="sensitive-blur">{formatFullNumber(yesterdaySummary.donationCount)}</span>건의 후원</div>
           </div>
         </div>
+        </div>
       </div>
 
       {/* 24시간 활동 트렌드 */}
-      <div className="trend-chart-section">
+      <div className="viewership-section" data-section="daily-trend">
+        <div className="trend-chart-section">
         <div className="trend-chart-card">
           <div className="trend-chart-header">
             <div className="trend-chart-title">24시간 활동 데이터</div>
@@ -668,17 +701,19 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
             </div>
           )}
         </div>
+        </div>
       </div>
 
       {/* 인기 카테고리 */}
-      <div className="categories-section">
+      <div className="viewership-section" data-section="top-categories">
+        <div className="categories-section">
         <div className="section-title">
           <Gamepad2 size={18} />
           인기 카테고리
         </div>
         <div className="categories-grid">
           {categories.length > 0 ? categories.slice(0, 10).map((category, index) => (
-            <div key={category.id} className="category-card" onClick={() => navigate(`/game-catalog/${category.id}`)}>
+            <div key={category.id} className="category-card" onClick={() => onGameSelect?.(category.id)}>
               <div className="category-rank">{index + 1}</div>
               <div className="category-image">
                 {category.imageUrl ? (
@@ -715,6 +750,7 @@ const ViewershipDashboard = ({ onStreamerSelect }) => {
               카테고리 데이터가 없습니다
             </div>
           )}
+        </div>
         </div>
       </div>
     </div>

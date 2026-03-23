@@ -1,5 +1,23 @@
 /* Game Catalog Styles */
 
+[data-streaming-mode='true'] .game-detail-stat__value,
+[data-streaming-mode='true'] .summary-stat-value,
+[data-streaming-mode='true'] .trend-chart-tooltip__value,
+[data-streaming-mode='true'] .game-streamers-table__col.viewers,
+[data-streaming-mode='true'] .game-streamers-table__col.avg,
+[data-streaming-mode='true'] .game-streamers-table__col.followers,
+[data-streaming-mode='true'] .game-tab-table--daily .game-data-table__row .game-data-table__col:nth-child(n + 2),
+[data-streaming-mode='true'] .game-tab-table--platform-summary .game-data-table__row .game-data-table__col:nth-child(n + 2),
+[data-streaming-mode='true'] .streamer-ranking-table .game-data-table__row .game-data-table__col:nth-child(n + 4),
+[data-streaming-mode='true'] .growth-ranking-table .game-data-table__row .game-data-table__col:nth-child(n + 4),
+[data-streaming-mode='true'] .game-tab-table--history .game-data-table__row .game-data-table__col:nth-child(4),
+[data-streaming-mode='true'] .game-tab-table--history .game-data-table__row .game-data-table__col:nth-child(5),
+[data-streaming-mode='true'] .game-tab-table--history .game-data-table__row .game-data-table__col:nth-child(6),
+[data-streaming-mode='true'] .game-catalog .recharts-default-tooltip .recharts-tooltip-item-value {
+  filter: blur(8px);
+  user-select: none;
+}
+
 /* Loading State */
 .game-catalog-loading {
   display: flex;
@@ -1946,4 +1964,174 @@
     padding: 12px;
     min-height: 200px;
   }
+}
+
+.game-catalog,
+.game-detail {
+  min-width: 0;
+}
+
+@media (max-width: 768px) {
+  .game-detail-tabs,
+  .period-tabs {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  .game-detail-tabs::-webkit-scrollbar,
+  .period-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .game-streamers-table,
+  .game-data-table {
+    border: none;
+    background: none;
+  }
+
+  .game-streamers-table__header,
+  .game-data-table__header {
+    display: none;
+  }
+
+  .game-streamers-table__body,
+  .game-data-table__body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .game-streamers-table__row,
+  .game-data-table__row {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+    padding: 16px;
+    border: 1px solid var(--border-light);
+    border-radius: 16px;
+    background: var(--bg-card);
+  }
+
+  .game-streamers-table__col,
+  .game-data-table__col {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .game-streamers-table__col::before,
+  .game-data-table__col::before {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .game-streamers-table__row .game-streamers-table__col.name::before { content: '플랫폼'; }
+  .game-streamers-table__row .game-streamers-table__col:nth-child(2)::before { content: '카테고리'; }
+  .game-streamers-table__row .game-streamers-table__col:nth-child(3)::before { content: '시청자'; }
+  .game-streamers-table__row .game-streamers-table__col:nth-child(4)::before { content: '스트리머'; }
+
+  .game-tab-table--daily .game-data-table__row .game-data-table__col:nth-child(1)::before { content: '날짜'; }
+  .game-tab-table--daily .game-data-table__row .game-data-table__col:nth-child(2)::before { content: '최고 시청자'; }
+  .game-tab-table--daily .game-data-table__row .game-data-table__col:nth-child(3)::before { content: '평균 시청자'; }
+  .game-tab-table--daily .game-data-table__row .game-data-table__col:nth-child(4)::before { content: '최고 채널'; }
+  .game-tab-table--daily .game-data-table__row .game-data-table__col:nth-child(5)::before { content: '평균 채널'; }
+
+  .game-tab-table--platform-summary .game-data-table__row .game-data-table__col:nth-child(1)::before { content: '플랫폼'; }
+  .game-tab-table--platform-summary .game-data-table__row .game-data-table__col:nth-child(2)::before { content: '최고 시청자'; }
+  .game-tab-table--platform-summary .game-data-table__row .game-data-table__col:nth-child(3)::before { content: '평균 시청자'; }
+  .game-tab-table--platform-summary .game-data-table__row .game-data-table__col:nth-child(4)::before { content: '최고 채널'; }
+  .game-tab-table--platform-summary .game-data-table__row .game-data-table__col:nth-child(5)::before { content: '평균 채널'; }
+
+  .streamer-ranking-table .game-data-table__row .game-data-table__col:nth-child(1)::before { content: '순위'; }
+  .streamer-ranking-table .game-data-table__row .game-data-table__col:nth-child(2)::before { content: '스트리머'; }
+  .streamer-ranking-table .game-data-table__row .game-data-table__col:nth-child(3)::before { content: '플랫폼'; }
+  .streamer-ranking-table .game-data-table__row .game-data-table__col:nth-child(4)::before { content: '최고 시청자'; }
+  .streamer-ranking-table .game-data-table__row .game-data-table__col:nth-child(5)::before { content: '평균 시청자'; }
+  .streamer-ranking-table .game-data-table__row .game-data-table__col:nth-child(6)::before { content: '방송 횟수'; }
+  .streamer-ranking-table .game-data-table__row .game-data-table__col:nth-child(7)::before { content: '총 방송시간'; }
+
+  .growth-ranking-table .game-data-table__row .game-data-table__col:nth-child(1)::before { content: '순위'; }
+  .growth-ranking-table .game-data-table__row .game-data-table__col:nth-child(2)::before { content: '스트리머'; }
+  .growth-ranking-table .game-data-table__row .game-data-table__col:nth-child(3)::before { content: '플랫폼'; }
+  .growth-ranking-table .game-data-table__row .game-data-table__col:nth-child(4)::before { content: '현재 평균'; }
+  .growth-ranking-table .game-data-table__row .game-data-table__col:nth-child(5)::before { content: '이전 평균'; }
+  .growth-ranking-table .game-data-table__row .game-data-table__col:nth-child(6)::before { content: '성장률'; }
+
+  .game-tab-table--history .game-data-table__row .game-data-table__col:nth-child(1)::before { content: '순위'; }
+  .game-tab-table--history .game-data-table__row .game-data-table__col:nth-child(2)::before { content: '스트리머'; }
+  .game-tab-table--history .game-data-table__row .game-data-table__col:nth-child(3)::before { content: '플랫폼'; }
+  .game-tab-table--history .game-data-table__row .game-data-table__col:nth-child(4)::before { content: '최고 시청자'; }
+  .game-tab-table--history .game-data-table__row .game-data-table__col:nth-child(5)::before { content: '평균 시청자'; }
+  .game-tab-table--history .game-data-table__row .game-data-table__col:nth-child(6)::before { content: '방송 시작'; }
+  .game-tab-table--history .game-data-table__row .game-data-table__col:nth-child(7)::before { content: '방송 제목'; }
+
+  .game-data-table__col.title-col {
+    white-space: normal;
+  }
+}
+
+@media (max-width: 430px) {
+  .game-catalog,
+  .game-detail {
+    padding: 14px 12px 20px;
+  }
+
+  .game-catalog-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .game-catalog-header,
+  .trend-chart-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .game-detail-tab {
+    min-width: max-content;
+  }
+
+  .game-streamers-table__row,
+  .game-data-table__row {
+    padding: 14px;
+  }
+}
+
+@media (max-width: 390px) {
+  .game-catalog,
+  .game-detail {
+    padding: 12px 10px 18px;
+  }
+}
+
+@media (max-width: 360px) {
+  .game-catalog,
+  .game-detail {
+    padding: 12px 8px 16px;
+  }
+}
+
+.game-detail > .game-detail-back:not(.game-detail-back--hero),
+.game-detail-header {
+  display: none;
+}
+
+.game-detail-back--hero {
+  margin-bottom: 8px;
+}
+
+.game-detail__hero-overlay {
+  display: grid;
+  gap: 14px;
+}
+
+.game-detail__hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
 }

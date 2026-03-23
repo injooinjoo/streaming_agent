@@ -1,113 +1,166 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  ArrowLeft, Edit2, Eye, MousePointerClick, DollarSign, TrendingUp,
-  Calendar, Target, ExternalLink, Pause, Play, BarChart3,
-  Image as ImageIcon, Video
+  ArrowLeft,
+  BarChart3,
+  Calendar,
+  DollarSign,
+  Edit2,
+  ExternalLink,
+  Eye,
+  Image as ImageIcon,
+  MousePointerClick,
+  Pause,
+  Play,
+  Target,
+  TrendingUp,
+  Video,
 } from 'lucide-react';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
+import { useAuth } from '../../contexts/AuthContext';
 import { formatCompactKo, formatCurrency, formatCurrencyCompact, formatPercent } from '../../utils/formatters';
 import './Advertiser.css';
 
-const CampaignDetail = ({ campaign, onBack, onEdit }) => {
-  const [stats, setStats] = useState({
-    impressions: 0,
-    clicks: 0,
-    spent: 0,
-    ctr: 0,
-    daily: []
-  });
-  const [loading, setLoading] = useState(true);
+const getAuthToken = (accessToken) =>
+  accessToken || localStorage.getItem('accessToken') || localStorage.getItem('token') || null;
 
-  useEffect(() => {
-    if (campaign?.id) {
-      fetchCampaignStats();
-    }
-  }, [campaign]);
+const parseCategories = (targetCategories) => {
+  if (Array.isArray(targetCategories)) {
+    return targetCategories;
+  }
 
-  const fetchCampaignStats = async () => {
-    setLoading(true);
+  if (typeof targetCategories === 'string' && targetCategories) {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/api/ads/campaigns/${campaign.id}/stats`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setStats({
-          impressions: data.impressions || campaign.impressions || 0,
-          clicks: data.clicks || campaign.clicks || 0,
-          spent: data.spent || campaign.spent || 0,
-          ctr: data.ctr || (data.impressions > 0 ? formatPercent(data.clicks / data.impressions, 2, { isRatio: true }) : '0.00%'),
-          daily: data.daily || []
-        });
-      } else {
-        // Use campaign data as fallback
-        setStats({
-          impressions: campaign.impressions || 0,
-          clicks: campaign.clicks || 0,
-          spent: campaign.spent || 0,
-          ctr: campaign.impressions > 0 ? formatPercent(campaign.clicks / campaign.impressions, 2, { isRatio: true }) : '0.00%',
-          daily: []
-        });
-      }
-    } catch (err) {
-      console.error('Failed to fetch campaign stats', err);
-      setStats({
-        impressions: campaign.impressions || 0,
-        clicks: campaign.clicks || 0,
-        spent: campaign.spent || 0,
-        ctr: campaign.impressions > 0 ? formatPercent(campaign.clicks / campaign.impressions, 2, { isRatio: true }) : '0.00%',
-        daily: []
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStatusChange = async (newStatus) => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/api/ads/campaigns/${campaign.id}/status`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ status: newStatus })
-      });
-      if (res.ok) {
-        // Update local state
-        campaign.status = newStatus;
-        fetchCampaignStats();
-      }
-    } catch (err) {
-      console.error('Failed to update campaign status', err);
-    }
-  };
-
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '-';
-    const date = new Date(dateStr);
-    return date.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' });
-  };
-
-  const getStatusLabel = (status) => {
-    switch (status) {
-      case 'active': return '활성';
-      case 'pending': return '대기중';
-      case 'paused': return '일시정지';
-      case 'completed': return '완료됨';
-      default: return status;
-    }
-  };
-
-  const targetCategories = (() => {
-    try {
-      return campaign.target_categories ? JSON.parse(campaign.target_categories) : [];
+      return JSON.parse(targetCategories);
     } catch {
       return [];
     }
-  })();
+  }
+
+  return [];
+};
+
+const getStatusLabel = (status) => {
+  switch (status) {
+    case 'active':
+      return '진행중';
+    case 'pending':
+      return '대기중';
+    case 'paused':
+      return '일시중지';
+    case 'completed':
+      return '종료';
+    default:
+      return status || '미정';
+  }
+};
+
+const formatDate = (value) => {
+  if (!value) {
+    return '-';
+  }
+
+  return new Date(value).toLocaleDateString('ko-KR', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+};
+
+const CampaignDetail = ({ campaign, onBack, onEdit, onUpdated }) => {
+  const { accessToken } = useAuth();
+
+  const [status, setStatus] = useState(campaign?.status || 'pending');
+  const [stats, setStats] = useState({
+    impressions: Number(campaign?.impressions || 0),
+    clicks: Number(campaign?.clicks || 0),
+    spent: Number(campaign?.spent ?? campaign?.budget_spent ?? 0),
+    ctrLabel:
+      Number(campaign?.impressions || 0) > 0
+        ? formatPercent(Number(campaign?.clicks || 0) / Number(campaign?.impressions || 1), 2, { isRatio: true })
+        : '0.00%',
+  });
+  const [loading, setLoading] = useState(true);
+
+  const authToken = getAuthToken(accessToken);
+
+  useEffect(() => {
+    setStatus(campaign?.status || 'pending');
+  }, [campaign?.status]);
+
+  useEffect(() => {
+    const fetchCampaignStats = async () => {
+      if (!campaign?.id || !authToken) {
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+
+      try {
+        const response = await mockFetch(`${API_URL}/api/ads/campaigns/${campaign.id}/stats`, {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        const impressions = Number(data.impressions ?? campaign.impressions ?? 0);
+        const clicks = Number(data.clicks ?? campaign.clicks ?? 0);
+        const spent = Number(data.total_spent ?? data.spent ?? campaign.spent ?? campaign.budget_spent ?? 0);
+        const ctrLabel =
+          data.ctr !== undefined
+            ? formatPercent(Number(data.ctr || 0), 2)
+            : impressions > 0
+              ? formatPercent(clicks / impressions, 2, { isRatio: true })
+              : '0.00%';
+
+        setStats({
+          impressions,
+          clicks,
+          spent,
+          ctrLabel,
+        });
+      } catch (error) {
+        console.error('Failed to fetch campaign stats', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCampaignStats();
+  }, [authToken, campaign]);
+
+  const handleStatusChange = async (nextStatus) => {
+    if (!campaign?.id || !authToken) {
+      return;
+    }
+
+    try {
+      const response = await mockFetch(`${API_URL}/api/ads/campaigns/${campaign.id}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ status: nextStatus }),
+      });
+
+      if (!response.ok) {
+        return;
+      }
+
+      setStatus(nextStatus);
+      onUpdated?.({ status: nextStatus });
+    } catch (error) {
+      console.error('Failed to update campaign status', error);
+    }
+  };
+
+  const targetCategories = useMemo(() => parseCategories(campaign?.target_categories), [campaign?.target_categories]);
 
   const categoryLabels = {
     game: '게임',
@@ -115,60 +168,56 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
     music: '음악',
     art: '그림/창작',
     sports: '스포츠',
-    education: '교육'
+    education: '교육',
   };
 
-  const budgetUsagePercent = campaign.budget_total > 0
-    ? Math.min(100, (stats.spent / campaign.budget_total) * 100)
-    : 0;
+  const totalBudget = Number(campaign?.budget_total || 0);
+  const budgetUsagePercent = totalBudget > 0 ? Math.min(100, (stats.spent / totalBudget) * 100) : 0;
+
+  if (!campaign) {
+    return null;
+  }
 
   return (
     <div className="animate-fade">
       <div className="campaign-detail-header">
         <div className="campaign-detail-title">
-          <button
-            className="btn-outline"
-            style={{ padding: '10px', borderRadius: '10px' }}
-            onClick={onBack}
-          >
+          <button type="button" className="btn-outline" style={{ padding: '10px', borderRadius: '10px' }} onClick={onBack}>
             <ArrowLeft size={18} />
           </button>
           <div>
             <h1>{campaign.name}</h1>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '8px' }}>
-              <span className={`campaign-status-badge ${campaign.status}`}>
+              <span className={`campaign-status-badge ${status}`}>
                 <span className="status-dot"></span>
-                {getStatusLabel(campaign.status)}
+                {getStatusLabel(status)}
               </span>
               <span style={{ fontSize: '13px', color: 'var(--text-muted)' }}>
-                {campaign.content_type === 'video' ? '영상 광고' : '이미지 광고'}
+                {campaign.content_type === 'video' ? '동영상 광고' : '이미지 광고'}
               </span>
             </div>
           </div>
         </div>
+
         <div className="campaign-detail-actions">
-          {campaign.status === 'active' ? (
-            <button
-              className="btn-outline"
-              onClick={() => handleStatusChange('paused')}
-            >
-              <Pause size={16} /> 일시정지
-            </button>
-          ) : campaign.status === 'paused' ? (
-            <button
-              className="btn-outline"
-              onClick={() => handleStatusChange('active')}
-            >
-              <Play size={16} /> 재시작
+          {status === 'active' ? (
+            <button className="btn-outline" onClick={() => handleStatusChange('paused')}>
+              <Pause size={16} /> 일시중지
             </button>
           ) : null}
+
+          {status === 'paused' ? (
+            <button className="btn-outline" onClick={() => handleStatusChange('active')}>
+              <Play size={16} /> 다시 시작
+            </button>
+          ) : null}
+
           <button className="btn-primary" onClick={onEdit}>
             <Edit2 size={16} /> 수정
           </button>
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="campaign-stats-grid" style={{ marginBottom: '24px' }}>
         <div className="campaign-stat-card">
           <div className="campaign-stat-header">
@@ -179,6 +228,7 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
           </div>
           <span className="campaign-stat-value">{formatCompactKo(stats.impressions)}</span>
         </div>
+
         <div className="campaign-stat-card">
           <div className="campaign-stat-header">
             <span>총 클릭</span>
@@ -188,6 +238,7 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
           </div>
           <span className="campaign-stat-value">{formatCompactKo(stats.clicks)}</span>
         </div>
+
         <div className="campaign-stat-card">
           <div className="campaign-stat-header">
             <span>CTR</span>
@@ -195,11 +246,12 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
               <TrendingUp size={18} />
             </div>
           </div>
-          <span className="campaign-stat-value">{stats.ctr}</span>
+          <span className="campaign-stat-value">{stats.ctrLabel}</span>
         </div>
+
         <div className="campaign-stat-card">
           <div className="campaign-stat-header">
-            <span>지출 금액</span>
+            <span>집행액</span>
             <div className="campaign-stat-icon purple">
               <DollarSign size={18} />
             </div>
@@ -209,23 +261,16 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
       </div>
 
       <div className="campaign-detail-grid">
-        {/* Left Column - Performance & Preview */}
         <div>
-          {/* Performance Chart */}
           <div className="campaign-detail-card" style={{ marginBottom: '24px' }}>
-            <h3><BarChart3 size={18} /> 성과 추이</h3>
+            <h3>
+              <BarChart3 size={18} /> 성과 요약
+            </h3>
             <div className="chart-placeholder">
-              {loading ? (
-                <span>데이터 로딩 중...</span>
-              ) : stats.daily && stats.daily.length > 0 ? (
-                <span>차트 데이터 준비됨 (차트 라이브러리 연동 필요)</span>
-              ) : (
-                <span>아직 충분한 데이터가 없습니다.</span>
-              )}
+              {loading ? <span>데이터를 불러오는 중입니다...</span> : <span>일별 성과 차트는 다음 단계에서 연결할 수 있습니다.</span>}
             </div>
           </div>
 
-          {/* Ad Preview */}
           <div className="campaign-detail-card">
             <h3>
               {campaign.content_type === 'video' ? <Video size={18} /> : <ImageIcon size={18} />}
@@ -239,12 +284,11 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
                   <img src={campaign.content_url} alt={campaign.name} style={{ maxWidth: '100%' }} />
                 )
               ) : (
-                <div style={{ padding: '40px', color: 'var(--text-muted)' }}>
-                  미리보기 이미지 없음
-                </div>
+                <div style={{ padding: '40px', color: 'var(--text-muted)' }}>등록된 광고 소재가 없습니다.</div>
               )}
             </div>
-            {campaign.click_url && (
+
+            {campaign.click_url ? (
               <div style={{ marginTop: '16px', textAlign: 'center' }}>
                 <a
                   href={campaign.click_url}
@@ -256,31 +300,31 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
                     gap: '6px',
                     color: 'var(--primary)',
                     fontSize: '13px',
-                    fontWeight: '500'
+                    fontWeight: '500',
                   }}
                 >
                   <ExternalLink size={14} />
                   랜딩 페이지 열기
                 </a>
               </div>
-            )}
+            ) : null}
           </div>
         </div>
 
-        {/* Right Column - Campaign Info */}
         <div>
-          {/* Budget Info */}
           <div className="campaign-detail-card" style={{ marginBottom: '24px' }}>
-            <h3><DollarSign size={18} /> 예산 정보</h3>
+            <h3>
+              <DollarSign size={18} /> 예산 정보
+            </h3>
             <div className="campaign-info-list">
               <div className="campaign-info-item">
                 <span className="campaign-info-label">총 예산</span>
-                <span className="campaign-info-value">{formatCurrency(campaign.budget_total)}</span>
+                <span className="campaign-info-value">{formatCurrency(totalBudget)}</span>
               </div>
               <div className="campaign-info-item">
                 <span className="campaign-info-label">일일 예산</span>
                 <span className="campaign-info-value">
-                  {campaign.budget_daily > 0 ? formatCurrency(campaign.budget_daily) : '제한 없음'}
+                  {Number(campaign.budget_daily || 0) > 0 ? formatCurrency(campaign.budget_daily) : '제한 없음'}
                 </span>
               </div>
               <div className="campaign-info-item">
@@ -289,44 +333,52 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
               </div>
               <div className="campaign-info-item">
                 <span className="campaign-info-label">CPC</span>
-                <span className="campaign-info-value">₩{campaign.cpc?.toLocaleString()}</span>
+                <span className="campaign-info-value">{formatCurrency(campaign.cpc)}</span>
               </div>
               <div className="campaign-info-item">
                 <span className="campaign-info-label">예산 소진율</span>
-                <span className="campaign-info-value">{budgetUsagePercent.toFixed(1)}%</span>
+                <span className="campaign-info-value">{formatPercent(budgetUsagePercent, 1)}</span>
               </div>
             </div>
+
             <div style={{ marginTop: '16px' }}>
-              <div style={{
-                height: '8px',
-                background: 'var(--bg-sidebar)',
-                borderRadius: '4px',
-                overflow: 'hidden'
-              }}>
-                <div style={{
-                  width: `${budgetUsagePercent}%`,
-                  height: '100%',
-                  background: budgetUsagePercent > 90 ? '#ef4444' : budgetUsagePercent > 70 ? '#f97316' : '#10b981',
+              <div
+                style={{
+                  height: '8px',
+                  background: 'var(--bg-sidebar)',
                   borderRadius: '4px',
-                  transition: 'width 0.3s ease'
-                }} />
+                  overflow: 'hidden',
+                }}
+              >
+                <div
+                  style={{
+                    width: `${budgetUsagePercent}%`,
+                    height: '100%',
+                    background: budgetUsagePercent > 90 ? '#ef4444' : budgetUsagePercent > 70 ? '#f97316' : '#10b981',
+                    borderRadius: '4px',
+                    transition: 'width 0.3s ease',
+                  }}
+                />
               </div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                marginTop: '8px',
-                fontSize: '12px',
-                color: 'var(--text-muted)'
-              }}>
-                <span>₩{stats.spent?.toLocaleString()} 사용</span>
-                <span>₩{(campaign.budget_total - stats.spent)?.toLocaleString()} 남음</span>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  marginTop: '8px',
+                  fontSize: '12px',
+                  color: 'var(--text-muted)',
+                }}
+              >
+                <span>{formatCurrency(stats.spent)} 사용</span>
+                <span>{formatCurrency(Math.max(0, totalBudget - stats.spent))} 남음</span>
               </div>
             </div>
           </div>
 
-          {/* Schedule Info */}
           <div className="campaign-detail-card" style={{ marginBottom: '24px' }}>
-            <h3><Calendar size={18} /> 기간</h3>
+            <h3>
+              <Calendar size={18} /> 집행 일정
+            </h3>
             <div className="campaign-info-list">
               <div className="campaign-info-item">
                 <span className="campaign-info-label">시작일</span>
@@ -343,38 +395,40 @@ const CampaignDetail = ({ campaign, onBack, onEdit }) => {
             </div>
           </div>
 
-          {/* Targeting Info */}
           <div className="campaign-detail-card">
-            <h3><Target size={18} /> 타겟팅</h3>
+            <h3>
+              <Target size={18} /> 타겟팅
+            </h3>
             <div className="campaign-info-list">
               <div className="campaign-info-item">
-                <span className="campaign-info-label">노출 대상</span>
+                <span className="campaign-info-label">스트리머 범위</span>
                 <span className="campaign-info-value">
-                  {campaign.target_streamers === 'all' ? '전체 스트리머' : '선택한 스트리머'}
+                  {campaign.target_streamers === 'all' ? '전체 스트리머' : '선택한 스트리머만'}
                 </span>
               </div>
-              {targetCategories.length > 0 && (
+
+              {targetCategories.length > 0 ? (
                 <div className="campaign-info-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
-                  <span className="campaign-info-label">타겟 카테고리</span>
+                  <span className="campaign-info-label">카테고리</span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {targetCategories.map(cat => (
+                    {targetCategories.map((category) => (
                       <span
-                        key={cat}
+                        key={category}
                         style={{
                           padding: '4px 10px',
                           background: 'var(--primary-light)',
                           color: 'var(--primary)',
                           borderRadius: '50px',
                           fontSize: '12px',
-                          fontWeight: '500'
+                          fontWeight: '500',
                         }}
                       >
-                        {categoryLabels[cat] || cat}
+                        {categoryLabels[category] || category}
                       </span>
                     ))}
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           </div>
         </div>

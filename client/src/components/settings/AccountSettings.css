@@ -9,6 +9,16 @@
   max-width: 1000px;
 }
 
+[data-streaming-mode='true'] .id-value,
+[data-streaming-mode='true'] .platform-cards-grid .profile-name,
+[data-streaming-mode='true'] .input-with-button input,
+[data-streaming-mode='true'] .login-history-table .ip-address,
+[data-streaming-mode='true'] .platform-grid input,
+[data-streaming-mode='true'] .platform-grid textarea {
+  filter: blur(8px);
+  user-select: none;
+}
+
 .account-settings-header {
   margin-bottom: 32px;
 }

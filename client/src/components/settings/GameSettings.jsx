@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Copy, ExternalLink,
   Gamepad2, Check, Trophy, Crosshair, User, Link2, Monitor, LayoutGrid
@@ -63,7 +63,7 @@ const overlayTypes = [
 ];
 
 const GameSettings = ({ onNavigate }) => {
-  const { user } = useAuth();
+  const { accessToken, user } = useAuth();
   const [settings, setSettings] = useState({});
   const [loading, setLoading] = useState(true);
   const overlayHash = user?.userHash || null;
@@ -76,19 +76,32 @@ const GameSettings = ({ onNavigate }) => {
     ? `${window.location.origin}/overlay/${overlayHash}/game`
     : '';
 
-  const fetchSettings = async () => {
+  const fetchSettings = useCallback(async () => {
     try {
-      const res = await mockFetch(`${API_URL}/api/settings/game`);
-      const data = await res.json();
-      if (data.value && data.value !== '{}') {
-        setSettings(JSON.parse(data.value));
+      if (accessToken) {
+        const userRes = await mockFetch(`${API_URL}/api/user-settings/game`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        const userData = await userRes.json();
+        if (userData.value && userData.value !== '{}') {
+          setSettings(JSON.parse(userData.value));
+          return;
+        }
+      }
+
+      const legacyRes = await mockFetch(`${API_URL}/api/settings/game`);
+      const legacyData = await legacyRes.json();
+      if (legacyData.value && legacyData.value !== '{}') {
+        setSettings(JSON.parse(legacyData.value));
       }
     } catch (err) {
       console.error('Failed to fetch settings:', err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [accessToken]);
 
   const copyUrl = async (url, gameId) => {
     try {
@@ -100,7 +113,7 @@ const GameSettings = ({ onNavigate }) => {
     }
   };
 
-  const getEnabledGames = () => {
+  const getEnabledGames = useCallback(() => {
     const enabledGames = [];
     platforms.forEach(platform => {
       if (settings[platform.id]?.enabled) {
@@ -112,7 +125,7 @@ const GameSettings = ({ onNavigate }) => {
       }
     });
     return enabledGames;
-  };
+  }, [settings]);
 
   const getOverlayUrl = (gameId) => {
     const hash = overlayHash || 'demo';
@@ -222,20 +235,21 @@ const GameSettings = ({ onNavigate }) => {
     }
   };
 
-  useEffect(() => { fetchSettings(); }, []);
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  const enabledGames = useMemo(() => getEnabledGames(), [getEnabledGames]);
 
   useEffect(() => {
-    const enabledGames = getEnabledGames();
     if (enabledGames.length > 0 && !enabledGames.find(g => g.id === selectedGame)) {
       setSelectedGame(enabledGames[0].id);
     }
-  }, [settings]);
+  }, [enabledGames, selectedGame]);
 
   if (loading) {
     return <div className="settings-panel"><LoadingSpinner /></div>;
   }
-
-  const enabledGames = getEnabledGames();
 
   return (
     <div className="settings-panel">

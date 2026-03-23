@@ -5,11 +5,11 @@ import { AuthProvider } from './contexts/AuthContext';
 import { StreamingModeProvider } from './contexts/StreamingModeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import ToastContainer from './components/shared/Toast';
-import Dashboard from './components/Dashboard';
 import ProtectedRoute, { AdminRoute, AdvertiserRoute } from './components/auth/ProtectedRoute';
+import RoleBasedHomeRedirect from './components/auth/RoleBasedHomeRedirect';
 import './App.css';
 
-// Lazy-loaded pages (코드 스플리팅으로 초기 번들 크기 감소)
+const Dashboard = lazy(() => import('./components/Dashboard'));
 const ChannelPage = lazy(() => import('./components/channel/ChannelPage'));
 const ChatOverlay = lazy(() => import('./components/ChatOverlay'));
 const AlertOverlay = lazy(() => import('./components/AlertOverlay'));
@@ -28,10 +28,10 @@ const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const MyDesigns = lazy(() => import('./components/designer/MyDesigns'));
 const DesignCustomizer = lazy(() => import('./components/designer/DesignCustomizer'));
 const StreamerDetail = lazy(() => import('./components/streamer/StreamerDetail'));
-const VodAgentDashboard = lazy(() => import('./components/vod-agent/VodAgentDashboard'));
+const ViewershipShell = lazy(() => import('./components/viewership/ViewershipShell'));
+const EventsShell = lazy(() => import('./components/events/EventsShell'));
 
 function App() {
-  // 모바일 브라우저 주소창 대응 viewport height 설정
   useEffect(() => {
     const setVh = () => {
       const vh = window.innerHeight * 0.01;
@@ -52,84 +52,94 @@ function App() {
     <ThemeProvider>
       <AuthProvider>
         <ToastProvider>
-        <StreamingModeProvider>
-        <Router>
-          <div className="app-container">
-            <Suspense fallback={null}>
-            <Routes>
-            {/* 메인 */}
-            <Route path="/" element={<Dashboard />} />
+          <StreamingModeProvider>
+            <Router>
+              <div className="app-container">
+                <Suspense fallback={null}>
+                  <Routes>
+                    <Route path="/" element={<RoleBasedHomeRedirect />} />
+                    <Route path="/n-connect" element={<Dashboard mode="nconnect" />} />
+                    <Route path="/streaming-agent" element={<Dashboard mode="streaming" />} />
+                    <Route path="/viewership" element={<ViewershipShell />} />
+                    <Route path="/events" element={<EventsShell />} />
+                    <Route
+                      path="/vod-agent"
+                      element={<Dashboard mode="nconnect" initialTab="vod-home" />}
+                    />
 
-            {/* VOD 에이전트 */}
-            <Route path="/vod-agent" element={<VodAgentDashboard />} />
+                    <Route path="/channel/:channelId" element={<ChannelPage />} />
+                    <Route path="/channel" element={<ChannelPage />} />
+                    <Route path="/streamer/:personId" element={<StreamerDetail />} />
 
-            {/* 채널 정보 페이지 */}
-            <Route path="/channel/:channelId" element={<ChannelPage />} />
-            <Route path="/channel" element={<ChannelPage />} />
+                    <Route path="/login" element={<LoginPage />} />
+                    <Route path="/register" element={<RegisterPage />} />
 
-            {/* 스트리머 상세 페이지 (공개) */}
-            <Route path="/streamer/:personId" element={<StreamerDetail />} />
+                    <Route
+                      path="/advertiser"
+                      element={(
+                        <AdvertiserRoute>
+                          <AdvertiserDashboard />
+                        </AdvertiserRoute>
+                      )}
+                    />
 
-            {/* 인증 */}
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
+                    <Route
+                      path="/admin-dashboard"
+                      element={(
+                        <AdminRoute>
+                          <AdminDashboard />
+                        </AdminRoute>
+                      )}
+                    />
 
-            {/* 광고주 대시보드 (인증 필요) */}
-            <Route path="/advertiser" element={
-              <AdvertiserRoute>
-                <AdvertiserDashboard />
-              </AdvertiserRoute>
-            } />
+                    <Route
+                      path="/my-designs"
+                      element={(
+                        <ProtectedRoute>
+                          <MyDesigns />
+                        </ProtectedRoute>
+                      )}
+                    />
+                    <Route
+                      path="/designer"
+                      element={(
+                        <ProtectedRoute>
+                          <DesignCustomizer />
+                        </ProtectedRoute>
+                      )}
+                    />
+                    <Route
+                      path="/designer/:designId"
+                      element={(
+                        <ProtectedRoute>
+                          <DesignCustomizer />
+                        </ProtectedRoute>
+                      )}
+                    />
 
-            {/* 관리자 대시보드 (관리자 권한 필요) */}
-            <Route path="/admin-dashboard" element={
-              <AdminRoute>
-                <AdminDashboard />
-              </AdminRoute>
-            } />
+                    <Route path="/overlay/:userHash/chat" element={<ChatOverlay />} />
+                    <Route path="/overlay/:userHash/alerts" element={<AlertOverlay />} />
+                    <Route path="/overlay/:userHash/subtitles" element={<SubtitleOverlay />} />
+                    <Route path="/overlay/:userHash/goals" element={<GoalOverlay />} />
+                    <Route path="/overlay/:userHash/ticker" element={<TickerOverlay />} />
+                    <Route path="/overlay/:userHash/roulette" element={<RouletteOverlay />} />
+                    <Route path="/overlay/:userHash/emoji" element={<EmojiOverlay />} />
+                    <Route path="/overlay/:userHash/voting" element={<VotingOverlay />} />
+                    <Route path="/overlay/:userHash/credits" element={<CreditsOverlay />} />
+                    <Route path="/overlay/:userHash/ads" element={<AdOverlay />} />
 
-            {/* 디자인 커스터마이저 (인증 필요) */}
-            <Route path="/my-designs" element={
-              <ProtectedRoute>
-                <MyDesigns />
-              </ProtectedRoute>
-            } />
-            <Route path="/designer" element={
-              <ProtectedRoute>
-                <DesignCustomizer />
-              </ProtectedRoute>
-            } />
-            <Route path="/designer/:designId" element={
-              <ProtectedRoute>
-                <DesignCustomizer />
-              </ProtectedRoute>
-            } />
-
-            {/* 해시 기반 오버레이 (신규) */}
-            <Route path="/overlay/:userHash/chat" element={<ChatOverlay />} />
-            <Route path="/overlay/:userHash/alerts" element={<AlertOverlay />} />
-            <Route path="/overlay/:userHash/subtitles" element={<SubtitleOverlay />} />
-            <Route path="/overlay/:userHash/goals" element={<GoalOverlay />} />
-            <Route path="/overlay/:userHash/ticker" element={<TickerOverlay />} />
-            <Route path="/overlay/:userHash/roulette" element={<RouletteOverlay />} />
-            <Route path="/overlay/:userHash/emoji" element={<EmojiOverlay />} />
-            <Route path="/overlay/:userHash/voting" element={<VotingOverlay />} />
-            <Route path="/overlay/:userHash/credits" element={<CreditsOverlay />} />
-            <Route path="/overlay/:userHash/ads" element={<AdOverlay />} />
-
-            {/* 레거시 오버레이 라우트 (리다이렉트 안내) */}
-            <Route path="/overlay/chat" element={<ChatOverlay />} />
-            <Route path="/overlay/alerts" element={<AlertOverlay />} />
-            <Route path="/overlay/subtitles" element={<SubtitleOverlay />} />
-            <Route path="/overlay/goals" element={<GoalOverlay />} />
-            <Route path="/overlay/ticker" element={<TickerOverlay />} />
-            <Route path="/overlay/ads" element={<AdOverlay />} />
-            </Routes>
-            </Suspense>
-          </div>
-        </Router>
-        </StreamingModeProvider>
-        <ToastContainer />
+                    <Route path="/overlay/chat" element={<ChatOverlay />} />
+                    <Route path="/overlay/alerts" element={<AlertOverlay />} />
+                    <Route path="/overlay/subtitles" element={<SubtitleOverlay />} />
+                    <Route path="/overlay/goals" element={<GoalOverlay />} />
+                    <Route path="/overlay/ticker" element={<TickerOverlay />} />
+                    <Route path="/overlay/ads" element={<AdOverlay />} />
+                  </Routes>
+                </Suspense>
+              </div>
+            </Router>
+          </StreamingModeProvider>
+          <ToastContainer />
         </ToastProvider>
       </AuthProvider>
     </ThemeProvider>

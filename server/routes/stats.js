@@ -464,6 +464,26 @@ const createStatsRouter = (
   });
 
   /**
+   * GET /api/stats/content/category-benchmarks
+   * Get category benchmarks (avg peak viewers per category across all streamers)
+   */
+  router.get("/stats/content/category-benchmarks", authenticateToken, async (req, res) => {
+    try {
+      const days = parseInt(req.query.days, 10) || 30;
+      const platform = req.query.platform || null;
+      if (statsCacheService && !platform) {
+        const key = statsCacheService.buildKey(STATS_KEYS.CATEGORY_BENCHMARKS, { days });
+        const result = await statsCacheService.getOrCompute(key, () => statsService.getCategoryBenchmarks(days, platform), TTL.MEDIUM);
+        return res.json(result);
+      }
+      const result = await statsService.getCategoryBenchmarks(days, platform);
+      res.json(result);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  /**
    * GET /api/stats/activity/recent
    * Get recent activity feed (requires authentication)
    */
@@ -749,6 +769,7 @@ const createStatsRouter = (
           ],
           myCategories: [],
           topCategories: [],
+          analyses: [],
           requiresAuth: true
         });
       }

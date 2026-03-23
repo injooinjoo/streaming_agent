@@ -1,27 +1,57 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, Image as ImageIcon, Video, Upload, X, Search,
-  Check, Info, Target, DollarSign, Calendar, Link as LinkIcon
+  ArrowLeft,
+  Check,
+  DollarSign,
+  Image as ImageIcon,
+  Info,
+  Link as LinkIcon,
+  Search,
+  Target,
+  Upload,
+  Video,
+  X,
 } from 'lucide-react';
-import { API_URL } from '../../config/api';
+import { API_URL, mockFetch } from '../../config/api';
+import { useAuth } from '../../contexts/AuthContext';
 import './Advertiser.css';
 
+const getAuthToken = (accessToken) =>
+  accessToken || localStorage.getItem('accessToken') || localStorage.getItem('token') || null;
+
+const getStreamerDisplayName = (streamer) => streamer.displayName || streamer.display_name || '이름 없음';
+
+const defaultFormData = {
+  name: '',
+  content_type: 'image',
+  content_url: '',
+  click_url: '',
+  budget_daily: 0,
+  budget_total: 0,
+  cpm: 1000,
+  cpc: 100,
+  start_date: '',
+  end_date: '',
+  target_streamers: 'all',
+  target_categories: [],
+};
+
+const categoryOptions = [
+  { id: 'game', label: '게임' },
+  { id: 'talk', label: '토크/잡담' },
+  { id: 'music', label: '음악' },
+  { id: 'art', label: '그림/창작' },
+  { id: 'sports', label: '스포츠' },
+  { id: 'education', label: '교육' },
+];
+
 const CampaignCreate = ({ campaign, onBack, onSuccess }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    content_type: 'image',
-    content_url: '',
-    click_url: '',
-    budget_daily: 0,
-    budget_total: 0,
-    cpm: 1000,
-    cpc: 100,
-    start_date: '',
-    end_date: '',
-    target_streamers: 'all',
-    target_categories: []
-  });
-  const [selectedStreamers, setSelectedStreamers] = useState([]);
+  const { accessToken } = useAuth();
+  const fileInputRef = useRef(null);
+  const isEdit = Boolean(campaign);
+
+  const [formData, setFormData] = useState(defaultFormData);
+  const [selectedStreamerIds, setSelectedStreamerIds] = useState([]);
   const [streamerSearch, setStreamerSearch] = useState('');
   const [streamers, setStreamers] = useState([]);
   const [previewFile, setPreviewFile] = useState(null);
@@ -29,240 +59,354 @@ const CampaignCreate = ({ campaign, onBack, onSuccess }) => {
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const fileInputRef = useRef(null);
-  const isEdit = !!campaign;
+  const authToken = getAuthToken(accessToken);
 
   useEffect(() => {
-    if (campaign) {
-      setFormData({
-        name: campaign.name || '',
-        content_type: campaign.content_type || 'image',
-        content_url: campaign.content_url || '',
-        click_url: campaign.click_url || '',
-        budget_daily: campaign.budget_daily || 0,
-        budget_total: campaign.budget_total || 0,
-        cpm: campaign.cpm || 1000,
-        cpc: campaign.cpc || 100,
-        start_date: campaign.start_date?.split('T')[0] || '',
-        end_date: campaign.end_date?.split('T')[0] || '',
-        target_streamers: campaign.target_streamers || 'all',
-        target_categories: campaign.target_categories ? JSON.parse(campaign.target_categories) : []
-      });
-      if (campaign.target_streamers && campaign.target_streamers !== 'all') {
-        try {
-          setSelectedStreamers(JSON.parse(campaign.target_streamers));
-        } catch {
-          setSelectedStreamers([]);
+    const nextFormData = campaign
+      ? {
+          name: campaign.name || '',
+          content_type: campaign.content_type || 'image',
+          content_url: campaign.content_url || '',
+          click_url: campaign.click_url || '',
+          budget_daily: Number(campaign.budget_daily || 0),
+          budget_total: Number(campaign.budget_total || 0),
+          cpm: Number(campaign.cpm || 1000),
+          cpc: Number(campaign.cpc || 100),
+          start_date: campaign.start_date?.split('T')[0] || '',
+          end_date: campaign.end_date?.split('T')[0] || '',
+          target_streamers: campaign.target_streamers || 'all',
+          target_categories: (() => {
+            if (Array.isArray(campaign.target_categories)) {
+              return campaign.target_categories;
+            }
+
+            if (typeof campaign.target_categories === 'string' && campaign.target_categories) {
+              try {
+                return JSON.parse(campaign.target_categories);
+              } catch {
+                return [];
+              }
+            }
+
+            return [];
+          })(),
         }
+      : defaultFormData;
+
+    setFormData(nextFormData);
+
+    if (campaign?.target_streamers && campaign.target_streamers !== 'all') {
+      try {
+        const parsed = JSON.parse(campaign.target_streamers);
+        setSelectedStreamerIds(Array.isArray(parsed) ? parsed.map(String) : []);
+      } catch {
+        setSelectedStreamerIds([]);
       }
-      if (campaign.content_url) {
-        setPreviewFile({ url: campaign.content_url, type: campaign.content_type });
-      }
+    } else {
+      setSelectedStreamerIds([]);
     }
-    fetchStreamers();
+
+    if (campaign?.content_url) {
+      setPreviewFile({
+        url: campaign.content_url,
+        type: campaign.content_type || 'image',
+        name: campaign.name || 'campaign-asset',
+        isObjectUrl: false,
+      });
+    } else {
+      setPreviewFile(null);
+    }
   }, [campaign]);
 
-  const fetchStreamers = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API_URL}/api/users/streamers`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setStreamers(data);
+  useEffect(() => {
+    return () => {
+      if (previewFile?.isObjectUrl) {
+        URL.revokeObjectURL(previewFile.url);
       }
-    } catch (err) {
-      console.error('Failed to fetch streamers', err);
-      // Mock data for development
-      setStreamers([
-        { id: 1, display_name: '스트리머A', viewers_avg: 1200 },
-        { id: 2, display_name: '스트리머B', viewers_avg: 850 },
-        { id: 3, display_name: '스트리머C', viewers_avg: 2100 },
-        { id: 4, display_name: '게임방송D', viewers_avg: 560 },
-        { id: 5, display_name: '토크방송E', viewers_avg: 340 }
-      ]);
-    }
-  };
+    };
+  }, [previewFile]);
+
+  useEffect(() => {
+    const fetchStreamers = async () => {
+      if (!authToken) {
+        return;
+      }
+
+      try {
+        const response = await mockFetch(`${API_URL}/api/users/streamers`, {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        });
+
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
+        const normalizedStreamers = Array.isArray(data)
+          ? data.map((streamer) => ({
+              ...streamer,
+              id: String(streamer.id),
+              displayName: getStreamerDisplayName(streamer),
+              viewersAvg: streamer.viewersAvg || streamer.viewers_avg || 0,
+            }))
+          : [];
+
+        setStreamers(normalizedStreamers);
+      } catch (error) {
+        console.error('Failed to fetch streamers', error);
+        setStreamers([
+          { id: '1', displayName: '스트리머A', viewersAvg: 1200 },
+          { id: '2', displayName: '스트리머B', viewersAvg: 850 },
+          { id: '3', displayName: '스트리머C', viewersAvg: 2100 },
+        ]);
+      }
+    };
+
+    fetchStreamers();
+  }, [authToken]);
+
+  const selectedStreamers = useMemo(
+    () => streamers.filter((streamer) => selectedStreamerIds.includes(String(streamer.id))),
+    [selectedStreamerIds, streamers]
+  );
+
+  const filteredStreamers = useMemo(() => {
+    const normalizedQuery = streamerSearch.trim().toLowerCase();
+
+    return streamers.filter((streamer) => {
+      if (!normalizedQuery) {
+        return true;
+      }
+
+      return getStreamerDisplayName(streamer).toLowerCase().includes(normalizedQuery);
+    });
+  }, [streamerSearch, streamers]);
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((current) => ({
+      ...current,
+      [field]: value,
+    }));
+
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: null }));
+      setErrors((current) => ({
+        ...current,
+        [field]: null,
+      }));
     }
   };
 
-  const handleFileSelect = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handleFileSelect = (event) => {
+    const file = event.target.files?.[0];
 
-    // Validate file type
-    const isImage = file.type.startsWith('image/');
-    const isVideo = file.type.startsWith('video/');
-    if (!isImage && !isVideo) {
-      setErrors(prev => ({ ...prev, content: '이미지 또는 동영상 파일만 업로드 가능합니다.' }));
+    if (!file) {
       return;
     }
 
-    // Preview
-    const url = URL.createObjectURL(file);
-    setPreviewFile({ url, file, type: isVideo ? 'video' : 'image' });
-    setFormData(prev => ({ ...prev, content_type: isVideo ? 'video' : 'image' }));
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
 
-    // In a real app, you would upload to server here
-    // For now, we'll use a placeholder URL
+    if (!isImage && !isVideo) {
+      setErrors((current) => ({
+        ...current,
+        content: '이미지 또는 동영상 파일만 업로드할 수 있습니다.',
+      }));
+      return;
+    }
+
+    if (previewFile?.isObjectUrl) {
+      URL.revokeObjectURL(previewFile.url);
+    }
+
+    const previewUrl = URL.createObjectURL(file);
+    setPreviewFile({
+      url: previewUrl,
+      type: isVideo ? 'video' : 'image',
+      name: file.name,
+      isObjectUrl: true,
+    });
+
+    handleInputChange('content_type', isVideo ? 'video' : 'image');
+
     setUploading(true);
-    setTimeout(() => {
-      // Simulated upload - in production, upload to CDN
-      setFormData(prev => ({ ...prev, content_url: url }));
+    window.setTimeout(() => {
+      handleInputChange('content_url', previewUrl);
       setUploading(false);
-    }, 1000);
+    }, 600);
   };
 
-  const handleStreamerToggle = (streamer) => {
-    if (formData.target_streamers === 'all') {
-      setFormData(prev => ({ ...prev, target_streamers: 'selected' }));
-    }
-    const exists = selectedStreamers.find(s => s.id === streamer.id);
-    if (exists) {
-      setSelectedStreamers(prev => prev.filter(s => s.id !== streamer.id));
-    } else {
-      setSelectedStreamers(prev => [...prev, streamer]);
-    }
+  const handleStreamerToggle = (streamerId) => {
+    handleInputChange('target_streamers', 'selected');
+
+    setSelectedStreamerIds((current) =>
+      current.includes(String(streamerId))
+        ? current.filter((id) => id !== String(streamerId))
+        : [...current, String(streamerId)]
+    );
   };
 
   const removeStreamer = (streamerId) => {
-    setSelectedStreamers(prev => prev.filter(s => s.id !== streamerId));
-    if (selectedStreamers.length <= 1) {
-      setFormData(prev => ({ ...prev, target_streamers: 'all' }));
-    }
+    setSelectedStreamerIds((current) => {
+      const nextIds = current.filter((id) => id !== String(streamerId));
+
+      if (nextIds.length === 0) {
+        handleInputChange('target_streamers', 'all');
+      }
+
+      return nextIds;
+    });
   };
 
-  const toggleCategory = (category) => {
-    const exists = formData.target_categories.includes(category);
-    if (exists) {
-      handleInputChange('target_categories', formData.target_categories.filter(c => c !== category));
-    } else {
-      handleInputChange('target_categories', [...formData.target_categories, category]);
-    }
+  const toggleCategory = (categoryId) => {
+    const alreadySelected = formData.target_categories.includes(categoryId);
+    handleInputChange(
+      'target_categories',
+      alreadySelected
+        ? formData.target_categories.filter((item) => item !== categoryId)
+        : [...formData.target_categories, categoryId]
+    );
   };
 
   const validateForm = () => {
-    const newErrors = {};
+    const nextErrors = {};
+
     if (!formData.name.trim()) {
-      newErrors.name = '캠페인 이름을 입력해주세요.';
+      nextErrors.name = '캠페인 이름을 입력해주세요.';
     }
-    if (!formData.content_url && !previewFile) {
-      newErrors.content = '광고 콘텐츠를 업로드해주세요.';
+
+    if (!formData.content_url) {
+      nextErrors.content = '광고 소재를 업로드해주세요.';
     }
-    if (formData.budget_total <= 0) {
-      newErrors.budget = '총 예산을 입력해주세요.';
+
+    if (Number(formData.budget_total) <= 0) {
+      nextErrors.budget_total = '총 예산은 1원 이상이어야 합니다.';
     }
+
     if (!formData.start_date) {
-      newErrors.start_date = '시작일을 선택해주세요.';
+      nextErrors.start_date = '시작일을 선택해주세요.';
     }
+
     if (!formData.end_date) {
-      newErrors.end_date = '종료일을 선택해주세요.';
+      nextErrors.end_date = '종료일을 선택해주세요.';
     }
+
     if (formData.start_date && formData.end_date && formData.start_date > formData.end_date) {
-      newErrors.end_date = '종료일은 시작일 이후여야 합니다.';
+      nextErrors.end_date = '종료일은 시작일보다 같거나 늦어야 합니다.';
     }
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    if (formData.target_streamers === 'selected' && selectedStreamerIds.length === 0) {
+      nextErrors.target_streamers = '노출할 스트리머를 하나 이상 선택해주세요.';
+    }
+
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+
+    if (!authToken || !validateForm()) {
+      return;
+    }
+
+    const serializedTargetStreamers = formData.target_streamers === 'all' ? 'all' : JSON.stringify(selectedStreamerIds);
+
+    const payload = {
+      name: formData.name.trim(),
+      content_type: formData.content_type,
+      content_url: formData.content_url,
+      click_url: formData.click_url,
+      budget_daily: Number(formData.budget_daily || 0),
+      budget_total: Number(formData.budget_total || 0),
+      cpm: Number(formData.cpm || 0),
+      cpc: Number(formData.cpc || 0),
+      start_date: formData.start_date,
+      end_date: formData.end_date,
+      target_streamers: serializedTargetStreamers,
+      target_categories: JSON.stringify(formData.target_categories),
+      contentType: formData.content_type,
+      contentUrl: formData.content_url,
+      clickUrl: formData.click_url,
+      budgetDaily: Number(formData.budget_daily || 0),
+      budgetTotal: Number(formData.budget_total || 0),
+      startDate: formData.start_date,
+      endDate: formData.end_date,
+      targetStreamers: formData.target_streamers === 'all' ? 'all' : selectedStreamerIds,
+      targetCategories: formData.target_categories,
+    };
 
     setSubmitting(true);
+
     try {
-      const token = localStorage.getItem('token');
-      const payload = {
-        ...formData,
-        target_streamers: formData.target_streamers === 'all' ? 'all' : JSON.stringify(selectedStreamers.map(s => s.id)),
-        target_categories: JSON.stringify(formData.target_categories)
-      };
-
-      const url = isEdit
-        ? `${API_URL}/api/ads/campaigns/${campaign.id}`
-        : `${API_URL}/api/ads/campaigns`;
-
-      const res = await fetch(url, {
+      const url = isEdit ? `${API_URL}/api/ads/campaigns/${campaign.id}` : `${API_URL}/api/ads/campaigns`;
+      const response = await mockFetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          Authorization: `Bearer ${authToken}`,
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
       });
 
-      if (res.ok) {
-        onSuccess();
-      } else {
-        const data = await res.json();
-        setErrors({ submit: data.error || '캠페인 저장에 실패했습니다.' });
+      if (!response.ok) {
+        const data = await response.json();
+        setErrors({
+          submit: data.error || '캠페인을 저장하지 못했습니다.',
+        });
+        return;
       }
-    } catch (err) {
-      console.error('Failed to save campaign', err);
-      setErrors({ submit: '네트워크 오류가 발생했습니다.' });
+
+      onSuccess?.();
+    } catch (error) {
+      console.error('Failed to save campaign', error);
+      setErrors({
+        submit: '캠페인을 저장하는 중 오류가 발생했습니다.',
+      });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const categories = [
-    { id: 'game', label: '게임' },
-    { id: 'talk', label: '토크/잡담' },
-    { id: 'music', label: '음악' },
-    { id: 'art', label: '그림/창작' },
-    { id: 'sports', label: '스포츠' },
-    { id: 'education', label: '교육' }
-  ];
-
-  const filteredStreamers = streamers.filter(s =>
-    s.display_name?.toLowerCase().includes(streamerSearch.toLowerCase())
-  );
-
   return (
     <div className="animate-fade">
       <header className="page-header">
         <div className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <button
-            className="btn-outline"
-            style={{ padding: '10px', borderRadius: '10px' }}
-            onClick={onBack}
-          >
+          <button type="button" className="btn-outline" style={{ padding: '10px', borderRadius: '10px' }} onClick={onBack}>
             <ArrowLeft size={18} />
           </button>
           <div>
             <h1>{isEdit ? '캠페인 수정' : '새 캠페인 만들기'}</h1>
-            <p>{isEdit ? '캠페인 설정을 수정합니다.' : '광고 캠페인을 생성하고 스트리머에게 노출하세요.'}</p>
+            <p>{isEdit ? '광고 노출 조건과 예산을 업데이트합니다.' : '새 광고 캠페인을 만들고 노출 대상을 설정합니다.'}</p>
           </div>
         </div>
       </header>
 
       <form onSubmit={handleSubmit} className="campaign-form-container">
-        {/* 기본 정보 */}
         <div className="campaign-form-card">
-          <h3><Info size={18} /> 기본 정보</h3>
+          <h3>
+            <Info size={18} /> 기본 정보
+          </h3>
           <div className="form-row single">
             <div className="form-field">
               <label>캠페인 이름 *</label>
               <input
                 type="text"
-                placeholder="예: 신작 게임 런칭 광고"
+                placeholder="예: 신작 게임 런칭 캠페인"
                 value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
+                onChange={(event) => handleInputChange('name', event.target.value)}
               />
-              {errors.name && <span className="hint" style={{ color: '#ef4444' }}>{errors.name}</span>}
+              {errors.name ? <span className="hint" style={{ color: '#ef4444' }}>{errors.name}</span> : null}
             </div>
           </div>
         </div>
 
-        {/* 광고 콘텐츠 */}
         <div className="campaign-form-card">
-          <h3><ImageIcon size={18} /> 광고 콘텐츠</h3>
+          <h3>
+            <ImageIcon size={18} /> 광고 소재
+          </h3>
+
           <div className="form-row single">
             <div className="form-field">
               <label>광고 유형</label>
@@ -290,10 +434,7 @@ const CampaignCreate = ({ campaign, onBack, onSuccess }) => {
           <div className="form-row single">
             <div className="form-field">
               <label>광고 파일 업로드 *</label>
-              <div
-                className={`file-upload-area ${previewFile ? 'has-file' : ''}`}
-                onClick={() => fileInputRef.current?.click()}
-              >
+              <div className={`file-upload-area ${previewFile ? 'has-file' : ''}`} onClick={() => fileInputRef.current?.click()}>
                 <input
                   ref={fileInputRef}
                   type="file"
@@ -301,132 +442,140 @@ const CampaignCreate = ({ campaign, onBack, onSuccess }) => {
                   style={{ display: 'none' }}
                   onChange={handleFileSelect}
                 />
+
                 {uploading ? (
                   <>
                     <div className="file-upload-icon">
                       <Upload size={24} className="spin" />
                     </div>
-                    <h4>업로드 중...</h4>
+                    <h4>업로드 중입니다...</h4>
                   </>
                 ) : previewFile ? (
                   <div className="file-preview">
                     {previewFile.type === 'video' ? (
                       <video src={previewFile.url} style={{ maxHeight: '120px' }} controls />
                     ) : (
-                      <img src={previewFile.url} alt="Preview" />
+                      <img src={previewFile.url} alt="광고 미리보기" />
                     )}
-                    <span className="file-preview-name">
-                      {previewFile.file?.name || '업로드된 파일'}
-                    </span>
+                    <span className="file-preview-name">{previewFile.name || '업로드한 파일'}</span>
                   </div>
                 ) : (
                   <>
                     <div className="file-upload-icon">
                       <Upload size={24} />
                     </div>
-                    <h4>파일을 드래그하거나 클릭하여 업로드</h4>
-                    <p>PNG, JPG, GIF, MP4, WebM (최대 50MB)</p>
+                    <h4>파일을 선택하거나 드래그해서 업로드하세요</h4>
+                    <p>PNG, JPG, GIF, MP4, WebM</p>
                   </>
                 )}
               </div>
-              {errors.content && <span className="hint" style={{ color: '#ef4444' }}>{errors.content}</span>}
+              {errors.content ? <span className="hint" style={{ color: '#ef4444' }}>{errors.content}</span> : null}
             </div>
           </div>
 
           <div className="form-row single">
             <div className="form-field">
-              <label><LinkIcon size={14} /> 클릭 URL (선택)</label>
+              <label>
+                <LinkIcon size={14} /> 클릭 이동 URL
+              </label>
               <input
                 type="url"
-                placeholder="https://example.com/landing-page"
+                placeholder="https://example.com"
                 value={formData.click_url}
-                onChange={(e) => handleInputChange('click_url', e.target.value)}
+                onChange={(event) => handleInputChange('click_url', event.target.value)}
               />
-              <span className="hint">광고 클릭 시 이동할 페이지 주소</span>
+              <span className="hint">광고 클릭 시 열릴 랜딩 페이지 주소입니다.</span>
             </div>
           </div>
         </div>
 
-        {/* 타겟팅 */}
         <div className="campaign-form-card">
-          <h3><Target size={18} /> 타겟팅 설정</h3>
+          <h3>
+            <Target size={18} /> 노출 대상
+          </h3>
+
           <div className="form-row single">
             <div className="form-field">
-              <label>노출 대상 스트리머</label>
+              <label>스트리머 대상</label>
               <div className="targeting-grid">
                 <div
                   className={`targeting-option ${formData.target_streamers === 'all' ? 'selected' : ''}`}
                   onClick={() => {
-                    setFormData(prev => ({ ...prev, target_streamers: 'all' }));
-                    setSelectedStreamers([]);
+                    handleInputChange('target_streamers', 'all');
+                    setSelectedStreamerIds([]);
                   }}
                 >
                   <span>전체 스트리머</span>
                 </div>
                 <div
                   className={`targeting-option ${formData.target_streamers === 'selected' ? 'selected' : ''}`}
-                  onClick={() => setFormData(prev => ({ ...prev, target_streamers: 'selected' }))}
+                  onClick={() => handleInputChange('target_streamers', 'selected')}
                 >
                   <span>선택한 스트리머만</span>
                 </div>
               </div>
+              {errors.target_streamers ? (
+                <span className="hint" style={{ color: '#ef4444' }}>{errors.target_streamers}</span>
+              ) : null}
             </div>
           </div>
 
-          {formData.target_streamers === 'selected' && (
+          {formData.target_streamers === 'selected' ? (
             <div className="form-row single" style={{ marginTop: '16px' }}>
               <div className="form-field">
                 <div className="streamer-search">
                   <Search size={16} className="streamer-search-icon" />
                   <input
                     type="text"
-                    placeholder="스트리머 검색..."
+                    placeholder="스트리머 검색"
                     value={streamerSearch}
-                    onChange={(e) => setStreamerSearch(e.target.value)}
+                    onChange={(event) => setStreamerSearch(event.target.value)}
                   />
                 </div>
+
                 <div className="streamer-list">
-                  {filteredStreamers.map(streamer => {
-                    const isSelected = selectedStreamers.some(s => s.id === streamer.id);
+                  {filteredStreamers.map((streamer) => {
+                    const id = String(streamer.id);
+                    const isSelected = selectedStreamerIds.includes(id);
+
                     return (
                       <div
-                        key={streamer.id}
+                        key={id}
                         className={`streamer-item ${isSelected ? 'selected' : ''}`}
-                        onClick={() => handleStreamerToggle(streamer)}
+                        onClick={() => handleStreamerToggle(id)}
                       >
-                        <div className="streamer-avatar">
-                          {streamer.display_name?.charAt(0)?.toUpperCase()}
-                        </div>
+                        <div className="streamer-avatar">{getStreamerDisplayName(streamer).charAt(0).toUpperCase()}</div>
                         <div className="streamer-info">
-                          <span className="streamer-name">{streamer.display_name}</span>
-                          <span className="streamer-stats">평균 시청자 {streamer.viewers_avg?.toLocaleString()}명</span>
+                          <span className="streamer-name">{getStreamerDisplayName(streamer)}</span>
+                          <span className="streamer-stats">평균 시청자 {Number(streamer.viewersAvg || 0).toLocaleString()}명</span>
                         </div>
-                        {isSelected && <Check size={16} className="streamer-check" />}
+                        {isSelected ? <Check size={16} className="streamer-check" /> : null}
                       </div>
                     );
                   })}
                 </div>
-                {selectedStreamers.length > 0 && (
+
+                {selectedStreamers.length > 0 ? (
                   <div className="selected-streamers">
-                    {selectedStreamers.map(streamer => (
+                    {selectedStreamers.map((streamer) => (
                       <span key={streamer.id} className="selected-streamer-tag">
-                        {streamer.display_name}
+                        {getStreamerDisplayName(streamer)}
                         <button type="button" onClick={() => removeStreamer(streamer.id)}>
                           <X size={12} />
                         </button>
                       </span>
                     ))}
                   </div>
-                )}
+                ) : null}
               </div>
             </div>
-          )}
+          ) : null}
 
           <div className="form-row single" style={{ marginTop: '20px' }}>
             <div className="form-field">
-              <label>타겟 카테고리 (선택)</label>
+              <label>카테고리 타겟팅</label>
               <div className="targeting-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-                {categories.map(category => (
+                {categoryOptions.map((category) => (
                   <div
                     key={category.id}
                     className={`targeting-option ${formData.target_categories.includes(category.id) ? 'selected' : ''}`}
@@ -436,100 +585,107 @@ const CampaignCreate = ({ campaign, onBack, onSuccess }) => {
                   </div>
                 ))}
               </div>
-              <span className="hint">선택하지 않으면 모든 카테고리에 노출됩니다.</span>
+              <span className="hint">선택하지 않으면 모든 카테고리에서 노출됩니다.</span>
             </div>
           </div>
         </div>
 
-        {/* 예산 설정 */}
         <div className="campaign-form-card">
-          <h3><DollarSign size={18} /> 예산 설정</h3>
+          <h3>
+            <DollarSign size={18} /> 예산 설정
+          </h3>
+
           <div className="form-row">
             <div className="form-field">
-              <label>일일 예산 (KRW)</label>
+              <label>일일 예산</label>
               <div className="budget-input-wrapper">
                 <span className="budget-currency">₩</span>
                 <input
                   type="number"
-                  placeholder="0"
+                  min="0"
                   value={formData.budget_daily || ''}
-                  onChange={(e) => handleInputChange('budget_daily', parseInt(e.target.value) || 0)}
+                  onChange={(event) => handleInputChange('budget_daily', Number(event.target.value) || 0)}
                 />
               </div>
-              <span className="hint">하루에 사용할 최대 금액 (0 = 제한 없음)</span>
+              <span className="hint">0으로 두면 일일 한도 없이 운영합니다.</span>
             </div>
+
             <div className="form-field">
-              <label>총 예산 (KRW) *</label>
+              <label>총 예산 *</label>
               <div className="budget-input-wrapper">
                 <span className="budget-currency">₩</span>
                 <input
                   type="number"
-                  placeholder="0"
+                  min="0"
                   value={formData.budget_total || ''}
-                  onChange={(e) => handleInputChange('budget_total', parseInt(e.target.value) || 0)}
+                  onChange={(event) => handleInputChange('budget_total', Number(event.target.value) || 0)}
                 />
               </div>
-              {errors.budget && <span className="hint" style={{ color: '#ef4444' }}>{errors.budget}</span>}
+              {errors.budget_total ? <span className="hint" style={{ color: '#ef4444' }}>{errors.budget_total}</span> : null}
             </div>
           </div>
+
           <div className="form-row">
             <div className="form-field">
-              <label>CPM (1,000회 노출당 비용)</label>
+              <label>CPM</label>
               <div className="budget-input-wrapper">
                 <span className="budget-currency">₩</span>
                 <input
                   type="number"
-                  placeholder="1000"
+                  min="0"
                   value={formData.cpm || ''}
-                  onChange={(e) => handleInputChange('cpm', parseInt(e.target.value) || 0)}
+                  onChange={(event) => handleInputChange('cpm', Number(event.target.value) || 0)}
                 />
               </div>
             </div>
+
             <div className="form-field">
-              <label>CPC (클릭당 비용)</label>
+              <label>CPC</label>
               <div className="budget-input-wrapper">
                 <span className="budget-currency">₩</span>
                 <input
                   type="number"
-                  placeholder="100"
+                  min="0"
                   value={formData.cpc || ''}
-                  onChange={(e) => handleInputChange('cpc', parseInt(e.target.value) || 0)}
+                  onChange={(event) => handleInputChange('cpc', Number(event.target.value) || 0)}
                 />
               </div>
             </div>
           </div>
         </div>
 
-        {/* 기간 설정 */}
         <div className="campaign-form-card">
-          <h3><Calendar size={18} /> 기간 설정</h3>
+          <h3>
+            <Info size={18} /> 집행 기간
+          </h3>
           <div className="form-row">
             <div className="form-field">
               <label>시작일 *</label>
-              <input
-                type="date"
-                value={formData.start_date}
-                onChange={(e) => handleInputChange('start_date', e.target.value)}
-              />
-              {errors.start_date && <span className="hint" style={{ color: '#ef4444' }}>{errors.start_date}</span>}
+              <input type="date" value={formData.start_date} onChange={(event) => handleInputChange('start_date', event.target.value)} />
+              {errors.start_date ? <span className="hint" style={{ color: '#ef4444' }}>{errors.start_date}</span> : null}
             </div>
+
             <div className="form-field">
               <label>종료일 *</label>
-              <input
-                type="date"
-                value={formData.end_date}
-                onChange={(e) => handleInputChange('end_date', e.target.value)}
-              />
-              {errors.end_date && <span className="hint" style={{ color: '#ef4444' }}>{errors.end_date}</span>}
+              <input type="date" value={formData.end_date} onChange={(event) => handleInputChange('end_date', event.target.value)} />
+              {errors.end_date ? <span className="hint" style={{ color: '#ef4444' }}>{errors.end_date}</span> : null}
             </div>
           </div>
         </div>
 
-        {errors.submit && (
-          <div style={{ padding: '12px 16px', background: '#fef2f2', borderRadius: '8px', color: '#ef4444', marginBottom: '20px' }}>
+        {errors.submit ? (
+          <div
+            style={{
+              padding: '12px 16px',
+              background: '#fef2f2',
+              borderRadius: '8px',
+              color: '#ef4444',
+              marginBottom: '20px',
+            }}
+          >
             {errors.submit}
           </div>
-        )}
+        ) : null}
 
         <div className="campaign-form-actions">
           <button type="button" className="btn-cancel" onClick={onBack}>

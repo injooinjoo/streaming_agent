@@ -1399,6 +1399,7 @@ const createStatsService = () => {
           `, [channelId]);
 
           if (myCategoryRows && myCategoryRows.length > 0) {
+            const nexonIds = ALL_NEXON_CATEGORY_IDS;
             myCategories = myCategoryRows.map((row, i) => ({
               rank: i + 1,
               categoryId: row.category_id,
@@ -1410,7 +1411,34 @@ const createStatsService = () => {
               peakViewers: row.peak_viewers || 0,
               avgViewers: Math.round(row.avg_viewers || 0),
               lastBroadcastAt: row.last_broadcast_at,
+              isNexon: nexonIds.includes(String(row.category_id || '')),
             }));
+
+            // Enrich with vsBenchmark (same category streamers average)
+            try {
+              const benchmarks = await this.getCategoryBenchmarks(30, platform);
+              myCategories = myCategories.map((cat) => {
+                const b = benchmarks.find(
+                  (x) =>
+                    (x.categoryId === cat.categoryId ||
+                      (x.categoryName && cat.name && String(x.categoryName).toLowerCase() === String(cat.name).toLowerCase())) &&
+                    (!platform || x.platform === platform)
+                );
+                if (!b || b.avgPeakViewers <= 0 || !cat.peakViewers) return { ...cat };
+                const ratio = cat.peakViewers / b.avgPeakViewers;
+                return {
+                  ...cat,
+                  vsBenchmark: {
+                    percent: Math.round(ratio * 100),
+                    ratio,
+                    benchmarkAvgPeak: b.avgPeakViewers,
+                    myPeak: cat.peakViewers,
+                  },
+                };
+              });
+            } catch (benchErr) {
+              console.error('Failed to fetch category benchmarks for vsBenchmark:', benchErr);
+            }
           }
         } catch (err) {
           console.error('Failed to fetch my categories:', err);
@@ -1421,16 +1449,19 @@ const createStatsService = () => {
       let hourlyActivity = [];
       let weeklyTrend = [];
       let peakHourSummary = null;
+      let categoryGrowthList = [];
 
       if (channelId) {
         try {
-          const [hourly, timeline, summary] = await Promise.all([
+          const [hourly, timeline, summary, growthList] = await Promise.all([
             this.getChatTrendByHourFiltered(7, channelId, platform),
             this.getActivityTimelineFiltered(7, channelId, platform),
             this.getChatActivitySummaryFiltered(7, channelId, platform),
+            this.getCategoryGrowth(30, channelId, platform),
           ]);
           hourlyActivity = hourly || [];
           weeklyTrend = timeline || [];
+          categoryGrowthList = growthList || [];
           if (summary) {
             peakHourSummary = {
               peakHour: summary.peakHour || null,
@@ -1442,6 +1473,66 @@ const createStatsService = () => {
           }
         } catch (err) {
           console.error('Failed to fetch broadcast insights:', err);
+        }
+      }
+
+      // 성장·분석 인사이트 (analyses)
+      const analyses = [];
+      if (channelId && myCategories.length > 0) {
+        const growthByCategory = {};
+        (categoryGrowthList || []).forEach((g) => {
+          growthByCategory[g.name] = g;
+        });
+
+        // 카테고리 성장: "지난 30일 [이름] 방송 시 평균 시청자가 전 기간 대비 +N% 성장했어요."
+        myCategories.forEach((cat) => {
+          const g = growthByCategory[cat.name];
+          if (g && g.growth !== undefined && g.growth !== 0) {
+            analyses.push({
+              type: 'category_growth',
+              title: '카테고리 성장',
+              description: `지난 30일 [${cat.name}] 방송 시 평균 시청자가 전 기간 대비 ${g.growth > 0 ? '+' : ''}${g.growth}% 성장했어요.`,
+              metric: `${g.growth > 0 ? '+' : ''}${g.growth}%`,
+              categoryName: cat.name,
+              isNexon: cat.isNexon || false,
+            });
+          }
+        });
+
+        // 같은 카테고리 방송자 대비: "같은 [이름] 방송자 평균 대비 당신의 피크 시청자는 약 P% 높아요."
+        myCategories.forEach((cat) => {
+          if (cat.vsBenchmark && cat.vsBenchmark.percent != null) {
+            analyses.push({
+              type: 'vs_benchmark',
+              title: '같은 카테고리 대비',
+              description: `같은 [${cat.name}] 방송자 평균 대비 당신의 피크 시청자는 약 ${cat.vsBenchmark.percent}% 높아요.`,
+              metric: `${cat.vsBenchmark.percent}%`,
+              comparison: `평균 ${Number(cat.vsBenchmark.benchmarkAvgPeak).toLocaleString('ko-KR')}명`,
+              categoryName: cat.name,
+              isNexon: cat.isNexon || false,
+            });
+          }
+        });
+
+        // 넥슨 게임 추천: isNexon 카테고리 중 성장·피크 상위 1~2개
+        const nexonCats = myCategories.filter((c) => c.isNexon);
+        if (nexonCats.length > 0) {
+          const withScore = nexonCats.map((c) => {
+            const g = growthByCategory[c.name];
+            const growth = g ? g.growth : 0;
+            return { ...c, _score: (growth || 0) + (c.peakViewers || 0) / 100 };
+          });
+          withScore.sort((a, b) => (b._score || 0) - (a._score || 0));
+          withScore.slice(0, 2).forEach((c) => {
+            analyses.push({
+              type: 'nexon_recommend',
+              title: '넥슨 게임 추천',
+              description: `이 카테고리에서의 성과가 두드러져요.`,
+              recommendation: `넥슨 게임 [${c.name}]을 방송에서 더 키워보세요.`,
+              categoryName: c.name,
+              isNexon: true,
+            });
+          });
         }
       }
 
@@ -1465,6 +1556,7 @@ const createStatsService = () => {
         hourlyActivity,
         weeklyTrend,
         peakHourSummary,
+        analyses,
       };
     },
 
@@ -1855,6 +1947,46 @@ const createStatsService = () => {
           growth
         };
       }).sort((a, b) => b.growth - a.growth).slice(0, 10);
+    },
+
+    /**
+     * Get category benchmarks (avg peak viewers per category across all streamers)
+     * Used for "same category streamers vs you" comparison.
+     * @param {number} days - Days to look back
+     * @param {string} platform - Optional platform filter (soop | chzzk)
+     * @returns {Promise<Array<{ categoryId: string, categoryName: string, platform: string, avgPeakViewers: number, streamerCount: number }>>}
+     */
+    async getCategoryBenchmarks(days = 30, platform = null) {
+      const filter = buildChannelFilter(null, platform);
+      const platformCondition = filter.conditions.length > 0
+        ? 'AND ' + filter.conditions.map(c => c.replace('target_channel_id', 'bs.channel_id').replace('platform', 'bs.platform')).join(' AND ')
+        : '';
+
+      const rows = await streamingDbAll(
+        `SELECT
+          bs.category_id as "categoryId",
+          bs.category_name as "categoryName",
+          bs.platform,
+          AVG(bs.peak_viewer_count) as "avgPeakViewers",
+          COUNT(DISTINCT bs.channel_id) as "streamerCount"
+        FROM broadcast_segments bs
+        WHERE bs.segment_started_at >= ${sql.dateSubtract(days, 'days')}
+          AND bs.category_name IS NOT NULL
+          AND bs.category_name <> ''
+          ${platformCondition}
+        GROUP BY bs.category_id, bs.category_name, bs.platform
+        HAVING COUNT(*) >= 1
+        ORDER BY "avgPeakViewers" DESC`,
+        filter.params
+      );
+
+      return (rows || []).map(r => ({
+        categoryId: r.categoryId || '',
+        categoryName: r.categoryName || '',
+        platform: r.platform || '',
+        avgPeakViewers: Math.round(Number(r.avgPeakViewers) || 0),
+        streamerCount: Number(r.streamerCount) || 0
+      }));
     },
 
     /**

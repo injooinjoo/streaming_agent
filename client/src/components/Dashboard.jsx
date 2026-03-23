@@ -1,986 +1,648 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Layout, MessageSquare, Bell, FileText, BarChart3,
-  HelpCircle, ExternalLink, Settings,
-  RefreshCw, Megaphone, Palette, Sparkles, Activity, TrendingUp, MousePointerClick,
-  DollarSign, Store, LogOut, LogIn, Users, PieChart, ChevronRight, ChevronDown, Disc,
-  Smile, Vote, Film, Bot, Menu, X, Sun, Moon, Gamepad2, Shield, Eye, EyeOff, Rocket, Trophy, Heart, Clock, Video
+  Bot,
+  ChevronDown,
+  Disc,
+  ExternalLink,
+  Film,
+  Gamepad2,
+  Gift,
+  Layout,
+  Link2,
+  Megaphone,
+  Menu,
+  MessageSquare,
+  Palette,
+  PanelsTopLeft,
+  Settings,
+  Smile,
+  Store,
+  Trophy,
+  Upload,
+  Video,
+  Vote,
+  X,
 } from 'lucide-react';
-import { API_URL, mockFetch } from '../config/api';
-import { formatCurrency, formatFullNumber } from '../utils/formatters';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
-import { useStreamingMode } from '../contexts/StreamingModeContext';
-import ChatSettings from './settings/ChatSettings';
-import AlertSettings from './settings/AlertSettings';
-import SubtitleSettings from './settings/SubtitleSettings';
-import GoalSettings from './settings/GoalSettings';
-import TickerSettings from './settings/TickerSettings';
-import DesignSettings from './settings/DesignSettings';
-import AccountSettings from './settings/AccountSettings';
-import AdSettings from './settings/AdSettings';
-import RouletteSettings from './settings/RouletteSettings';
-import EmojiSettings from './settings/EmojiSettings';
-import VotingSettings from './settings/VotingSettings';
-import CreditsSettings from './settings/CreditsSettings';
-import BotSettings from './settings/BotSettings';
-import GameSettings from './settings/GameSettings';
-import GameCatalog from './catalog/GameCatalog';
-import GameDetail from './catalog/GameDetail';
-import StreamerDetail from './streamer/StreamerDetail';
-import MarketplaceTab from './marketplace/MarketplaceTab';
-import RevenueAnalytics from './analytics/RevenueAnalytics';
-import ViewerAnalytics from './analytics/ViewerAnalytics';
-import ContentAnalytics from './analytics/ContentAnalytics';
-import AdAnalytics from './analytics/AdAnalytics';
-import ViewershipDashboard from './analytics/ViewershipDashboard';
+import { getPlatformLogo } from '../utils/mediaAssets';
+import LoadingSpinner from './shared/LoadingSpinner';
+import ServiceBar from './shared/ServiceBar';
 import {
-  BarChart, Bar, AreaChart, Area,
-  XAxis, YAxis, Tooltip, ResponsiveContainer
-} from 'recharts';
+  EmptyState,
+  EntityCard,
+  InsightStrip,
+  LogoChip,
+  MediaHero,
+  MediaRail,
+  PosterCard,
+  SectionCard,
+  StatusBadge,
+} from './shared/studio';
+import StreamerGuideTabs from './streaming-home/StreamerGuideTabs';
+import './vod-agent/VodAgentDashboard.css';
 import './Dashboard.css';
+import './DashboardNConnect.css';
+import './DashboardStudio.css';
+import './settings/shared/SettingsStudio.css';
+import './nconnect/NConnectPortal.css';
 
-const Dashboard = () => {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [events, setEvents] = useState([]);
+const ChatSettings = lazy(() => import('./settings/ChatSettings'));
+const AlertSettings = lazy(() => import('./settings/AlertSettings'));
+const SubtitleSettings = lazy(() => import('./settings/SubtitleSettings'));
+const GoalSettings = lazy(() => import('./settings/GoalSettings'));
+const TickerSettings = lazy(() => import('./settings/TickerSettings'));
+const DesignSettings = lazy(() => import('./settings/DesignSettings'));
+const AccountSettings = lazy(() => import('./settings/AccountSettings'));
+const AdSettings = lazy(() => import('./settings/AdSettings'));
+const RouletteSettings = lazy(() => import('./settings/RouletteSettings'));
+const EmojiSettings = lazy(() => import('./settings/EmojiSettings'));
+const VotingSettings = lazy(() => import('./settings/VotingSettings'));
+const CreditsSettings = lazy(() => import('./settings/CreditsSettings'));
+const BotSettings = lazy(() => import('./settings/BotSettings'));
+const GameSettings = lazy(() => import('./settings/GameSettings'));
+const MarketplaceTab = lazy(() => import('./marketplace/MarketplaceTab'));
+const VodHome = lazy(() => import('./vod-agent/tabs/VodHome'));
+const VodUpload = lazy(() => import('./vod-agent/tabs/VodUpload'));
+const VodVideos = lazy(() => import('./vod-agent/tabs/VodVideos'));
+const VodAnalytics = lazy(() => import('./vod-agent/tabs/VodAnalytics'));
+const VodRevenue = lazy(() => import('./vod-agent/tabs/VodRevenue'));
+const VodSettings = lazy(() => import('./vod-agent/tabs/VodSettings'));
+const NConnectHome = lazy(() => import('./nconnect/NConnectHome'));
+const NConnectContents = lazy(() => import('./nconnect/NConnectContents'));
+const NConnectRanking = lazy(() => import('./nconnect/NConnectRanking'));
+const NConnectLink = lazy(() => import('./nconnect/NConnectLink'));
+const NConnectMembership = lazy(() => import('./nconnect/NConnectMembership'));
+const NConnectRewards = lazy(() => import('./nconnect/NConnectRewards'));
+const NConnectNotices = lazy(() => import('./nconnect/NConnectNotices'));
+const StreamingTipsTab = lazy(() => import('./streaming-home/StreamingTipsTab'));
+
+const STREAMING_HOME_HERO = {
+  imageUrl:
+    'https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80',
+  badge: '2026 HUB',
+  aspect: 'portrait',
+};
+
+const STREAMING_HOME_MODULES = [
+  {
+    id: 'chat',
+    title: '채팅 오버레이',
+    eyebrow: 'Realtime Chat',
+    description: '실시간 채팅과 하이라이트를 화면 중심으로 정리합니다.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=900&q=80',
+    platform: 'soop',
+    badge: '26+ 테마',
+  },
+  {
+    id: 'alerts',
+    title: '후원 알림',
+    eyebrow: 'Alert Motion',
+    description: 'TTS, 사운드, 최소 금액 조건을 미리보기 중심으로 조정합니다.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=900&q=80',
+    platform: 'youtube',
+    badge: 'TTS',
+  },
+  {
+    id: 'goals',
+    title: '목표 그래프',
+    eyebrow: 'Goal Track',
+    description: '목표치와 진행률을 텍스트보다 시각 흐름 위주로 보여줍니다.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=900&q=80',
+    platform: 'chzzk',
+    badge: 'Live Sync',
+  },
+  {
+    id: 'subtitles',
+    title: '후원 자막',
+    eyebrow: 'Subtitle Layer',
+    description: '짧은 문장과 강조 애니메이션 중심으로 정돈했습니다.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=900&q=80',
+    platform: 'twitch',
+    badge: 'Caption',
+  },
+  {
+    id: 'roulette',
+    title: '룰렛 이벤트',
+    eyebrow: 'Interaction',
+    description: '참여형 이벤트를 대표 아트 카드처럼 노출합니다.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1511882150382-421056c89033?auto=format&fit=crop&w=900&q=80',
+    platform: 'soop',
+    badge: 'Event',
+  },
+  {
+    id: 'ads',
+    title: '광고 오버레이',
+    eyebrow: 'Brand Layer',
+    description: '브랜드 슬롯과 캠페인 노출 영역을 깔끔하게 관리합니다.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=900&q=80',
+    platform: 'youtube',
+    badge: 'Sponsor',
+  },
+];
+
+const STREAMING_HOME_OPERATIONS = [
+  {
+    id: 'design',
+    title: '디자인 스튜디오',
+    description: '오버레이 전체 톤과 브랜드 규칙을 한 곳에서 조정합니다.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=900&q=80',
+    logoUrl: getPlatformLogo('chzzk'),
+    stats: [
+      { label: 'Preset', value: '12개' },
+      { label: 'Update', value: '실시간' },
+    ],
+  },
+  {
+    id: 'marketplace',
+    title: '디자인 마켓',
+    description: '다운로드 가능한 템플릿과 커버 자산을 바로 탐색합니다.',
+    imageUrl:
+      'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80',
+    logoUrl: getPlatformLogo('soop'),
+    stats: [
+      { label: 'Template', value: '140+' },
+      { label: 'Curated', value: '주간' },
+    ],
+  },
+];
+
+const TOP_TITLE_MAP = {
+  account: '계정 설정',
+  'streaming-home': '스트리밍 에이전트',
+  'streaming-tips': '방송 가이드',
+  'nconnect-home': 'N-CONNECT',
+  'nconnect-contents': '진행 중인 콘텐츠',
+  'nconnect-ranking': '포인트 TOP100',
+  'nconnect-link': '계정 연결',
+  'nconnect-membership': '멤버십 설명',
+  'nconnect-rewards': '보상 안내',
+  'nconnect-notices': '공지사항',
+  'vod-home': 'VOD 스튜디오',
+  'vod-upload': '업로드',
+  'vod-videos': '영상 관리',
+  'vod-analytics': '성과 분석',
+  'vod-revenue': '수익 현황',
+  'vod-settings': '채널 설정',
+};
+
+const TOP_SUBTITLE_MAP = {
+  account: '채널 연결, 보안, 플랫폼 계정 상태를 한 화면에서 관리합니다.',
+  'streaming-home': '오버레이와 운영 자산을 미디어 중심 허브로 정리했습니다.',
+  'streaming-tips': '방송 실전 팁과 운영 인사이트를 카드 중심으로 탐색합니다.',
+  'nconnect-home': '넥슨 게임 중심 멤버십 운영과 보상 구조를 한눈에 확인합니다.',
+  'nconnect-contents': '지금 진행 중인 콘텐츠를 썸네일과 플랫폼 배지 중심으로 확인합니다.',
+  'nconnect-ranking': '실시간 포인트 순위와 상위 크리에이터 흐름을 확인합니다.',
+  'nconnect-link': '플랫폼과 넥슨 계정 연결 상태를 관리합니다.',
+  'nconnect-membership': '멤버십 구조와 참여 방식, 시즌 규칙을 요약합니다.',
+  'nconnect-rewards': '보상 체계와 지급 흐름을 카드 구조로 정리했습니다.',
+  'nconnect-notices': '운영 공지와 일정 변동 사항을 확인합니다.',
+  'vod-home': '업로드, 편집, 수익화를 위한 영상 운영 허브입니다.',
+  'vod-upload': '업로드 큐와 메타데이터 정리를 진행합니다.',
+  'vod-videos': '기존 업로드 영상과 상태를 관리합니다.',
+  'vod-analytics': '조회수와 유지율 중심으로 성과를 확인합니다.',
+  'vod-revenue': '광고와 후원 기반 수익 흐름을 확인합니다.',
+  'vod-settings': 'VOD 채널 관련 설정을 관리합니다.',
+};
+
+const Dashboard = ({ mode = 'nconnect', initialTab }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useAuth();
+  const isVodShell = location.pathname.startsWith('/vod-agent');
+  const defaultTab =
+    initialTab || (mode === 'streaming' ? 'streaming-home' : isVodShell ? 'vod-home' : 'nconnect-home');
+
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsedGroups, setCollapsedGroups] = useState({});
-  const [feedTab, setFeedTab] = useState('pending');
-  const [selectedGameId, setSelectedGameId] = useState(null);
-  const [selectedPersonId, setSelectedPersonId] = useState(null);
+  const [accountInitialSubTab, setAccountInitialSubTab] = useState('connection');
+  const [accountActivationKey, setAccountActivationKey] = useState(0);
 
-  // 캐시에서 초기값 로드
-  const getCachedDashboardData = () => {
-    try {
-      const cached = localStorage.getItem('dashboardData');
-      if (cached) {
-        const { data, timestamp } = JSON.parse(cached);
-        // 5분 이내의 캐시만 사용
-        if (Date.now() - timestamp < 5 * 60 * 1000) {
-          return data;
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load cached dashboard data', e);
-    }
-    return null;
-  };
+  const overlayHash = user?.userHash || user?.overlayHash || null;
+  const dashboardMode = mode === 'streaming' ? 'streaming' : 'nconnect';
 
-  const defaultDashboardData = {
-    todayDonation: null,
-    donationCount: null,
-    peakViewers: null,
-    newSubs: null,
-    insights: [],
-    myCategories: [],
-    topCategories: [],
-    hourlyActivity: [],
-    weeklyTrend: [],
-    peakHourSummary: null,
-  };
-
-  const [dashboardData, setDashboardData] = useState(() => getCachedDashboardData() || defaultDashboardData);
-  const [dashboardLoading, setDashboardLoading] = useState(!getCachedDashboardData());
-  const [lastFetchedAt, setLastFetchedAt] = useState(getCachedDashboardData() ? new Date() : null);
-
-  const { user, isAuthenticated, logout, loading: authLoading } = useAuth();
-  const { resolvedTheme, toggleTheme } = useTheme();
-  const { isStreamingMode, toggleStreamingMode } = useStreamingMode();
-  const navigate = useNavigate();
-
-  // Developer mode - 바로 어드민 대시보드로 이동
-  const handleDeveloperMode = () => {
-    navigate('/admin-dashboard');
-  };
-
-  // 게임 카탈로그 핸들러
-  const handleGameSelect = (gameId) => {
-    console.log('[Dashboard] handleGameSelect - clicked gameId:', gameId);
-    setSelectedGameId(gameId);
-    setActiveTab('game-detail');
-  };
-
-  const handleBackFromGame = () => {
-    setSelectedGameId(null);
-    setActiveTab('game-catalog');
-  };
-
-  // 스트리머 상세 핸들러
-  const handleStreamerSelect = (personId) => {
-    setSelectedPersonId(personId);
-    setActiveTab('streamer-detail');
-  };
-
-  const handleBackFromStreamer = () => {
-    setSelectedPersonId(null);
-    // 이전 탭으로 돌아가기 (viewership 또는 game-detail)
-    setActiveTab('viewership');
-  };
-
-  // 네비게이션: 큰 분류(내 방송 분석 / 내 방송 설정)로 정돈
-  const menuGroups = [
-    {
-      label: '홈',
-      items: [
-        { id: 'dashboard', label: '대시보드', icon: <Layout size={18} /> }
-      ]
-    },
-    {
-      label: '내 방송 분석',
-      items: [
-        { id: 'analytics-revenue', label: '수익 분석', icon: <DollarSign size={18} /> },
-        { id: 'analytics-viewers', label: '시청자 분석', icon: <Users size={18} /> },
-        { id: 'analytics-content', label: '콘텐츠 분석', icon: <PieChart size={18} /> },
-        { id: 'analytics-ads', label: '광고 분석', icon: <TrendingUp size={18} /> },
-        { id: 'viewership', label: '인기 방송', icon: <Activity size={18} /> },
-        { id: 'game-catalog', label: '카테고리', icon: <Trophy size={18} /> }
-      ]
-    },
-    {
-      label: '내 방송 설정',
-      items: [
-        { id: 'chat', label: '채팅 오버레이', icon: <MessageSquare size={18} /> },
-        { id: 'alerts', label: '후원 알림', icon: <Bell size={18} /> },
-        { id: 'game', label: '게임 오버레이', icon: <Gamepad2 size={18} /> },
-        { id: 'subtitles', label: '자막', icon: <FileText size={18} /> },
-        { id: 'goals', label: '목표치 위젯', icon: <BarChart3 size={18} /> },
-        { id: 'ticker', label: '뉴스 티커', icon: <Megaphone size={18} /> },
-        { id: 'roulette', label: '룰렛', icon: <Disc size={18} /> },
-        { id: 'emoji', label: '이모지 리액션', icon: <Smile size={18} /> },
-        { id: 'voting', label: '투표', icon: <Vote size={18} /> },
-        { id: 'credits', label: '엔딩 크레딧', icon: <Film size={18} /> },
-        { id: 'bot', label: '챗봇', icon: <Bot size={18} /> },
-        { id: 'ads', label: '광고 위젯', icon: <Megaphone size={18} /> }
-      ]
-    },
-    {
-      label: '디자인',
-      items: [
-        { id: 'design', label: '디자인 커스터마이저', icon: <Palette size={18} /> },
-        { id: 'marketplace', label: '디자인 마켓', icon: <Store size={18} /> }
-      ]
-    }
-  ];
-
-  const menuItems = menuGroups.flatMap((group) => group.items);
-
-  // 인사이트 아이콘 및 스타일 매핑
-  const getInsightStyle = (type) => {
-    const styles = {
-      donation: { icon: <DollarSign size={18} />, color: '#10b981', bg: 'rgba(16, 185, 129, 0.1)', title: '후원 현황' },
-      viewers: { icon: <TrendingUp size={18} />, color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)', title: '시청자 현황' },
-      platform: { icon: <Activity size={18} />, color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.1)', title: '플랫폼 활동' },
-      info: { icon: <Sparkles size={18} />, color: '#6b7280', bg: 'rgba(107, 114, 128, 0.1)', title: '안내' }
-    };
-    return styles[type] || styles.info;
-  };
-
-  const fetchEvents = async () => {
-    try {
-      // 로그인된 사용자의 channelId로 필터링
-      const params = new URLSearchParams();
-      if (user?.channelId) params.set('channelId', user.channelId);
-      const queryString = params.toString();
-      const url = `${API_URL}/api/events${queryString ? `?${queryString}` : ''}`;
-      const res = await mockFetch(url);
-      const data = await res.json();
-      setEvents(data);
-    } catch (e) {
-      console.error('Failed to fetch events', e);
-    }
-  };
-
-  const fetchDashboardData = async () => {
-    console.log('[Dashboard] fetchDashboardData called, user:', { channelId: user?.channelId, platform: user?.platform });
-    try {
-      // 캐시가 없을 때만 로딩 표시
-      if (!getCachedDashboardData()) {
-        setDashboardLoading(true);
-      }
-      // 로그인된 사용자의 channelId와 platform을 쿼리 파라미터로 전달
-      const params = new URLSearchParams();
-      if (user?.channelId) params.set('channelId', user.channelId);
-      if (user?.platform) params.set('platform', user.platform);
-      const queryString = params.toString();
-      const url = `${API_URL}/api/stats/dashboard${queryString ? `?${queryString}` : ''}`;
-      console.log('[Dashboard] Fetching URL:', url);
-      const res = await mockFetch(url);
-      console.log('[Dashboard] Response status:', res.status, res.ok);
-      if (res.ok) {
-        const data = await res.json();
-        console.log('[Dashboard] API Response:', { myCategories: data.myCategories, topCategories: data.topCategories?.length });
-        setDashboardData(data);
-        setLastFetchedAt(new Date());
-        // 캐시에 저장
-        try {
-          localStorage.setItem('dashboardData', JSON.stringify({
-            data,
-            timestamp: Date.now()
-          }));
-        } catch (e) {
-          console.error('Failed to cache dashboard data', e);
-        }
-      }
-    } catch (e) {
-      console.error('[Dashboard] Failed to fetch dashboard data', e);
-    } finally {
-      setDashboardLoading(false);
-    }
-  };
-
-  // 대시보드 탭일 때 이벤트 + 대시보드 데이터 병렬 fetch
-  // 탭 비활성(브라우저 탭 이탈) 시 폴링 자동 중지
   useEffect(() => {
-    if (authLoading || activeTab !== 'dashboard') return;
+    setActiveTab(defaultTab);
+  }, [defaultTab]);
 
-    // 초기 로드: 병렬 실행
-    fetchEvents();
-    fetchDashboardData();
+  const nConnectMenu = useMemo(
+    () => [
+      {
+        label: 'N-CONNECT',
+        items: [
+          { id: 'nconnect-home', label: '홈', icon: <Layout size={18} /> },
+          { id: 'nconnect-contents', label: '진행 중인 콘텐츠', icon: <PanelsTopLeft size={18} /> },
+          { id: 'nconnect-ranking', label: '포인트 TOP100', icon: <Trophy size={18} /> },
+        ],
+      },
+      {
+        label: '멤버십',
+        items: [
+          { id: 'nconnect-link', label: '계정 연결', icon: <Link2 size={18} /> },
+          { id: 'nconnect-membership', label: '멤버십 설명', icon: <Gift size={18} /> },
+          { id: 'nconnect-rewards', label: '보상 안내', icon: <Gift size={18} /> },
+          { id: 'nconnect-notices', label: '공지사항', icon: <Megaphone size={18} /> },
+        ],
+      },
+    ],
+    []
+  );
 
-    let eventsInterval = setInterval(fetchEvents, 3000);
-    let dashboardInterval = setInterval(fetchDashboardData, 30000);
+  const vodMenu = useMemo(
+    () => [
+      {
+        label: 'VOD 스튜디오',
+        items: [
+          { id: 'vod-home', label: '홈', icon: <Video size={18} /> },
+          { id: 'vod-upload', label: '업로드', icon: <Upload size={18} /> },
+          { id: 'vod-videos', label: '영상 관리', icon: <Video size={18} /> },
+          { id: 'vod-analytics', label: '성과 분석', icon: <Trophy size={18} /> },
+          { id: 'vod-revenue', label: '수익 현황', icon: <Gift size={18} /> },
+          { id: 'vod-settings', label: '채널 설정', icon: <Settings size={18} /> },
+        ],
+      },
+    ],
+    []
+  );
 
-    // 브라우저 탭 비활성 시 폴링 중지
-    const handleVisibility = () => {
-      if (document.hidden) {
-        clearInterval(eventsInterval);
-        clearInterval(dashboardInterval);
-        eventsInterval = null;
-        dashboardInterval = null;
-      } else {
-        // 탭 복귀 시 즉시 fetch + 폴링 재시작
-        fetchEvents();
-        fetchDashboardData();
-        eventsInterval = setInterval(fetchEvents, 3000);
-        dashboardInterval = setInterval(fetchDashboardData, 30000);
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
+  const streamingAgentMenu = useMemo(
+    () => [
+      {
+        label: '허브',
+        items: [
+          { id: 'streaming-home', label: '스트리밍 홈', icon: <Layout size={18} /> },
+          { id: 'streaming-tips', label: '방송 팁', icon: <PanelsTopLeft size={18} /> },
+        ],
+      },
+      {
+        label: '오버레이 설정',
+        items: [
+          { id: 'chat', label: '채팅 오버레이', icon: <MessageSquare size={18} /> },
+          { id: 'alerts', label: '후원 알림', icon: <Megaphone size={18} /> },
+          { id: 'game', label: '게임 설정', icon: <Gamepad2 size={18} /> },
+          { id: 'subtitles', label: '후원 자막', icon: <Gift size={18} /> },
+          { id: 'goals', label: '목표 그래프', icon: <Trophy size={18} /> },
+          { id: 'ticker', label: '전광판', icon: <Megaphone size={18} /> },
+          { id: 'roulette', label: '룰렛', icon: <Disc size={18} /> },
+          { id: 'emoji', label: '이모지 반응', icon: <Smile size={18} /> },
+          { id: 'voting', label: '실시간 투표', icon: <Vote size={18} /> },
+          { id: 'credits', label: '엔딩 크레딧', icon: <Film size={18} /> },
+          { id: 'bot', label: '봇 설정', icon: <Bot size={18} /> },
+          { id: 'ads', label: '광고 오버레이', icon: <Megaphone size={18} /> },
+        ],
+      },
+      {
+        label: '운영 자산',
+        items: [
+          { id: 'design', label: '디자인 스튜디오', icon: <Palette size={18} /> },
+          { id: 'marketplace', label: '디자인 마켓', icon: <Store size={18} /> },
+        ],
+      },
+    ],
+    []
+  );
 
-    return () => {
-      clearInterval(eventsInterval);
-      clearInterval(dashboardInterval);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, [authLoading, user?.channelId, user?.platform, activeTab]);
-
-  const renderContent = () => {
-    if (activeTab === 'dashboard') {
-      return (
-        <div className="animate-fade">
-          <header className="page-header">
-            <div className="page-title">
-              <h1>{user?.displayName || '스트리머'}님, 안녕하세요!</h1>
-              <p>
-                {new Date().getMonth() + 1}월 방송 현황
-                {' · '}
-                {dashboardLoading
-                  ? '업데이트 중...'
-                  : lastFetchedAt
-                    ? `마지막 업데이트: ${lastFetchedAt.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`
-                    : '데이터 로딩 대기 중'}
-              </p>
-            </div>
-            <div className="header-buttons">
-              <button className="btn btn-outline">
-                <HelpCircle size={16} /> 피드백 보내기
-              </button>
-              <button className="btn btn-primary" onClick={() => window.open('/overlay/chat', '_blank')}>
-                <ExternalLink size={16} /> 오버레이 열기
-              </button>
-            </div>
-          </header>
-
-          <div className="stats-grid">
-            <div className="stat-card clickable" onClick={() => setActiveTab('analytics-revenue')}>
-              <div className="stat-header">
-                <span>총 후원 금액</span>
-                <ChevronRight size={14} />
-              </div>
-              <div className="stat-content">
-                <span className={`value sensitive-blur ${dashboardData.todayDonation === null ? 'no-data' : ''}`}>
-                  {dashboardData.todayDonation === null ? '--' : formatCurrency(dashboardData.todayDonation)}
-                </span>
-                <span className="subtext">{dashboardData.todayDonation === null ? '데이터 수집 대기 중' : '이번 달 누적'}</span>
-              </div>
-              <div className="stat-link">
-                <span>수익 분석 보기</span>
-                <ChevronRight size={14} />
-              </div>
-            </div>
-            <div className="stat-card clickable" onClick={() => setActiveTab('analytics-viewers')}>
-              <div className="stat-header">
-                <span>최고 시청자 수</span>
-                <ChevronRight size={14} />
-              </div>
-              <div className="stat-content">
-                <span className={`value sensitive-blur ${dashboardData.peakViewers === null ? 'no-data' : ''}`}>
-                  {dashboardData.peakViewers === null ? '--' : `${formatFullNumber(dashboardData.peakViewers)}명`}
-                </span>
-                <span className="subtext">{dashboardData.peakViewers === null ? '데이터 수집 대기 중' : '이번 달 기준'}</span>
-              </div>
-              <div className="stat-link">
-                <span>시청자 분석 보기</span>
-                <ChevronRight size={14} />
-              </div>
-            </div>
-            <div className="stat-card clickable" onClick={() => setActiveTab('analytics-revenue')}>
-              <div className="stat-header">
-                <span>신규 구독</span>
-                <ChevronRight size={14} />
-              </div>
-              <div className="stat-content">
-                <span className={`value sensitive-blur ${dashboardData.newSubs === null ? 'no-data' : ''}`}>
-                  {dashboardData.newSubs === null ? '--' : `${formatFullNumber(dashboardData.newSubs)}명`}
-                </span>
-                <span className="subtext">{dashboardData.newSubs === null ? '데이터 수집 대기 중' : '이번 달 기준'}</span>
-              </div>
-              <div className="stat-link">
-                <span>수익 분석 보기</span>
-                <ChevronRight size={14} />
-              </div>
-            </div>
-          </div>
-
-          <div className="insights-section">
-            <div className="section-header">
-              <div className="section-title">
-                <Sparkles size={18} className="text-primary" />
-                <h2>실시간 인사이트</h2>
-              </div>
-              <span className="timestamp">{dashboardLoading ? '로딩 중...' : '방금 업데이트됨'}</span>
-            </div>
-            <div className="insights-grid">
-              {dashboardData.insights.length > 0 ? dashboardData.insights.map((insight, index) => {
-                const style = getInsightStyle(insight.type);
-                return (
-                  <div key={index} className="insight-card" style={{ borderColor: style.color }}>
-                     <div className="insight-icon" style={{ backgroundColor: style.bg, color: style.color }}>
-                       {style.icon}
-                     </div>
-                     <div className="insight-content">
-                       <span className="insight-label" style={{ color: style.color }}>{style.title}</span>
-                       <p className="insight-message">{insight.message}</p>
-                       {insight.value && <span className="insight-value" style={{ color: style.color, fontWeight: 600 }}>{insight.value}</span>}
-                     </div>
-                  </div>
-                );
-              }) : (
-                <div className="insight-card" style={{ borderColor: '#6b7280' }}>
-                  <div className="insight-icon" style={{ backgroundColor: 'rgba(107, 114, 128, 0.1)', color: '#6b7280' }}>
-                    <Sparkles size={18} />
-                  </div>
-                  <div className="insight-content">
-                    <span className="insight-label" style={{ color: '#6b7280' }}>시작하기</span>
-                    <p className="insight-message">플랫폼을 연결하여 데이터 수집을 시작하세요</p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 내 방송 카테고리 섹션 */}
-          {dashboardData.myCategories && dashboardData.myCategories.length > 0 && (
-            <div className="categories-wrapper my-categories-wrapper">
-              <div className="categories-section">
-                <div className="section-header">
-                  <div className="section-title">
-                    <Activity size={18} className="text-primary" />
-                    <h2>내 방송 카테고리</h2>
-                  </div>
-                  <button className="section-link" onClick={() => setActiveTab('analytics-content')}>
-                    콘텐츠 분석 보기 <ChevronRight size={14} />
-                  </button>
-                </div>
-                <div className="categories-grid my-categories-grid">
-                  {dashboardData.myCategories.map((category, index) => {
-                    // 방송 시간 포맷팅
-                    const formatBroadcastTime = (minutes) => {
-                      if (!minutes || minutes === 0) return '0분';
-                      const hours = Math.floor(minutes / 60);
-                      const mins = minutes % 60;
-                      if (hours === 0) return `${mins}분`;
-                      if (mins === 0) return `${hours}시간`;
-                      return `${hours}시간 ${mins}분`;
-                    };
-
-                    // 마지막 방송 시간 포맷팅
-                    const formatLastBroadcast = (dateStr) => {
-                      if (!dateStr) return '-';
-                      const date = new Date(dateStr);
-                      const now = new Date();
-                      const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-                      if (diffDays === 0) return '오늘';
-                      if (diffDays === 1) return '어제';
-                      if (diffDays < 7) return `${diffDays}일 전`;
-                      if (diffDays < 30) return `${Math.floor(diffDays / 7)}주 전`;
-                      return `${Math.floor(diffDays / 30)}개월 전`;
-                    };
-
-                    return (
-                      <div key={category.categoryId || index} className="category-card my-category-card">
-                        <div className="category-rank my-rank">#{index + 1}</div>
-                        <div className="category-image">
-                          {category.imageUrl ? (
-                            <img src={category.imageUrl} alt={category.name} />
-                          ) : (
-                            <Gamepad2 size={40} className="category-placeholder-icon" />
-                          )}
-                        </div>
-                        <div className="category-info">
-                          <span className="category-name">{category.name}</span>
-                          {category.genre && (
-                            <span className="category-genre">{category.genre}</span>
-                          )}
-                          <div className="category-stats my-category-stats">
-                            <div className="category-stat">
-                              <span className="stat-label">방송 횟수</span>
-                              <span className="stat-value">{category.broadcastCount}회</span>
-                            </div>
-                            <div className="category-stat">
-                              <span className="stat-label">총 방송시간</span>
-                              <span className="stat-value">{formatBroadcastTime(category.totalMinutes)}</span>
-                            </div>
-                            <div className="category-stat">
-                              <span className="stat-label">최고 시청자</span>
-                              <span className="stat-value sensitive-blur">{formatFullNumber(category.peakViewers || 0)}</span>
-                            </div>
-                            <div className="category-stat">
-                              <span className="stat-label">마지막 방송</span>
-                              <span className="stat-value">{formatLastBroadcast(category.lastBroadcastAt)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 방송 인사이트 섹션 */}
-          {isAuthenticated && (dashboardData.hourlyActivity?.length > 0 || dashboardData.weeklyTrend?.length > 0 || dashboardData.peakHourSummary) && (
-            <div className="broadcast-insights-wrapper">
-              <div className="broadcast-insights-section">
-                <div className="section-header">
-                  <div className="section-title">
-                    <Activity size={18} className="text-primary" />
-                    <h2>방송 인사이트</h2>
-                  </div>
-                  <button className="section-link" onClick={() => setActiveTab('analytics-viewers')}>
-                    상세 분석 보기 <ChevronRight size={14} />
-                  </button>
-                </div>
-
-                {/* 피크 시간대 요약 카드 */}
-                {dashboardData.peakHourSummary && (
-                  <div className="insight-summary-cards">
-                    <div className="bi-card glass-premium">
-                      <div className="bi-card__icon">
-                        <Clock size={20} />
-                      </div>
-                      <div className="bi-card__content">
-                        <span className="bi-card__label">피크 시간대</span>
-                        <span className="bi-card__value">{dashboardData.peakHourSummary.peakHour || '--'}</span>
-                      </div>
-                    </div>
-                    <div className="bi-card glass-premium">
-                      <div className="bi-card__icon">
-                        <Users size={20} />
-                      </div>
-                      <div className="bi-card__content">
-                        <span className="bi-card__label">주간 고유 시청자</span>
-                        <span className="bi-card__value sensitive-blur">
-                          {formatFullNumber(dashboardData.peakHourSummary.uniqueViewers)}명
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bi-card glass-premium">
-                      <div className="bi-card__icon">
-                        <MessageSquare size={20} />
-                      </div>
-                      <div className="bi-card__content">
-                        <span className="bi-card__label">주간 채팅</span>
-                        <span className="bi-card__value sensitive-blur">
-                          {formatFullNumber(dashboardData.peakHourSummary.totalChats)}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="bi-card glass-premium">
-                      <div className="bi-card__icon">
-                        <TrendingUp size={20} />
-                      </div>
-                      <div className="bi-card__content">
-                        <span className="bi-card__label">활동일</span>
-                        <span className="bi-card__value">
-                          {dashboardData.peakHourSummary.activeDays}일 / 7일
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* 차트 영역 */}
-                <div className="insight-charts-grid">
-                  {/* 시간대별 활동 패턴 */}
-                  {dashboardData.hourlyActivity?.length > 0 && (
-                    <div className="insight-chart-card glass-premium">
-                      <h3 className="insight-chart-title">시간대별 활동 패턴</h3>
-                      <p className="insight-chart-desc">최근 7일 기준, 시청자가 가장 많은 시간대</p>
-                      <div style={{ width: '100%', height: 180 }}>
-                        <ResponsiveContainer>
-                          <BarChart data={dashboardData.hourlyActivity} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                            <defs>
-                              <linearGradient id="barGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#8b5cf6" stopOpacity={0.9} />
-                                <stop offset="100%" stopColor="#6366f1" stopOpacity={0.7} />
-                              </linearGradient>
-                            </defs>
-                            <XAxis
-                              dataKey="hour"
-                              tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-                              tickFormatter={(v) => v.replace(':00', '')}
-                              interval={2}
-                            />
-                            <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
-                            <Tooltip
-                              contentStyle={{
-                                background: 'var(--bg-card)',
-                                border: '1px solid rgba(139, 92, 246, 0.3)',
-                                borderRadius: '8px',
-                                fontSize: '12px',
-                                boxShadow: '0 4px 12px rgba(139, 92, 246, 0.15)'
-                              }}
-                              formatter={(value, name) => [
-                                formatFullNumber(value),
-                                name === 'viewers' ? '시청자' : '채팅'
-                              ]}
-                              labelFormatter={(label) => `${label} 시`}
-                            />
-                            <Bar dataKey="viewers" fill="url(#barGradient)" radius={[4, 4, 0, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* 최근 7일 추이 */}
-                  {dashboardData.weeklyTrend?.length > 0 && (
-                    <div className="insight-chart-card glass-premium">
-                      <h3 className="insight-chart-title">최근 7일 추이</h3>
-                      <p className="insight-chart-desc">일별 활성 시청자 수 변화</p>
-                      <div style={{ width: '100%', height: 180 }}>
-                        <ResponsiveContainer>
-                          <AreaChart data={[...dashboardData.weeklyTrend].reverse()} margin={{ top: 5, right: 5, left: -20, bottom: 5 }}>
-                            <defs>
-                              <linearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
-                                <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.05} />
-                              </linearGradient>
-                            </defs>
-                            <XAxis
-                              dataKey="date"
-                              tick={{ fontSize: 11, fill: 'var(--text-muted)' }}
-                              tickFormatter={(v) => v.slice(5)}
-                            />
-                            <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
-                            <Tooltip
-                              contentStyle={{
-                                background: 'var(--bg-card)',
-                                border: '1px solid rgba(59, 130, 246, 0.3)',
-                                borderRadius: '8px',
-                                fontSize: '12px',
-                                boxShadow: '0 4px 12px rgba(59, 130, 246, 0.15)'
-                              }}
-                              formatter={(value, name) => [
-                                formatFullNumber(value),
-                                name === 'activeViewers' ? '시청자' : '채팅'
-                              ]}
-                            />
-                            <Area
-                              type="monotone"
-                              dataKey="activeViewers"
-                              stroke="#3b82f6"
-                              fill="url(#areaGradient)"
-                              strokeWidth={2.5}
-                            />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          <div className="tabs-container">
-            <button
-              className={`tab-btn ${feedTab === 'pending' ? 'active' : ''}`}
-              onClick={() => setFeedTab('pending')}
-            >대기중인 이벤트</button>
-            <button
-              className={`tab-btn ${feedTab === 'stats' ? 'active' : ''}`}
-              onClick={() => setFeedTab('stats')}
-            >방송 통계</button>
-          </div>
-
-          {feedTab === 'pending' && (
-            <div className="table-container">
-              <div className="table-header">
-                <span>이벤트 타입</span>
-                <span>상태</span>
-                <span>송신자</span>
-                <span>금액 / 메시지</span>
-                <span style={{ textAlign: 'right' }}>액션</span>
-              </div>
-              <div className="table-list">
-                {events.filter(ev => ev.type === 'donation').length === 0 ? (
-                  <div className="empty-state">대기중인 알림이 없습니다.</div>
-                ) : (
-                  events.filter(ev => ev.type === 'donation').slice(0, 5).map((ev) => {
-                    const getPlatformLogo = (p) => {
-                      const lowP = p?.toLowerCase();
-                      if (lowP === 'soop') return '/assets/logos/soop.png';
-                      if (lowP === 'chzzk') return '/assets/logos/chzzk.png';
-                      if (lowP === 'youtube') return '/assets/logos/youtube.png';
-                      if (lowP === 'twitch') return '/assets/logos/twitch.png';
-                      return null;
-                    };
-                    const platformLogo = getPlatformLogo(ev.platform);
-
-                    return (
-                      <div key={ev.id} className="table-row">
-                        <div className="recipient-cell">
-                          <div className="platform-tag" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            {platformLogo ? (
-                               <img src={platformLogo} alt={ev.platform} style={{ height: '14px', borderRadius: '2px' }} />
-                            ) : (
-                               <Bell size={12} className="text-muted" />
-                            )}
-                          </div>
-                          <div className="recipient-icon" style={{ marginLeft: '4px' }}>
-                            <Bell size={14} />
-                          </div>
-                          <span>후원 알림</span>
-                        </div>
-                        <div>
-                          <span className="status-badge pending" style={{ background: '#fef3c7', color: '#d97706' }}>
-                            대기중
-                          </span>
-                        </div>
-                        <div style={{ fontWeight: 500 }}>{ev.sender}</div>
-                        <div className="amount-cell">{formatCurrency(ev.amount || 0)}</div>
-                        <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                          <button className="btn btn-sm btn-primary" style={{ padding: '4px 12px', fontSize: '12px' }}>
-                            재생
-                          </button>
-                          <button className="btn btn-sm btn-outline" style={{ padding: '4px 12px', fontSize: '12px' }}>
-                            스킵
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          )}
-
-          {feedTab === 'stats' && (() => {
-            // 채팅 이벤트 필터 (분당 채팅 수 계산용)
-            const chatEvents = events.filter(ev => ev.type === 'chat');
-
-            // 분당 채팅 수 계산 (최근 이벤트 기준)
-            const calcChatPerMinute = () => {
-              if (chatEvents.length < 2) return chatEvents.length;
-              const timestamps = chatEvents.map(ev => new Date(ev.timestamp).getTime()).sort((a, b) => a - b);
-              const timeDiffMinutes = (timestamps[timestamps.length - 1] - timestamps[0]) / (1000 * 60);
-              if (timeDiffMinutes < 1) return chatEvents.length;
-              return Math.round(chatEvents.length / timeDiffMinutes);
-            };
-
-            // 평균 후원 금액 (서버에서 받은 데이터 기반)
-            const avgDonation = dashboardData.donationCount && dashboardData.donationCount > 0
-              ? Math.round(dashboardData.todayDonation / dashboardData.donationCount)
-              : null;
-
-            // Helper for displaying null-safe values
-            const formatValue = (val, prefix = '', suffix = '') =>
-              val === null ? '--' : `${prefix}${formatFullNumber(val)}${suffix}`;
-
-            return (
-              <div className="table-container">
-                <div className="stats-summary-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', padding: '24px' }}>
-                  <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>분당 채팅 수</div>
-                    <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--text-main)' }}>
-                      {calcChatPerMinute()}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>최근 기준</div>
-                  </div>
-                  <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 후원 수</div>
-                    <div style={{ fontSize: '28px', fontWeight: '700', color: dashboardData.donationCount === null ? 'var(--text-muted)' : 'var(--text-main)' }}>
-                      {formatValue(dashboardData.donationCount)}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{dashboardData.donationCount === null ? '데이터 수집 대기 중' : '이번 달'}</div>
-                  </div>
-                  <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>총 후원 금액</div>
-                    <div style={{ fontSize: '28px', fontWeight: '700', color: dashboardData.todayDonation === null ? 'var(--text-muted)' : 'var(--primary-color)' }}>
-                      {formatValue(dashboardData.todayDonation, '₩')}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{dashboardData.todayDonation === null ? '데이터 수집 대기 중' : '이번 달'}</div>
-                  </div>
-                  <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>평균 후원 금액</div>
-                    <div style={{ fontSize: '28px', fontWeight: '700', color: avgDonation === null ? 'var(--text-muted)' : 'var(--text-main)' }}>
-                      {formatValue(avgDonation, '₩')}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{avgDonation === null ? '데이터 수집 대기 중' : '후원당 평균'}</div>
-                  </div>
-                  <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>최고 시청자</div>
-                    <div style={{ fontSize: '28px', fontWeight: '700', color: dashboardData.peakViewers === null ? 'var(--text-muted)' : 'var(--text-main)' }}>
-                      {formatValue(dashboardData.peakViewers)}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{dashboardData.peakViewers === null ? '데이터 수집 대기 중' : '이번 달'}</div>
-                  </div>
-                  <div className="stat-summary-card" style={{ background: 'var(--bg-card)', borderRadius: '12px', padding: '20px', border: '1px solid var(--border-light)' }}>
-                    <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>신규 구독</div>
-                    <div style={{ fontSize: '28px', fontWeight: '700', color: dashboardData.newSubs === null ? 'var(--text-muted)' : 'var(--text-main)' }}>
-                      {formatValue(dashboardData.newSubs)}
-                    </div>
-                    <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>{dashboardData.newSubs === null ? '데이터 수집 대기 중' : '이번 달'}</div>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-      );
-    }
-
-    // 게임 카탈로그 특별 처리 (props 필요)
-    if (activeTab === 'game-catalog') {
-      return <GameCatalog onGameSelect={handleGameSelect} />;
-    }
-    if (activeTab === 'game-detail') {
-      return <GameDetail gameId={selectedGameId} onBack={handleBackFromGame} onStreamerSelect={handleStreamerSelect} />;
-    }
-    if (activeTab === 'streamer-detail') {
-      return <StreamerDetail personId={selectedPersonId} onBack={handleBackFromStreamer} />;
-    }
-
-    const ActiveComponent = {
-      chat: ChatSettings,
-      alerts: AlertSettings,
-      subtitles: SubtitleSettings,
-      goals: GoalSettings,
-      ticker: TickerSettings,
-      roulette: RouletteSettings,
-      emoji: EmojiSettings,
-      voting: VotingSettings,
-      credits: CreditsSettings,
-      bot: BotSettings,
-      game: GameSettings,
-      design: DesignSettings,
-      account: AccountSettings,
-      ads: AdSettings,
-      marketplace: MarketplaceTab,
-      'analytics-revenue': RevenueAnalytics,
-      'analytics-viewers': ViewerAnalytics,
-      'analytics-content': ContentAnalytics,
-      'analytics-ads': AdAnalytics,
-    }[activeTab];
-
-    if (activeTab === 'viewership') {
-      return <ViewershipDashboard onStreamerSelect={handleStreamerSelect} />;
-    }
-
-    if (activeTab === 'game') {
-      return <ActiveComponent onNavigate={setActiveTab} />;
-    }
-
-    if (ActiveComponent) return <ActiveComponent />;
-
-    return (
-      <div className="animate-fade">
-        <header className="page-header">
-          <div className="page-title">
-            <h1>{menuItems.find(m => m.id === activeTab)?.label} 설정</h1>
-            <p>스트림 분위기에 맞춰 위젯을 커스터마이징 해보세요.</p>
-          </div>
-        </header>
-        <div className="placeholder-view">
-          <Settings size={64} style={{ color: 'var(--border-medium)' }} strokeWidth={1} />
-          <h3 style={{ color: 'var(--text-main)', marginTop: '20px' }}>기능 준비 중</h3>
-          <p>더 많은 커스터마이징 옵션을 준비하고 있습니다. 조금만 기다려주세요!</p>
-          <button className="btn btn-outline" style={{ marginTop: 'var(--spacing-lg)' }} onClick={() => setActiveTab('dashboard')}>
-            대시보드로 돌아가기
-          </button>
-        </div>
-      </div>
-    );
-  };
+  const menuGroups = mode === 'streaming' ? streamingAgentMenu : isVodShell ? vodMenu : nConnectMenu;
 
   const handleNavItemClick = (itemId) => {
     setActiveTab(itemId);
-    setMobileMenuOpen(false); // 모바일에서 메뉴 선택 시 드로어 닫기
+    setMobileMenuOpen(false);
   };
 
   const toggleGroup = (groupLabel) => {
-    setCollapsedGroups(prev => ({
+    setCollapsedGroups((prev) => ({
       ...prev,
-      [groupLabel]: !prev[groupLabel]
+      [groupLabel]: !prev[groupLabel],
     }));
   };
 
-  return (
-    <div className="dashboard-layout">
-      {/* 모바일 오버레이 배경 */}
-      {mobileMenuOpen && (
-        <div className="mobile-overlay" onClick={() => setMobileMenuOpen(false)} />
-      )}
+  const openDefaultOverlay = () => {
+    const overlayPath = overlayHash ? `/overlay/${overlayHash}/chat` : '/overlay/chat';
+    window.open(overlayPath, '_blank', 'noopener,noreferrer');
+  };
 
-      <aside className={`chatgpt-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
-        {/* 닫기 버튼 - 모바일에서만 표시 */}
-        {mobileMenuOpen && (
+  const openExternalGuide = (url) => {
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const openAccountSettings = (subTab = 'connection') => {
+    setAccountInitialSubTab(subTab);
+    setAccountActivationKey((prev) => prev + 1);
+    setActiveTab('account');
+    setMobileMenuOpen(false);
+  };
+
+  useEffect(() => {
+    if (!location.state?.openAccount) return;
+
+    openAccountSettings(location.state.subTab || 'connection');
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
+
+  const renderStreamingHome = () => (
+    <div className="animate-fade studio-dashboard-home">
+      <MediaHero
+        accent="blue"
+        eyebrow={
+          <>
+            <StatusBadge className="studio-accent--blue">스트리밍 에이전트</StatusBadge>
+            <LogoChip logoUrl={getPlatformLogo('soop')} label="SOOP" />
+            <LogoChip logoUrl={getPlatformLogo('chzzk')} label="CHZZK" />
+            <LogoChip logoUrl={getPlatformLogo('youtube')} label="YouTube" />
+            <LogoChip logoUrl={getPlatformLogo('twitch')} label="Twitch" />
+          </>
+        }
+        title="텍스트보다 화면이 먼저 보이는 오버레이 허브"
+        description="대표 비주얼, 모듈 썸네일, 플랫폼 로고, 운영 자산을 같은 문법으로 묶어 방송 준비 흐름이 한 화면에서 바로 읽히도록 바꿨습니다."
+        media={STREAMING_HOME_HERO}
+        stats={[
+          { label: '활성 모듈', value: '12개' },
+          { label: '지원 플랫폼', value: '4개' },
+          { label: '동기화', value: '실시간' },
+        ]}
+        actions={
+          <>
+            <button type="button" className="btn btn-outline" onClick={() => navigate('/n-connect')}>
+              <Layout size={16} />
+              N-CONNECT 보기
+            </button>
+            <button type="button" className="btn btn-primary" onClick={openDefaultOverlay}>
+              <ExternalLink size={16} />
+              기본 오버레이 열기
+            </button>
+          </>
+        }
+        insights={[
+          {
+            kicker: 'Media First',
+            title: '아이콘 대신 실제 모듈 썸네일',
+            body: '긴 설명보다 이미지, 배지, 핵심 상태만 빠르게 읽히도록 구성했습니다.',
+          },
+          {
+            kicker: 'Operation',
+            title: '디자인 자산도 같은 흐름으로 연결',
+            body: '디자인 스튜디오와 마켓플레이스도 별도 도구가 아니라 같은 허브 경험 안에 놓았습니다.',
+          },
+        ]}
+        overlay={
+          <div className="studio-dashboard-home__hero-stack">
+            <div className="studio-dashboard-home__hero-metric">
+              <span>Live Preview</span>
+              <strong>화면 미리보기 중심</strong>
+              <p>이미지, 로고, 상태 배지로 지금 보이는 구성을 바로 파악할 수 있습니다.</p>
+            </div>
+            <InsightStrip
+              items={[
+                { kicker: 'Cover', title: '카테고리 썸네일', body: '게임 이미지 우선 노출' },
+                { kicker: 'Brand', title: '플랫폼 배지', body: '서비스 식별 속도 개선' },
+              ]}
+            />
+          </div>
+        }
+      />
+
+      <StreamerGuideTabs
+        onInternalTab={handleNavItemClick}
+        onAccountSubTab={openAccountSettings}
+        onExternalLink={openExternalGuide}
+      />
+
+      <MediaRail
+        title="오버레이 모듈"
+        description="가장 자주 여는 모듈을 썸네일 중심 포스터 카드로 재구성했습니다."
+      >
+        {STREAMING_HOME_MODULES.map((item) => (
+          <PosterCard
+            key={item.id}
+            accent="blue"
+            eyebrow={item.eyebrow}
+            title={item.title}
+            description={item.description}
+            imageUrl={item.imageUrl}
+            logoUrl={getPlatformLogo(item.platform)}
+            badge={item.badge}
+            stats={[
+              { label: '상태', value: '준비됨' },
+              { label: '진입', value: '즉시' },
+            ]}
+            onClick={() => handleNavItemClick(item.id)}
+          />
+        ))}
+      </MediaRail>
+
+      <SectionCard
+        accent="blue"
+        title="운영 자산"
+        description="디자인과 마켓 자산도 이미지와 로고 중심 카드로 같은 흐름에 연결했습니다."
+      >
+        <div className="studio-dashboard-home__entity-grid">
+          {STREAMING_HOME_OPERATIONS.map((item) => (
+            <EntityCard
+              key={item.id}
+              accent="blue"
+              eyebrow="Studio Asset"
+              title={item.title}
+              description={item.description}
+              avatarUrl={item.logoUrl}
+              coverUrl={item.imageUrl}
+              logoUrl={item.logoUrl}
+              stats={item.stats}
+              action={<span className="section-link">바로 이동</span>}
+              onClick={() => handleNavItemClick(item.id)}
+            />
+          ))}
+        </div>
+      </SectionCard>
+    </div>
+  );
+
+  const tabComponents = {
+    'nconnect-home': NConnectHome,
+    'nconnect-contents': NConnectContents,
+    'nconnect-ranking': NConnectRanking,
+    'nconnect-link': NConnectLink,
+    'nconnect-membership': NConnectMembership,
+    'nconnect-rewards': NConnectRewards,
+    'nconnect-notices': NConnectNotices,
+    chat: ChatSettings,
+    alerts: AlertSettings,
+    subtitles: SubtitleSettings,
+    goals: GoalSettings,
+    ticker: TickerSettings,
+    roulette: RouletteSettings,
+    emoji: EmojiSettings,
+    voting: VotingSettings,
+    credits: CreditsSettings,
+    bot: BotSettings,
+    game: GameSettings,
+    'streaming-tips': StreamingTipsTab,
+    design: DesignSettings,
+    ads: AdSettings,
+    marketplace: MarketplaceTab,
+    'vod-home': VodHome,
+    'vod-upload': VodUpload,
+    'vod-videos': VodVideos,
+    'vod-analytics': VodAnalytics,
+    'vod-revenue': VodRevenue,
+    'vod-settings': VodSettings,
+  };
+
+  const renderContent = () => {
+    if (activeTab === 'streaming-home') return renderStreamingHome();
+
+    if (activeTab === 'account') {
+      return (
+        <AccountSettings
+          initialSubTab={accountInitialSubTab}
+          activationKey={accountActivationKey}
+        />
+      );
+    }
+
+    const ActiveComponent = tabComponents[activeTab];
+    if (ActiveComponent) {
+      if (activeTab === 'game' || activeTab === 'vod-home') {
+        return <ActiveComponent onNavigate={setActiveTab} />;
+      }
+
+      if (activeTab.startsWith('nconnect-')) {
+        return (
+          <ActiveComponent
+            onNavigate={setActiveTab}
+            onOpenAccountSettings={openAccountSettings}
+          />
+        );
+      }
+
+      return <ActiveComponent />;
+    }
+
+    return (
+      <EmptyState
+        className={`studio-accent--${mode === 'streaming' ? 'blue' : 'amber'}`}
+        icon={<Settings size={28} />}
+        title="아직 준비 중인 화면입니다"
+        description="선택한 메뉴는 현재 레이아웃을 정리 중이며, 같은 디자인 시스템으로 순차 적용됩니다."
+        action={
           <button
-            className="sidebar-close-btn"
-            onClick={() => setMobileMenuOpen(false)}
+            type="button"
+            className="btn btn-outline"
+            onClick={() =>
+              setActiveTab(mode === 'streaming' ? 'streaming-home' : isVodShell ? 'vod-home' : 'nconnect-home')
+            }
           >
-            <X size={24} />
+            홈으로 돌아가기
           </button>
-        )}
-        <nav className="sidebar-nav">
-          {menuGroups.map((group) => {
-            const isCollapsed = collapsedGroups[group.label];
-            const hasActiveItem = group.items.some(item => item.id === activeTab);
+        }
+      />
+    );
+  };
 
-            return (
-              <div key={group.label} className="nav-group">
-                <button
-                  className={`group-label-btn ${hasActiveItem ? 'has-active' : ''}`}
-                  onClick={() => toggleGroup(group.label)}
-                >
-                  <span className="group-label">{group.label}</span>
-                  <ChevronDown
-                    size={14}
-                    className={`group-chevron ${isCollapsed ? 'collapsed' : ''}`}
-                  />
-                </button>
-                <div className={`nav-group-items ${isCollapsed ? 'collapsed' : ''}`}>
-                  {group.items.map((item) => (
-                    <button
-                      key={item.id}
-                      className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
-                      onClick={() => handleNavItemClick(item.id)}
-                      title={item.label}
-                    >
-                      {item.icon}
-                      <span className="nav-label">{item.label}</span>
-                    </button>
-                  ))}
+  const getTopTitle = () => TOP_TITLE_MAP[activeTab] || 'N-CONNECT';
+
+  const getTopSubtitle = () =>
+    TOP_SUBTITLE_MAP[activeTab] || '넥슨 게임 크리에이터 운영 허브를 한 화면에서 관리합니다.';
+
+  const isNConnectHome = !isVodShell && mode !== 'streaming' && activeTab === 'nconnect-home';
+
+  return (
+    <div className="dashboard-page" data-dashboard-mode={dashboardMode}>
+      <ServiceBar />
+      <div className="dashboard-layout">
+        {mobileMenuOpen ? (
+          <div className="mobile-overlay" onClick={() => setMobileMenuOpen(false)} />
+        ) : null}
+
+        <aside className={`chatgpt-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+          {mobileMenuOpen ? (
+            <button type="button" className="sidebar-close-btn" onClick={() => setMobileMenuOpen(false)}>
+              <X size={24} />
+            </button>
+          ) : null}
+
+          <div className="sidebar-top">
+            <div className="app-logo">
+              <div className="logo-icon">{mode === 'streaming' ? 'O' : isVodShell ? 'V' : 'N'}</div>
+              <div>
+                <div className="logo-text">
+                  {mode === 'streaming' ? '스트리밍 에이전트' : isVodShell ? 'VOD 스튜디오' : 'N-CONNECT'}
+                </div>
+                <div className="sidebar-note">
+                  {mode === 'streaming'
+                    ? '오버레이 운영과 방송 자산 관리를 위한 허브'
+                    : isVodShell
+                      ? '업로드부터 수익화까지 영상 운영 전용 허브'
+                      : '넥슨 게임 멤버십 운영을 위한 전용 허브'}
                 </div>
               </div>
-            );
-          })}
-        </nav>
-
-        {isAuthenticated && (
-          <div className="sidebar-user">
-            <div className="user-profile" onClick={() => setActiveTab('account')} title="계정 설정">
-              <div className="avatar">{user?.displayName?.charAt(0)?.toUpperCase() || 'U'}</div>
-              <div className="user-info">
-                <span className="username" style={{ color: 'var(--text-main)' }}>{user?.displayName || '사용자'}</span>
-                <span className="user-plan">스트리머</span>
-              </div>
-              <button
-                className="logout-btn"
-                onClick={(e) => { e.stopPropagation(); logout(); }}
-                title="로그아웃"
-              >
-                <LogOut size={16} />
-              </button>
             </div>
           </div>
-        )}
-      </aside>
 
-      <main className="chatgpt-main">
-        <header className="top-nav">
-          {/* 모바일 햄버거 버튼 */}
-          <button
-            className="mobile-menu-btn"
-            onClick={() => setMobileMenuOpen(true)}
-          >
-            <Menu size={24} />
-          </button>
-          <button
-            className="btn btn-onboarding"
-            onClick={() => setActiveTab('account')}
-            title="시작 가이드"
-          >
-            <Rocket size={16} />
-            <span>처음이신가요?</span>
-          </button>
-          <div className="top-actions">
-            <div className={`streaming-mode-toggle ${isStreamingMode ? 'active' : ''}`}>
-              {isStreamingMode ? <EyeOff size={16} /> : <Eye size={16} />}
-              <span>스트리밍 모드</span>
-              <div className="toggle-switch">
-                <input
-                  type="checkbox"
-                  id="streaming-mode"
-                  checked={isStreamingMode}
-                  onChange={toggleStreamingMode}
-                />
-                <label htmlFor="streaming-mode"></label>
+          <nav className="sidebar-nav">
+            {menuGroups.map((group) => {
+              const isCollapsed = collapsedGroups[group.label];
+              const hasActiveItem = group.items.some((item) => item.id === activeTab);
+
+              return (
+                <div key={group.label} className="nav-group">
+                  <button
+                    type="button"
+                    className={`group-label-btn ${hasActiveItem ? 'has-active' : ''}`}
+                    onClick={() => toggleGroup(group.label)}
+                  >
+                    <span className="group-label">{group.label}</span>
+                    <ChevronDown size={14} className={`group-chevron ${isCollapsed ? 'collapsed' : ''}`} />
+                  </button>
+                  <div className={`nav-group-items ${isCollapsed ? 'collapsed' : ''}`}>
+                    {group.items.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`nav-item ${activeTab === item.id ? 'active' : ''}`}
+                        onClick={() => handleNavItemClick(item.id)}
+                        title={item.label}
+                      >
+                        {item.icon}
+                        <span className="nav-label">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </nav>
+        </aside>
+
+        <main className="chatgpt-main">
+          <header className="top-nav">
+            <button type="button" className="mobile-menu-btn" onClick={() => setMobileMenuOpen(true)}>
+              <Menu size={24} />
+            </button>
+
+            {!isNConnectHome ? (
+              <div className="top-nav__service">
+                <div className="top-nav__title">{getTopTitle()}</div>
+                <div className="top-nav__subtitle">{getTopSubtitle()}</div>
               </div>
-            </div>
-            <button
-              className="btn btn-icon btn-ghost"
-              onClick={toggleTheme}
-              title={resolvedTheme === 'dark' ? '라이트 모드' : '다크 모드'}
-            >
-              {resolvedTheme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-            <button className="btn btn-icon btn-ghost"><Bell size={18} /></button>
-            <button
-              className="btn btn-icon btn-ghost"
-              onClick={() => setActiveTab('account')}
-              title="계정 설정"
-            >
-              <Settings size={18} />
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={() => navigate('/vod-agent')}
-              title="VOD 에이전트"
-              style={{ borderRadius: 'var(--radius-full)' }}
-            >
-              <Video size={16} />
-              VOD 에이전트
-            </button>
-            <button
-              className="btn btn-secondary"
-              onClick={handleDeveloperMode}
-              title="관리자 대시보드"
-              style={{ borderRadius: 'var(--radius-full)' }}
-            >
-              <Shield size={16} />
-              관리자
-            </button>
+            ) : null}
+          </header>
+
+          <div className="content-body">
+            <Suspense fallback={<LoadingSpinner fullHeight text="화면을 준비하고 있습니다..." />}>
+              {renderContent()}
+            </Suspense>
           </div>
-        </header>
-        <div className="content-body">
-          {renderContent()}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 };

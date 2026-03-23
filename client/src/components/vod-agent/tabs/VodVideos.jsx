@@ -5,6 +5,7 @@ import {
   Grid, List, Copy, ExternalLink, Trash2, Edit
 } from 'lucide-react';
 import { videos, platforms } from '../data/mockData';
+import SensitiveValue from '../../shared/SensitiveValue';
 
 const VodVideos = () => {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
@@ -183,15 +184,17 @@ const VodVideos = () => {
                   </div>
                   <div className="vod-video-stats">
                     <div className="vod-video-stat">
-                      <div className="vod-video-stat-value">{formatNumber(totalViews)}</div>
+                      <SensitiveValue className="vod-video-stat-value">{formatNumber(totalViews)}</SensitiveValue>
                       <div className="vod-video-stat-label">조회수</div>
                     </div>
                     <div className="vod-video-stat">
-                      <div className="vod-video-stat-value">{formatNumber(totalLikes)}</div>
+                      <SensitiveValue className="vod-video-stat-value">{formatNumber(totalLikes)}</SensitiveValue>
                       <div className="vod-video-stat-label">좋아요</div>
                     </div>
                     <div className="vod-video-stat">
-                      <div className="vod-video-stat-value" style={{ color: '#10b981' }}>{formatCurrency(video.revenue)}</div>
+                      <SensitiveValue className="vod-video-stat-value" style={{ color: '#10b981' }}>
+                        {formatCurrency(video.revenue)}
+                      </SensitiveValue>
                       <div className="vod-video-stat-label">수익</div>
                     </div>
                   </div>
@@ -258,9 +261,11 @@ const VodVideos = () => {
                         {video.status === 'published' ? '게시됨' : video.status === 'processing' ? '처리중' : '오류'}
                       </span>
                     </td>
-                    <td>{formatNumber(totalViews)}</td>
-                    <td>{formatNumber(totalLikes)}</td>
-                    <td style={{ color: '#10b981', fontWeight: 600 }}>{formatCurrency(video.revenue)}</td>
+                    <td><SensitiveValue>{formatNumber(totalViews)}</SensitiveValue></td>
+                    <td><SensitiveValue>{formatNumber(totalLikes)}</SensitiveValue></td>
+                    <td style={{ color: '#10b981', fontWeight: 600 }}>
+                      <SensitiveValue>{formatCurrency(video.revenue)}</SensitiveValue>
+                    </td>
                     <td>{new Date(video.uploadedAt).toLocaleDateString('ko-KR')}</td>
                     <td>
                       <button className="btn btn-icon btn-ghost">
@@ -390,19 +395,27 @@ const VodVideos = () => {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                         <div>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>조회수</div>
-                          <div style={{ fontSize: '16px', fontWeight: 700 }}>{formatNumber(stats.views)}</div>
+                          <div style={{ fontSize: '16px', fontWeight: 700 }}>
+                            <SensitiveValue>{formatNumber(stats.views)}</SensitiveValue>
+                          </div>
                         </div>
                         <div>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>좋아요</div>
-                          <div style={{ fontSize: '16px', fontWeight: 700 }}>{formatNumber(stats.likes)}</div>
+                          <div style={{ fontSize: '16px', fontWeight: 700 }}>
+                            <SensitiveValue>{formatNumber(stats.likes)}</SensitiveValue>
+                          </div>
                         </div>
                         <div>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>댓글</div>
-                          <div style={{ fontSize: '16px', fontWeight: 700 }}>{formatNumber(stats.comments)}</div>
+                          <div style={{ fontSize: '16px', fontWeight: 700 }}>
+                            <SensitiveValue>{formatNumber(stats.comments)}</SensitiveValue>
+                          </div>
                         </div>
                         <div>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>공유</div>
-                          <div style={{ fontSize: '16px', fontWeight: 700 }}>{formatNumber(stats.shares)}</div>
+                          <div style={{ fontSize: '16px', fontWeight: 700 }}>
+                            <SensitiveValue>{formatNumber(stats.shares)}</SensitiveValue>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -418,12 +431,14 @@ const VodVideos = () => {
                     추적 링크
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontFamily: 'monospace', color: 'var(--primary)' }}>{selectedVideo.trackingLink}</span>
+                    <SensitiveValue as="span" style={{ fontFamily: 'monospace', color: 'var(--primary)' }}>
+                      {selectedVideo.trackingLink}
+                    </SensitiveValue>
                     <button className="btn btn-icon btn-ghost btn-sm" onClick={() => copyLink(selectedVideo.trackingLink)}>
                       <Copy size={14} />
                     </button>
                   </div>
-                  <div style={{ marginTop: '12px', display: 'flex', gap: '16px', fontSize: '13px' }}>
+                  <div className="vod-video-link-metrics" style={{ marginTop: '12px', display: 'flex', gap: '16px', fontSize: '13px' }}>
                     <span>클릭: <strong>{formatNumber(selectedVideo.clicks)}</strong></span>
                     <span>전환: <strong>{formatNumber(selectedVideo.conversions)}</strong></span>
                   </div>
@@ -434,7 +449,7 @@ const VodVideos = () => {
                     발생 수익
                   </div>
                   <div style={{ fontSize: '24px', fontWeight: 700, color: '#10b981' }}>
-                    {formatCurrency(selectedVideo.revenue)}
+                    <SensitiveValue>{formatCurrency(selectedVideo.revenue)}</SensitiveValue>
                   </div>
                 </div>
               </div>

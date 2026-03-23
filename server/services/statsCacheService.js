@@ -27,6 +27,7 @@ const STATS_KEYS = {
   PLATFORM_STATS: "stats:platform:stats",
   BROADCASTERS: "stats:broadcasters",
   CATEGORY_DONATIONS: "stats:content:cat-donations",
+  CATEGORY_BENCHMARKS: "stats:content:cat-benchmarks",
   REALTIME_PLATFORM: "stats:realtime:platform",
   REALTIME_TREND: "stats:realtime:trend",
   TOP_STREAMERS_REVENUE: "stats:top-streamers:revenue",

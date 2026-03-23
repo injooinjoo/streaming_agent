@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Link2, User, Shield, AlertCircle, Copy, Check,
@@ -79,10 +79,10 @@ const gamePlatforms = [
   }
 ];
 
-const AccountSettings = () => {
+const AccountSettings = ({ initialSubTab = 'connection', activationKey = 0 }) => {
   const navigate = useNavigate();
-  const { logout } = useAuth();
-  const [activeSubTab, setActiveSubTab] = useState('connection');
+  const { accessToken, logout } = useAuth();
+  const [activeSubTab, setActiveSubTab] = useState(initialSubTab);
   const [memberId] = useState('jebMz9rAmmZraG2A487U1w');
   const [copied, setCopied] = useState(false);
   const [showMemberId, setShowMemberId] = useState(false);
@@ -95,13 +95,7 @@ const AccountSettings = () => {
   const [savingGame, setSavingGame] = useState(false);
   const [loadingGame, setLoadingGame] = useState(true);
 
-  // Fetch connection status on mount
-  useEffect(() => {
-    fetchConnectionStatus();
-    fetchGameSettings();
-  }, []);
-
-  const fetchConnectionStatus = async () => {
+  const fetchConnectionStatus = useCallback(async () => {
     setLoadingConnections(true);
     try {
       const response = await mockFetch(`${API_URL}/api/connections/status`);
@@ -112,31 +106,66 @@ const AccountSettings = () => {
     } finally {
       setLoadingConnections(false);
     }
-  };
+  }, []);
 
   // 게임 연동 관련 함수들
-  const fetchGameSettings = async () => {
+  const fetchGameSettings = useCallback(async () => {
     try {
-      const res = await mockFetch(`${API_URL}/api/settings/game`);
-      const data = await res.json();
-      if (data.value && data.value !== '{}') {
-        setGameSettings(prev => ({ ...prev, ...JSON.parse(data.value) }));
+      if (accessToken) {
+        const userRes = await mockFetch(`${API_URL}/api/user-settings/game`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        const userData = await userRes.json();
+
+        if (userData.value && userData.value !== '{}') {
+          setGameSettings((prev) => ({ ...prev, ...JSON.parse(userData.value) }));
+          return;
+        }
+      }
+
+      const legacyRes = await mockFetch(`${API_URL}/api/settings/game`);
+      const legacyData = await legacyRes.json();
+      if (legacyData.value && legacyData.value !== '{}') {
+        setGameSettings((prev) => ({ ...prev, ...JSON.parse(legacyData.value) }));
       }
     } catch (err) {
       console.error('Failed to fetch game settings:', err);
     } finally {
       setLoadingGame(false);
     }
-  };
+  }, [accessToken]);
+
+  // Fetch connection status on mount
+  useEffect(() => {
+    fetchConnectionStatus();
+    fetchGameSettings();
+  }, [fetchConnectionStatus, fetchGameSettings]);
+
+  useEffect(() => {
+    setActiveSubTab(initialSubTab || 'connection');
+  }, [initialSubTab, activationKey]);
 
   const saveGameSettings = async () => {
     setSavingGame(true);
     try {
-      await mockFetch(`${API_URL}/api/settings`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'game', value: gameSettings })
-      });
+      if (accessToken) {
+        await mockFetch(`${API_URL}/api/user-settings`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ key: 'game', value: gameSettings })
+        });
+      } else {
+        await mockFetch(`${API_URL}/api/settings`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ key: 'game', value: gameSettings })
+        });
+      }
       alert('게임 연동 설정이 저장되었습니다!');
     } catch (err) {
       console.error('Failed to save game settings:', err);

@@ -11,6 +11,14 @@ import {
 import { formatCompactKo, formatFullNumber, formatGrowth } from '../../utils/formatters';
 import { API_URL, mockFetch } from '../../config/api';
 import LoadingSpinner from '../shared/LoadingSpinner';
+import {
+  EntityCard,
+  LogoChip,
+  MediaHero,
+  MediaRail,
+  StatusBadge,
+} from '../shared/studio';
+import { getPlatformLogo, normalizeMediaEntity } from '../../utils/mediaAssets';
 import './GameCatalog.css';
 
 const PLATFORM_COLORS = {
@@ -276,7 +284,7 @@ const StatsTab = ({ gameId }) => {
         </ResponsiveContainer>
       </div>
 
-      <div className="game-tab-table glass-premium">
+      <div className="game-tab-table game-tab-table--daily glass-premium">
         <h3><Monitor size={16} /> 일별 상세 데이터</h3>
         <div className="game-data-table">
           <div className="game-data-table__header">
@@ -381,7 +389,7 @@ const PlatformTab = ({ gameId }) => {
 
       {/* 플랫폼별 요약 테이블 */}
       {data.summary && data.summary.length > 0 && (
-        <div className="game-tab-table glass-premium">
+        <div className="game-tab-table game-tab-table--platform-summary glass-premium">
           <h3><Building2 size={16} /> 플랫폼별 요약</h3>
           <div className="game-data-table">
             <div className="game-data-table__header">
@@ -639,7 +647,7 @@ const RankingHistoryTab = ({ gameId, onStreamerSelect }) => {
       {!data || data.length === 0 ? (
         <div className="game-tab-empty">해당 날짜의 방송 데이터가 없습니다</div>
       ) : (
-        <div className="game-tab-table glass-premium">
+        <div className="game-tab-table game-tab-table--history glass-premium">
           <div className="game-data-table">
             <div className="game-data-table__header">
               <div className="game-data-table__col rank-col">#</div>
@@ -815,8 +823,120 @@ const GameDetail = ({ gameId, onBack, onStreamerSelect }) => {
     }
   };
 
+  const heroMedia = normalizeMediaEntity(gameData, {
+    imageUrl: gameData.imageUrl,
+    label: gameData.nameKr || gameData.name,
+  });
+  const featurePlatforms = (gameData.platforms || []).slice(0, 3);
+
   return (
     <div className="game-detail">
+      <button className="game-detail-back game-detail-back--hero" onClick={onBack}>
+        <ArrowLeft size={18} />
+        목록으로 돌아가기
+      </button>
+      <MediaHero
+        accent="amber"
+        eyebrow={
+          <>
+            <StatusBadge className="studio-accent--amber">Game Detail</StatusBadge>
+            {featurePlatforms.map((platform) => (
+              <LogoChip
+                key={platform.platform}
+                logoUrl={getPlatformLogo(platform.platform)}
+                label={platform.platform.toUpperCase()}
+              />
+            ))}
+          </>
+        }
+        title={gameData.nameKr || gameData.name}
+        description={(gameData.summary || gameData.description || '').slice(0, 170)}
+        media={{
+          imageUrl: heroMedia.imageUrl,
+          logoUrl: heroMedia.logoUrl,
+          label: gameData.nameKr || gameData.name,
+          badge: gameData.igdbRating ? `IGDB ${Math.round(gameData.igdbRating)}` : 'Live Category',
+          aspect: 'portrait',
+        }}
+        stats={[
+          { label: '실시간 시청', value: formatCompactKo(gameData.totalViewers || 0), sensitive: true },
+          { label: '활성 채널', value: formatCompactKo(gameData.totalStreamers || 0), sensitive: true },
+          { label: '플랫폼', value: `${gameData.platforms?.length || 0}개` },
+        ]}
+        actions={
+          <>
+            {gameData.igdbUrl ? (
+              <a href={gameData.igdbUrl} target="_blank" rel="noopener noreferrer" className="btn btn-outline">
+                <ExternalLink size={13} />
+                IGDB
+              </a>
+            ) : null}
+          </>
+        }
+        insights={[
+          {
+            kicker: 'Genre',
+            title: genreTags[0]?.name || fallbackTags[0] || gameData.genre || '대표 장르',
+            body: '대표 장르와 플랫폼 흐름을 미디어 중심 카드 구조로 다시 정리했습니다.',
+          },
+          {
+            kicker: 'Release',
+            title: gameData.releaseDate ? `${gameData.releaseDate} 출시` : '출시일 정보 없음',
+            body: (gameData.publisher || gameData.developer) ? `${gameData.publisher || gameData.developer} 제작` : '퍼블리셔 정보 없음',
+          },
+        ]}
+        overlay={
+          <div className="game-detail__hero-overlay">
+            <div className="game-genre-pills">
+              {(hasIgdbData ? genreTags : fallbackTags).slice(0, 4).map((tag, index) => (
+                <span key={index} className={`game-genre-pill ${index % 2 === 0 ? 'genre' : 'theme'}`}>
+                  {tag?.name || tag}
+                </span>
+              ))}
+            </div>
+            <div className="game-detail__hero-meta">
+              {(gameData.publisher || gameData.developer) && (
+                <span className="game-detail-meta"><Building2 size={14} />{gameData.publisher || gameData.developer}</span>
+              )}
+              {gameData.releaseDate && (<span className="game-detail-meta"><Calendar size={14} />{gameData.releaseDate}</span>)}
+              {gameData.igdbFollowers > 0 && (
+                <span className="game-detail-meta"><Users size={14} />{formatCompactKo(gameData.igdbFollowers)} 팔로워</span>
+              )}
+            </div>
+          </div>
+        }
+      />
+
+      <MediaRail
+        title="플랫폼 썸네일"
+        description="플랫폼별 카테고리 썸네일과 활성 규모를 카드로 묶어 어떤 무대에서 강한지 바로 보이게 했습니다."
+      >
+        {featurePlatforms.map((platform) => {
+          const media = normalizeMediaEntity(platform, {
+            imageUrl: platform.thumbnailUrl || gameData.imageUrl,
+            platform: platform.platform,
+            label: platform.categoryName || platform.platform,
+          });
+
+          return (
+            <EntityCard
+              key={`${platform.platform}-${platform.categoryId}`}
+              accent="amber"
+              eyebrow={platform.platform.toUpperCase()}
+              title={platform.categoryName || gameData.nameKr || gameData.name}
+              description={`${formatCompactKo(platform.viewerCount || 0)} 시청 · ${formatCompactKo(platform.streamerCount || 0)} 채널`}
+              coverUrl={media.imageUrl}
+              avatarUrl={getPlatformLogo(platform.platform)}
+              logoUrl={media.logoUrl}
+              badge="Platform"
+              stats={[
+                { label: '시청', value: formatCompactKo(platform.viewerCount || 0), sensitive: true },
+                { label: '채널', value: formatCompactKo(platform.streamerCount || 0), sensitive: true },
+              ]}
+            />
+          );
+        })}
+      </MediaRail>
       <button className="game-detail-back" onClick={onBack}><ArrowLeft size={18} />목록으로 돌아가기</button>
 
       {/* 게임 헤더 */}

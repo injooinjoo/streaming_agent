@@ -1,0 +1,1 @@
+import{l as o}from"./vendor-socket-CG1tBJBN.js";import{A as e}from"./index-Q0vyTll9.js";const r=o(e,{transports:["websocket","polling"],reconnection:!0,reconnectionAttempts:10,reconnectionDelay:1e3,reconnectionDelayMax:5e3,timeout:2e4,autoConnect:!0});export{r as s};

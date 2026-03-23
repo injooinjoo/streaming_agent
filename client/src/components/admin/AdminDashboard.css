@@ -1,4 +1,19 @@
 /* Admin Dashboard Layout */
+[data-streaming-mode='true'] .metric-value,
+[data-streaming-mode='true'] .revenue-card-value,
+[data-streaming-mode='true'] .top-list-table td:nth-child(3),
+[data-streaming-mode='true'] .top-list-table td:nth-child(4),
+[data-streaming-mode='true'] .top-list-table td:nth-child(5),
+[data-streaming-mode='true'] .admin-platforms .platform-card .stat-value,
+[data-streaming-mode='true'] .admin-platforms .table-header span,
+[data-streaming-mode='true'] .admin-platforms .admin-table:not(.comparison-table) tbody td:not(:first-child),
+[data-streaming-mode='true'] .admin-platforms .comparison-table tbody tr:nth-child(n + 2) td:not(:first-child),
+[data-streaming-mode='true'] .recharts-default-tooltip .recharts-tooltip-item-value,
+[data-streaming-mode='true'] .chart-tooltip p:not(.tooltip-label) {
+  filter: blur(8px);
+  user-select: none;
+}
+
 .admin-layout {
   display: flex;
   min-height: 100vh;
@@ -3799,5 +3814,94 @@
   .filter-group input {
     width: 100%;
     font-size: 13px;
+  }
+}
+
+.admin-main > * {
+  min-width: 0;
+}
+
+@media (max-width: 1024px) {
+  .admin-sidebar {
+    width: min(320px, 82vw);
+  }
+
+  .admin-header-actions {
+    flex-wrap: wrap;
+  }
+
+  .admin-header-actions > * {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .admin-header {
+    align-items: flex-start;
+  }
+
+  .admin-header-actions {
+    width: 100%;
+  }
+
+  .admin-header-actions > * {
+    flex: 1 1 calc(50% - 6px);
+    justify-content: center;
+  }
+
+  .admin-tabs {
+    scrollbar-width: none;
+  }
+
+  .admin-tabs::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@media (max-width: 430px) {
+  .admin-sidebar {
+    width: min(320px, 90vw);
+  }
+
+  .admin-header {
+    padding: 14px 12px;
+  }
+
+  .admin-content {
+    padding: 14px 12px;
+  }
+
+  .admin-header-actions > * {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .admin-tab {
+    min-width: max-content;
+  }
+}
+
+@media (max-width: 390px) {
+  .admin-header {
+    padding: 12px 10px;
+  }
+
+  .admin-content {
+    padding: 12px 10px;
+  }
+
+  .admin-tab {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .admin-header h1 {
+    font-size: 17px;
+  }
+
+  .admin-content {
+    padding: 12px 8px;
   }
 }

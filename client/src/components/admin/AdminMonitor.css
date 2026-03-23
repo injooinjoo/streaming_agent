@@ -2,6 +2,14 @@
   padding: 0;
 }
 
+[data-streaming-mode='true'] .monitor-stat-content .value,
+[data-streaming-mode='true'] .monitor-stat-content .stat-sub,
+[data-streaming-mode='true'] .monitor-number,
+[data-streaming-mode='true'] .ip-address {
+  filter: blur(8px);
+  user-select: none;
+}
+
 /* Header */
 .monitor-header {
   display: flex;
@@ -727,5 +735,171 @@
   .monitor-alert-item {
     padding: 10px;
     font-size: 13px;
+  }
+}
+
+@media (max-width: 768px) {
+  .monitor-filter-group {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .monitor-filter-group > *,
+  .monitor-filter {
+    width: 100%;
+  }
+
+  .monitor-table-wrapper {
+    overflow: visible;
+  }
+
+  .monitor-table {
+    display: block;
+  }
+
+  .monitor-table thead {
+    display: none;
+  }
+
+  .monitor-table,
+  .monitor-table tbody,
+  .monitor-table tr,
+  .monitor-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .monitor-table tbody {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .monitor-table tr {
+    padding: 14px;
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    background: var(--bg-card);
+  }
+
+  .monitor-table td {
+    padding: 0;
+    border-bottom: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .monitor-table td::before {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-muted);
+    flex-shrink: 0;
+  }
+
+  .monitor-table--broadcasts td:nth-child(1)::before { content: '플랫폼'; }
+  .monitor-table--broadcasts td:nth-child(2)::before { content: '닉네임'; }
+  .monitor-table--broadcasts td:nth-child(3)::before { content: '제목'; }
+  .monitor-table--broadcasts td:nth-child(4)::before { content: '카테고리'; }
+  .monitor-table--broadcasts td:nth-child(5)::before { content: '시청자'; }
+  .monitor-table--broadcasts td:nth-child(6)::before { content: '최고'; }
+  .monitor-table--broadcasts td:nth-child(7)::before { content: '후원액'; }
+  .monitor-table--broadcasts td:nth-child(8)::before { content: '상태'; }
+
+  .monitor-table--persons td:nth-child(1)::before { content: '플랫폼'; }
+  .monitor-table--persons td:nth-child(2)::before { content: '닉네임'; }
+  .monitor-table--persons td:nth-child(3)::before { content: '타입'; }
+  .monitor-table--persons td:nth-child(4)::before { content: '팔로워'; }
+  .monitor-table--persons td:nth-child(5)::before { content: '채팅수'; }
+  .monitor-table--persons td:nth-child(6)::before { content: '후원횟수'; }
+  .monitor-table--persons td:nth-child(7)::before { content: '후원액'; }
+  .monitor-table--persons td:nth-child(8)::before { content: '마지막 활동'; }
+
+  .monitor-table--engagement td:nth-child(1)::before { content: '플랫폼'; }
+  .monitor-table--engagement td:nth-child(2)::before { content: '시청자'; }
+  .monitor-table--engagement td:nth-child(3)::before { content: '방송자'; }
+  .monitor-table--engagement td:nth-child(4)::before { content: '채팅수'; }
+  .monitor-table--engagement td:nth-child(5)::before { content: '후원횟수'; }
+  .monitor-table--engagement td:nth-child(6)::before { content: '후원액'; }
+  .monitor-table--engagement td:nth-child(7)::before { content: '카테고리'; }
+  .monitor-table--engagement td:nth-child(8)::before { content: '마지막 참여'; }
+
+  .monitor-table--events td:nth-child(1)::before { content: '플랫폼'; }
+  .monitor-table--events td:nth-child(2)::before { content: '타입'; }
+  .monitor-table--events td:nth-child(3)::before { content: '닉네임'; }
+  .monitor-table--events td:nth-child(4)::before { content: '메시지'; }
+  .monitor-table--events td:nth-child(5)::before { content: '금액'; }
+  .monitor-table--events td:nth-child(6)::before { content: '채널'; }
+  .monitor-table--events td:nth-child(7)::before { content: '시간'; }
+
+  .monitor-table--segments td:nth-child(1)::before { content: '플랫폼'; }
+  .monitor-table--segments td:nth-child(2)::before { content: '방송자'; }
+  .monitor-table--segments td:nth-child(3)::before { content: '카테고리'; }
+  .monitor-table--segments td:nth-child(4)::before { content: '최고 시청자'; }
+  .monitor-table--segments td:nth-child(5)::before { content: '평균 시청자'; }
+  .monitor-table--segments td:nth-child(6)::before { content: '시작'; }
+  .monitor-table--segments td:nth-child(7)::before { content: '종료'; }
+
+  .monitor-table--categories td:nth-child(1)::before { content: '썸네일'; }
+  .monitor-table--categories td:nth-child(2)::before { content: '플랫폼'; }
+  .monitor-table--categories td:nth-child(3)::before { content: '카테고리'; }
+  .monitor-table--categories td:nth-child(4)::before { content: '누적 시청자'; }
+  .monitor-table--categories td:nth-child(5)::before { content: '방송 수'; }
+  .monitor-table--categories td:nth-child(6)::before { content: '수집일'; }
+
+  .monitor-truncate {
+    max-width: none;
+    white-space: normal;
+  }
+
+  .monitor-pagination {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .monitor-pagination-buttons {
+    width: 100%;
+  }
+
+  .monitor-page-btn {
+    flex: 1;
+  }
+}
+
+@media (max-width: 430px) {
+  .monitor-tabs {
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+  }
+
+  .monitor-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .monitor-table tbody {
+    padding: 10px;
+  }
+
+  .monitor-chart-card {
+    padding: 16px;
+  }
+}
+
+@media (max-width: 390px) {
+  .monitor-table tr {
+    padding: 12px;
+  }
+
+  .monitor-tab-btn {
+    padding: 8px 12px;
+  }
+}
+
+@media (max-width: 360px) {
+  .monitor-table tbody {
+    padding: 8px;
   }
 }
