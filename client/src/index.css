@@ -8,66 +8,42 @@
   --font-display: 'Newsreader', serif;
   --font-mono: 'SFMono-Regular', Consolas, "Liberation Mono", Menlo, Courier, monospace;
 
-  /* Notion Palette (Light Mode) */
+  /* Refined Palette (Linear-style / Paper & Pulse) */
   --bg-page: #FFFFFF;
-  --bg-sidebar: #F7F7F5;
-  --bg-card: #FFFFFF;
-  --bg-hover: #efefef;
-  --bg-active: #EBEBEA;
+  --bg-sidebar: #FBFBFA;
+  --bg-hover: rgba(55, 53, 47, 0.04);
+  --bg-active: rgba(55, 53, 47, 0.08);
   
   --text-main: #37352F;
   --text-secondary: #787774;
   --text-muted: #9B9A97;
-  --text-inverse: #FFFFFF;
+  --text-brand: #111111;
   
-  --border-default: #E0E0E0;
-  --border-strong: #D4D4D4;
-  --border-focus: #2383E2; /* Notion Blue */
+  --border-subtle: rgba(55, 53, 47, 0.09);
+  --border-focus: #2383E2;
 
   --primary: #2383E2;
   --primary-hover: #1B69B6;
-  --primary-text: #FFFFFF;
 
   --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
-
-  /* Layout */
+  
   --sidebar-width: 240px;
   --header-height: 48px;
 
-  /* Shadows (Minimal) */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
-  
-  /* Legacy/Compat Variables mapped to Notion Style */
-  --surface-page: var(--bg-page);
-  --surface-card: var(--bg-card);
-  --border-light: var(--border-default);
-  --glass-blur: none;
-  --glass-bg: var(--bg-page);
+  /* Motion */
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 [data-theme='dark'] {
   color-scheme: dark;
-
-  /* Notion Palette (Dark Mode) */
   --bg-page: #191919;
   --bg-sidebar: #202020;
-  --bg-card: #252525;
-  --bg-hover: #2F2F2F;
-  --bg-active: #373737;
-  
+  --bg-hover: rgba(255, 255, 255, 0.05);
+  --bg-active: rgba(255, 255, 255, 0.1);
   --text-main: #D4D4D4;
   --text-secondary: #9B9A97;
   --text-muted: #737373;
-  
-  --border-default: #2F2F2F;
-  --border-strong: #3F3F3F;
-  --border-focus: #47A0FF;
-
-  --primary: #47A0FF;
-  --primary-hover: #6EB4FF;
+  --border-subtle: rgba(255, 255, 255, 0.1);
 }
 
 *, *::before, *::after {
@@ -80,133 +56,128 @@ body {
   font-family: var(--font-ui);
   background-color: var(--bg-page);
   color: var(--text-main);
-  line-height: 1.5;
+  line-height: 1.55;
   -webkit-font-smoothing: antialiased;
+  /* Subtle grain texture for atmosphere */
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  background-attachment: fixed;
+  opacity: 0.98;
 }
 
-/* Typography Overrides */
-h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-ui); /* Default to sans, use .serif for display */
-  font-weight: 600;
-  color: var(--text-main);
-  margin-bottom: 0.5em;
-}
+/* Typography Hierarchy */
+h1 { font-size: 2.5rem; letter-spacing: -0.03em; font-weight: 700; }
+h2 { font-size: 1.5rem; letter-spacing: -0.02em; font-weight: 600; }
+h3 { font-size: 1.1rem; font-weight: 600; color: var(--text-secondary); }
 
 .serif-display {
   font-family: var(--font-display);
-}
-
-/* Component Resets for Notion Style */
-button {
-  font-family: inherit;
-  cursor: pointer;
-}
-
-input, select, textarea {
-  font-family: inherit;
-  background: transparent;
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  padding: 6px 10px;
-  color: var(--text-main);
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: var(--border-focus);
-  box-shadow: 0 0 0 2px rgba(35, 131, 226, 0.2);
-}
-
-/* Card Style - Flat & Bordered */
-.premium-card, .notion-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
-  box-shadow: none; /* No shadow by default */
-  padding: 16px;
-  transition: background-color 0.1s ease;
-}
-
-.premium-card:hover {
-  background-color: var(--bg-hover); /* Subtle hover effect instead of lift */
-  transform: none;
-  box-shadow: none;
-}
-
-/* Button Styles */
-.btn-primary {
-  background-color: var(--primary);
-  color: var(--primary-text);
-  border-radius: var(--radius-sm);
+  font-style: italic;
   font-weight: 500;
-  padding: 6px 12px;
-  transition: background-color 0.1s;
-  box-shadow: none !important;
-  background-image: none !important;
+}
+
+/* Brand Presence */
+.brand-signal {
+  font-size: 1.2rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--text-brand);
+  text-transform: uppercase;
+}
+
+/* Linear-style Layout Components */
+.workspace-container {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main-surface {
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  background: var(--bg-page);
+}
+
+/* Remove unnecessary cards - prefer plain layout */
+.notion-database {
+  border: none;
+  width: 100%;
+}
+
+.database-header {
+  display: flex;
+  border-bottom: 1px solid var(--border-subtle);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+.database-row {
+  display: flex;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background-color 0.1s var(--ease-out);
+}
+
+.database-row:hover {
+  background-color: var(--bg-hover);
+}
+
+/* Actionable Buttons */
+.btn-primary {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s var(--ease-out);
 }
 
 .btn-primary:hover {
-  background-color: var(--primary-hover);
-  transform: none;
+  background: var(--primary-hover);
+  transform: translateY(-1px);
 }
 
 .btn-ghost {
+  background: transparent;
   color: var(--text-secondary);
+  border: none;
+  padding: 6px 12px;
   border-radius: var(--radius-sm);
+  transition: background-color 0.2s;
 }
 
 .btn-ghost:hover {
-  background-color: var(--bg-hover);
+  background: var(--bg-hover);
   color: var(--text-main);
 }
 
-/* Sidebar Specifics */
-.sidebar-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 10px;
-  border-radius: var(--radius-sm);
-  color: var(--text-secondary);
-  font-weight: 500;
-  font-size: 14px;
-  transition: background-color 0.1s, color 0.1s;
-}
-
-.sidebar-item:hover {
-  background-color: var(--bg-hover);
-  color: var(--text-main);
-}
-
-.sidebar-item.active {
-  background-color: var(--bg-active);
-  color: var(--text-main);
-}
-
-/* Emoji Icons */
-.emoji-icon {
-  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-  font-size: 16px;
-  line-height: 1;
-}
-
-/* Utility */
-.text-muted { color: var(--text-muted); }
-.border-bottom { border-bottom: 1px solid var(--border-default); }
-
-/* Scrollbar */
-::-webkit-scrollbar {
+/* Motion: Pulse for Presence */
+.pulse-indicator {
   width: 8px;
   height: 8px;
+  background: #0F9F6E;
+  border-radius: 50%;
+  box-shadow: 0 0 0 rgba(15, 159, 110, 0.4);
+  animation: pulse 2s infinite;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+
+@keyframes pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(15, 159, 110, 0.7); }
+  70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(15, 159, 110, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(15, 159, 110, 0); }
 }
-::-webkit-scrollbar-thumb {
-  background: #D3D1CB;
-  border-radius: 4px;
+
+/* Entrance Sequence */
+.animate-in {
+  animation: fade-up 0.5s var(--ease-out) both;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #AEACA6;
+
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
