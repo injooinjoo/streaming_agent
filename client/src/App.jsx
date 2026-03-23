@@ -9,7 +9,8 @@ import ProtectedRoute, { AdminRoute, AdvertiserRoute } from './components/auth/P
 import RoleBasedHomeRedirect from './components/auth/RoleBasedHomeRedirect';
 import './App.css';
 
-const Dashboard = lazy(() => import('./components/Dashboard'));
+// Using the new Notion-style dashboard
+const Dashboard = lazy(() => import('./components/DashboardNotion'));
 const ChannelPage = lazy(() => import('./components/channel/ChannelPage'));
 const ChatOverlay = lazy(() => import('./components/ChatOverlay'));
 const AlertOverlay = lazy(() => import('./components/AlertOverlay'));

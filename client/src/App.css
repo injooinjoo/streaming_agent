@@ -6,4 +6,17 @@
 .app-container {
   width: 100%;
   min-height: 100vh;
+  display: flex;
+}
+
+/* Notion-style specific utilities if needed */
+.notion-header {
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.notion-body {
+  font-family: var(--font-ui);
+  color: var(--text-main);
 }
