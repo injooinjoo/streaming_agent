@@ -8,6 +8,7 @@ const NConnectNotion = lazy(() => import('./NConnectNotion'));
 const OverlayManagerNotion = lazy(() => import('./OverlayManagerNotion'));
 const EventsNotion = lazy(() => import('./EventsNotion'));
 const AdsNotion = lazy(() => import('./AdsNotion'));
+const PopularRankingNotion = lazy(() => import('./PopularRankingNotion'));
 
 const ICONS = {
   home: '🏠',
@@ -17,6 +18,7 @@ const ICONS = {
   events: '📅',
   settings: '⚙️',
   nconnect: '🤝',
+  ranking: '🏆',
   doc: '📄'
 };
 
@@ -29,7 +31,6 @@ const DashboardNotion = ({ user, mode = 'nconnect', initialTab }) => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState(initialTab || (mode === 'streaming' ? 'home' : 'nconnect'));
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [expandedSections, setExpandedSections] = useState({ workspace: true, studio: true });
 
   const handleNavigate = (tab) => setActiveTab(tab);
 
@@ -39,6 +40,7 @@ const DashboardNotion = ({ user, mode = 'nconnect', initialTab }) => {
       case 'overlays': return <OverlayManagerNotion />;
       case 'events': return <EventsNotion />;
       case 'ads': return <AdsNotion />;
+      case 'ranking': return <PopularRankingNotion />;
       case 'home':
         return (
           <div className="notion-page-content animate-in">
@@ -113,6 +115,10 @@ const DashboardNotion = ({ user, mode = 'nconnect', initialTab }) => {
               <div className={`nav-item ${activeTab === 'nconnect' ? 'active' : ''}`} onClick={() => handleNavigate('nconnect')}>
                 <span className="nav-icon">{ICONS.nconnect}</span>
                 <span className="nav-text">Community</span>
+              </div>
+              <div className={`nav-item ${activeTab === 'ranking' ? 'active' : ''}`} onClick={() => handleNavigate('ranking')}>
+                <span className="nav-icon">{ICONS.ranking}</span>
+                <span className="nav-text">Ranking</span>
               </div>
             </div>
           </div>
